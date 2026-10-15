@@ -2,7 +2,8 @@
 //
 // Measures the cost of one tenant-scoped query per call, with set_config in the same batch
 // transaction, against the same query without RLS. Also checks that the policy isolates
-// organizations. The schema is created as app_migrator and dropped at the end.
+// organizations, and that a query without tenant context returns no rows instead of failing.
+// The schema is created as app_migrator and dropped at the end.
 //
 // Run from the repository root with the local stack up: pnpm exec tsx tools/spikes/rls-overhead.ts
 
@@ -43,9 +44,11 @@ async function createFixtures(
     await owner.query(`ALTER TABLE ${SCHEMA}.secured ENABLE ROW LEVEL SECURITY`);
     await owner.query(`ALTER TABLE ${SCHEMA}.secured FORCE ROW LEVEL SECURITY`);
     await owner.query(
+      // NULLIF: once set_config has run on a connection, the setting reads as '' instead of NULL
+      // there, and ''::uuid would make every query without context fail.
       `CREATE POLICY org_isolation ON ${SCHEMA}.secured
-         USING (organization_id = current_setting('app.organization_id', true)::uuid)
-         WITH CHECK (organization_id = current_setting('app.organization_id', true)::uuid)`,
+         USING (organization_id = NULLIF(current_setting('app.organization_id', true), '')::uuid)
+         WITH CHECK (organization_id = NULLIF(current_setting('app.organization_id', true), '')::uuid)`,
     );
     await owner.query(`GRANT USAGE ON SCHEMA ${SCHEMA} TO app_user`);
     await owner.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA ${SCHEMA} TO app_user`);
@@ -94,6 +97,22 @@ async function createFixtures(
   }
 }
 
+// A connection that already ran a tenant transaction, as a pooled connection would have, then
+// queries without context. Expected: zero rows and no error.
+async function rowsWithoutContext(runtimeUrl: string, org: string): Promise<number> {
+  const client = new Client({ connectionString: runtimeUrl });
+  await client.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT set_config('app.organization_id', $1, true)`, [org]);
+    await client.query('COMMIT');
+    const result = await client.query<{ count: string }>(`SELECT count(*) AS count FROM ${SCHEMA}.secured`);
+    return Number(result.rows[0]?.count ?? -1);
+  } finally {
+    await client.end();
+  }
+}
+
 async function main(): Promise<void> {
   const migratorUrl = env('MIGRATION_DATABASE_URL');
   const runtimeUrl = env('DATABASE_URL');
@@ -133,6 +152,8 @@ async function main(): Promise<void> {
     ]);
     const ownRows = Number(isolation[1]?.[0]?.count ?? 0);
     const foreignRows = Number(isolation[2]?.[0]?.count ?? 0);
+    const noContextRows = await rowsWithoutContext(runtimeUrl, orgA);
+    const passed = ownRows === ROWS_PER_ORG && foreignRows === 0 && noContextRows === 0;
 
     const perQueryPlain = plainMs / QUERIES;
     const perQuerySecured = securedMs / QUERIES;
@@ -147,14 +168,15 @@ async function main(): Promise<void> {
           isolation: {
             ownRowsVisible: ownRows,
             foreignRowsVisible: foreignRows,
-            passed: ownRows === ROWS_PER_ORG && foreignRows === 0,
+            rowsWithoutContextOnUsedConnection: noContextRows,
+            passed,
           },
         },
         null,
         2,
       )}\n`,
     );
-    if (foreignRows !== 0 || ownRows !== ROWS_PER_ORG) {
+    if (!passed) {
       process.exitCode = 1;
     }
   } finally {

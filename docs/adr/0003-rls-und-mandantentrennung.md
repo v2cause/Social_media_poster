@@ -12,6 +12,7 @@ Mandantendaten dürfen nie über eine vergessene Filterbedingung in der Anwendun
 
 - **Rollen**: `app_migrator` ist Eigentümer und führt Migrationen aus. `app_user` nutzt die API und den Worker und hat kein BYPASSRLS. `app_system` hat BYPASSRLS und ist nur für die wenigen mandantenübergreifenden Jobs gedacht. Die Rollen legt `infra/docker/postgres/init/01-roles.sql` an. Verifiziert ist, dass `app_user` ohne BYPASSRLS verbindet und das falsche Passwort abgelehnt wird.
 - **Policies**: `ENABLE` und `FORCE ROW LEVEL SECURITY`. Der Mandanten-Schlüssel richtet sich nach der Tabelle: Inhalte tragen `workspace_id`, Billing, Mitgliedschaft und Audit tragen `organization_id`. Die Tabelle `workspace` selbst hängt an `organization_id`. Damit ist die Abweichung zwischen Architektur 6.3 (nur `workspace_id`) und Leitfaden 1.2 aufgelöst.
+- **Kontext lesen mit `NULLIF`**: Policies vergleichen mit `NULLIF(current_setting('app.organization_id', true), '')::uuid` (analog für `app.workspace_id` und `app.user_id`). Nach dem ersten transaktionslokalen `set_config` liefert eine gepoolte Verbindung für die Einstellung einen Leerstring statt NULL; ohne `NULLIF` bricht dann jede Abfrage ohne Kontext mit `invalid input syntax for type uuid` ab. Mit `NULLIF` liefert sie 0 Zeilen.
 - **Kontext**: `set_config('app.organization_id', …, true)` und `set_config('app.workspace_id', …, true)` laufen in derselben Transaktion wie die Abfrage. Nie ein sitzungsweites `SET`, weil sonst der Kontext an gepoolten Verbindungen hängen bleibt.
 
 ## Spike (b): Kosten und Isolation
@@ -24,7 +25,7 @@ Messung mit 1.000 Abfragen gegen die lokale Datenbank (`tools/spikes/rls-overhea
 | mit RLS, `set_config` im Batch | 1,45 |
 | Mehrkosten | 0,66 (Faktor 1,8) |
 
-Isolation: Die Organisation sieht 500 eigene Zeilen und 0 fremde. Der Test besteht.
+Isolation: Die Organisation sieht 500 eigene Zeilen und 0 fremde. Der Test besteht. Seit der Umstellung auf `NULLIF` prüft der Spike zusätzlich eine Verbindung, die schon eine Mandanten-Transaktion hinter sich hat: Ohne Kontext liefert sie 0 Zeilen statt eines Fehlers.
 
 Die Messung läuft ohne Netzwerk zwischen Anwendung und Datenbank. Im Betrieb fällt der Anteil der Mehrkosten an einer echten Anfrage deutlich kleiner aus.
 
@@ -37,6 +38,6 @@ Die Messung läuft ohne Netzwerk zwischen Anwendung und Datenbank. Im Betrieb f�
 
 ## Konsequenzen
 
-- Interaktive Transaktionen erhalten den Helfer `withTenantTx`, der den Kontext einmal am Anfang setzt.
+- Interaktive Transaktionen erhalten den Helfer `withTenantTx`, der den Kontext einmal am Anfang setzt. Er startet die Transaktion auf dem Basis-Client ohne Tenant-Extension; sonst würde die Extension jede Abfrage darin in eine eigene Batch-Transaktion auf einer anderen Verbindung auslagern.
 - Materialized Views für Mandantendaten sind verboten, weil RLS auf ihnen nicht greift.
 - Die CI prüft im Schritt 1.2 (`check-rls`), dass jede Mandanten-Tabelle RLS mit Policy hat.
