@@ -1,0 +1,30 @@
+{
+  "name": "@smp/platform-rules",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Platform capabilities, post validation and character counting for web and backend.",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@smp/config": "workspace:*",
+    "@types/node": "^24.19.2",
+    "tsup": "^9.0.0",
+    "vitest": "^5.0.4"
+  }
+}

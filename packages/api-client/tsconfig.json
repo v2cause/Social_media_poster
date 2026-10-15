@@ -1,0 +1,7 @@
+{
+  "extends": "@smp/config/tsconfig.next.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src", "vitest.config.mts"]
+}
