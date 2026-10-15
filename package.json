@@ -1,0 +1,27 @@
+{
+  "name": "social-media-poster",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e",
+    "db:migrate": "pnpm --filter @smp/db migrate:dev",
+    "db:seed": "pnpm --filter @smp/db seed",
+    "format": "prettier --write .",
+    "gen:keys": "tsx tools/gen-keys.ts"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "turbo": "^2.11.8"
+  }
+}
