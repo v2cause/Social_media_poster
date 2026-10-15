@@ -5,11 +5,11 @@
 #
 # Profiles:
 #   (default)      postgres, redis, s3 (+ bucket init), mailpit
+#   app            api, worker and web, built from their Dockerfiles
 #   xb             browser-worker (isolated Playwright host, consumes xb-commands only)
 #   observability  grafana/otel-lgtm (Grafana on host port 3001, OTLP on 4317/4318)
 #   clamav         optional virus scan on 127.0.0.1:3310
 #
-# The app profile (api, worker, web) is added with its Dockerfiles in guide step 0.12.
 
 name: social-media-poster
 
@@ -58,14 +58,17 @@ services:
   s3:
     image: chrislusf/seaweedfs:4.48
     restart: unless-stopped
-    command: ['server', '-s3', '-s3.config=/etc/seaweedfs/s3.json', '-dir=/data']
+    # -ip pins the master identity to the service name. Without it, a recreated container gets a
+    # new address, and the raft state in the volume no longer matches it.
+    command: ['server', '-s3', '-s3.config=/etc/seaweedfs/s3.json', '-dir=/data', '-ip=s3']
     ports:
       - '127.0.0.1:8333:8333'
     volumes:
       - ./infra/docker/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
       - s3-data:/data
     healthcheck:
-      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:9333/cluster/status']
+      # Checks the S3 port itself. The master status alone reported healthy while uploads failed.
+      test: ['CMD', 'curl', '-s', '-o', '/dev/null', 'http://127.0.0.1:8333/']
       interval: 5s
       timeout: 3s
       retries: 30
@@ -103,6 +106,73 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/node-app.Dockerfile
+      args:
+        APP: api
+        HEALTH_URL: http://127.0.0.1:3001/api/health/live
+    profiles: ['app']
+    restart: unless-stopped
+    env_file: .env
+    # Inside the compose network the services are reached by their service names.
+    environment:
+      NODE_ENV: production
+      API_PORT: '3001'
+      DATABASE_URL: postgresql://app_user:${APP_USER_PASSWORD:?set APP_USER_PASSWORD in .env}@postgres:5432/smp
+      DATABASE_SYSTEM_URL: postgresql://app_system:${APP_SYSTEM_PASSWORD:?set APP_SYSTEM_PASSWORD in .env}@postgres:5432/smp
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://s3:8333
+    ports:
+      - '127.0.0.1:3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/node-app.Dockerfile
+      args:
+        APP: worker
+        HEALTH_URL: http://127.0.0.1:3002/health/live
+    profiles: ['app']
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      WORKER_HEALTH_PORT: '3002'
+      DATABASE_URL: postgresql://app_user:${APP_USER_PASSWORD:?set APP_USER_PASSWORD in .env}@postgres:5432/smp
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '127.0.0.1:3002:3002'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        API_INTERNAL_URL: http://api:3001
+    profiles: ['app']
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:3001
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      api:
+        condition: service_healthy
 
   browser-worker:
     build:
