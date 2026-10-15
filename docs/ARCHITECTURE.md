@@ -294,7 +294,7 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
 ### 6.2 Entitäten
 
 - **Identity und Tenancy**:
-  - `User` (E-Mail, Sprache, Zeitzone) sowie die Tabellen von Better Auth (`Session`, `AuthAccount`, `Verification`, `TwoFactor`).
+  - `User` (E-Mail, Sprache, Zeitzone; Tabelle `users`) sowie die Tabellen von Better Auth (`Session`, `Account` als Tabelle `auth_account`, `Verification`, `TwoFactor`).
   - `Organization` (Mandant, Billing).
   - `Workspace` (Marke oder Kunde innerhalb einer Organisation, z.B. für Agenturen; mit Zeitzone, Content-Sprache, Branche, Zielgruppe, Zielen, Content-Säulen).
   - `Membership` (Rolle OWNER, ADMIN, EDITOR oder VIEWER, optional auf bestimmte Workspaces beschränkt) und `Invitation` (Token nur als Hash gespeichert).

@@ -176,7 +176,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Erstellen**: `nest-cli.json` (Builder `swc`), `.swcrc`, `src/main.ts`, `src/app.module.ts`, `src/config/`, `src/common/filters/problem-details.filter.ts`, `src/common/request-id.middleware.ts`, `src/modules/health/health.controller.ts`, `vitest.config.ts`.
 - **So sieht es aus**:
   ```ts
-  const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, bodyParser: false });
   app.useLogger(app.get(Logger));                 // nestjs-pino
   app.set('trust proxy', 1);
   app.setGlobalPrefix('api');
@@ -306,7 +306,8 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - `User.email` als `citext`, eindeutig.
   - Unique-Constraints: `Membership(organizationId, userId)`, `Workspace(organizationId, slug)`, `Invitation.tokenHash`.
 - **Darauf achten**:
-  - Zusätzliche User-Felder (`locale`, `timezone`, `isPlatformAdmin`) über `additionalFields` von Better Auth deklarieren; `isPlatformAdmin` darf der Nutzer nicht selbst setzen.
+  - Zusätzliche User-Felder (`locale`, `timezone`, `isPlatformAdmin`) über `additionalFields` von Better Auth deklarieren; `isPlatformAdmin` bekommt `input: false`, damit der Nutzer es nicht selbst setzen kann.
+  - `User` wird auf die Tabelle `users` gemappt, weil `user` in PostgreSQL ein reserviertes Wort ist; Raw-SQL und Prüfskripte bräuchten sonst überall Anführungszeichen.
   - `onDelete` immer explizit angeben.
   - Die Auth-Tabellen sind global und haben keine RLS.
 - **Fertig, wenn**: Die Migration läuft und der Seed eine Demo-Organisation mit vier Nutzern (je eine Rolle) anlegt.
@@ -360,20 +361,26 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **So sieht es aus**:
   ```ts
   export const auth = betterAuth({
-    database: prismaAdapter(prisma, { provider: 'postgresql' }),
+    database: prismaAdapter(authPrisma, { provider: 'postgresql' }),   // app_user, ohne Tenant-Extension
     emailAndPassword: { enabled: true, requireEmailVerification: true, sendResetPassword },
     emailVerification: { sendOnSignUp: true, sendVerificationEmail },
     plugins: [twoFactor()],
     trustedOrigins: [env.APP_URL],
-    user: { additionalFields: { locale: { type: 'string', defaultValue: 'de' }, timezone: { type: 'string' } } },
+    user: { additionalFields: {
+      locale: { type: 'string', defaultValue: 'de' },
+      timezone: { type: 'string' },
+      isPlatformAdmin: { type: 'boolean', defaultValue: false, input: false },   // nicht vom Nutzer setzbar
+    } },
   });
-  // main.ts, VOR express.json():
-  app.use('/api/auth', toNodeHandler(auth));        // better-auth/node
+  // main.ts, VOR express.json(); Express 5 braucht den benannten Wildcard (better-auth/node)
+  const server = app.getHttpAdapter().getInstance() as express.Express;
+  server.all('/api/auth/*splat', toNodeHandler(auth));
   // AuthGuard:
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
   ```
 - **Darauf achten**:
-  - Der Auth-Handler muss vor dem JSON-Body-Parser stehen, sonst ist der Request-Body schon konsumiert.
+  - Der Auth-Handler muss vor dem JSON-Body-Parser stehen, sonst ist der Request-Body schon konsumiert. Gemountet wird wie in der Better-Auth-Doku für Express 5 mit `all('/api/auth/*splat', ...)`.
+  - Better Auth bekommt einen eigenen Prisma-Client als `app_user` ohne Tenant-Extension: Die Auth-Tabellen haben keine RLS, und die Extension würde ohne Mandanten-Kontext einen Fehler werfen. Der System-Client (`app_system`) ist dafür nicht nötig.
   - Rate-Limits auf den Auth-Routen.
   - Keine Rückschlüsse darauf, ob eine E-Mail-Adresse existiert (gleiche Antwort bei "Passwort vergessen").
   - Backup-Codes für 2FA nur einmal anzeigen.
@@ -1004,7 +1011,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 4. `set_config(..., true)` immer transaktionslokal, nie ein session-weites `SET`. Policies lesen den Kontext mit `NULLIF(current_setting(..., true), '')::uuid`, weil eine gepoolte Verbindung danach einen Leerstring statt NULL liefert.
 5. Materialized Views ignorieren RLS, deshalb Rollup-Tabellen statt Views.
 6. Nest `@Sse()` nur für GET; POST-Streaming manuell; SSE ohne Compression und ohne Proxy-Puffer. Verbindungsabbruch über `res.on('close')` erkennen, nie über `req.on('close')`.
-7. Better-Auth-Handler vor dem JSON-Body-Parser; Webhooks mit Raw Body.
+7. Better-Auth-Handler vor dem JSON-Body-Parser und mit `all('/api/auth/*splat')` gemountet; Better Auth nutzt einen Prisma-Client ohne Tenant-Extension; Webhooks mit Raw Body.
 8. Express 5 (NestJS 11) hat eine neue Wildcard-Syntax für Routen.
 9. Prisma 7: Driver Adapter ist Pflicht, die URL steht in `prisma.config.ts`, der generierte Client liegt im Package und nicht in `node_modules`.
 10. Die Playwright-Version im npm-Paket muss exakt zur Docker-Image-Version passen.
