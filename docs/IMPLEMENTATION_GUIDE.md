@@ -128,7 +128,8 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Bei ungültiger Konfiguration bricht der Start mit einer lesbaren Fehlermeldung ab, ohne Werte auszugeben.
   - Secrets nie mit dem Präfix `NEXT_PUBLIC_`; das Web bekommt nur öffentliche Werte.
   - Für Tests gibt es eine eigene `.env.test`.
-  - Es gibt genau eine `.env` im Repo-Root, und weder pnpm noch Turbo laden sie. Die `dev`-Skripte der Node-Apps laden sie explizit (z.B. `dotenv -e ../../.env -- nest start --watch` mit `dotenv-cli`), `prisma.config.ts` per `dotenv` (siehe 0.5), und Next.js liest nur `apps/web/.env*`, bekommt die Werte also per `loadEnvConfig` aus `@next/env` in `next.config.ts`. In Containern kommen alle Werte aus der Umgebung.
+  - Es gibt genau eine `.env` im Repo-Root, und weder pnpm noch Turbo laden sie. Die `dev`-Skripte der Nest-Apps starten Node mit `--env-file-if-exists=../../.env` (`nest start --watch --exec "node --env-file-if-exists=../../.env --require @smp/observability/register"`), `prisma.config.ts` lädt sie per `dotenv` (siehe 0.5), und Next.js liest nur `apps/web/.env*`, bekommt die Werte also per `loadEnvConfig` aus `@next/env` in `next.config.ts`. Bereits gesetzte Variablen haben jeweils Vorrang. In Containern kommen alle Werte aus der Umgebung.
+  - Der Root-Befehl `pnpm dev` ruft `turbo run dev --env-mode=loose` auf, damit im Terminal gesetzte Variablen (z.B. `WORKER_ROLES=scheduler pnpm dev`) ankommen. `dev` wird nicht gecacht; für alle anderen Tasks bleibt der Strict-Modus.
   - `gen:keys` erzeugt zufällige 32-Byte-Schlüssel (Base64).
 - **Fertig, wenn**: Eine fehlende Pflichtvariable zu einem klaren Startfehler führt und `pnpm gen:keys` gültige Schlüssel ausgibt.
 

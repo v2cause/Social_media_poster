@@ -5,7 +5,7 @@
   "description": "NestJS HTTP API: REST, SSE and health endpoints",
   "scripts": {
     "build": "nest build",
-    "dev": "nest start --watch --exec \"node --require @smp/observability/register\"",
+    "dev": "nest start --watch --exec \"node --env-file-if-exists=../../.env --require @smp/observability/register\"",
     "start": "node --require @smp/observability/register dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
