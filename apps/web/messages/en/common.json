@@ -1,0 +1,24 @@
+{
+  "app": {
+    "name": "Social Media Poster"
+  },
+  "shell": {
+    "title": "Social Media Poster",
+    "subtitle": "Create, schedule and analyze your posts in one place.",
+    "status": "The interface is ready. Sign-in and workspaces follow in phase 1.",
+    "navigation": "Main navigation",
+    "languageLabel": "Language"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "create": "Create",
+    "calendar": "Calendar",
+    "posts": "Posts",
+    "ideas": "Ideas",
+    "media": "Media",
+    "analytics": "Analytics",
+    "accounts": "Accounts",
+    "brandVoices": "Brand Voices",
+    "settings": "Settings"
+  }
+}

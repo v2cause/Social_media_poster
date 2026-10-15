@@ -1,0 +1,21 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+onlyBuiltDependencies:
+  - sharp
+  - prisma
+  - '@prisma/engines'
+  - esbuild
+  - '@swc/core'
+  - unrs-resolver
+
+# Transitive build scripts we deliberately skip (installed by testcontainers). ssh2 and
+# cpu-features only add optional native speed-ups; protobufjs needs no build at install time.
+allowBuilds:
+  cpu-features: false
+  protobufjs: false
+  ssh2: false
+  '@parcel/watcher': false
+  '@scarf/scarf': false
+  msgpackr-extract: false

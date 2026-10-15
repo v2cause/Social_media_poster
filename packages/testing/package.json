@@ -1,0 +1,28 @@
+{
+  "name": "@smp/testing",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Factories, Testcontainers helpers, msw fixtures and the adapter contract suite.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@smp/config": "workspace:*",
+    "@types/node": "^24.19.2",
+    "tsup": "^9.0.0",
+    "vitest": "^5.0.4"
+  }
+}

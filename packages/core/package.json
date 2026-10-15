@@ -1,0 +1,32 @@
+{
+  "name": "@smp/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Domain core: entities, use cases and ports. Framework-free by rule.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "uuidv7": "^1.2.1",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@smp/config": "workspace:*",
+    "@types/node": "^24.19.2",
+    "tsup": "^9.0.0",
+    "vitest": "^5.0.4"
+  }
+}

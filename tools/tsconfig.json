@@ -1,0 +1,9 @@
+{
+  "extends": "@smp/config/tsconfig.lib.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["./*.ts", "./spikes/**/*.ts"],
+  "exclude": ["spikes/orval/generated"]
+}
