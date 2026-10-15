@@ -1,7 +1,7 @@
 import swc from 'unplugin-swc';
 import { defineConfig, mergeConfig } from 'vitest/config';
 
-import { baseVitestConfig } from './vitest.base';
+import { baseVitestConfig } from './vitest.base.mjs';
 
 /**
  * Vitest preset for NestJS packages. Vitest uses esbuild, which does not emit

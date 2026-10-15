@@ -10,8 +10,8 @@
     "./tsconfig.next.json": "./tsconfig.next.json",
     "./eslint": "./eslint.config.js",
     "./prettier": "./prettier.config.js",
-    "./vitest": "./vitest.base.ts",
-    "./vitest-nest": "./vitest.nest.ts"
+    "./vitest": "./vitest.base.mts",
+    "./vitest-nest": "./vitest.nest.mts"
   },
   "scripts": {
     "lint": "eslint --config eslint.self.config.mjs .",
