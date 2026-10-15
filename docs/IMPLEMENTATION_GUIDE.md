@@ -551,13 +551,16 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   async generate(@Body() dto: GenerateDto, @Req() req: Request, @Res() res: Response) {
     res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' });
     res.flushHeaders();
-    const ac = new AbortController(); req.on('close', () => ac.abort());
+    const ac = new AbortController();
+    res.on('close', () => { if (!res.writableEnded) ac.abort(); });   // Client hat die Verbindung getrennt
     for await (const ev of this.generateVariants.execute(dto, ac.signal)) res.write(`event: ${ev.type}\ndata: ${JSON.stringify(ev)}\n\n`);
     res.end();
   }
   ```
 - **Darauf achten**:
   - Nests `@Sse()` unterstützt nur GET mit Observables; für POST ist der manuelle Weg nötig.
+  - Den Abbruch über `res.on('close')` erkennen, nicht über `req.on('close')`: Seit Node 16 feuert `close` am Request, sobald der Body gelesen ist, und nicht beim Verbindungsabbruch. Der Claude-Aufruf liefe sonst nach dem Schließen des Tabs weiter und kostete Geld.
+  - Nach `flushHeaders()` kann der Problem-Details-Filter keine Antwort mehr schreiben. Fehler werden deshalb im Use Case gefangen und als `generation.failed`-Event gesendet, danach endet der Stream.
   - Compression-Middleware muss SSE auslassen.
   - Alle 15 s ein Heartbeat (`: ping`).
   - Updates nutzen Optimistic Locking über `version` (bei Konflikt 409).
@@ -996,7 +999,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 3. Die Laufzeit-DB-Rolle ist nie der Tabellen-Owner (das würde RLS umgehen). `FORCE ROW LEVEL SECURITY` ist überall gesetzt.
 4. `set_config(..., true)` immer transaktionslokal, nie ein session-weites `SET`. Policies lesen den Kontext mit `NULLIF(current_setting(..., true), '')::uuid`, weil eine gepoolte Verbindung danach einen Leerstring statt NULL liefert.
 5. Materialized Views ignorieren RLS, deshalb Rollup-Tabellen statt Views.
-6. Nest `@Sse()` nur für GET; POST-Streaming manuell; SSE ohne Compression und ohne Proxy-Puffer.
+6. Nest `@Sse()` nur für GET; POST-Streaming manuell; SSE ohne Compression und ohne Proxy-Puffer. Verbindungsabbruch über `res.on('close')` erkennen, nie über `req.on('close')`.
 7. Better-Auth-Handler vor dem JSON-Body-Parser; Webhooks mit Raw Body.
 8. Express 5 (NestJS 11) hat eine neue Wildcard-Syntax für Routen.
 9. Prisma 7: Driver Adapter ist Pflicht, die URL steht in `prisma.config.ts`, der generierte Client liegt im Package und nicht in `node_modules`.
