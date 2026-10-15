@@ -1,0 +1,10 @@
+# Generated files
+pnpm-lock.yaml
+dist
+.next
+.turbo
+coverage
+**/src/generated
+
+# Planning documents are written by hand and kept as they are
+docs

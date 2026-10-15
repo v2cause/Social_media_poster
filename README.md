@@ -32,19 +32,19 @@ pnpm install
 pnpm build
 ```
 
-| Befehl | Zweck | Verfügbar ab |
-|---|---|---|
-| `pnpm dev` | startet die Apps im Watch-Modus | Schritt 0.7 |
-| `pnpm build` | baut alle Packages und Apps (Turbo, mit Cache) | Schritt 0.1 |
-| `pnpm lint` | ESLint über alle Packages | Schritt 0.2 |
-| `pnpm typecheck` | TypeScript-Prüfung ohne Ausgabe | Schritt 0.2 |
-| `pnpm test` | Unit-Tests (Vitest) | Schritt 0.2 |
-| `pnpm test:integration` | Integrationstests mit Testcontainers (braucht Docker) | Schritt 0.5 |
-| `pnpm test:e2e` | End-to-End-Tests (Playwright) | Schritt 1.9 |
-| `pnpm format` | Prettier über das Repo schreiben | Schritt 0.2 |
-| `pnpm db:migrate` | Prisma-Migrationen als `app_migrator` anwenden | Schritt 0.5 |
-| `pnpm db:seed` | Demo-Daten laden | Schritt 1.1 |
-| `pnpm gen:keys` | 32-Byte-Schlüssel für Token und Sessions erzeugen | Schritt 0.4 |
+| Befehl                  | Zweck                                                 | Verfügbar ab |
+| ----------------------- | ----------------------------------------------------- | ------------ |
+| `pnpm dev`              | startet die Apps im Watch-Modus                       | Schritt 0.7  |
+| `pnpm build`            | baut alle Packages und Apps (Turbo, mit Cache)        | Schritt 0.1  |
+| `pnpm lint`             | ESLint über alle Packages                             | Schritt 0.2  |
+| `pnpm typecheck`        | TypeScript-Prüfung ohne Ausgabe                       | Schritt 0.2  |
+| `pnpm test`             | Unit-Tests (Vitest)                                   | Schritt 0.2  |
+| `pnpm test:integration` | Integrationstests mit Testcontainers (braucht Docker) | Schritt 0.5  |
+| `pnpm test:e2e`         | End-to-End-Tests (Playwright)                         | Schritt 1.9  |
+| `pnpm format`           | Prettier über das Repo schreiben                      | Schritt 0.2  |
+| `pnpm db:migrate`       | Prisma-Migrationen als `app_migrator` anwenden        | Schritt 0.5  |
+| `pnpm db:seed`          | Demo-Daten laden                                      | Schritt 1.1  |
+| `pnpm gen:keys`         | 32-Byte-Schlüssel für Token und Sessions erzeugen     | Schritt 0.4  |
 
 Solange ein Paket noch nicht existiert, meldet Turbo "No tasks were executed" und endet mit Exit-Code 0.
 
@@ -52,11 +52,11 @@ Turbo fragt beim ersten Lauf nach anonymer Telemetrie. Abschalten mit `TURBO_TEL
 
 ## Dokumentation
 
-| Dokument | Inhalt |
-|---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architektur, Tech-Stack, Datenmodell, Plattform-Integration, Sicherheit, Roadmap, Risiken |
-| [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md) | Schritt-für-Schritt-Leitfaden: was erstellt wird, wie es aussieht, worauf zu achten ist |
-| [CLAUDE.md](CLAUDE.md) | Arbeitsregeln für KI-Sitzungen in diesem Repository |
+| Dokument                                                     | Inhalt                                                                                    |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                 | Architektur, Tech-Stack, Datenmodell, Plattform-Integration, Sicherheit, Roadmap, Risiken |
+| [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md) | Schritt-für-Schritt-Leitfaden: was erstellt wird, wie es aussieht, worauf zu achten ist   |
+| [CLAUDE.md](CLAUDE.md)                                       | Arbeitsregeln für KI-Sitzungen in diesem Repository                                       |
 
 ## Tech-Stack (Kurzfassung)
 
