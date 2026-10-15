@@ -316,19 +316,21 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **So sieht es aus**:
   ```sql
   ALTER TABLE workspace ENABLE ROW LEVEL SECURITY; ALTER TABLE workspace FORCE ROW LEVEL SECURITY;
+  -- NULLIF: eine gepoolte Verbindung liefert nach dem ersten set_config '' statt NULL
   CREATE POLICY org_isolation ON workspace
-    USING (organization_id = current_setting('app.organization_id', true)::uuid)
-    WITH CHECK (organization_id = current_setting('app.organization_id', true)::uuid);
+    USING (organization_id = NULLIF(current_setting('app.organization_id', true), '')::uuid)
+    WITH CHECK (organization_id = NULLIF(current_setting('app.organization_id', true), '')::uuid);
   -- Membership: eigene Mitgliedschaften sind auch ohne Org-Kontext lesbar (für den Workspace-Wechsler)
   CREATE POLICY own_memberships ON membership FOR SELECT
-    USING (user_id = current_setting('app.user_id', true)::uuid);
+    USING (user_id = NULLIF(current_setting('app.user_id', true), '')::uuid);
   REVOKE UPDATE, DELETE ON audit_log FROM app_user;
   ```
   `check-rls.ts` fragt `pg_class` und `pg_policies` ab. Jede Tabelle mit einer Spalte `workspace_id` oder `organization_id` muss `relrowsecurity` und `relforcerowsecurity` gesetzt und mindestens eine Policy haben.
 - **Darauf achten**:
   - Neben den Mandanten-Policies braucht es nutzerbezogene Lese-Policies: eigene Mitgliedschaften und Einladungen an die eigene E-Mail-Adresse.
   - Die Policies decken alle Operationen ab (SELECT, INSERT, UPDATE, DELETE).
-- **Fertig, wenn**: `check-rls` in der CI läuft und eine Tabelle ohne Policy die CI rot macht.
+  - Der Kontext wird immer als `NULLIF(current_setting('app.…', true), '')::uuid` gelesen. Ohne `NULLIF` bricht eine Abfrage ohne Kontext auf einer zuvor genutzten Verbindung mit `invalid input syntax for type uuid` ab, statt 0 Zeilen zu liefern. `check-rls.ts` prüft auch das.
+- **Fertig, wenn**: `check-rls` in der CI läuft, eine Tabelle ohne Policy die CI rot macht und ein Integrationstest zeigt, dass eine Abfrage ohne Kontext auf einer zuvor genutzten Verbindung 0 Zeilen liefert.
 
 #### 1.3 Mandanten-Kontext in der Anwendung
 - **Erstellen**: `apps/api/src/common/cls/tenant-context.ts` (nestjs-cls), `packages/db/src/tenant-extension.ts`, `packages/db/src/assert-tenant-filter.extension.ts` (nur Dev/Test), `packages/db/src/system-client.ts`.
@@ -350,6 +352,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Nie ein session-weites `SET` verwenden, sonst hängt der Kontext an gepoolten Verbindungen.
   - Der System-Client (`app_system`) ist nur in Repository-Methoden erlaubt, die mit `@SystemScope()` markiert sind. `no-restricted-imports` sperrt ihn überall sonst.
   - Fehlt der Kontext, wirft die Extension einen Fehler; es wird nicht stillschweigend ohne Filter weitergearbeitet.
+  - `withTenantTx` startet die interaktive Transaktion auf dem Basis-Client ohne Extension. Sonst würde die Extension jede Abfrage darin in eine eigene Batch-Transaktion auf einer anderen Verbindung auslagern, und die Atomarität ginge verloren.
 - **Fertig, wenn**: Ein Integrationstest mit zwei Organisationen zeigt, dass jede Repository-Methode nur die eigenen Daten liefert.
 
 #### 1.4 Better Auth einbinden
@@ -988,7 +991,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 1. pnpm 10: Pakete mit Install-Skripten (sharp, prisma, esbuild, swc) in `onlyBuiltDependencies` eintragen.
 2. BullMQ: Worker-Verbindungen mit `maxRetriesPerRequest: null`, Redis mit `noeviction` und AOF.
 3. Die Laufzeit-DB-Rolle ist nie der Tabellen-Owner (das würde RLS umgehen). `FORCE ROW LEVEL SECURITY` ist überall gesetzt.
-4. `set_config(..., true)` immer transaktionslokal, nie ein session-weites `SET`.
+4. `set_config(..., true)` immer transaktionslokal, nie ein session-weites `SET`. Policies lesen den Kontext mit `NULLIF(current_setting(..., true), '')::uuid`, weil eine gepoolte Verbindung danach einen Leerstring statt NULL liefert.
 5. Materialized Views ignorieren RLS, deshalb Rollup-Tabellen statt Views.
 6. Nest `@Sse()` nur für GET; POST-Streaming manuell; SSE ohne Compression und ohne Proxy-Puffer.
 7. Better-Auth-Handler vor dem JSON-Body-Parser; Webhooks mit Raw Body.

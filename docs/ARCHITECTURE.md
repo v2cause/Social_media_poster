@@ -325,7 +325,8 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
   - `app_migrator` (Owner der Tabellen),
   - `app_user` (für API und Worker, ohne BYPASSRLS),
   - `app_system` (BYPASSRLS, nur für wenige mandantenübergreifende Scans: Scheduler-Tick, Analytics-Planer, Token-Ablauf, Outbox-Relay, DSGVO-Jobs; diese liefern nur IDs plus `workspaceId`).
-- **Policies**: `ENABLE` und `FORCE ROW LEVEL SECURITY` mit `USING/WITH CHECK (workspace_id = current_setting('app.workspace_id', true)::uuid)`. Für `audit_log` hat `app_user` kein UPDATE und kein DELETE.
+- **Policies**: `ENABLE` und `FORCE ROW LEVEL SECURITY` mit `USING/WITH CHECK (workspace_id = NULLIF(current_setting('app.workspace_id', true), '')::uuid)`, für Tabellen mit `organization_id` analog über `app.organization_id`. Für `audit_log` hat `app_user` kein UPDATE und kein DELETE.
+- **`NULLIF` ist Pflicht**: Nach dem ersten transaktionslokalen `set_config` liefert dieselbe (gepoolte) Verbindung für die Einstellung einen Leerstring statt NULL. Ohne `NULLIF` bricht dann jede Abfrage ohne Kontext mit `invalid input syntax for type uuid` ab; mit `NULLIF` liefert sie 0 Zeilen.
 - **Prisma-Extension**: Sie liest den Mandanten aus CLS (AsyncLocalStorage) und setzt `set_config('app.workspace_id', id, true)` transaktionslokal. Das ist PgBouncer-tauglich.
 - **Explizite Filter**: Repositories filtern zusätzlich ausdrücklich nach `workspaceId` (Defense in Depth). In Dev und Test prüft eine Assertion, dass der Filter vorhanden ist.
 - **CI-Prüfung**: Jede Tabelle mit Mandanten-Spalte hat RLS aktiv und eine Policy. Integrationstests mit zwei Mandanten zeigen, dass mandantenübergreifende Lesezugriffe 0 Zeilen liefern.
