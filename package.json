@@ -19,7 +19,9 @@
     "format": "prettier --write .",
     "gen:keys": "tsx tools/gen-keys.ts"
   },
+  "prettier": "@smp/config/prettier",
   "devDependencies": {
+    "@smp/config": "workspace:*",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "turbo": "^2.11.8"
