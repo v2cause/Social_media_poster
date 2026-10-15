@@ -29,8 +29,13 @@ Erster Start:
 ```bash
 corepack enable
 pnpm install
+cp .env.example .env
+docker compose up -d
+pnpm -s gen:keys   # gibt Schlüssel aus; die Zeilen in .env eintragen
 pnpm build
 ```
+
+Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis auf die Pflichtwerte. Die lokale Infrastruktur (Postgres, Redis, S3-kompatibler Speicher, Mailpit) startet über `compose.yaml`. `.env.test` enthält nur Testwerte und wird committet; Integrationstests starten ihre Datenbanken selbst über Testcontainers.
 
 | Befehl                  | Zweck                                                 | Verfügbar ab |
 | ----------------------- | ----------------------------------------------------- | ------------ |
