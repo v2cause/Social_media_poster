@@ -13,9 +13,9 @@ Geplante Posts müssen genau zur Uhrzeit erscheinen, auch wenn Redis neu startet
 - **Postgres ist die Quelle der Wahrheit.** Der Zustand der Variante (`SCHEDULED`, `QUEUED`, `PUBLISHING`, …) steht in der Tabelle `post_variant`. BullMQ führt nur aus.
 - **Scheduler-Tick** als BullMQ Job Scheduler mit fester ID. Jede Replik legt dieselbe Definition an, also gibt es genau eine. Der Nachweis steht in Schritt 0.8: Zwei Worker-Prozesse ergeben `ZCARD bull:scheduler:repeat = 1`.
 - **Auswahl der fälligen Varianten** per `FOR UPDATE SKIP LOCKED`, damit mehrere Replikas sich nicht in die Quere kommen.
-- **Idempotenz**: Die Job-ID ist `pub:{variantId}:{scheduleVersion}`. Umplanen erhöht die Version, ein veralteter Job endet dadurch ohne Aktion.
+- **Idempotenz**: Die Job-ID ist `pub.{variantId}.{scheduleVersion}`. Umplanen erhöht die Version, ein veralteter Job endet dadurch ohne Aktion. Trenner ist der Punkt, weil BullMQ eigene Job-IDs mit `:` ablehnt (`Custom Id cannot contain :`, außer in einer Altform mit genau drei Segmenten). Die IDs entstehen nur über Builder-Funktionen in `packages/queue`.
 - **Outbox**: Ereignisse entstehen in derselben Transaktion wie die Änderung. Ein Relay im Ein-Sekunden-Takt schiebt sie nach Redis.
-- **Sweeper** findet Varianten, die zu lange auf `QUEUED` stehen, und reiht sie erneut ein. Das ist wegen der festen Job-ID gefahrlos.
+- **Sweeper** findet Varianten, die zu lange auf `QUEUED` stehen, sowie Varianten auf `PUBLISHING` mit abgelaufenem Lease, und stößt den Job erneut an. Das ist wegen der festen Job-ID und der Statusprüfung im Job gefahrlos; nach abgelaufenem Lease beginnt der Job mit dem Reconcile.
 
 ## Alternativen
 

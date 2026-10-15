@@ -25,5 +25,8 @@ Der Spike verlangt Registrierung, Login und `getSession` im Rundlauf. Das brauch
 
 ## Konsequenzen
 
+- Der Handler wird mit `all('/api/auth/*splat', toNodeHandler(auth))` gemountet, wie die Better-Auth-Doku es für Express 5 zeigt, und zwar vor dem JSON-Parser.
+- Better Auth bekommt einen eigenen Prisma-Client als `app_user` ohne Tenant-Extension. Die Auth-Tabellen haben keine RLS, und die Extension würde ohne Mandanten-Kontext einen Fehler werfen.
+- `isPlatformAdmin` ist ein `additionalField` mit `input: false`.
 - Rate-Limits auf den Auth-Routen sind Pflicht.
 - Die Antworten bei "Passwort vergessen" verraten nicht, ob eine Adresse existiert.

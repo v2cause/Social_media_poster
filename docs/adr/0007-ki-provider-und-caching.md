@@ -15,6 +15,8 @@ Die KI erzeugt Varianten, Ideen und Alt-Texte. Kosten, Ausgabeformat und Abbrüc
 - **Effort pro Route**: Generieren `medium`, Refine `low`, Ideen `medium`, Alt-Text `low`. Die Werte stehen in `.env.example` und entsprechen Architektur 5.1. In diesem Schritt korrigiert, zuvor stand dort `high`/`medium`.
 - **Prompt-Cache**: zwei Breakpoints, einer für das globale Regelwerk, einer für Workspace und Marke. Aufgabe und Briefing werden nicht gecacht. Keine `temperature`, kein Prefill.
 - **Ausgabe**: strukturierte Ausgabe mit zod. `stop_reason` wird vor dem Lesen geprüft.
+- **Fallbacks**: `fallbacks: "default"` mit Beta-Header `server-side-fallback-2026-07-01`, abschaltbar über `AI_REFUSAL_FALLBACK`. Wechselt der Server mitten im Stream das Modell, markiert ein `fallback`-Content-Block die Stelle; die Teilausgabe wird verworfen und der Client per `variant.reset` informiert.
+- **Fehler**: SDK-Fehler in der Reihenfolge `RateLimitError`, `APIConnectionError`, `APIError`, weil im TypeScript-SDK `APIConnectionError` eine Unterklasse von `APIError` ist. `APIUserAbortError` nach einem Client-Abbruch ist kein Fehler.
 
 ## Spike (a): nicht ausgeführt
 
@@ -25,4 +27,4 @@ Der Spike misst Time-to-first-token, `cache_read_input_tokens` beim zweiten Aufr
 ## Konsequenzen
 
 - Jede Generierung wird mit Prompt-Version, angefragtem und geliefertem Modell, Tokens inkl. Cache und Kosten gespeichert.
-- Preise stehen nur im `PriceBook`, nie im Code.
+- Preise stehen nur im `PriceBook`, nie im Code. Es enthält auch die Fallback-Modelle, und die Kosten werden aus `usage.iterations` berechnet, weil das Top-Level-`usage` nur den Versuch enthält, der die Antwort geliefert hat.
