@@ -58,7 +58,8 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   ```
   `turbo.json` definiert die Tasks: `build` (`dependsOn: ["^build"]`, outputs `dist/**`, `.next/**`), `dev` (`persistent: true`, `cache: false`), `lint`, `typecheck` (`dependsOn: ["^build"]`), `test`, `test:integration`, `test:e2e`.
 - **Darauf achten**:
-  - pnpm 10 führt Install-Skripte nur für Pakete aus, die in `onlyBuiltDependencies` stehen. Fehlt z.B. `sharp` oder `prisma` dort, scheitert das still.
+  - pnpm 10 führt Install-Skripte nur für Pakete aus, die in `onlyBuiltDependencies` stehen. Fehlt z.B. `sharp` oder `prisma` dort, gibt pnpm nur eine Warnung aus, und der Fehler zeigt sich erst zur Laufzeit.
+  - Turbo 2 läuft standardmäßig im Strict-Env-Modus: Tasks sehen nur Variablen, die in `turbo.json` unter `globalEnv`/`env` (zählen zum Cache-Hash) oder `globalPassThroughEnv`/`passThroughEnv` stehen. Fehlt z.B. `DATABASE_URL` dort, ist sie in `test:integration` leer.
   - Die pnpm-Version wird exakt gepinnt (Corepack).
   - `.gitignore` deckt `.env*` (außer `.env.example`), `dist`, `.next`, `.turbo`, `node_modules`, `coverage`, `playwright-report`, `test-results` und `**/src/generated` ab.
 - **Fertig, wenn**: `pnpm install` auf einem frischen Clone ohne Warnungen läuft und `pnpm build` grün ist.
@@ -81,6 +82,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 
 - **Darauf achten**:
   - `verbatimModuleSyntax` **nicht** für die Nest-Apps aktivieren, weil es mit CJS-Ausgabe kollidiert. Stattdessen sorgt die Lint-Regel `consistent-type-imports` für saubere Type-Imports.
+  - Reine ESM-Abhängigkeiten (z.B. `file-type`) lädt die CJS-Ausgabe über `require(esm)` von Node 24; TypeScript erlaubt das ab 5.8 mit `module: nodenext`. Pakete mit Top-Level-`await` lassen sich so nicht laden; das prüft ADR 0002.
   - `packages/core` darf keine Decorators und keine Framework-Imports enthalten.
 - **Fertig, wenn**: `pnpm lint` und `pnpm typecheck` in allen (noch leeren) Packages laufen.
 
@@ -126,6 +128,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Bei ungültiger Konfiguration bricht der Start mit einer lesbaren Fehlermeldung ab, ohne Werte auszugeben.
   - Secrets nie mit dem Präfix `NEXT_PUBLIC_`; das Web bekommt nur öffentliche Werte.
   - Für Tests gibt es eine eigene `.env.test`.
+  - Es gibt genau eine `.env` im Repo-Root, und weder pnpm noch Turbo laden sie. Die `dev`-Skripte der Node-Apps laden sie explizit (z.B. `dotenv -e ../../.env -- nest start --watch` mit `dotenv-cli`), `prisma.config.ts` per `dotenv` (siehe 0.5), und Next.js liest nur `apps/web/.env*`, bekommt die Werte also per `loadEnvConfig` aus `@next/env` in `next.config.ts`. In Containern kommen alle Werte aus der Umgebung.
   - `gen:keys` erzeugt zufällige 32-Byte-Schlüssel (Base64).
 - **Fertig, wenn**: Eine fehlende Pflichtvariable zu einem klaren Startfehler führt und `pnpm gen:keys` gültige Schlüssel ausgibt.
 
@@ -134,7 +137,9 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **So sieht es aus**:
   ```ts
   // prisma.config.ts  (Form gegen die aktuelle Prisma-7-Doku prüfen)
+  import { config } from 'dotenv';
   import { defineConfig, env } from 'prisma/config';
+  config({ path: '../../.env' });   // Prisma 7 lädt .env nicht mehr selbst; in Containern ohne Datei ein No-op
   export default defineConfig({
     schema: 'prisma/schema.prisma',
     migrations: { path: 'prisma/migrations', seed: 'tsx src/seed.ts' },
@@ -167,6 +172,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Jede Logzeile trägt `service`, `env`, `traceId`, `requestId`/`jobId` und `workspaceId`.
   - Gestartet wird mit `node --require @smp/observability/register dist/main.js`.
 - **Darauf achten**:
+  - `@smp/observability` exportiert dafür zusätzlich den Subpath `./register` in `exports`. Die Regel `no-restricted-imports` lässt genau diesen Subpath zu.
   - OpenTelemetry muss vor allen anderen Modulen geladen werden, sonst greift die Instrumentierung nicht.
   - Laute Instrumentierungen (fs, dns) abschalten.
   - Keine PII in Span-Attributen.
@@ -203,7 +209,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Ein kleiner `node:http`-Server liefert `/health/live`, `/health/ready` und `/metrics` (prom-client).
 - **Darauf achten**:
   - BullMQ-Worker-Verbindungen brauchen `maxRetriesPerRequest: null`.
-  - Bei SIGTERM erst `await worker.close()`; das schließt den laufenden Job ab.
+  - Bei SIGTERM erst `await worker.close()`; das schließt den laufenden Job ab. Die Stop-Grace-Period (`stop_grace_period` in Compose, 10 s als Default) muss länger sein als ein typischer Job; was danach hart abbricht, fangen Lease und Reconcile auf.
   - `lockDuration` muss größer sein als die maximale Jobdauer, oder der Lock wird verlängert.
   - Eine Job-Scheduler-Definition darf es nur einmal geben, damit es keine doppelten Ticks gibt.
 - **Fertig, wenn**: `WORKER_ROLES=scheduler pnpm --filter @smp/worker dev` einen Noop-Tick verarbeitet, der im Log sichtbar ist.
@@ -262,6 +268,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Darauf achten**:
   - sharp und die Prisma-Bestandteile müssen auf derselben Basis (glibc, Architektur) installiert werden, auf der sie laufen; `node_modules` nicht zwischen alpine und slim kopieren.
   - Keine `.env` im Image.
+  - `pnpm deploy` verlangt in pnpm 10 entweder `inject-workspace-packages=true` oder `--legacy`. Welche Variante gilt, hält ADR 0002 fest; injizierte Workspace-Pakete sind Kopien statt Symlinks und verändern das Verhalten in der lokalen Entwicklung.
   - Zielgröße für api und worker unter 300 MB.
 - **Fertig, wenn**: `docker compose --profile app up --build` alle drei Apps "healthy" startet.
 
@@ -1005,7 +1012,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 
 ## B.11 Globale Stolperfallen (Checkliste für jedes Review)
 
-1. pnpm 10: Pakete mit Install-Skripten (sharp, prisma, esbuild, swc) in `onlyBuiltDependencies` eintragen.
+1. pnpm 10: Pakete mit Install-Skripten (sharp, prisma, esbuild, swc) in `onlyBuiltDependencies` eintragen; `pnpm deploy` braucht `inject-workspace-packages` oder `--legacy`. Turbo 2 filtert nicht deklarierte Env-Variablen (Strict-Modus), und die Root-`.env` lädt niemand automatisch.
 2. BullMQ: Worker-Verbindungen mit `maxRetriesPerRequest: null`, Redis mit `noeviction` und AOF. Eigene Job-IDs enthalten keinen `:` (Punkt als Trenner).
 3. Die Laufzeit-DB-Rolle ist nie der Tabellen-Owner (das würde RLS umgehen). `FORCE ROW LEVEL SECURITY` ist überall gesetzt.
 4. `set_config(..., true)` immer transaktionslokal, nie ein session-weites `SET`. Policies lesen den Kontext mit `NULLIF(current_setting(..., true), '')::uuid`, weil eine gepoolte Verbindung danach einen Leerstring statt NULL liefert.
@@ -1013,7 +1020,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 6. Nest `@Sse()` nur für GET; POST-Streaming manuell; SSE ohne Compression und ohne Proxy-Puffer. Verbindungsabbruch über `res.on('close')` erkennen, nie über `req.on('close')`.
 7. Better-Auth-Handler vor dem JSON-Body-Parser und mit `all('/api/auth/*splat')` gemountet; Better Auth nutzt einen Prisma-Client ohne Tenant-Extension; Webhooks mit Raw Body.
 8. Express 5 (NestJS 11) hat eine neue Wildcard-Syntax für Routen.
-9. Prisma 7: Driver Adapter ist Pflicht, die URL steht in `prisma.config.ts`, der generierte Client liegt im Package und nicht in `node_modules`.
+9. Prisma 7: Driver Adapter ist Pflicht, die URL steht in `prisma.config.ts`, `.env` wird dort explizit per `dotenv` geladen, der generierte Client liegt im Package und nicht in `node_modules`.
 10. Die Playwright-Version im npm-Paket muss exakt zur Docker-Image-Version passen.
 11. sharp-Binaries passend zu Betriebssystem und Architektur des Laufzeit-Images.
 12. MinIO-Community ist archiviert: lokal SeaweedFS, Upload per Presigned PUT plus `HeadObject`-Prüfung.
