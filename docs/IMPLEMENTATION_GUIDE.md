@@ -918,7 +918,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Darauf achten**:
   - Keine Stealth-Plugins und keine Fingerprint-Manipulation.
   - Kein DB-Zugriff.
-  - Egress nur zu x.com und S3, durchgesetzt über das Docker-Netz bzw. einen Proxy.
+  - Egress nur zu den Domains der X-Web-App und zu S3, durchgesetzt über das Docker-Netz bzw. einen Proxy; intern nur Redis. `x.com` allein reicht nicht, weil die Web-App Skripte und Bilder von weiteren Hosts lädt (z.B. `*.x.com`, `*.twimg.com`). Die Liste wird gegen die Live-UI ermittelt und mit den Selector-Maps versioniert.
   - Höchstens ein Task pro Account (Lock) und mindestens 2 min Abstand zwischen Posts pro Account.
 
 #### 6.3 Selector-Maps und Flows (`packages/x-browser`)
@@ -939,7 +939,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Erstellen**: `POST /api/w/:ws/x-browser/login-sessions`, `POST .../login-sessions/:id/code`, Status über SSE, Job `xb.login.start`.
 - **So sieht es aus**:
   1. Der Nutzer gibt Benutzername und Passwort ein.
-  2. Die Zugangsdaten gehen verschlüsselt mit dem Session-KEK nur in den Job-Payload.
+  2. Die API verschlüsselt die Zugangsdaten mit dem Session-Keyring (`SESSION_KEKS`) und legt sie nur in den Job-Payload; entschlüsselt werden sie nur im browser-worker.
   3. Der Worker meldet `AWAITING_2FA`, die UI fragt den Code ab und reicht ihn über Redis (`xb:login:{id}:input`) weiter.
   4. Bei Erfolg wird der `storageState` gespeichert. Zeitlimit insgesamt 5 min.
 - **Darauf achten**: Zugangsdaten werden nie in der DB gespeichert und nie geloggt. Der Job wird sofort nach Abschluss gelöscht (`removeOnComplete` und `removeOnFail` auf `true`).

@@ -84,7 +84,7 @@ worker (Rollen: scheduler | publisher | analytics | media | ai | notify | billin
    -----------> PostgreSQL, S3, Claude, LinkedIn/Meta/X-APIs, SMTP, Stripe
    --Queue "xb-commands"--> browser-worker --Queue "xb-results"--> worker
 
-browser-worker (Playwright/Chromium, eigener Container, Egress nur x.com + S3)
+browser-worker (Playwright/Chromium, eigener Container, Egress nur X-Web-App + S3)
    KEINE Datenbank-Zugangsdaten, nur Redis-Zugriff auf die xb-*-Queues
 
 worker --Redis Pub/Sub--> api --SSE--> Browser (Live-Status, Benachrichtigungen)
@@ -214,9 +214,9 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
 
 - **Aktivierung**: nur durch Owner/Admin pro Workspace, nach ausdrücklicher Risikobestätigung (Verstoß gegen die X-Nutzungsbedingungen, mögliche Sperre). Die Bestätigung wird versioniert gespeichert (`RiskAcknowledgement`: Text-Version, Hash, Zeit, IP) und im Audit-Log festgehalten. Zusätzlich gibt es einen Tarif-Gate und einen globalen Kill-Switch.
 - **Keine Passwörter speichern**: Das Login läuft interaktiv.
-  1. Der Worker füllt die Zugangsdaten aus, die der Nutzer einmalig eingibt.
-  2. Fragt X nach einem 2FA-Code, geht der Status auf `AWAITING_2FA`, und die UI reicht den Code über Redis an den Worker durch.
-  3. Gespeichert wird danach nur der `storageState`, verschlüsselt mit einem eigenen Schlüssel (`SESSION_KEKS`), den nur Worker und browser-worker kennen.
+  1. Der browser-worker füllt die Zugangsdaten aus, die der Nutzer einmalig eingibt.
+  2. Fragt X nach einem 2FA-Code, geht der Status auf `AWAITING_2FA`, und die UI reicht den Code über Redis an den browser-worker durch.
+  3. Gespeichert wird danach nur der `storageState`, verschlüsselt mit einem eigenen Keyring (`SESSION_KEKS`), getrennt von den Token-Schlüsseln. Die API nutzt ihn nur zum Verschlüsseln der eingegebenen Zugangsdaten, der Worker nur für den Re-Wrap bei der Schlüsselrotation; entschlüsselt wird ausschließlich im browser-worker. Das Web bekommt ihn nie.
 - **Keine Umgehung von Schutzmechanismen**: Bei Captcha, verdächtigem Login oder einer Sperrseite bricht der Job ab, der Account geht auf `NEEDS_REAUTH`, und der Nutzer wird benachrichtigt. Kein Stealth- oder Fingerprint-Spoofing, keine Captcha-Löser, keine automatischen Retries.
 - **Robust statt Regex auf HTML**:
   - Playwright-Locators über Rolle, ARIA und `data-testid` aus versionierten Selector-Maps (`selectors/v1.ts`).
