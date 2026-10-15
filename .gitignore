@@ -17,10 +17,11 @@ test-results/
 # Generated code (Prisma client is generated, never committed)
 **/src/generated
 
-# Environment: only the template is committed
+# Environment: the template and the test values are committed, nothing else
 .env
 .env.*
 !.env.example
+!.env.test
 
 # Logs
 *.log
