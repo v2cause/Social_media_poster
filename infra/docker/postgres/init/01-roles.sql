@@ -17,3 +17,6 @@ CREATE ROLE app_system LOGIN NOSUPERUSER BYPASSRLS PASSWORD :'app_system_passwor
 
 CREATE DATABASE smp OWNER app_migrator;
 CREATE DATABASE smp_test OWNER app_migrator;
+-- Shadow database for `prisma migrate dev`. Prisma creates it on demand, so the migrator
+-- needs no CREATEDB privilege. Only app_migrator connects to it.
+CREATE DATABASE smp_shadow OWNER app_migrator;
