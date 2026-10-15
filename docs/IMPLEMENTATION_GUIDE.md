@@ -99,7 +99,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 | mailpit | `axllent/mailpit:<Version>` | SMTP 1025, UI 8025 |
 | Profil `app` | api, worker, web aus den eigenen Dockerfiles, dazu `proxy` (`caddy:<Version>`, `infra/docker/caddy/Caddyfile`) | `depends_on` mit `condition: service_healthy`; der Proxy routet wie in Produktion `/api/*` an die API und alles andere an das Web, erreichbar unter `http://localhost:8080` |
 | Profil `xb` | browser-worker | `shm_size: 1gb`, `init: true` |
-| Profil `observability` | `grafana/otel-lgtm:<Version>` | OTLP-Collector + Grafana in einem Container |
+| Profil `observability` | `grafana/otel-lgtm:<Version>` | OTLP-Collector + Grafana in einem Container; Grafana auf Host-Port 3003, weil 3001 der API gehört |
 | Profil `clamav` | `clamav/clamav:<Version>` | optionaler Virenscan |
 
 - **Darauf achten**:
@@ -128,7 +128,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Bei ungültiger Konfiguration bricht der Start mit einer lesbaren Fehlermeldung ab, ohne Werte auszugeben.
   - Secrets nie mit dem Präfix `NEXT_PUBLIC_`; das Web bekommt nur öffentliche Werte.
   - Für Tests gibt es eine eigene `.env.test`.
-  - Es gibt genau eine `.env` im Repo-Root, und weder pnpm noch Turbo laden sie. Die `dev`-Skripte der Nest-Apps starten Node mit `--env-file-if-exists=../../.env` (`nest start --watch --exec "node --env-file-if-exists=../../.env --require @smp/observability/register"`), `prisma.config.ts` lädt sie per `dotenv` (siehe 0.5), und Next.js liest nur `apps/web/.env*`, bekommt die Werte also per `loadEnvConfig` aus `@next/env` in `next.config.ts`. Bereits gesetzte Variablen haben jeweils Vorrang. In Containern kommen alle Werte aus der Umgebung.
+  - Es gibt genau eine `.env` im Repo-Root, und weder pnpm noch Turbo laden sie. Die `dev`-Skripte der Nest-Apps starten Node mit `--env-file-if-exists=../../.env` (`nest start --watch --exec "node --env-file-if-exists=../../.env --require @smp/observability/register"`), `prisma.config.ts` lädt sie per `dotenv` (siehe 0.5), und Next.js liest nur `apps/web/.env*`, bekommt die Werte also per `loadEnvConfig` aus `@next/env` in `next.config.ts`. Dort muss `forceReload` gesetzt sein: Next.js hat die Umgebung des App-Verzeichnisses beim Laden der Konfiguration schon im Cache, und ohne `forceReload` liefert der Aufruf nur diesen Cache zurück. Bereits gesetzte Variablen haben jeweils Vorrang. In Containern kommen alle Werte aus der Umgebung.
   - Der Root-Befehl `pnpm dev` ruft `turbo run dev --env-mode=loose` auf, damit im Terminal gesetzte Variablen (z.B. `WORKER_ROLES=scheduler pnpm dev`) ankommen. `dev` wird nicht gecacht; für alle anderen Tasks bleibt der Strict-Modus.
   - `gen:keys` erzeugt zufällige 32-Byte-Schlüssel (Base64).
 - **Fertig, wenn**: Eine fehlende Pflichtvariable zu einem klaren Startfehler führt und `pnpm gen:keys` gültige Schlüssel ausgibt.
@@ -232,7 +232,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   next-intl läuft ohne Sprach-Routing: `getRequestConfig` liest die Sprache aus dem Cookie `NEXT_LOCALE` (später aus dem Profil), Standard ist `de`.
 - **Darauf achten**:
   - Der Rewrite gilt nur für die lokale Entwicklung. In Produktion und im Compose-Profil `app` routet der Reverse Proxy `/api` direkt an die API; das spart einen Hop und vermeidet Puffern bei SSE.
-  - `rewrites()` wird beim Build ausgewertet, nicht zur Laufzeit. Deshalb hängt der Rewrite an `API_INTERNAL_URL` und fehlt im Docker-Build, in dem die Variable nicht gesetzt ist; sonst landete `undefined` als Ziel im Build.
+  - `rewrites()` wird beim Build ausgewertet, nicht zur Laufzeit. Deshalb hängt der Rewrite an `API_INTERNAL_URL`. Im Docker-Build fehlt die Variable (keine `.env` im Build-Kontext), und das Image enthält keinen Rewrite; ein fest eingebautes Ziel würde das Image an eine Umgebung binden. `API_INTERNAL_URL` wird dem Container nur zur Laufzeit für serverseitige Aufrufe mitgegeben.
   - Server Components rufen die API mit dem weitergereichten Cookie auf.
   - `proxy.ts` (ersetzt in Next.js 16 `middleware.ts`) macht nur optimistische Redirects und ist keine Sicherheitsgrenze.
   - Für signierte S3-URLs `next/image` mit `unoptimized` oder ein einfaches `<img>` nutzen, sonst gibt es Cache-Probleme mit ablaufenden URLs.

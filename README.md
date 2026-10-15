@@ -54,7 +54,7 @@ Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis au
 | `pnpm check:emoji`      | Emoji in verfolgten Dateien suchen                    | Schritt 0.13 |
 | `pnpm check:format`     | Prettier-Prüfung über das Repo                        | Schritt 0.13 |
 
-Container-Betrieb: `docker compose --profile app up -d --build --wait` startet API, Worker und Web, alle drei mit Healthcheck. Das Profil `xb` startet den isolierten browser-worker, das Profil `observability` Grafana. Nach Änderungen an `infra/docker/postgres/init` einmal `docker compose down -v`, weil das Init-Skript nur auf einem leeren Volume läuft.
+Container-Betrieb: `docker compose --profile app up -d --build --wait` startet API, Worker und Web, alle drei mit Healthcheck, dazu einen Reverse Proxy (Caddy). Die App ist dann unter `http://localhost:8080` erreichbar; der Proxy routet wie in Produktion `/api` an die API und alles andere an das Web. Das Profil `xb` startet den isolierten browser-worker, das Profil `observability` Grafana unter `http://localhost:3003`. Nach Änderungen an `infra/docker/postgres/init` einmal `docker compose down -v`, weil das Init-Skript nur auf einem leeren Volume läuft.
 
 Spikes liegen unter `tools/spikes/` und laufen mit geladener `.env`, zum Beispiel `pnpm exec tsx tools/spikes/rls-overhead.ts`.
 

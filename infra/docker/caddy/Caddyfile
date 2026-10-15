@@ -1,0 +1,19 @@
+# Local reverse proxy for the compose profile "app". It routes like production: one origin, /api
+# goes straight to the API, everything else to the web app. The web image therefore contains no
+# rewrite to the API, and server-sent events are not buffered by Next.js.
+{
+	admin off
+}
+
+:8080 {
+	handle /api/* {
+		reverse_proxy api:3001 {
+			# Server-sent events (AI generation, live updates) must reach the browser at once.
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

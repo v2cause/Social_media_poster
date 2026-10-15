@@ -12,7 +12,7 @@ Bilder werden direkt aus dem Browser in einen S3-kompatiblen Speicher hochgelade
 
 - **Schnittstelle**: AWS SDK v3, S3-kompatibel. Lokal läuft SeaweedFS 4.48, pinned im `compose.yaml`.
 - **Upload**: Presigned PUT mit 5 Minuten Laufzeit und signiertem Content-Type. Die API prüft danach per `HeadObject` Größe und Typ, bevor das Asset als hochgeladen gilt.
-- **CORS** wird über die S3-API am Bucket gesetzt (`put-bucket-cors`, Origin `http://localhost:3000`).
+- **CORS** wird über die S3-API am Bucket gesetzt (`put-bucket-cors`, Origins `http://localhost:3000` für `pnpm dev` und `http://localhost:8080` für den Proxy im Compose-Profil `app`).
 
 ## Spike (e): Ergebnis
 

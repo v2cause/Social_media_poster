@@ -3,11 +3,11 @@
 # Web image (Next.js, standalone output). Build from the repository root:
 #   docker build -f infra/docker/web.Dockerfile -t smp-web .
 #
-# API_INTERNAL_URL is read by the rewrites at build time. Set it to the API's address in the
-# network the web container runs in. In production a reverse proxy routes /api instead.
+# The image contains no rewrite to the API, so it is the same for every environment. A reverse
+# proxy in front of it routes /api to the API (locally: the "proxy" service in compose.yaml).
+# API_INTERNAL_URL is set at runtime for server-side calls only.
 
 ARG NODE_IMAGE=node:24-slim
-ARG API_INTERNAL_URL=http://127.0.0.1:3001
 
 FROM ${NODE_IMAGE} AS base
 ENV PNPM_HOME=/pnpm
@@ -26,8 +26,6 @@ COPY --from=prune /repo/out/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
-ARG API_INTERNAL_URL
-ENV API_INTERNAL_URL=${API_INTERNAL_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=prune /repo/out/full/ ./
 RUN pnpm exec turbo run build --filter=@smp/web...

@@ -5,21 +5,25 @@ import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 // Next.js reads .env files from the app directory only. The single .env lives in the repo root.
-loadEnvConfig(resolve(process.cwd(), '../..'));
+// Next.js has already loaded (and cached) the environment of the app directory when this file
+// runs, so the reload has to be forced; without it the call returns the cache and does nothing.
+loadEnvConfig(resolve(process.cwd(), '../..'), process.env['NODE_ENV'] !== 'production', console, true);
+
+// Captured once, so the rewrite does not depend on later reloads of the environment.
+const apiInternalUrl = process.env['API_INTERNAL_URL'];
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const config: NextConfig = {
   output: 'standalone',
   transpilePackages: ['@smp/ui', '@smp/api-client', '@smp/contracts', '@smp/platform-rules'],
-  // Local development only. In production a reverse proxy routes /api directly to the API.
+  // Local development only. Rewrites are resolved at build time, so the rewrite exists only when
+  // API_INTERNAL_URL is set then (from the root .env). Docker builds have no .env and leave it
+  // out; there a reverse proxy routes /api directly to the API, as in production.
   rewrites() {
-    return Promise.resolve([
-      {
-        source: '/api/:path*',
-        destination: `${process.env['API_INTERNAL_URL'] ?? 'http://127.0.0.1:3001'}/api/:path*`,
-      },
-    ]);
+    return Promise.resolve(
+      apiInternalUrl ? [{ source: '/api/:path*', destination: `${apiInternalUrl}/api/:path*` }] : [],
+    );
   },
 };
 

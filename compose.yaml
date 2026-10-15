@@ -5,9 +5,10 @@
 #
 # Profiles:
 #   (default)      postgres, redis, s3 (+ bucket init), mailpit
-#   app            api, worker and web, built from their Dockerfiles
+#   app            api, worker and web, built from their Dockerfiles, behind the proxy on
+#                  http://localhost:8080 (routes /api to the API like production)
 #   xb             browser-worker (isolated Playwright host, consumes xb-commands only)
-#   observability  grafana/otel-lgtm (Grafana on host port 3001, OTLP on 4317/4318)
+#   observability  grafana/otel-lgtm (Grafana on host port 3003, OTLP on 4317/4318)
 #   clamav         optional virus scan on 127.0.0.1:3310
 #
 
@@ -92,7 +93,7 @@ services:
         aws --endpoint-url "$$endpoint" s3api head-bucket --bucket "$$S3_BUCKET" >/dev/null 2>&1 \
           || aws --endpoint-url "$$endpoint" s3 mb "s3://$$S3_BUCKET"
         aws --endpoint-url "$$endpoint" s3api put-bucket-cors --bucket "$$S3_BUCKET" \
-          --cors-configuration '{"CORSRules":[{"AllowedOrigins":["http://localhost:3000"],"AllowedMethods":["PUT","GET","HEAD"],"AllowedHeaders":["Content-Type"],"MaxAgeSeconds":3000}]}'
+          --cors-configuration '{"CORSRules":[{"AllowedOrigins":["http://localhost:3000","http://localhost:8080"],"AllowedMethods":["PUT","GET","HEAD"],"AllowedHeaders":["Content-Type"],"MaxAgeSeconds":3000}]}'
         echo "s3-init: bucket $$S3_BUCKET is ready"
 
   mailpit:
@@ -120,6 +121,8 @@ services:
     # Inside the compose network the services are reached by their service names.
     environment:
       NODE_ENV: production
+      # The browser reaches the app through the proxy, not on the dev port 3000.
+      APP_URL: http://localhost:8080
       API_PORT: '3001'
       DATABASE_URL: postgresql://app_user:${APP_USER_PASSWORD:?set APP_USER_PASSWORD in .env}@postgres:5432/smp
       DATABASE_SYSTEM_URL: postgresql://app_system:${APP_SYSTEM_PASSWORD:?set APP_SYSTEM_PASSWORD in .env}@postgres:5432/smp
@@ -134,6 +137,10 @@ services:
         condition: service_healthy
       s3:
         condition: service_healthy
+      # The API needs the bucket. As a completed dependency, the one-shot init container also
+      # no longer fails `docker compose up --wait` when it exits.
+      s3-init:
+        condition: service_completed_successfully
 
   worker:
     build:
@@ -145,6 +152,9 @@ services:
     profiles: ['app']
     restart: unless-stopped
     env_file: .env
+    # SIGTERM lets the running job finish. Docker's default of 10 s is shorter than a typical
+    # publish; whatever is cut off after this is picked up by lease and reconcile.
+    stop_grace_period: 60s
     environment:
       NODE_ENV: production
       WORKER_HEALTH_PORT: '3002'
@@ -162,16 +172,35 @@ services:
     build:
       context: .
       dockerfile: infra/docker/web.Dockerfile
-      args:
-        API_INTERNAL_URL: http://api:3001
     profiles: ['app']
     restart: unless-stopped
     environment:
+      # Server-side calls from Next.js to the API inside the compose network. The browser goes
+      # through the proxy.
       API_INTERNAL_URL: http://api:3001
     ports:
       - '127.0.0.1:3000:3000'
     depends_on:
       api:
+        condition: service_healthy
+
+  proxy:
+    image: caddy:2.11.4-alpine
+    profiles: ['app']
+    restart: unless-stopped
+    volumes:
+      - ./infra/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - '127.0.0.1:8080:8080'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/api/health/live']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
         condition: service_healthy
 
   browser-worker:
@@ -197,7 +226,8 @@ services:
     profiles: ['observability']
     restart: unless-stopped
     ports:
-      - '127.0.0.1:3001:3000'
+      # Not 3001: the API listens there, both in pnpm dev and in the app profile.
+      - '127.0.0.1:3003:3000'
       - '127.0.0.1:4317:4317'
       - '127.0.0.1:4318:4318'
 
