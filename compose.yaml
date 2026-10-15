@@ -1,0 +1,124 @@
+# Local infrastructure for development and tests.
+#
+# Every image is pinned to an exact version. Never switch to "latest".
+# All ports are bound to 127.0.0.1. Copy .env.example to .env before the first start.
+#
+# Profiles:
+#   (default)      postgres, redis, s3 (+ bucket init), mailpit
+#   observability  grafana/otel-lgtm (Grafana on host port 3001, OTLP on 4317/4318)
+#   clamav         optional virus scan on 127.0.0.1:3310
+#
+# The app profile (api, worker, web) and the xb profile (browser-worker) are added
+# together with their Dockerfiles in the guide steps 0.10 and 0.12.
+
+name: social-media-poster
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: postgres
+      # The image trusts loopback connections by default. Require the password everywhere,
+      # so that app_user is always checked, also from inside the container.
+      POSTGRES_INITDB_ARGS: '--auth-local=scram-sha-256 --auth-host=scram-sha-256'
+      APP_MIGRATOR_PASSWORD: ${APP_MIGRATOR_PASSWORD:?set APP_MIGRATOR_PASSWORD in .env}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:?set APP_USER_PASSWORD in .env}
+      APP_SYSTEM_PASSWORD: ${APP_SYSTEM_PASSWORD:?set APP_SYSTEM_PASSWORD in .env}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4.11-alpine
+    restart: unless-stopped
+    # BullMQ needs noeviction, otherwise Redis may delete job data under memory pressure.
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  s3:
+    image: chrislusf/seaweedfs:4.48
+    restart: unless-stopped
+    command: ['server', '-s3', '-s3.config=/etc/seaweedfs/s3.json', '-dir=/data']
+    ports:
+      - '127.0.0.1:8333:8333'
+    volumes:
+      - ./infra/docker/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+      - s3-data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:9333/cluster/status']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  s3-init:
+    image: amazon/aws-cli:2.38.1
+    depends_on:
+      s3:
+        condition: service_healthy
+    restart: 'no'
+    entrypoint: ['/bin/sh', '-c']
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in .env}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in .env}
+      AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-smp-media}
+    command:
+      - |
+        set -eu
+        endpoint=http://s3:8333
+        aws --endpoint-url "$$endpoint" s3api head-bucket --bucket "$$S3_BUCKET" >/dev/null 2>&1 \
+          || aws --endpoint-url "$$endpoint" s3 mb "s3://$$S3_BUCKET"
+        aws --endpoint-url "$$endpoint" s3api put-bucket-cors --bucket "$$S3_BUCKET" \
+          --cors-configuration '{"CORSRules":[{"AllowedOrigins":["http://localhost:3000"],"AllowedMethods":["PUT","GET","HEAD"],"AllowedHeaders":["Content-Type"],"MaxAgeSeconds":3000}]}'
+        echo "s3-init: bucket $$S3_BUCKET is ready"
+
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:1025:1025'
+      - '127.0.0.1:8025:8025'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8025/readyz']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.36.0
+    profiles: ['observability']
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3001:3000'
+      - '127.0.0.1:4317:4317'
+      - '127.0.0.1:4318:4318'
+
+  clamav:
+    image: clamav/clamav:1.5.4-debian13-slim
+    profiles: ['clamav']
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3310:3310'
+
+volumes:
+  postgres-data:
+  redis-data:
+  s3-data:

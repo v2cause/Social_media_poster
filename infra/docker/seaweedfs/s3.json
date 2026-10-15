@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "smp-local",
+      "credentials": [
+        {
+          "accessKey": "smp-local-access-key",
+          "secretKey": "smp-local-secret-key"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
