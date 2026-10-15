@@ -671,8 +671,9 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Fertig, wenn**: Diese Tests grün sind: manipuliertes Byte schlägt fehl, falsche AAD schlägt fehl, Rotation (alt lesen, neu schreiben).
 
 #### 4.3 Queues, Locks, Outbox
-- **Erstellen**: in `packages/queue` alle Queues aus Teil A, Abschnitt 7.4, mit zod-Payloads und typisierten Producern; `withLock(key, ttlMs, fn)` (`SET NX PX` plus Freigabe per Lua mit Token-Vergleich); Prozessor `outbox.relay`.
+- **Erstellen**: in `packages/queue` alle Queues aus Teil A, Abschnitt 7.4, mit zod-Payloads und typisierten Producern sowie Builder-Funktionen für die Job-IDs; `withLock(key, ttlMs, fn)` (`SET NX PX` plus Freigabe per Lua mit Token-Vergleich); Prozessor `tick.outbox-relay`.
 - **Darauf achten**:
+  - Job-IDs entstehen nur über die Builder (z.B. `publishJobId(variantId, scheduleVersion)` liefert `pub.{variantId}.{scheduleVersion}`). BullMQ lehnt IDs mit `:` ab; ein Unit-Test prüft alle Builder darauf.
   - Getrennte Redis-Verbindungen für Queue-Producer und Worker.
   - Lock-TTL größer als die Laufzeit, oder der Lock wird verlängert.
   - Das Relay markiert Events erst nach erfolgreichem Einreihen als verarbeitet.
@@ -717,7 +718,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 
 #### 4.7 Scheduler, Sweeper, verpasste Zeitfenster
 - **Erstellen**: Prozessoren `tick.publish` (15 s), `tick.sweep-queued` (60 s) und die Missed-Window-Prüfung im Tick.
-- **So sieht es aus**: SQL aus Teil A, Abschnitt 7, über den System-Client. Danach läuft jede Variante im eigenen Mandanten-Kontext weiter. Job-ID: `pub:{variantId}:{scheduleVersion}`.
+- **So sieht es aus**: SQL aus Teil A, Abschnitt 7, über den System-Client. Danach läuft jede Variante im eigenen Mandanten-Kontext weiter. Job-ID: `pub.{variantId}.{scheduleVersion}`.
 - **Darauf achten**: Erst nach dem Commit einreihen. Bei 2 parallelen Workern darf es kein doppeltes Einreihen geben (`SKIP LOCKED` plus Job-ID).
 - **Fertig, wenn**: Ein Integrationstest mit 2 Workern und 1.000 fälligen Varianten genau 1.000 Jobs ergibt.
 
@@ -989,7 +990,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 ## B.11 Globale Stolperfallen (Checkliste für jedes Review)
 
 1. pnpm 10: Pakete mit Install-Skripten (sharp, prisma, esbuild, swc) in `onlyBuiltDependencies` eintragen.
-2. BullMQ: Worker-Verbindungen mit `maxRetriesPerRequest: null`, Redis mit `noeviction` und AOF.
+2. BullMQ: Worker-Verbindungen mit `maxRetriesPerRequest: null`, Redis mit `noeviction` und AOF. Eigene Job-IDs enthalten keinen `:` (Punkt als Trenner).
 3. Die Laufzeit-DB-Rolle ist nie der Tabellen-Owner (das würde RLS umgehen). `FORCE ROW LEVEL SECURITY` ist überall gesetzt.
 4. `set_config(..., true)` immer transaktionslokal, nie ein session-weites `SET`. Policies lesen den Kontext mit `NULLIF(current_setting(..., true), '')::uuid`, weil eine gepoolte Verbindung danach einen Leerstring statt NULL liefert.
 5. Materialized Views ignorieren RLS, deshalb Rollup-Tabellen statt Views.

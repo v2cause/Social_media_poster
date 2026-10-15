@@ -349,7 +349,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
    UPDATE post_variant v SET status='QUEUED', queued_at=now(), version=v.version+1
    FROM due WHERE v.id = due.id RETURNING ...;
    ```
-   - Danach wird der Job `publish.variant` mit `jobId = pub:{variantId}:{scheduleVersion}` (dedupliziert) und einem Delay bis zur exakten Uhrzeit eingereiht.
+   - Danach wird der Job `publish.variant` mit `jobId = pub.{variantId}.{scheduleVersion}` (dedupliziert) und einem Delay bis zur exakten Uhrzeit eingereiht.
    - **Verpasstes Zeitfenster**: Varianten, die mehr als 6 h überfällig sind, gehen auf `FAILED(MISSED_WINDOW)` und lösen eine Benachrichtigung aus, außer der Workspace ist auf "trotzdem posten" eingestellt.
    - **Sweeper**: findet Varianten, die seit mehr als 2 min auf `QUEUED` stehen und keinen Job haben, und reiht sie erneut ein. Das ist dank derselben jobId gefahrlos.
 3. **Publish-Job**:
@@ -402,22 +402,24 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 ### 7.4 Queues (`packages/queue`, Payloads beim Einreihen und Verarbeiten per zod validiert)
 
-| Queue | Jobs | Dedupe |
-|---|---|---|
-| `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (täglich, gestaffelt), `tick.maintenance` (nachts) | Job-Scheduler-ID |
-| `publish` | `publish.variant { workspaceId, variantId, scheduleVersion, trigger, traceparent }` | `pub:{variantId}:{scheduleVersion}` |
-| `xb-commands` / `xb-results` | `xb.publish`, `xb.metrics`, `xb.verify-session`, `xb.delete`, `xb.login.start` / `xb.result` | `xb:{op}:{id}:{v}` |
-| `media` | `media.process`, `media.render` | `media:{assetId}`, `rend:{assetId}:{profile}:{cropHash}` |
-| `analytics` | `metrics.post` (gebatcht pro Account), `metrics.account`, `metrics.rollup` | `mp:{accountId}:{bucket}` |
-| `tokens` | `token.refresh` | `tok:{connectionId}` |
-| `ai` | `ai.topic-ideas`, `ai.alt-text` | - |
-| `notifications` | `notify.dispatch` (in der App und per E-Mail) | `ntf:{outboxId}` |
-| `billing` | `stripe.webhook`, `usage.report` | `stripe:{eventId}` |
-| `gdpr` | `gdpr.export`, `gdpr.erase` | `gdpr:{requestId}` |
+| Queue | Jobs | Dedupe (Job-ID) | Verarbeitet von (`WORKER_ROLES`) |
+|---|---|---|---|
+| `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (täglich, gestaffelt), `tick.maintenance` (nachts) | Job-Scheduler-ID | `scheduler` |
+| `publish` | `publish.variant { workspaceId, variantId, scheduleVersion, trigger, traceparent }` | `pub.{variantId}.{scheduleVersion}` | `publisher` |
+| `xb-commands` / `xb-results` | `xb.publish`, `xb.metrics`, `xb.verify-session`, `xb.delete`, `xb.login.start`, `xb.canary` / `xb.result` | `xb.{op}.{id}.{v}` | browser-worker / `publisher` |
+| `media` | `media.process`, `media.render` | `media.{assetId}`, `rend.{assetId}.{profile}.{cropHash}` | `media` |
+| `analytics` | `metrics.post` (gebatcht pro Account), `metrics.account`, `metrics.rollup` | `mp.{accountId}.{bucket}` | `analytics` |
+| `tokens` | `token.refresh` | `tok.{connectionId}` | `publisher` |
+| `ai` | `ai.topic-ideas`, `ai.alt-text` | - | `ai` |
+| `notifications` | `notify.dispatch` (in der App und per E-Mail) | `ntf.{outboxId}` | `notify` |
+| `billing` | `stripe.webhook`, `usage.report` | `stripe.{eventId}` | `billing` |
+| `gdpr` | `gdpr.export`, `gdpr.erase` | `gdpr.{requestId}` | `gdpr` |
 
+- **Job-IDs ohne Doppelpunkt**: BullMQ lehnt eigene Job-IDs mit `:` ab (`Custom Id cannot contain :`; geduldet wird nur eine Altform mit genau drei Segmenten). Deshalb trennt der Punkt die Bestandteile. Redis-Schlüssel für Locks und Pub/Sub (`lock:conn:{id}`, `ws:{workspaceId}:events`) sind davon nicht betroffen.
 - **Payloads**: enthalten nur IDs und werden im Job neu aus der DB gelesen. Ausnahme sind die `xb-*`-Queues, weil der browser-worker keinen DB-Zugriff hat.
 - **Redis-Betrieb**: `maxmemory-policy noeviction` (Voraussetzung für BullMQ) und AOF-Persistenz.
-- **Outbox-Relay**: läuft im 1-s-Takt mit `FOR UPDATE SKIP LOCKED`.
+- **Outbox-Relay**: läuft als `tick.outbox-relay` im 1-s-Takt mit `FOR UPDATE SKIP LOCKED`.
+- **`tick.maintenance`**: bündelt die nächtlichen Aufgaben: Rollup-Komplettlauf (Abschnitt 8), Aufräumen der Medien (Abschnitt 9) und Aufbewahrungsfristen (Leitfaden, Schritt 8.3).
 
 ---
 
