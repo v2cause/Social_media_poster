@@ -63,7 +63,7 @@ Einige Details (exakte X-Preise und Endpunkt-Formen, Instagram-Tageslimit, Meta-
 | Storage | S3-kompatibel (AWS SDK v3), lokal SeaweedFS, Presigned PUT mit serverseitiger Prüfung beim Abschluss, sharp | cloud-unabhängig. Presigned PUT funktioniert bei allen S3-Anbietern, Presigned POST z.B. nicht bei Cloudflare R2. MinIO ist als Community-Edition seit 2026 archiviert und bekommt keine Images mehr, deshalb SeaweedFS (Alternativen: Garage, RustFS). |
 | Tests | Vitest (+ `unplugin-swc` für Nest-Decorators), msw v2, Testcontainers, Playwright | ein Test-Runner überall |
 
-In Phase 0 prüfen kurze Spikes vier Punkte vorab: zod 4 mit nestjs-zod und Orval, Structured Outputs + Streaming + Caching der Claude API, den Overhead von RLS mit Prisma und Better Auth in NestJS.
+In Phase 0 prüfen kurze Spikes fünf Punkte vorab: Structured Outputs + Streaming + Caching + Fallbacks der Claude API, den Overhead von RLS mit Prisma, zod 4 mit nestjs-zod und Orval, Better Auth in NestJS sowie Presigned PUT mit CORS gegen SeaweedFS (Leitfaden, Schritt 0.14).
 
 ---
 
@@ -162,7 +162,8 @@ social-media-poster/
   compose.yaml              Docker Compose (Profile: default, app, e2e, xb, clamav, observability)
   infra/
     docker/                 Dockerfiles (multi-stage, non-root), DB-Rollen-Init, S3-Bucket-Init, Caddyfile (lokaler Reverse Proxy)
-  docs/                     ARCHITECTURE.md, adr/ (Architecture Decision Records)
+  tools/                    Repo-Skripte: gen-keys, check-no-emoji, check-rls, check-i18n, stripe-sync, spikes/
+  docs/                     ARCHITECTURE.md, IMPLEMENTATION_GUIDE.md, adr/ (Architecture Decision Records), runbooks/
   .github/workflows/        ci.yml, e2e.yml, release.yml, nightly-live-smoke.yml
 ```
 
@@ -297,13 +298,13 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
   - `User` (E-Mail, Sprache, Zeitzone; Tabelle `users`) sowie die Tabellen von Better Auth (`Session`, `Account` als Tabelle `auth_account`, `Verification`, `TwoFactor`).
   - `Organization` (Mandant, Billing).
   - `Workspace` (Marke oder Kunde innerhalb einer Organisation, z.B. für Agenturen; mit Zeitzone, Content-Sprache, Branche, Zielgruppe, Zielen, Content-Säulen).
-  - `Membership` (Rolle OWNER, ADMIN, EDITOR oder VIEWER, optional auf bestimmte Workspaces beschränkt) und `Invitation` (Token nur als Hash gespeichert).
+  - `Membership` (Rolle OWNER, ADMIN, EDITOR oder VIEWER, optional über `MembershipWorkspace` auf bestimmte Workspaces beschränkt) und `Invitation` (Token nur als Hash gespeichert).
 - **Channels**:
   - `SocialConnection`: ein OAuth-Grant oder eine Browser-Session (verschlüsselte Tokens oder Session, Ablaufzeiten, Scopes, Status ACTIVE, EXPIRING, NEEDS_REAUTH, PAUSED oder REVOKED).
   - `SocialAccount`: ein Veröffentlichungsziel, z.B. eine Person, eine Company Page, eine Facebook-Seite oder ein IG-Konto. Eine Verbindung kann mehrere Accounts haben, z.B. mehrere Pages.
 - **Content**:
   - `PostStyle`: System-Presets (Professionell, Storytelling, Locker, Lehrreich, Thought Leadership, Werblich) und eigene Stile.
-  - `BrandVoice`: versioniert, die Version dient als Cache-Key.
+  - `BrandVoice` mit `BrandVoiceVersion` (unveränderliche Snapshots): Die Version dient als Cache-Key, und `AiGeneration` verweist auf sie.
   - `Idea`, `Post` (Master-Inhalt: Briefing, Stil, Brand Voice) und `PostVariant` (ein Eintrag pro Zielaccount).
 - **Media**: `MediaAsset` (Status PENDING_UPLOAD, PROCESSING, READY oder REJECTED; Maße, sha256, Alt-Text), `MediaRendition` (Profil pro Plattform plus Zuschnitt), `PostMedia` (Reihenfolge, Zuschnitt und Alt-Text pro Variante).
 - **Publishing**: `PublishAttempt` (Protokoll jedes Versuchs inkl. Fehlercode und IG-Container-IDs), `OutboxEvent`, `WebhookEvent` (idempotent).
@@ -468,7 +469,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 ## 9. Medien-Pipeline
 
-1. **Upload anfordern**: `POST /media/uploads` prüft Speicher-Quote und MIME-Whitelist (JPEG, PNG, WebP, statisches GIF; kein SVG). Die API legt `MediaAsset(PENDING_UPLOAD)` an und liefert eine Presigned-PUT-URL (5 min gültig, Content-Type signiert).
+1. **Upload anfordern**: `POST /api/w/:ws/media/uploads` prüft Speicher-Quote, Größe (max. 20 MB) und MIME-Whitelist (JPEG, PNG, WebP, statisches GIF; kein SVG). Die API legt `MediaAsset(PENDING_UPLOAD)` an und liefert eine Presigned-PUT-URL (5 min gültig, Content-Type signiert).
 2. **Upload**: Der Browser lädt direkt in den S3-Speicher hoch, mit Fortschrittsanzeige, und meldet dann `complete`. Die API prüft dabei per `HeadObject` die tatsächliche Größe und den Content-Type und löscht Objekte, die gegen die Regeln verstoßen.
 3. **`media.process`**:
    - Magic-Byte-Prüfung (`file-type`).
@@ -487,7 +488,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
    - Die Werte liegen zentral in `packages/platform-rules` und werden pro Adapter-Phase gegen die Doku geprüft.
    - Liegt ein Seitenverhältnis außerhalb des Erlaubten, schneidet der Nutzer pro Plattform zu (`react-easy-crop`) oder wählt Letterbox. Der Zuschnitt wird an `PostMedia` gespeichert.
 5. **Öffentliche URLs für Meta**: Presigned GET mit 1 h Laufzeit und `.jpg`-Key. Als Fallback gibt es einen HMAC-signierten Medien-Proxy der API. Lokal laufen Tests über einen `cloudflared`-Tunnel oder den Mock-Adapter.
-6. **Aufräumen**: Abgebrochene Uploads nach 1 Tag, verwaiste Assets nach 24 h, gelöschte nach 30 Tagen. Thumbnails veröffentlichter Posts bleiben für die Historie erhalten.
+6. **Aufräumen** (in `tick.maintenance`): Assets, die nach 24 h noch auf `PENDING_UPLOAD` stehen, und S3-Objekte ohne zugehöriges `MediaAsset` nach 24 h; gelöschte Assets nach 30 Tagen. Unbenutzte, aber fertige Assets bleiben in der Bibliothek, und Thumbnails veröffentlichter Posts bleiben für die Historie erhalten.
 
 ---
 
@@ -619,7 +620,7 @@ In automatisierten Tests läuft immer der `MockAiProvider`, außer in der option
 
 | Phase | Inhalt | Abnahmekriterium |
 |---|---|---|
-| **0 Fundament** | Monorepo, Configs, App-Gerüste mit Health-Endpunkten, alle Packages angelegt, Docker Compose (Postgres 17, Redis mit noeviction und AOF, SeaweedFS-S3 inkl. Bucket, Mailpit), Env-Validierung, Logging, OTel, Sentry, Prisma 7 + DB-Rollen + RLS-Grundlage, Seed-Gerüst, CI, `docs/ARCHITECTURE.md` + ADRs. Spikes: Claude Structured Outputs/Streaming/Caching/Fallbacks, RLS mit Prisma, zod 4, Better Auth in NestJS | `docker compose up` + `pnpm dev` startet alles; CI grün; Spike-Ergebnisse als ADRs dokumentiert |
+| **0 Fundament** | Monorepo, Configs, App-Gerüste mit Health-Endpunkten, alle Packages angelegt, Docker Compose (Postgres 17, Redis mit noeviction und AOF, SeaweedFS-S3 inkl. Bucket, Mailpit), Env-Validierung, Logging, OTel, Sentry, Prisma 7 + DB-Rollen + RLS-Grundlage, Seed-Gerüst, CI, `docs/ARCHITECTURE.md` + ADRs. Spikes: Claude Structured Outputs/Streaming/Caching/Fallbacks, RLS mit Prisma, zod 4, Better Auth in NestJS, S3-Upload mit CORS | `docker compose up` + `pnpm dev` startet alles; CI grün; Spike-Ergebnisse als ADRs dokumentiert |
 | **1 Auth + Mandanten** | Better Auth (Registrierung, Verifizierung, Reset, 2FA), App-Shell mit i18n DE/EN, Onboarding, Organisationen, Workspaces, Mitglieder, Einladungen (Mailpit), Rechte-Matrix + Guards, RLS auf allen Tabellen, Audit-Log, Benachrichtigungs-Grundgerüst, Workspace-Wechsler | Rechte-Matrix-E2E grün; Mandanten-Isolationstests grün |
 | **2 Composer + KI + Stile** | Posts und Varianten (Entwürfe), Brand Voices, Stil-Presets und eigene Stile, `AiProvider` (Anthropic + Mock), SSE-Generierung, Composer mit Textvorschau und Zählern, Refine, Ideen-Seite, `AiGeneration`-Audit, Kostenerfassung + Limit | echte und Mock-Generierung funktionieren; Cache-Treffer bei wiederholten Aufrufen; Refusal- und Truncation-Pfade getestet |
 | **3 Medien** | Presigned Uploads, Bibliothek, Verarbeitung, Renditions + Zuschnitt, Alt-Text (manuell + KI), Anhängen an Varianten mit Plattformprüfung, Bildvorschau | 10-MB-Bild in unter 5 s bereit; Plattformfehler im Composer sichtbar |
