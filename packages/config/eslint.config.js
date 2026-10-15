@@ -63,6 +63,8 @@ function createEslintConfig({ tsconfigRootDir, typed = true, web = false }) {
           'error',
           { prefer: 'type-imports', fixStyle: 'separate-type-imports' },
         ],
+        // Nest modules and decorated providers are classes without members on purpose.
+        '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
         'import-x/no-cycle': 'error',
         'no-console': 'error',
         'no-restricted-imports': [
