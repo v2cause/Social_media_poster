@@ -717,9 +717,11 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Fertig, wenn**: Alle erlaubten und verbotenen Übergänge als Tabellentest grün sind, dazu Property-Tests für die Zeitumstellung (fast-check).
 
 #### 4.7 Scheduler, Sweeper, verpasste Zeitfenster
-- **Erstellen**: Prozessoren `tick.publish` (15 s), `tick.sweep-queued` (60 s) und die Missed-Window-Prüfung im Tick.
+- **Erstellen**: Prozessoren `tick.publish` (15 s), `tick.sweep-queued` (60 s, auch für `PUBLISHING` mit abgelaufenem Lease) und die Missed-Window-Prüfung im Tick.
 - **So sieht es aus**: SQL aus Teil A, Abschnitt 7, über den System-Client. Danach läuft jede Variante im eigenen Mandanten-Kontext weiter. Job-ID: `pub.{variantId}.{scheduleVersion}`.
-- **Darauf achten**: Erst nach dem Commit einreihen. Bei 2 parallelen Workern darf es kein doppeltes Einreihen geben (`SKIP LOCKED` plus Job-ID).
+- **Darauf achten**:
+  - Erst nach dem Commit einreihen. Bei 2 parallelen Workern darf es kein doppeltes Einreihen geben (`SKIP LOCKED` plus Job-ID).
+  - Der Sweeper prüft den vorhandenen Job: Fehlt er, wird er neu eingereiht. Liegt er unter derselben Job-ID noch als fehlgeschlagen vor, ignoriert BullMQ ein erneutes `add`; dann wird er per `job.retry()` neu gestartet.
 - **Fertig, wenn**: Ein Integrationstest mit 2 Workern und 1.000 fälligen Varianten genau 1.000 Jobs ergibt.
 
 #### 4.8 Publish-Prozessor
@@ -729,12 +731,12 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Permanente Fehler: `throw new UnrecoverableError(code)`.
   - Die Backoff-Strategie ist im Worker als `settings.backoffStrategy` hinterlegt.
 - **Darauf achten**:
-  - Der Lease-Claim läuft per Compare-and-Swap auf `version`.
+  - Der Lease-Claim läuft per Compare-and-Swap auf `version`. Vor langen Schritten (Instagram-Polling bis 5 min) wird `leaseUntil` auf dieselbe Weise verlängert, sonst läuft der Lease mitten im Versuch ab.
   - Nach unklarem Ausgang folgt immer zuerst `reconcile()`.
   - Das Token wird unter Lock erneuert und danach neu gelesen.
   - Dry-Run sendet nichts.
   - Kostensätze werden bei X geschrieben.
-- **Fertig, wenn**: Der Chaos-Test grün ist: den Worker mitten in `publish` beenden, neu starten, und es gibt keinen doppelten Post (Mock zählt die Aufrufe).
+- **Fertig, wenn**: Der Chaos-Test grün ist: den Worker mitten in `publish` beenden, neu starten, und es gibt keinen doppelten Post (Mock zählt die Aufrufe). Ein zweiter Test lässt den Job endgültig scheitern; der Sweeper holt die Variante aus `PUBLISHING` zurück.
 
 #### 4.9 Token-Überwachung und Benachrichtigungen
 - **Erstellen**: `tick.tokens` (stündlich), `token.refresh`, die Templates `token-expiring`, `reauth-required`, `publish-failed` und `needs-attention` (de/en), sowie In-App-Benachrichtigungen.

@@ -313,7 +313,7 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
 **Kernfelder von `PostVariant`**:
 - Inhalt und Zuordnung: `socialAccountId`, `platform`, `text`, `hashtags`, `firstComment`, `linkUrl`.
 - Status und Zeitplan: `status`, `scheduledAt` (UTC), `scheduledTimezone` (IANA).
-- Steuerung: `scheduleVersion` (wird bei jedem Umplanen erhöht und ist Teil der Job-ID), `version` (Optimistic Locking), `leaseOwner` und `leaseUntil`.
+- Steuerung: `scheduleVersion` (wird bei jedem Umplanen erhöht und ist Teil der Job-ID), `version` (Optimistic Locking), `queuedAt` (für den Sweeper), `leaseOwner` und `leaseUntil`.
 - Ergebnis: `publishedAt`, `externalPostId`, `externalUrl`, `failureCode`, `lastError`, `isDryRun`.
 - Sonstiges: `contentHash` (für den Abgleich), `metricsNextAt` und `metricsStep`.
 
@@ -351,10 +351,10 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
    ```
    - Danach wird der Job `publish.variant` mit `jobId = pub.{variantId}.{scheduleVersion}` (dedupliziert) und einem Delay bis zur exakten Uhrzeit eingereiht.
    - **Verpasstes Zeitfenster**: Varianten, die mehr als 6 h überfällig sind, gehen auf `FAILED(MISSED_WINDOW)` und lösen eine Benachrichtigung aus, außer der Workspace ist auf "trotzdem posten" eingestellt.
-   - **Sweeper**: findet Varianten, die seit mehr als 2 min auf `QUEUED` stehen und keinen Job haben, und reiht sie erneut ein. Das ist dank derselben jobId gefahrlos.
+   - **Sweeper**: findet Varianten, die seit mehr als 2 min auf `QUEUED` stehen und keinen laufenden Job haben, sowie Varianten auf `PUBLISHING` mit abgelaufenem Lease (z.B. nach einem Worker-Absturz), und stößt den Job erneut an. Das ist dank derselben jobId und der Statusprüfung im Job gefahrlos; nach abgelaufenem Lease beginnt der Job immer mit dem Reconcile (Schritt 4).
 3. **Publish-Job**:
    1. Passt der Status oder die `scheduleVersion` nicht, ist der Job veraltet und endet ohne Aktion.
-   2. Lease per Compare-and-Swap: `PUBLISHING` mit `leaseUntil = now()+5min`.
+   2. Lease per Compare-and-Swap: `PUBLISHING` mit `leaseUntil = now()+5min`. Dauert ein Schritt länger (z.B. das Warten auf einen Instagram-Container), wird der Lease vorher verlängert.
    3. `PublishAttempt(STARTED)` anlegen.
    4. Gibt es einen offenen oder unklaren früheren Versuch, wird zuerst `adapter.reconcile()` aufgerufen. Es sucht über `contentHash` und Text nach einem bereits erschienenen Post. So entsteht nie ein doppelter Post.
    5. Token erneuern, falls nötig: unter dem Redis-Lock `lock:conn:{id}` und mit erneutem Lesen nach dem Lock. Das ist wichtig für die rotierenden, nur einmal gültigen Refresh Tokens von X.
@@ -390,7 +390,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 ```
 
 - **Durchsetzung**: Der Automat ist eine reine Übergangstabelle in `packages/core/src/publishing/domain/variant-state-machine.ts`. Jeder Übergang wird mit Versionsprüfung gespeichert; verbotene Übergänge werfen Domain-Fehler.
-- **Bearbeiten**: in `DRAFT` und `SCHEDULED` erlaubt, in `QUEUED` und `PUBLISHING` gesperrt.
+- **Bearbeiten**: in `DRAFT` und `SCHEDULED` erlaubt, aus `FAILED` zurück nach `DRAFT`. Gesperrt in `QUEUED`, `PUBLISHING`, `RETRYING` und `NEEDS_ATTENTION`, weil der Reconcile einen unveränderten `contentHash` braucht.
 - **Status des Master-Posts**: wird abgeleitet (DRAFT, SCHEDULED, PARTIAL, PUBLISHED, FAILED).
 - **Später**: ein Freigabe-Workflow (`PENDING_APPROVAL`).
 
