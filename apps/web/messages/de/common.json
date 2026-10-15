@@ -1,0 +1,24 @@
+{
+  "app": {
+    "name": "Social Media Poster"
+  },
+  "shell": {
+    "title": "Social Media Poster",
+    "subtitle": "Erstellen, planen und auswerten Sie Ihre Posts an einem Ort.",
+    "status": "Die Oberfläche ist bereit. Anmeldung und Workspaces folgen mit Phase 1.",
+    "navigation": "Hauptnavigation",
+    "languageLabel": "Sprache"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "create": "Erstellen",
+    "calendar": "Kalender",
+    "posts": "Posts",
+    "ideas": "Ideen",
+    "media": "Medien",
+    "analytics": "Analytics",
+    "accounts": "Accounts",
+    "brandVoices": "Brand Voices",
+    "settings": "Einstellungen"
+  }
+}
