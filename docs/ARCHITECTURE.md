@@ -161,7 +161,7 @@ social-media-poster/
     testing/                Factories, Testcontainers-Helfer, msw-Fixtures, Adapter-Contract-Suite
   compose.yaml              Docker Compose (Profile: default, app, e2e, xb, clamav, observability)
   infra/
-    docker/                 Dockerfiles (multi-stage, non-root), DB-Rollen-Init, S3-Bucket-Init
+    docker/                 Dockerfiles (multi-stage, non-root), DB-Rollen-Init, S3-Bucket-Init, Caddyfile (lokaler Reverse Proxy)
   docs/                     ARCHITECTURE.md, adr/ (Architecture Decision Records)
   .github/workflows/        ci.yml, e2e.yml, release.yml, nightly-live-smoke.yml
 ```
@@ -672,7 +672,7 @@ cp .env.example .env          # AI_PROVIDER=mock, PLATFORM_MODE_*=mock
 docker compose up -d          # postgres, redis, seaweedfs (+ Bucket), mailpit
 pnpm db:migrate && pnpm db:seed
 pnpm dev                      # web :3000, api :4000, worker; browser-worker über --profile xb
-# Alternativ komplett in Containern:
+# Alternativ komplett in Containern (App über den Proxy unter http://localhost:8080):
 docker compose --profile app up --build
 ```
 

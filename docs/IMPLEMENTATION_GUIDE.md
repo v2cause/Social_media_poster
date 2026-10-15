@@ -95,9 +95,9 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 | postgres | `postgres:17.x-alpine` | Healthcheck `pg_isready`; das Init-SQL legt die Rollen `app_migrator` (Owner), `app_user` (NOBYPASSRLS) und `app_system` (BYPASSRLS) sowie die Datenbanken `smp` und `smp_test` an |
 | redis | `redis:7.4.x-alpine` | `redis-server --appendonly yes --maxmemory-policy noeviction`; Healthcheck `redis-cli ping` |
 | s3 | `chrislusf/seaweedfs:<Version>` | `server -s3 -s3.config=/etc/seaweedfs/s3.json`, Port 8333 |
-| s3-init | `amazon/aws-cli:<Version>` | einmalig: `s3 mb s3://smp-media`, CORS für `http://localhost:3000` (PUT, GET, HEAD; Header `Content-Type`) |
+| s3-init | `amazon/aws-cli:<Version>` | einmalig: `s3 mb s3://smp-media`, CORS für `http://localhost:3000` und `http://localhost:8080` (PUT, GET, HEAD; Header `Content-Type`) |
 | mailpit | `axllent/mailpit:<Version>` | SMTP 1025, UI 8025 |
-| Profil `app` | api, worker, web aus den eigenen Dockerfiles | `depends_on` mit `condition: service_healthy` |
+| Profil `app` | api, worker, web aus den eigenen Dockerfiles, dazu `proxy` (`caddy:<Version>`, `infra/docker/caddy/Caddyfile`) | `depends_on` mit `condition: service_healthy`; der Proxy routet wie in Produktion `/api/*` an die API und alles andere an das Web, erreichbar unter `http://localhost:8080` |
 | Profil `xb` | browser-worker | `shm_size: 1gb`, `init: true` |
 | Profil `observability` | `grafana/otel-lgtm:<Version>` | OTLP-Collector + Grafana in einem Container |
 | Profil `clamav` | `clamav/clamav:<Version>` | optionaler Virenscan |
@@ -221,13 +221,17 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   const config: NextConfig = {
     output: 'standalone',
     transpilePackages: ['@smp/ui', '@smp/api-client', '@smp/contracts', '@smp/platform-rules'],
-    async rewrites() { return [{ source: '/api/:path*', destination: `${process.env.API_INTERNAL_URL}/api/:path*` }]; },
+    async rewrites() {   // nur lokale Entwicklung; im Container und in Produktion routet der Reverse Proxy
+      const api = process.env.API_INTERNAL_URL;
+      return api ? [{ source: '/api/:path*', destination: `${api}/api/:path*` }] : [];
+    },
   };
   export default withNextIntl(config);
   ```
   next-intl läuft ohne Sprach-Routing: `getRequestConfig` liest die Sprache aus dem Cookie `NEXT_LOCALE` (später aus dem Profil), Standard ist `de`.
 - **Darauf achten**:
-  - Der Rewrite gilt nur für die lokale Entwicklung. In Produktion routet der Reverse Proxy `/api` direkt an die API; das spart einen Hop und vermeidet Puffern bei SSE.
+  - Der Rewrite gilt nur für die lokale Entwicklung. In Produktion und im Compose-Profil `app` routet der Reverse Proxy `/api` direkt an die API; das spart einen Hop und vermeidet Puffern bei SSE.
+  - `rewrites()` wird beim Build ausgewertet, nicht zur Laufzeit. Deshalb hängt der Rewrite an `API_INTERNAL_URL` und fehlt im Docker-Build, in dem die Variable nicht gesetzt ist; sonst landete `undefined` als Ziel im Build.
   - Server Components rufen die API mit dem weitergereichten Cookie auf.
   - `proxy.ts` (ersetzt in Next.js 16 `middleware.ts`) macht nur optimistische Redirects und ist keine Sicherheitsgrenze.
   - Für signierte S3-URLs `next/image` mit `unoptimized` oder ein einfaches `<img>` nutzen, sonst gibt es Cache-Probleme mit ablaufenden URLs.
@@ -257,7 +261,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Fertig, wenn**: `pnpm build` alle Packages in der richtigen Reihenfolge (Turbo-Graph) baut.
 
 #### 0.12 Dockerfiles
-- **Erstellen**: `infra/docker/node-app.Dockerfile` (`ARG APP`), `infra/docker/web.Dockerfile`, `.dockerignore`.
+- **Erstellen**: `infra/docker/node-app.Dockerfile` (`ARG APP`), `infra/docker/web.Dockerfile`, `infra/docker/caddy/Caddyfile`, `.dockerignore`.
 - **So sieht es aus**: vier Stages.
   1. `prune`: `turbo prune @smp/$APP --docker`
   2. `deps`: `pnpm install --frozen-lockfile` auf den gepruned-ten Manifests
@@ -270,7 +274,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Keine `.env` im Image.
   - `pnpm deploy` verlangt in pnpm 10 entweder `inject-workspace-packages=true` oder `--legacy`. Welche Variante gilt, hält ADR 0002 fest; injizierte Workspace-Pakete sind Kopien statt Symlinks und verändern das Verhalten in der lokalen Entwicklung.
   - Zielgröße für api und worker unter 300 MB.
-- **Fertig, wenn**: `docker compose --profile app up --build` alle drei Apps "healthy" startet.
+- **Fertig, wenn**: `docker compose --profile app up --build` alle drei Apps "healthy" startet und die App über den Proxy unter `http://localhost:8080` samt API-Aufrufen funktioniert.
 
 #### 0.13 CI und Qualitäts-Gates
 - **Erstellen**: `.github/workflows/ci.yml`, `renovate.json`, `.dependency-cruiser.cjs`, `tools/check-no-emoji.ts`, `.github/pull_request_template.md`.
