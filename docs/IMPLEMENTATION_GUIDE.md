@@ -21,7 +21,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 | Thema | Regel |
 |---|---|
 | Sprache | Code, Bezeichner, Commit-Messages und Code-Kommentare auf Englisch. UI-Texte ausschließlich über i18n-Keys (de + en). Projektdoku auf Deutsch. |
-| Emojis | **Keine Emojis** in Code, Kommentaren, Commits, Logs, Fehlermeldungen oder UI-Texten. Die CI erzwingt das per Skript (Schritt 0.13). Ausnahme ist nur der von der KI generierte Post-Inhalt, gesteuert über die Emoji-Politik der Brand Voice; das sind Nutzdaten, kein Code. |
+| Emojis | **Keine Emojis** in Code, Kommentaren, Commits, Logs, Fehlermeldungen, UI-Texten oder Doku. Die CI erzwingt das per Skript (Schritt 0.13). Ausnahme ist nur der von der KI generierte Post-Inhalt, gesteuert über die Emoji-Politik der Brand Voice; das sind Nutzdaten, kein Code. |
 | Namen | npm-Scope `@smp/*`. Dateien in kebab-case, Klassen in PascalCase, Funktionen und Variablen in camelCase. DB-Tabellen und -Spalten in snake_case (Prisma `@@map`/`@map`). Env-Variablen in SCREAMING_SNAKE_CASE. |
 | Imports | Nur über Package-Einstiegspunkte (`@smp/core`), nie Deep-Imports (`@smp/core/src/...`); ESLint `no-restricted-imports` erzwingt das. Keine Zyklen (dependency-cruiser). |
 | Fehler | Domain-Fehler sind Klassen mit stabilem `code`. Die API liefert RFC 9457 Problem Details `{ type, title, status, code, detail, traceId }`, nie Stacktraces. Die UI übersetzt den `code`. |
@@ -31,7 +31,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 | Validierung | Jede externe Eingabe wird mit zod validiert: HTTP, Jobs, Env, Adapter-Antworten, KI-Ausgaben. |
 | Mandanten | Jede Repository-Methode bekommt `workspaceId` bzw. `organizationId` explizit übergeben. |
 | Tests | Jeder Use Case hat Unit-Tests. Jeder Bugfix bekommt einen Regressionstest. |
-| Commits | Conventional Commits (`feat(publishing): add scheduler tick`), klein, ein Thema pro Commit. |
+| Commits | Conventional Commits (`feat(publishing): add scheduler tick`), klein, ein Thema pro Commit; die CI prüft das per commitlint (Schritt 0.13). |
 | Definition of Done | lint, typecheck und Tests grün; `.env.example` aktualisiert; i18n-Keys in de und en; Doku/ADR angepasst; kein `TODO` ohne Issue-Verweis. |
 
 ---
@@ -277,7 +277,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Fertig, wenn**: `docker compose --profile app up --build` alle drei Apps "healthy" startet und die App über den Proxy unter `http://localhost:8080` samt API-Aufrufen funktioniert.
 
 #### 0.13 CI und Qualitäts-Gates
-- **Erstellen**: `.github/workflows/ci.yml`, `renovate.json`, `.dependency-cruiser.cjs`, `tools/check-no-emoji.ts`, `.github/pull_request_template.md`.
+- **Erstellen**: `.github/workflows/ci.yml`, `renovate.json`, `.dependency-cruiser.cjs`, `tools/check-no-emoji.ts`, `commitlint.config.js`, `.github/pull_request_template.md`.
 - **So sieht es aus**:
   - Jobs:
     - `quality`: lint, typecheck, dependency-cruiser, Emoji-Check, i18n-Key-Check
@@ -286,13 +286,16 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
     - `build`
     - später `e2e` und `docker`
   - `concurrency` mit `cancel-in-progress`; pnpm-Cache über `actions/setup-node`; Turbo-Cache über `actions/cache` auf `.turbo`.
-  - Der Emoji-Check durchsucht alle Quelldateien (`.ts`, `.tsx`, `.json`, `.md`, `.yml`) nach `\p{Extended_Pictographic}` und schlägt bei einem Treffer fehl.
+  - Der Emoji-Check durchsucht alle versionierten Textdateien (`git ls-files`, Binärdateien ausgenommen) nach `\p{Extended_Pictographic}` und schlägt bei einem Treffer fehl. Eine feste Endungsliste würde z.B. `compose.yaml`, `.cjs`, `.sql` oder `.prisma` übersehen.
+  - Dieselbe Prüfung läuft über die Commit-Messages des PRs, zusammen mit `commitlint` (`@commitlint/config-conventional`) für das Conventional-Commits-Format.
 - **Darauf achten**:
+  - `\p{Extended_Pictographic}` trifft auch die Zeichen Copyright (U+00A9), Registered (U+00AE) und Trademark (U+2122). Diese drei stehen auf einer kleinen Allowlist (Rechtstexte, Impressum).
+  - Tests, die Emojis brauchen (Zeichenzählung in 2.2, Mock-Fixtures in 2.5), schreiben sie als Escape-Sequenz (`'\u{1F600}'`, in JSON `"\ud83d\ude00"`), nie als literales Zeichen.
   - GitHub Actions per Commit-SHA pinnen (Lieferkette).
   - `permissions: contents: read` als Default.
   - Job-Timeouts setzen.
   - Keine Secrets in Builds von Forks.
-- **Fertig, wenn**: Ein Push eine grüne CI ergibt und ein absichtlich eingefügtes Emoji die CI rot macht.
+- **Fertig, wenn**: Ein Push eine grüne CI ergibt und sowohl ein absichtlich eingefügtes Emoji als auch eine Commit-Message ohne Conventional-Commits-Format die CI rot machen.
 
 #### 0.14 Spikes, Doku, ADRs
 - **Erstellen**: `docs/adr/0001` bis `0008` (Monorepo und Stack, Modulformat, RLS, Scheduling und Outbox, X-Hybrid und Leitplanken, Auth, KI-Provider und Caching, Objektspeicher), `tools/spikes/*`.
@@ -1038,7 +1041,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 20. Secrets nie in `NEXT_PUBLIC_*`, in Logs, in Fehlermeldungen, in Audit-Metadaten oder in Job-Payloads (Ausnahme: verschlüsselt und sofort gelöscht, siehe 6.4).
 21. Signierte URLs nicht durch den `next/image`-Optimizer cachen lassen.
 22. Fremde Mandanten-Ressourcen liefern 404, nicht 403.
-23. Keine Emojis im Code (der CI-Check erzwingt das).
+23. Keine Emojis im Code (der CI-Check erzwingt das). Testdaten mit Emojis als Escape-Sequenz schreiben; nur U+00A9, U+00AE und U+2122 stehen auf der Allowlist.
 
 ---
 

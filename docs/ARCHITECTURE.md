@@ -579,7 +579,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 - **Metriken**: Erfolgsquote pro Plattform, Verzögerung beim Veröffentlichen, Queue-Tiefe, Verzögerung des Scheduler-Ticks, KI-Tokens, Kosten und Cache-Trefferquote, Refusals, X-Ausgaben pro Workspace, Fehler beim Token-Refresh, Browser-Challenges.
 - **Alarme**: Fehlerquote, Tick-Verzögerung über 60 s, Dead-Letter-Queue nicht leer, hängende QUEUED-Varianten, eine Welle von NEEDS_REAUTH, ausgelöster Kill-Switch.
 - **CI** (GitHub Actions, pnpm + Turbo-Cache):
-  1. lint (ESLint, Prettier, dependency-cruiser, Prüfung der i18n-Keys)
+  1. lint (ESLint, Prettier, dependency-cruiser, Emoji-Check, Prüfung der i18n-Keys, commitlint)
   2. typecheck
   3. Unit-Tests
   4. Integrationstests mit Testcontainers (inkl. RLS)
