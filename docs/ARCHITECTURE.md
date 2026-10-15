@@ -241,8 +241,10 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
   - Thinking ist adaptiv und bei diesem Modell nicht abschaltbar. `temperature` und Assistant-Prefill werden vom Modell abgelehnt; Abwechslung beim Neu-Generieren entsteht über den Prompt.
 - **Robustheit**:
   - Vor dem Lesen des Inhalts wird immer `stop_reason` geprüft. `refusal` wird verständlich angezeigt und nie automatisch umgangen. `max_tokens` löst einen Retry mit höherem Limit aus.
-  - Server-seitige Fallbacks (`fallbacks: "default"`, Beta-Header `server-side-fallback-2026-07-01`) sind standardmäßig an und per `AI_REFUSAL_FALLBACK=off` abschaltbar. Gespeichert wird das tatsächlich verwendete Modell.
-  - SDK-Fehler werden typisiert behandelt, vom spezifischsten zum allgemeinsten: RateLimit, dann sonstige API-Status, dann Verbindung.
+  - Server-seitige Fallbacks (`fallbacks: "default"`, Beta-Header `server-side-fallback-2026-07-01`) sind standardmäßig an und per `AI_REFUSAL_FALLBACK=off` abschaltbar. Gespeichert wird das tatsächlich verwendete Modell (Top-Level-`model` der Antwort).
+  - Wechselt der Server mitten im Stream auf das Fallback-Modell, markiert ein `fallback`-Content-Block die Stelle. Die bis dahin gestreamte Teilausgabe wird verworfen.
+  - Die Kosten werden aus `usage.iterations` berechnet, pro Versuch zum Preis des ausführenden Modells. Das Top-Level-`usage` enthält nur den Versuch, der die Antwort geliefert hat.
+  - SDK-Fehler werden typisiert behandelt, vom spezifischsten zum allgemeinsten: `RateLimitError`, dann `APIConnectionError` (inkl. Timeout), dann `APIError` mit Status. Die Reihenfolge ist wichtig, weil im TypeScript-SDK `APIConnectionError` eine Unterklasse von `APIError` ist. `APIUserAbortError` nach einem Abbruch durch den Client ist kein Fehler.
 
 ### 5.2 Prompt-Aufbau (für Prompt Caching)
 
@@ -257,7 +259,7 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
 - **Structured Outputs** (zod, `output_config.format`): pro Variante `targetKey`, `platform`, `hook`, `text`, `hashtags[]`, `firstComment`, `callToAction`, `altTexts[]`, `warnings[]` (z.B. "Statistik braucht eine Quelle"). Themenideen haben `title`, `angle`, `pillar`, `whyNow`, `basedOn[]`, `suggestedPlatforms[]`, `suggestedStyleKey`, `format`.
 - **Zeichenzahl auf dem Server**: Sie wird berechnet, nicht vom Modell geliefert (X gewichtet per `twitter-text`, sonst Grapheme). Ist eine Variante zu lang, läuft einmal automatisch "kürzen"; bleibt sie zu lang, markiert die UI sie.
 - **Generieren**: `POST /api/w/:ws/ai/generations` liefert `text/event-stream` mit diesen Events:
-  - `generation.started`, `variant.partial`, `generation.completed` (Varianten inkl. Zeichenzahl und Validierungsfehlern), `generation.failed` (REFUSED, QUOTA_EXCEEDED, TRUNCATED, INVALID_OUTPUT, PROVIDER_ERROR),
+  - `generation.started`, `variant.partial`, `variant.reset` (nach einem Modellwechsel mitten im Stream; der Client verwirft die Teilausgabe), `generation.completed` (Varianten inkl. Zeichenzahl und Validierungsfehlern), `generation.failed` (REFUSED, QUOTA_EXCEEDED, TRUNCATED, INVALID_OUTPUT, PROVIDER_ERROR),
   - einen Heartbeat alle 15 s.
 
   Das Frontend parst partielles JSON (`partial-json`), final validiert zod.
@@ -274,7 +276,7 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
   - Die KI veröffentlicht nie selbst; Planen ist immer eine bewusste Nutzeraktion.
 - **Kosten**:
   - Jeder Aufruf wird in `AiGeneration` gespeichert: Prompt-Version, Modell angefragt und geliefert, Effort, Input-Snapshot, Output, Ergebnis, Tokens inkl. Cache, Kosten, Latenz, Time-to-first-token.
-  - Die Preise stehen versioniert in einem `PriceBook` (keine fest einprogrammierten Zahlen).
+  - Die Preise stehen versioniert in einem `PriceBook` (keine fest einprogrammierten Zahlen), auch für die Modelle, auf die der Server-Fallback ausweichen kann.
   - Vor dem Aufruf wird eine Quote reserviert und danach abgerechnet. Ohne Guthaben antwortet die API mit 402.
   - Grobe Schätzung: wenige US-Cent pro Generierung mit 4 Varianten; wird in Phase 2 gemessen.
 

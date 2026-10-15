@@ -464,7 +464,8 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Erstellen**: `PostStyle`, `BrandVoice` und `BrandVoiceVersion` (unveränderliche Snapshots), `Idea`, `Post`, `PostVariant` (mit allen Feldern aus Teil A, auch denen für das Scheduling, um spätere Migrationen zu vermeiden), `AiGeneration`, `UsageRecord`, `UsageCounter`, `PriceBook`; dazu die RLS-Policies für alle neuen Tabellen.
 - **So sieht es aus**:
   - Seed der Style-Presets mit `key`, i18n-Namen und Prompt-Fragment: professional, storytelling, casual, educational, thought_leadership, promotional.
-  - Seed des PriceBooks für `claude-opus-5-5`: Input 4 USD und Output 20 USD pro Mio. Tokens, Cache-Read 0,20 USD, Cache-Write das 1,25-Fache des Inputs; gespeichert in Micro-USD.
+  - Seed des PriceBooks für `claude-opus-5-5`: Input 4 USD und Output 20 USD pro Mio. Tokens, Cache-Read 0,20 USD, Cache-Write das 1,25-Fache des Inputs (5-Minuten-TTL); gespeichert in Micro-USD.
+  - Dazu die Preise der Fallback-Ziele aus `allowed_fallback_models` (Models API mit Beta-Header `server-side-fallback-2026-06-01`; erwartet werden `claude-opus-5` und `claude-opus-4-8`, gegen die Doku prüfen), weil Fallback-Versuche zu deren Preisen abgerechnet werden.
 - **Darauf achten**: Preise stehen nur im PriceBook, nie im Code. `AiGeneration` verweist auf `BrandVoiceVersion`, damit jede Generierung nachvollziehbar bleibt.
 - **Fertig, wenn**: Migration, Seed und RLS-Check grün sind.
 
@@ -514,18 +515,21 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
     messages: [{ role: 'user', content: task }],
   }, { signal });
   // Text-Deltas sammeln -> partielles JSON -> 'partial'-Events (gedrosselt auf ca. 50 ms)
+  // 'fallback'-Content-Block im Stream -> Puffer leeren, 'variant.reset' senden
   // final: stop_reason prüfen ('refusal' -> stop_details.category; 'max_tokens' -> truncated),
-  // dann zod.safeParse; usage inkl. cache_read_input_tokens / cache_creation_input_tokens; served model = msg.model
+  // dann zod.safeParse; Kosten pro Versuch aus usage.iterations (inkl. Cache-Tokens); served model = msg.model
   ```
   Nicht gestreamte Aufrufe (Ideen, Alt-Text) nutzen `client.messages.parse(...)` und lesen `parsed_output`, das `null` sein kann.
 - **Darauf achten**:
   - Kein `temperature`, kein Assistant-Prefill, kein `thinking: disabled` (alle drei liefern beim Modell einen 400-Fehler).
   - Effort ist pro Route fest, damit der Cache nicht verloren geht.
   - Bricht der Client ab, wird der Aufruf abgebrochen.
-  - SDK-Fehler werden typisiert behandelt (RateLimitError, APIError mit Status, Verbindungsfehler).
+  - SDK-Fehler werden typisiert behandelt, in dieser Reihenfolge: `RateLimitError`, `APIConnectionError`, `APIError` mit Status. Im TypeScript-SDK ist `APIConnectionError` eine Unterklasse von `APIError`; andersherum geprüft, landen Netzwerkfehler im falschen Zweig. `APIUserAbortError` nach einem Client-Abbruch wird nicht als Fehler gemeldet.
+  - Die Kosten kommen aus `usage.iterations`. Das Top-Level-`usage` enthält nur den Versuch, der die Antwort geliefert hat; ein abgelehnter Erstversuch und der Fallback-Versuch werden einzeln zu den Preisen ihres Modells abgerechnet.
+  - Wechselt der Server mitten im Stream auf das Fallback-Modell, markiert ein `fallback`-Content-Block die Stelle. Die bis dahin gesammelte Teilausgabe wird verworfen und der Client per `variant.reset` informiert.
   - Prompts mit Kundendaten werden nicht auf Info-Level geloggt.
   - Ob der `zodOutputFormat`-Helper auf dem Beta-Pfad funktioniert, prüft Spike 0.14(a). Ausweichlösung: das JSON-Schema aus `z.toJSONSchema()` direkt in `output_config.format` übergeben.
-- **Fertig, wenn**: Ein Integrationstest mit msw (das SDK nutzt fetch) alle Pfade abdeckt: ok, refusal, max_tokens, ungültiges JSON, 429, 529.
+- **Fertig, wenn**: Ein Integrationstest mit msw (das SDK nutzt fetch) alle Pfade abdeckt: ok, refusal, Fallback mitten im Stream, max_tokens, ungültiges JSON, 429, 529, Verbindungsfehler, Abbruch durch den Client.
 
 #### 2.5 `MockAiProvider`
 - **Erstellen**: `packages/ai/src/mock/mock-ai-provider.ts` und `fixtures/*.json`.
@@ -580,7 +584,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
     - Refine-Buttons ("Kürzer", "Formeller", ...) plus ein freies Anweisungsfeld. Das Ergebnis erscheint als Diff-Dialog mit "Übernehmen" und "Verwerfen".
   - **Rechts, "Vorschau"**: Mockup der Plattform mit "...mehr"-Kürzung.
   - **Unten**: Statusanzeige zum Auto-Speichern ("Gespeichert vor 3 s"). Ab Phase 4 kommt dort die Leiste zum Planen hin.
-  - **SSE-Client**: `fetch` + `eventsource-parser`, partielles JSON über `partial-json`, `AbortController` beim Abbrechen oder Verlassen der Seite.
+  - **SSE-Client**: `fetch` + `eventsource-parser`, partielles JSON über `partial-json`, `variant.reset` leert die bisherige Teilausgabe, `AbortController` beim Abbrechen oder Verlassen der Seite.
 - **Darauf achten**:
   - Streaming überschreibt nie Varianten, die der Nutzer bereits bearbeitet hat.
   - Beim Verlassen mit ungespeicherten Änderungen erscheint eine Warnung.
@@ -1012,7 +1016,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 16. Zeitzonen: UTC plus IANA-Zone speichern, Zeitumstellung explizit behandeln, Tagesgrenzen der Analytics in der Workspace-Zeitzone.
 17. Doppelte Posts: Idempotenz-Keys, Lease, Reconcile, `NEEDS_ATTENTION` statt Raten.
 18. Prompt Caching: Jede Byte-Änderung im Präfix (Zeitstempel, unsortiertes JSON) macht den Cache ungültig.
-19. Claude Opus 5.5: kein `temperature`, kein Prefill, Thinking nicht abschaltbar, immer `stop_reason` prüfen, Effort explizit setzen (Default ist `medium`).
+19. Claude Opus 5.5: kein `temperature`, kein Prefill, Thinking nicht abschaltbar, immer `stop_reason` prüfen, Effort explizit setzen (Default ist `medium`). Kosten aus `usage.iterations` (Fallback-Versuche), SDK-Fehler in der Reihenfolge `RateLimitError`, `APIConnectionError`, `APIError` prüfen.
 20. Secrets nie in `NEXT_PUBLIC_*`, in Logs, in Fehlermeldungen, in Audit-Metadaten oder in Job-Payloads (Ausnahme: verschlüsselt und sofort gelöscht, siehe 6.4).
 21. Signierte URLs nicht durch den `next/image`-Optimizer cachen lassen.
 22. Fremde Mandanten-Ressourcen liefern 404, nicht 403.
