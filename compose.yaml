@@ -5,11 +5,11 @@
 #
 # Profiles:
 #   (default)      postgres, redis, s3 (+ bucket init), mailpit
+#   xb             browser-worker (isolated Playwright host, consumes xb-commands only)
 #   observability  grafana/otel-lgtm (Grafana on host port 3001, OTLP on 4317/4318)
 #   clamav         optional virus scan on 127.0.0.1:3310
 #
-# The app profile (api, worker, web) and the xb profile (browser-worker) are added
-# together with their Dockerfiles in the guide steps 0.10 and 0.12.
+# The app profile (api, worker, web) is added with its Dockerfiles in guide step 0.12.
 
 name: social-media-poster
 
@@ -103,6 +103,24 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  browser-worker:
+    build:
+      context: .
+      dockerfile: apps/browser-worker/Dockerfile
+    profiles: ['xb']
+    restart: unless-stopped
+    # Chromium needs shared memory, and init reaps its child processes.
+    init: true
+    shm_size: 1gb
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      LOG_LEVEL: info
+      FEATURE_X_BROWSER_GLOBAL: 'true'
 
   otel-lgtm:
     image: grafana/otel-lgtm:0.36.0
