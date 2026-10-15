@@ -14,7 +14,7 @@ KI-gestützte Plattform zum Erstellen, Planen und Auswerten von Social-Media-Pos
 
 ## Status
 
-Die Planung ist abgeschlossen. Die Umsetzung läuft nach dem Leitfaden; aktuell ist Phase 0 (Fundament) in Arbeit.
+Die Planung ist abgeschlossen. Phase 0 (Fundament) ist weitgehend umgesetzt: die Schritte 0.1 bis 0.14 sind gebaut, drei der fünf Spikes sind mit Messung bestanden. Offen sind der Spike zur KI-Anbindung (0.14a, braucht einen API-Schlüssel), der Spike zur Authentifizierung (0.14d, folgt mit Schritt 1.4) und das Größenziel der Images (siehe [ADR 0001](docs/adr/0001-monorepo-und-stack.md)). Architekturentscheidungen stehen in [docs/adr/](docs/adr/).
 
 ## Entwicklung
 
@@ -50,6 +50,13 @@ Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis au
 | `pnpm db:migrate`       | Prisma-Migrationen als `app_migrator` anwenden        | Schritt 0.5  |
 | `pnpm db:seed`          | Demo-Daten laden                                      | Schritt 1.1  |
 | `pnpm gen:keys`         | 32-Byte-Schlüssel für Token und Sessions erzeugen     | Schritt 0.4  |
+| `pnpm check:deps`       | Architekturregeln mit dependency-cruiser prüfen       | Schritt 0.13 |
+| `pnpm check:emoji`      | Emoji in verfolgten Dateien suchen                    | Schritt 0.13 |
+| `pnpm check:format`     | Prettier-Prüfung über das Repo                        | Schritt 0.13 |
+
+Container-Betrieb: `docker compose --profile app up -d --build --wait` startet API, Worker und Web, alle drei mit Healthcheck. Das Profil `xb` startet den isolierten browser-worker, das Profil `observability` Grafana. Nach Änderungen an `infra/docker/postgres/init` einmal `docker compose down -v`, weil das Init-Skript nur auf einem leeren Volume läuft.
+
+Spikes liegen unter `tools/spikes/` und laufen mit geladener `.env`, zum Beispiel `pnpm exec tsx tools/spikes/rls-overhead.ts`.
 
 Solange ein Paket noch nicht existiert, meldet Turbo "No tasks were executed" und endet mit Exit-Code 0.
 
