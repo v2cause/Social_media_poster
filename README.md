@@ -37,22 +37,22 @@ pnpm build
 
 Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis auf die Pflichtwerte. Die lokale Infrastruktur (Postgres, Redis, S3-kompatibler Speicher, Mailpit) startet über `compose.yaml`. `.env.test` enthält nur Testwerte und wird committet; Integrationstests starten ihre Datenbanken selbst über Testcontainers.
 
-| Befehl                  | Zweck                                                 | Verfügbar ab |
-| ----------------------- | ----------------------------------------------------- | ------------ |
-| `pnpm dev`              | startet die Apps im Watch-Modus                       | Schritt 0.7  |
-| `pnpm build`            | baut alle Packages und Apps (Turbo, mit Cache)        | Schritt 0.1  |
-| `pnpm lint`             | ESLint über alle Packages                             | Schritt 0.2  |
-| `pnpm typecheck`        | TypeScript-Prüfung ohne Ausgabe                       | Schritt 0.2  |
-| `pnpm test`             | Unit-Tests (Vitest)                                   | Schritt 0.2  |
-| `pnpm test:integration` | Integrationstests mit Testcontainers (braucht Docker) | Schritt 0.5  |
-| `pnpm test:e2e`         | End-to-End-Tests (Playwright)                         | Schritt 1.9  |
-| `pnpm format`           | Prettier über das Repo schreiben                      | Schritt 0.2  |
-| `pnpm db:migrate`       | Prisma-Migrationen als `app_migrator` anwenden        | Schritt 0.5  |
-| `pnpm db:seed`          | Demo-Daten laden                                      | Schritt 1.1  |
-| `pnpm gen:keys`         | 32-Byte-Schlüssel für Token und Sessions erzeugen     | Schritt 0.4  |
-| `pnpm check:deps`       | Architekturregeln mit dependency-cruiser prüfen       | Schritt 0.13 |
-| `pnpm check:emoji`      | Emoji in verfolgten Dateien suchen                    | Schritt 0.13 |
-| `pnpm check:format`     | Prettier-Prüfung über das Repo                        | Schritt 0.13 |
+| Befehl                  | Zweck                                                                       | Verfügbar ab |
+| ----------------------- | --------------------------------------------------------------------------- | ------------ |
+| `pnpm dev`              | startet die Apps im Watch-Modus                                             | Schritt 0.7  |
+| `pnpm build`            | baut alle Packages und Apps (Turbo, mit Cache)                              | Schritt 0.1  |
+| `pnpm lint`             | ESLint über alle Packages                                                   | Schritt 0.2  |
+| `pnpm typecheck`        | TypeScript-Prüfung ohne Ausgabe                                             | Schritt 0.2  |
+| `pnpm test`             | Unit-Tests (Vitest)                                                         | Schritt 0.2  |
+| `pnpm test:integration` | Integrationstests mit Testcontainers (braucht Docker)                       | Schritt 0.5  |
+| `pnpm test:e2e`         | End-to-End-Tests (Playwright)                                               | Schritt 1.9  |
+| `pnpm format`           | Prettier über das Repo schreiben                                            | Schritt 0.2  |
+| `pnpm db:migrate`       | Prisma-Migrationen als `app_migrator` anwenden                              | Schritt 0.5  |
+| `pnpm db:seed`          | Demo-Daten laden                                                            | Schritt 1.1  |
+| `pnpm gen:keys`         | 32-Byte-Schlüssel für Token und Sessions erzeugen                           | Schritt 0.4  |
+| `pnpm check:deps`       | Architekturregeln mit dependency-cruiser prüfen                             | Schritt 0.13 |
+| `pnpm check:emoji`      | Emoji in verfolgten Dateien suchen; mit `--commits A..B` in Commit-Messages | Schritt 0.13 |
+| `pnpm check:format`     | Prettier-Prüfung über das Repo                                              | Schritt 0.13 |
 
 Container-Betrieb: `docker compose --profile app up -d --build --wait` startet API, Worker und Web, alle drei mit Healthcheck, dazu einen Reverse Proxy (Caddy). Die App ist dann unter `http://localhost:8080` erreichbar; der Proxy routet wie in Produktion `/api` an die API und alles andere an das Web. Das Profil `xb` startet den isolierten browser-worker, das Profil `observability` Grafana unter `http://localhost:3003`. Nach Änderungen an `infra/docker/postgres/init` einmal `docker compose down -v`, weil das Init-Skript nur auf einem leeren Volume läuft.
 

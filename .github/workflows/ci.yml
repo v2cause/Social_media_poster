@@ -39,6 +39,30 @@ jobs:
       - run: pnpm check:emoji
       - run: pnpm check:format
 
+  commits:
+    name: Commit messages
+    # Every commit of a pull request: Conventional Commits format and no emoji.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          # The full history, so that the range between base and head is available.
+          fetch-depth: 0
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
+      - run: pnpm check:emoji --commits "$BASE_SHA..$HEAD_SHA"
+
   unit:
     name: Unit tests
     runs-on: ubuntu-24.04

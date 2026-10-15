@@ -287,7 +287,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
     - `build`
     - später `e2e` und `docker`
   - `concurrency` mit `cancel-in-progress`; pnpm-Cache über `actions/setup-node`; Turbo-Cache über `actions/cache` auf `.turbo`.
-  - Der Emoji-Check durchsucht alle versionierten Textdateien (`git ls-files`, Binärdateien ausgenommen) nach `\p{Extended_Pictographic}` und schlägt bei einem Treffer fehl. Eine feste Endungsliste würde z.B. `compose.yaml`, `.cjs`, `.sql` oder `.prisma` übersehen.
+  - Der Emoji-Check durchsucht alle versionierten Textdateien (`git ls-files`, Binärdateien ausgenommen) nach `\p{Extended_Pictographic}` und schlägt bei einem Treffer fehl. Eine feste Endungsliste würde z.B. `.sql`, `.prisma`, `.css` oder Dockerfiles übersehen.
   - Dieselbe Prüfung läuft über die Commit-Messages des PRs, zusammen mit `commitlint` (`@commitlint/config-conventional`) für das Conventional-Commits-Format.
 - **Darauf achten**:
   - `\p{Extended_Pictographic}` trifft auch die Zeichen Copyright (U+00A9), Registered (U+00AE) und Trademark (U+2122). Diese drei stehen auf einer kleinen Allowlist (Rechtstexte, Impressum).
