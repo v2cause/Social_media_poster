@@ -1,0 +1,17 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "packageRules": [
+    {
+      "description": "Pin GitHub Actions to commit digests, because the workflows are a supply chain.",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    {
+      "description": "Playwright must match the base image tag in apps/browser-worker/Dockerfile. Update both in one change.",
+      "matchPackageNames": ["playwright"],
+      "enabled": false
+    }
+  ]
+}
