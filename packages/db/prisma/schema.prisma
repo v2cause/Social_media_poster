@@ -1,0 +1,13 @@
+// Prisma schema for the database package.
+// Tables arrive with the guide steps that need them (identity from step 1.1 on).
+// Row-level security policies are SQL migrations, not part of this file.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}

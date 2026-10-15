@@ -1,0 +1,14 @@
+{
+  "extends": "@smp/config/tsconfig.lib.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [
+    "src",
+    "test",
+    "prisma.config.ts",
+    "tsup.config.ts",
+    "vitest.config.mts",
+    "vitest.integration.config.mts"
+  ]
+}
