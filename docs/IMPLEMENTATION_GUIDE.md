@@ -173,7 +173,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Jede Logzeile trägt `service`, `env`, `traceId`, `requestId`/`jobId` und `workspaceId`.
   - Gestartet wird mit `node --require @smp/observability/register dist/main.js`.
 - **Darauf achten**:
-  - `@smp/observability` exportiert dafür zusätzlich den Subpath `./register` in `exports`. Die Regel `no-restricted-imports` lässt genau diesen Subpath zu.
+  - `@smp/observability` exportiert dafür zusätzlich den Subpath `./register` in `exports`. Er wird nur über `--require` geladen und nie importiert, deshalb bleibt die Sperre von Deep-Imports (`no-restricted-imports`) ohne Ausnahme.
   - OpenTelemetry muss vor allen anderen Modulen geladen werden, sonst greift die Instrumentierung nicht.
   - Laute Instrumentierungen (fs, dns) abschalten.
   - Keine PII in Span-Attributen.
@@ -219,12 +219,14 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Erstellen**: Projekt per `create-next-app` (TypeScript, App Router, Tailwind, `src/`), dann `shadcn init`, `next.config.ts`, `src/i18n/request.ts`, `messages/de/common.json`, `messages/en/common.json`, `src/proxy.ts`, `src/app/layout.tsx`.
 - **So sieht es aus**:
   ```ts
+  // Root-.env laden; forceReload, weil Next.js die Umgebung von apps/web schon gecacht hat (siehe 0.4)
+  loadEnvConfig(resolve(process.cwd(), '../..'), process.env.NODE_ENV !== 'production', console, true);
+  const apiInternalUrl = process.env.API_INTERNAL_URL;   // einmal lesen, unabhängig von späteren Reloads
   const config: NextConfig = {
     output: 'standalone',
     transpilePackages: ['@smp/ui', '@smp/api-client', '@smp/contracts', '@smp/platform-rules'],
     async rewrites() {   // nur lokale Entwicklung; im Container und in Produktion routet der Reverse Proxy
-      const api = process.env.API_INTERNAL_URL;
-      return api ? [{ source: '/api/:path*', destination: `${api}/api/:path*` }] : [];
+      return apiInternalUrl ? [{ source: '/api/:path*', destination: `${apiInternalUrl}/api/:path*` }] : [];
     },
   };
   export default withNextIntl(config);
@@ -267,13 +269,13 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   1. `prune`: `turbo prune @smp/$APP --docker`
   2. `deps`: `pnpm install --frozen-lockfile` auf den gepruned-ten Manifests
   3. `build`: `turbo run build --filter=@smp/$APP...`
-  4. `runtime`: `node:24-slim`, `NODE_ENV=production`, nur Produktionsabhängigkeiten (`pnpm deploy --prod`), `USER node`, `HEALTHCHECK`, `CMD ["node","--require","@smp/observability/register","dist/main.js"]`
+  4. `runtime`: `node:24-slim`, `NODE_ENV=production`, nur Produktionsabhängigkeiten (`pnpm deploy --legacy --prod`), `USER node`, `HEALTHCHECK`, `CMD ["node","--require","@smp/observability/register","dist/main.js"]`
 
   Das Web-Image nutzt den Next.js-Output `standalone`.
 - **Darauf achten**:
   - sharp und die Prisma-Bestandteile müssen auf derselben Basis (glibc, Architektur) installiert werden, auf der sie laufen; `node_modules` nicht zwischen alpine und slim kopieren.
   - Keine `.env` im Image.
-  - `pnpm deploy` verlangt in pnpm 10 entweder `inject-workspace-packages=true` oder `--legacy`. Welche Variante gilt, hält ADR 0002 fest; injizierte Workspace-Pakete sind Kopien statt Symlinks und verändern das Verhalten in der lokalen Entwicklung.
+  - `pnpm deploy` verlangt in pnpm 10 entweder `inject-workspace-packages=true` oder `--legacy`. Gewählt ist `--legacy` (ADR 0002): Injizierte Workspace-Pakete wären Kopien statt Symlinks und würden das Verhalten in der lokalen Entwicklung verändern.
   - Zielgröße für api und worker unter 300 MB.
 - **Fertig, wenn**: `docker compose --profile app up --build` alle drei Apps "healthy" startet und die App über den Proxy unter `http://localhost:8080` samt API-Aufrufen funktioniert.
 

@@ -23,6 +23,7 @@ Weitere Regeln:
 
 - Die Apps haben kein `"type": "module"` und geben CommonJS aus. Dafür gilt `tsconfig.nest.json` mit `module` und `moduleResolution` auf `NodeNext`.
 - `verbatimModuleSyntax` ist nicht aktiviert. Typ-Imports erzwingt die ESLint-Regel `consistent-type-imports`.
+- Die Images für API und Worker entstehen mit `pnpm deploy --legacy --prod`. pnpm 10 verlangt sonst `inject-workspace-packages=true`; das bindet Workspace-Pakete als Kopien statt als Symlinks ein und würde die lokale Entwicklung verändern.
 - Die gemeinsamen Presets liegen in `@smp/config`: `tsconfig.base.json`, `tsconfig.lib.json`, `tsconfig.nest.json`, `tsconfig.next.json`, `eslint` (Factory), `prettier`, `vitest` und `vitest-nest`.
 
 ## Alternativen

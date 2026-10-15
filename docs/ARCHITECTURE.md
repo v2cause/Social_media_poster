@@ -672,7 +672,7 @@ pnpm install
 cp .env.example .env          # AI_PROVIDER=mock, PLATFORM_MODE_*=mock
 docker compose up -d          # postgres, redis, seaweedfs (+ Bucket), mailpit
 pnpm db:migrate && pnpm db:seed
-pnpm dev                      # web :3000, api :4000, worker; browser-worker über --profile xb
+pnpm dev                      # web :3000, api :3001, worker (Health :3002); browser-worker über --profile xb
 # Alternativ komplett in Containern (App über den Proxy unter http://localhost:8080):
 docker compose --profile app up --build
 ```
