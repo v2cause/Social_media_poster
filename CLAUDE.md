@@ -30,4 +30,4 @@ Social Media Poster: KI-gestützte Content-Plattform (Multi-Tenant SaaS) für Li
 
 ## Befehle
 
-Werden in Phase 0 angelegt (siehe Schritt 0.1): `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:integration`, `pnpm test:e2e`, `pnpm db:migrate`, `pnpm db:seed`.
+Definiert in der Root-`package.json`, erklärt in der [README](README.md#entwicklung). Die Befehle `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:integration`, `pnpm test:e2e`, `pnpm db:migrate` und `pnpm db:seed` sind verdrahtet, greifen aber erst, sobald die Pakete aus den jeweiligen Schritten des Leitfadens existieren.

@@ -14,7 +14,41 @@ KI-gestützte Plattform zum Erstellen, Planen und Auswerten von Social-Media-Pos
 
 ## Status
 
-Die Planung ist abgeschlossen. Die Umsetzung beginnt mit Phase 0 (Fundament).
+Die Planung ist abgeschlossen. Die Umsetzung läuft nach dem Leitfaden; aktuell ist Phase 0 (Fundament) in Arbeit.
+
+## Entwicklung
+
+Voraussetzungen:
+
+- Node.js 24 (Version steht in `.nvmrc`; `.npmrc` erzwingt das `engines`-Feld).
+- pnpm 10 über Corepack. Die exakte Version steht im Feld `packageManager` der `package.json`.
+- Docker ab Schritt 0.3 für die lokale Infrastruktur.
+
+Erster Start:
+
+```bash
+corepack enable
+pnpm install
+pnpm build
+```
+
+| Befehl | Zweck | Verfügbar ab |
+|---|---|---|
+| `pnpm dev` | startet die Apps im Watch-Modus | Schritt 0.7 |
+| `pnpm build` | baut alle Packages und Apps (Turbo, mit Cache) | Schritt 0.1 |
+| `pnpm lint` | ESLint über alle Packages | Schritt 0.2 |
+| `pnpm typecheck` | TypeScript-Prüfung ohne Ausgabe | Schritt 0.2 |
+| `pnpm test` | Unit-Tests (Vitest) | Schritt 0.2 |
+| `pnpm test:integration` | Integrationstests mit Testcontainers (braucht Docker) | Schritt 0.5 |
+| `pnpm test:e2e` | End-to-End-Tests (Playwright) | Schritt 1.9 |
+| `pnpm format` | Prettier über das Repo schreiben | Schritt 0.2 |
+| `pnpm db:migrate` | Prisma-Migrationen als `app_migrator` anwenden | Schritt 0.5 |
+| `pnpm db:seed` | Demo-Daten laden | Schritt 1.1 |
+| `pnpm gen:keys` | 32-Byte-Schlüssel für Token und Sessions erzeugen | Schritt 0.4 |
+
+Solange ein Paket noch nicht existiert, meldet Turbo "No tasks were executed" und endet mit Exit-Code 0.
+
+Turbo fragt beim ersten Lauf nach anonymer Telemetrie. Abschalten mit `TURBO_TELEMETRY_DISABLED=1`.
 
 ## Dokumentation
 
