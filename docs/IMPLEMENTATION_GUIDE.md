@@ -747,6 +747,12 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Der IV ist immer zufällig, nie wiederverwendet.
   - Fehlermeldungen enthalten keine Schlüssel- oder Klartextdaten.
   - Alte Schlüsselversionen bleiben zum Entschlüsseln lesbar.
+- **Umgesetzt**:
+  - `seal`, `open`, `rewrap` und `keyIdOf` in `@smp/crypto` mit genau diesem Layout. Fehler tragen nur einen Code (`MALFORMED`, `UNKNOWN_KEY`, `INVALID`).
+  - `LocalKeyring` liest `TOKEN_KEKS`/`SESSION_KEKS` im Format von `pnpm gen:keys` und wrappt den DEK mit AES-256-GCM, die Key-ID als AAD. AWS KMS und Vault folgen mit dem Deployment (Phase 8) über denselben `KmsPort`.
+  - Im Core: `SecretSealer` für die Use Cases, `connectionSecretAad`/`accountSecretAad` und der Use Case `RewrapSecrets`.
+  - Der Re-Wrap ändert nur den gewrappten DEK. Er schreibt per Byte-Vergleich und erhöht die `version` nicht, damit ein gleichzeitiger Token-Refresh (bei X nur einmal gültig) nicht verloren geht. `PrismaSealedSecretStore` liest dafür als `app_system` über alle Workspaces. Eingeplant wird der Job in `tick.maintenance` (Schritt 4.3).
+  - Tests: `packages/crypto/src/envelope.test.ts` (jedes einzelne Byte manipuliert, falsche AAD, Rotation), `local-keyring.test.ts`, `packages/core/test/channels/rewrap-secrets.test.ts`, `packages/db/test/sealed-secrets.integration.test.ts`.
 - **Fertig, wenn**: Diese Tests grün sind: manipuliertes Byte schlägt fehl, falsche AAD schlägt fehl, Rotation (alt lesen, neu schreiben).
 
 #### 4.3 Queues, Locks, Outbox
