@@ -54,11 +54,17 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   ```yaml
   # pnpm-workspace.yaml
   packages: ["apps/*", "packages/*"]
-  onlyBuiltDependencies: [sharp, prisma, "@prisma/engines", esbuild, "@swc/core", unrs-resolver]
+  minimumReleaseAge: 1440          # Versionen erst nach einem Tag (Lieferkette, ADR 0009)
+  trustPolicy: no-downgrade        # Abbruch bei schwächerem Herkunftsnachweis
+  blockExoticSubdeps: true
+  strictDepBuilds: true            # jedes Install-Skript braucht eine Entscheidung in allowBuilds
+  allowBuilds: { sharp: true, prisma: true, "@prisma/engines": true, esbuild: true, "@swc/core": true, unrs-resolver: true }
   ```
-  `turbo.json` definiert die Tasks: `build` (`dependsOn: ["^build"]`, outputs `dist/**`, `.next/**`), `dev` (`persistent: true`, `cache: false`), `lint`, `typecheck` (`dependsOn: ["^build"]`), `test`, `test:integration`, `test:e2e`.
+  `turbo.json` definiert die Tasks: `build` (`dependsOn: ["^build"]`, outputs `dist/**`, `.next/**`), `dev` (`persistent: true`, `cache: false`), `lint`, `typecheck`, `test` und `test:integration` (alle mit `dependsOn: ["^build"]`, weil die Pakete sich über ihre `dist`-Ausgabe auflösen), `test:e2e`.
 - **Darauf achten**:
-  - pnpm 10 führt Install-Skripte nur für Pakete aus, die in `onlyBuiltDependencies` stehen. Fehlt z.B. `sharp` oder `prisma` dort, gibt pnpm nur eine Warnung aus, und der Fehler zeigt sich erst zur Laufzeit.
+  - pnpm 10 führt Install-Skripte nur für Pakete aus, die in `allowBuilds` freigegeben sind (`onlyBuiltDependencies` ist veraltet). Mit `strictDepBuilds` bricht die Installation bei jedem nicht entschiedenen Skript ab, statt nur zu warnen.
+  - `packageManager` trägt den sha512 von pnpm (`pnpm@10.x.y+sha512.…`); Corepack prüft ihn beim Download.
+  - Jedes Paket deklariert die Werkzeuge seiner Skripte selbst (`eslint`, `typescript`, `vitest`, ...). pnpm verlinkt nur deklarierte Abhängigkeiten nach `node_modules/.bin`; ein global installiertes Werkzeug lässt Skripte lokal laufen, die in der CI scheitern.
   - Turbo 2 läuft standardmäßig im Strict-Env-Modus: Tasks sehen nur Variablen, die in `turbo.json` unter `globalEnv`/`env` (zählen zum Cache-Hash) oder `globalPassThroughEnv`/`passThroughEnv` stehen. Fehlt z.B. `DATABASE_URL` dort, ist sie in `test:integration` leer.
   - Die pnpm-Version wird exakt gepinnt (Corepack).
   - `.gitignore` deckt `.env*` (außer `.env.example`), `dist`, `.next`, `.turbo`, `node_modules`, `coverage`, `playwright-report`, `test-results` und `**/src/generated` ab.
@@ -97,7 +103,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 | s3 | `chrislusf/seaweedfs:<Version>` | `server -s3 -s3.config=/etc/seaweedfs/s3.json`, Port 8333 |
 | s3-init | `amazon/aws-cli:<Version>` | einmalig: `s3 mb s3://smp-media`, CORS für `http://localhost:3000` und `http://localhost:8080` (PUT, GET, HEAD; Header `Content-Type`) |
 | mailpit | `axllent/mailpit:<Version>` | SMTP 1025, UI 8025 |
-| Profil `app` | api, worker, web aus den eigenen Dockerfiles, dazu `proxy` (`caddy:<Version>`, `infra/docker/caddy/Caddyfile`) | `depends_on` mit `condition: service_healthy`; der Proxy routet wie in Produktion `/api/*` an die API und alles andere an das Web, erreichbar unter `http://localhost:8080` |
+| Profil `app` | api, worker, web aus den eigenen Dockerfiles, dazu `proxy` (`caddy:<Version>`, `infra/docker/caddy/Caddyfile`) | `depends_on` mit `condition: service_healthy`; der Proxy routet wie in Produktion `/api/*` an die API und alles andere an das Web, erreichbar unter `http://localhost:8080`; alle vier mit `no-new-privileges`, ohne Capabilities und mit schreibgeschütztem Root-Dateisystem (tmpfs nur, wo geschrieben wird) |
 | Profil `xb` | browser-worker | `shm_size: 1gb`, `init: true` |
 | Profil `observability` | `grafana/otel-lgtm:<Version>` | OTLP-Collector + Grafana in einem Container; Grafana auf Host-Port 3003, weil 3001 der API gehört |
 | Profil `clamav` | `clamav/clamav:<Version>` | optionaler Virenscan |
@@ -106,6 +112,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Nie `latest` verwenden.
   - Ports nur an `127.0.0.1` binden. Benannte Volumes nutzen.
   - `noeviction` ist Pflicht für BullMQ: Ohne sie kann Redis Job-Daten löschen.
+  - Das Init-SQL entzieht `PUBLIC` das Verbindungsrecht auf alle Datenbanken (die Laufzeitrollen erreichen nur `smp` und `smp_test`) und setzt `statement_timeout` und `idle_in_transaction_session_timeout` für `app_user` und `app_system`.
   - Unterstützt der lokale S3-Server keine Bucket-CORS-API, läuft der Upload lokal same-origin über den Proxy-Pfad `/storage/*`. Das prüft der Spike 0.14(e).
 - **Fertig, wenn**: `docker compose up -d` alle Dienste auf "healthy" bringt, `psql` als `app_user` funktioniert, der Bucket existiert und die Mailpit-UI erreichbar ist.
 
@@ -169,7 +176,8 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 #### 0.6 Observability (`packages/observability`)
 - **Erstellen**: `src/logger.ts` (pino-Factory), `src/otel.ts` (NodeSDK, OTLP-Exporter), `src/sentry.ts`, `src/register.ts` (Seiteneffekt-Einstieg).
 - **So sieht es aus**:
-  - Redact-Liste: `req.headers.authorization`, `req.headers.cookie`, `*.password`, `*.accessToken`, `*.refreshToken`, `*.sessionState`, `*Enc`, `*.apiKey`.
+  - Redact-Liste: `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `x-api-key`, `password`, `secret`, `clientSecret`, `token`, `accessToken`, `refreshToken`, `idToken`, `sessionState`, `apiKey` und alles mit Endung `Enc`, in jeder Tiefe.
+  - Sentry sammelt ab Version 11 standardmäßig Nutzerdaten, Cookies, Header, Bodies, Query-Parameter, DB-Parameter, Queue-Payloads, lokale Variablen und KI-Ein- und -Ausgaben. `dataCollection` schaltet das ab (ADR 0009).
   - Jede Logzeile trägt `service`, `env`, `traceId`, `requestId`/`jobId` und `workspaceId`.
   - Gestartet wird mit `node --require @smp/observability/register dist/main.js`.
 - **Darauf achten**:
@@ -201,6 +209,8 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Die Serialisierung läuft über `ZodSerializerInterceptor`, damit keine internen Felder durchsickern.
   - Die Request-ID wird aus dem Header `x-request-id` übernommen oder neu erzeugt.
   - Health-Endpunkte sind ohne Auth erreichbar und werden nicht geloggt.
+  - Request-Logs enthalten nur Request-ID, Methode, Pfad ohne Query-String und Status: keine Header, keine Client-Adresse (PII), keine Query-Parameter (später OAuth-Codes).
+  - 5xx-Fehler werden mit dem Fehlerobjekt geloggt; die Antwort enthält bei 5xx nie den internen Text, auch nicht bei einer `HttpException`.
 - **Fertig, wenn**: `GET /api/health/ready` mit 200 und Details zu den drei Abhängigkeiten antwortet.
 
 #### 0.8 Worker-Gerüst (`apps/worker`)
@@ -236,7 +246,8 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Der Rewrite gilt nur für die lokale Entwicklung. In Produktion und im Compose-Profil `app` routet der Reverse Proxy `/api` direkt an die API; das spart einen Hop und vermeidet Puffern bei SSE.
   - `rewrites()` wird beim Build ausgewertet, nicht zur Laufzeit. Deshalb hängt der Rewrite an `API_INTERNAL_URL`. Im Docker-Build fehlt die Variable (keine `.env` im Build-Kontext), und das Image enthält keinen Rewrite; ein fest eingebautes Ziel würde das Image an eine Umgebung binden. `API_INTERNAL_URL` wird dem Container nur zur Laufzeit für serverseitige Aufrufe mitgegeben.
   - Server Components rufen die API mit dem weitergereichten Cookie auf.
-  - `proxy.ts` (ersetzt in Next.js 16 `middleware.ts`) macht nur optimistische Redirects und ist keine Sicherheitsgrenze.
+  - `proxy.ts` (ersetzt in Next.js 16 `middleware.ts`) setzt die CSP mit einer Nonce pro Request (`script-src 'self' 'nonce-…' 'strict-dynamic'`, `frame-ancestors 'none'`, siehe ADR 0009) und macht sonst nur optimistische Redirects; es ist keine Sicherheitsgrenze. Nonces verlangen dynamisches Rendern.
+  - Feste Sicherheits-Header (`nosniff`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`) kommen aus `headers()` in `next.config.ts`, `poweredByHeader` ist aus.
   - Für signierte S3-URLs `next/image` mit `unoptimized` oder ein einfaches `<img>` nutzen, sonst gibt es Cache-Probleme mit ablaufenden URLs.
 - **Fertig, wenn**: `http://localhost:3000` die Shell auf Deutsch zeigt und nach dem Umstellen des Cookies auf Englisch.
 
@@ -298,6 +309,8 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - `permissions: contents: read` als Default.
   - Job-Timeouts setzen.
   - Keine Secrets in Builds von Forks.
+  - Ein zweiter Workflow `security.yml` läuft auf Pull Requests, Pushes nach `main` und wöchentlich: CodeQL (`security-extended`, auch für die Workflows), Dependency Review (Abbruch ab Schweregrad hoch), `pnpm audit --audit-level high` mit begründeten Ausnahmen in `auditConfig`, gitleaks über die ganze Historie mit prüfsummengesicherter Binärdatei.
+  - Die CI-Fehlerbilder lokal nur mit einem frischen Checkout und ohne global installierte Werkzeuge im `PATH` nachstellen.
 - **Fertig, wenn**: Ein Push eine grüne CI ergibt und sowohl ein absichtlich eingefügtes Emoji als auch eine Commit-Message ohne Conventional-Commits-Format die CI rot machen.
 
 #### 0.14 Spikes, Doku, ADRs
@@ -1022,7 +1035,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 
 ## B.11 Globale Stolperfallen (Checkliste für jedes Review)
 
-1. pnpm 10: Pakete mit Install-Skripten (sharp, prisma, esbuild, swc) in `onlyBuiltDependencies` eintragen; `pnpm deploy` braucht `inject-workspace-packages` oder `--legacy`. Turbo 2 filtert nicht deklarierte Env-Variablen (Strict-Modus), und die Root-`.env` lädt niemand automatisch.
+1. pnpm 10: Pakete mit Install-Skripten (sharp, prisma, esbuild, swc) in `allowBuilds` entscheiden (`strictDepBuilds` bricht sonst ab); jedes Paket deklariert seine Werkzeuge selbst; `pnpm deploy` braucht `inject-workspace-packages` oder `--legacy`. Turbo 2 filtert nicht deklarierte Env-Variablen (Strict-Modus), und die Root-`.env` lädt niemand automatisch.
 2. BullMQ: Worker-Verbindungen mit `maxRetriesPerRequest: null`, Redis mit `noeviction` und AOF. Eigene Job-IDs enthalten keinen `:` (Punkt als Trenner).
 3. Die Laufzeit-DB-Rolle ist nie der Tabellen-Owner (das würde RLS umgehen). `FORCE ROW LEVEL SECURITY` ist überall gesetzt.
 4. `set_config(..., true)` immer transaktionslokal, nie ein session-weites `SET`. Policies lesen den Kontext mit `NULLIF(current_setting(..., true), '')::uuid`, weil eine gepoolte Verbindung danach einen Leerstring statt NULL liefert.

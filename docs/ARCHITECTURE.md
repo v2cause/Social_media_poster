@@ -526,7 +526,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
   - Origin-Check gegen CSRF, CSP mit Nonces, HSTS, helmet.
   - Webhook-Signaturen prüfen: Stripe `constructEvent`; Meta `X-Hub-Signature-256` plus Deauthorize- und Data-Deletion-Callbacks (Pflicht für das App-Review).
   - Log-Redaction für Tokens, Cookies und Sessions.
-- **Lieferkette**: Renovate, `pnpm audit`/osv-scanner, CodeQL, gitleaks, Trivy-Image-Scans, SBOM.
+- **Lieferkette**: Renovate (3 Tage Wartezeit, Digest-Pinning), pnpm-Gates (`minimumReleaseAge`, `trustPolicy: no-downgrade`, `strictDepBuilds`), `pnpm audit`, CodeQL, Dependency Review, gitleaks, Trivy-Image-Scans, SBOM. Die ersten Punkte gelten seit Phase 0 (ADR 0009).
 - **DSGVO**:
   - Hosting in der EU, AV-Verträge und Liste der Unterauftragsverarbeiter (Anthropic, Stripe, E-Mail-Provider, Hosting) sowie ein Hinweis auf die Datenübermittlung an LinkedIn, Meta und X.
   - Datenexport (ZIP) und Löschung (30 Tage Soft-Delete, dann endgültig) als asynchrone Jobs.
@@ -590,7 +590,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   8. E2E mit Playwright
   9. Docker-Build (`turbo prune`, Trivy, Push nach GHCR auf main)
 
-  Nächtlich laufen optionale Live-Smoke-Tests gegen Test-Accounts und die KI-Eval-Suite mit Budget-Limit.
+  Nächtlich laufen optionale Live-Smoke-Tests gegen Test-Accounts und die KI-Eval-Suite mit Budget-Limit. Ein eigener Workflow `security.yml` führt CodeQL, Dependency Review, `pnpm audit` und gitleaks aus (ADR 0009).
 - **Umgebungen**: lokal (Mock-Modus), CI, Staging (echte Plattform-Apps im Dev-Modus, Stripe-Testmodus, Anthropic mit niedrigem Ausgabenlimit) und Produktion (EU).
 - **Migrationen**: `prisma migrate deploy` als eigener Schritt vor dem Rollout, nach dem Expand/Contract-Prinzip. RLS, Partial Indexes und Trigger stehen als SQL-Migrationen.
 - **Betrieb**: Postgres mit Point-in-Time-Recovery, Images non-root und schlank.

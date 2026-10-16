@@ -56,6 +56,8 @@ Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis au
 
 Container-Betrieb: `docker compose --profile app up -d --build --wait` startet API, Worker und Web, alle drei mit Healthcheck, dazu einen Reverse Proxy (Caddy). Die App ist dann unter `http://localhost:8080` erreichbar; der Proxy routet wie in Produktion `/api` an die API und alles andere an das Web. Das Profil `xb` startet den isolierten browser-worker, das Profil `observability` Grafana unter `http://localhost:3003`. Nach Änderungen an `infra/docker/postgres/init` einmal `docker compose down -v`, weil das Init-Skript nur auf einem leeren Volume läuft.
 
+Sicherheit: Die Baseline seit Phase 0 (CSP mit Nonce, Datenminimierung in Logs und Fehlerberichten, Gates gegen kompromittierte Pakete, Sicherheits-Scans in der CI, gehärtete Container und Datenbank-Rollen) steht in [ADR 0009](docs/adr/0009-sicherheits-baseline.md). `pnpm install` bricht ab, wenn ein Paket jünger als ein Tag ist, einen schwächeren Herkunftsnachweis hat als frühere Versionen oder ein nicht freigegebenes Install-Skript mitbringt.
+
 Spikes liegen unter `tools/spikes/` und laufen mit geladener `.env`, zum Beispiel `pnpm exec tsx tools/spikes/rls-overhead.ts`.
 
 Solange ein Paket noch nicht existiert, meldet Turbo "No tasks were executed" und endet mit Exit-Code 0.
