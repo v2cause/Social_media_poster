@@ -30,6 +30,8 @@ export {
   type UserMembershipView,
   type WorkspaceAccess,
 } from './tenancy/tenancy-read-model';
+export { PrismaQuotaStore } from './usage/prisma-quota-store';
+export { PrismaPriceCatalog } from './usage/prisma-price-catalog';
 export { DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData, type DemoSeedResult } from './seed/demo';
 export {
   AuditLogReadModel,

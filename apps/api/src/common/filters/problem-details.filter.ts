@@ -21,6 +21,7 @@ const STATUS_BY_KIND: Record<DomainErrorKind, number> = {
   forbidden: 403,
   not_found: 404,
   conflict: 409,
+  quota_exceeded: 402,
 };
 
 const UNEXPECTED_ERROR: Pick<ProblemDetails, 'status' | 'code' | 'detail'> = {

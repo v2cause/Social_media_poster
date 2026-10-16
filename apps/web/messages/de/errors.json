@@ -7,6 +7,7 @@
     "ORIGIN_REJECTED": "Die Anfrage kam nicht aus der App und wurde abgewiesen.",
     "HTTP_400": "Die Anfrage war ungültig.",
     "HTTP_401": "Bitte melden Sie sich an.",
+    "HTTP_402": "Das Kontingent ist aufgebraucht.",
     "HTTP_403": "Dafür fehlt Ihnen die Berechtigung.",
     "HTTP_404": "Das gibt es nicht, oder Sie haben keinen Zugriff.",
     "HTTP_409": "Das steht im Konflikt mit dem aktuellen Stand.",
@@ -27,7 +28,8 @@
     "WORKSPACE_NOT_FOUND": "Diesen Workspace gibt es nicht, oder Sie haben keinen Zugriff.",
     "ORGANIZATION_NOT_FOUND": "Diese Organisation gibt es nicht, oder Sie sind kein Mitglied.",
     "UNSAFE_AUDIT_METADATA": "Auf dem Server ist ein Fehler aufgetreten.",
-    "INVALID_CURSOR": "Die Seite ist nicht mehr gültig. Bitte laden Sie neu."
+    "INVALID_CURSOR": "Die Seite ist nicht mehr gültig. Bitte laden Sie neu.",
+    "QUOTA_EXCEEDED": "Das KI-Budget Ihrer Organisation für diesen Monat ist aufgebraucht."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

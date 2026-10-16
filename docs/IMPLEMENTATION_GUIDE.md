@@ -584,7 +584,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Fertig, wenn**: Alle E2E-Tests mit dem Mock deterministisch laufen.
 
 #### 2.6 Quoten und Kosten
-- **Erstellen**: `QuotaService` (core, Port) und dessen SQL-Adapter, `CostCalculator` (nutzt das PriceBook).
+- **Erstellen**: `QuotaService` (core, Port) und dessen SQL-Adapter, `CostCalculator` (nutzt das PriceBook). Umgesetzt als `QuotaService` mit den Ports `QuotaStore` und `QuotaLimits`, `CostCalculator` mit dem Port `PriceCatalog` (`packages/core/src/usage`, `packages/core/src/ai/application`) und die Adapter `PrismaQuotaStore` und `PrismaPriceCatalog` in `@smp/db`.
 - **So sieht es aus**: Die Zähler-Zeile der Periode wird vorher per `INSERT ... ON CONFLICT DO NOTHING` angelegt. Die Reservierung ist dann atomar: `UPDATE usage_counter SET value = value + $est WHERE ... AND value + $est <= $limit RETURNING value`; liefert das keine Zeile, ist das Limit erreicht (402). Danach folgt `finalize(actual)` als Korrektur der Differenz. Das Ledger `UsageRecord` ist pro `(sourceType, sourceId, meter)` eindeutig, also idempotent.
 - **Darauf achten**: Auch bei Fehlern und Abbrüchen wird finalisiert (`try/finally`). Bis Phase 7 gilt das Monatslimit aus `AI_MONTHLY_CAP_MICROS`.
 - **Fertig, wenn**: Ein Test mit parallelen Reservierungen das Limit nie überschreitet.

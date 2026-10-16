@@ -3,7 +3,7 @@ import { Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ZodValidationException } from 'nestjs-zod';
-import { LastOwnerError, NotPermittedError, WorkspaceNotFoundError } from '@smp/core';
+import { LastOwnerError, NotPermittedError, QuotaExceededError, WorkspaceNotFoundError } from '@smp/core';
 
 import { ProblemDetailsFilter } from './problem-details.filter';
 
@@ -49,6 +49,10 @@ describe('ProblemDetailsFilter', () => {
     expect(renderWith(new WorkspaceNotFoundError()).body).toMatchObject({
       status: 404,
       code: 'WORKSPACE_NOT_FOUND',
+    });
+    expect(renderWith(new QuotaExceededError('ai_micros')).body).toMatchObject({
+      status: 402,
+      code: 'QUOTA_EXCEEDED',
     });
   });
 

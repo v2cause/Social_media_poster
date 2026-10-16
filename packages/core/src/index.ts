@@ -40,6 +40,8 @@ export {
   type CallCost,
   type ModelPrice,
 } from './ai/domain/cost';
+export { CostCalculator, type CostCalculatorDependencies } from './ai/application/cost-calculator';
+export type { PriceCatalog } from './ai/ports/price-catalog';
 export type {
   AiCallOptions,
   AiProvider,
@@ -56,6 +58,20 @@ export type {
 // Audit
 export { assertSafeAuditMetadata, UnsafeAuditMetadataError } from './audit/domain/audit-metadata';
 export type { AuditEntry, AuditTrail } from './audit/ports/audit-trail';
+
+// Usage and quotas
+export { monthlyPeriodStart, USAGE_METERS, type UsageMeter } from './usage/domain/meters';
+export { QuotaExceededError } from './usage/domain/errors';
+export type { QuotaKey, QuotaLimits, QuotaStore, UsageSettlement } from './usage/ports/quota-store';
+export {
+  fixedQuotaLimits,
+  QuotaReservation,
+  QuotaService,
+  type QuotaDependencies,
+  type QuotaScope,
+  type QuotaUsage,
+  type UsageBooking,
+} from './usage/application/quota-service';
 
 // Notifications
 export type { MailMessage, MailPort } from './notifications/ports/mail.port';

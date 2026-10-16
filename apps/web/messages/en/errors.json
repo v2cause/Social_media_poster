@@ -7,6 +7,7 @@
     "ORIGIN_REJECTED": "The request did not come from the app and was rejected.",
     "HTTP_400": "The request was invalid.",
     "HTTP_401": "Please sign in.",
+    "HTTP_402": "The quota is used up.",
     "HTTP_403": "You lack the permission for this.",
     "HTTP_404": "This does not exist, or you have no access.",
     "HTTP_409": "This conflicts with the current state.",
@@ -27,7 +28,8 @@
     "WORKSPACE_NOT_FOUND": "This workspace does not exist, or you have no access.",
     "ORGANIZATION_NOT_FOUND": "This organization does not exist, or you are no member.",
     "UNSAFE_AUDIT_METADATA": "An error occurred on the server.",
-    "INVALID_CURSOR": "The page is no longer valid. Please reload."
+    "INVALID_CURSOR": "The page is no longer valid. Please reload.",
+    "QUOTA_EXCEEDED": "Your organization's AI budget for this month is used up."
   },
   "validation": {
     "required": "Please fill in this field.",
