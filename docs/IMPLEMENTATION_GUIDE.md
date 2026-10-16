@@ -500,7 +500,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 #### 2.1 Datenmodell Content und KI
 - **Erstellen**: `PostStyle`, `BrandVoice` und `BrandVoiceVersion` (unveränderliche Snapshots), `Idea`, `Post`, `PostVariant` (mit allen Feldern aus Teil A, auch denen für das Scheduling, um spätere Migrationen zu vermeiden), `AiGeneration`, `UsageRecord`, `UsageCounter`, `PriceBook`; dazu die RLS-Policies für alle neuen Tabellen.
 - **So sieht es aus**:
-  - Seed der Style-Presets mit `key`, i18n-Namen und Prompt-Fragment: professional, storytelling, casual, educational, thought_leadership, promotional.
+  - Seed der Style-Presets mit `key`, i18n-Namen und Prompt-Fragment: professional, storytelling, casual, educational, thought_leadership, promotional. Presets und PriceBook kommen als Migration `reference_data`, damit sie in jeder Umgebung vorhanden sind ([ADR 0014](adr/0014-content-und-ki-datenmodell.md)).
   - Seed des PriceBooks für `claude-opus-5-5`: Input 4 USD und Output 20 USD pro Mio. Tokens, Cache-Read 0,20 USD, Cache-Write das 1,25-Fache des Inputs (5-Minuten-TTL); gespeichert in Micro-USD.
   - Dazu die Preise der Fallback-Ziele aus `allowed_fallback_models` (Models API mit Beta-Header `server-side-fallback-2026-06-01`; erwartet werden `claude-opus-5` und `claude-opus-4-8`, gegen die Doku prüfen), weil Fallback-Versuche zu deren Preisen abgerechnet werden.
 - **Darauf achten**: Preise stehen nur im PriceBook, nie im Code. `AiGeneration` verweist auf `BrandVoiceVersion`, damit jede Generierung nachvollziehbar bleibt.

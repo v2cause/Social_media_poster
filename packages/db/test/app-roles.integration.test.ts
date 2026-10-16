@@ -32,6 +32,9 @@ describe('database roles and migrations', () => {
         '0001_identity_tenancy',
         '0002_rls_tenancy',
         '0003_invitation_preview',
+        '0004_content_ai',
+        '0005_rls_content_ai',
+        '0006_reference_data',
       ]);
       expect(rows.every((row) => row.finished_at instanceof Date)).toBe(true);
     } finally {

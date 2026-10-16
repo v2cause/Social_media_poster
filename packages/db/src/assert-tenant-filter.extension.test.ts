@@ -46,6 +46,22 @@ describe('assertTenantFilter', () => {
     );
   });
 
+  it('lets reads of style presets cover the global rows, but never writes', () => {
+    expect(check('PostStyle', 'findMany', { where: { workspaceId: null } })).not.toThrow();
+    expect(
+      check('PostStyle', 'findMany', { where: { OR: [{ workspaceId: null }, { workspaceId: WS }] } }),
+    ).not.toThrow();
+    expect(
+      check('PostStyle', 'findMany', { where: { OR: [{ workspaceId: null }, { key: 'custom-x' }] } }),
+    ).toThrow(TenantFilterMissingError);
+    expect(check('PostStyle', 'updateMany', { where: { workspaceId: null }, data: {} })).toThrow(
+      TenantFilterMissingError,
+    );
+    expect(check('Post', 'findMany', { where: { OR: [{ workspaceId: WS }] } })).toThrow(
+      TenantFilterMissingError,
+    );
+  });
+
   it('checks the data of creates and both parts of an upsert', () => {
     expect(check('AuditLog', 'create', { data: { organizationId: ORG, action: 'x' } })).not.toThrow();
     expect(

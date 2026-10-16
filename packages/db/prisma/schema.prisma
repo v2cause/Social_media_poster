@@ -6,9 +6,12 @@
 // snake_case via @map/@@map, ids are UUID v7, timestamps are timestamptz.
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "cjs"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  moduleFormat    = "cjs"
+  // Partial indexes for the scheduler and the analytics planner (architecture 6.2). With the
+  // preview feature they live in this schema, so later migrations do not drop them as drift.
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -147,6 +150,8 @@ model Organization {
   membershipWorkspaces MembershipWorkspace[]
   invitations          Invitation[]
   auditLogs            AuditLog[]
+  usageCounters        UsageCounter[]
+  usageRecords         UsageRecord[]
 
   @@map("organization")
 }
@@ -170,6 +175,14 @@ model Workspace {
   organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   settings             WorkspaceSettings?
   membershipWorkspaces MembershipWorkspace[]
+  postStyles           PostStyle[]
+  brandVoices          BrandVoice[]
+  brandVoiceVersions   BrandVoiceVersion[]
+  ideas                Idea[]
+  posts                Post[]
+  postVariants         PostVariant[]
+  aiGenerations        AiGeneration[]
+  usageRecords         UsageRecord[]
 
   @@index([organizationId])
   @@map("workspace")
@@ -319,4 +332,336 @@ model FeatureFlag {
 
   @@index([key])
   @@map("feature_flag")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Content and AI (guide step 2.1, architecture 6.2). Content tables carry workspace_id, usage
+// tables organization_id; all of them have row-level security (migration rls_content_ai).
+// Creator and actor columns hold user ids without a foreign key, like audit_log.actor_user_id:
+// deleting a user must not delete or block the content of the workspace.
+// ---------------------------------------------------------------------------------------------
+
+enum Platform {
+  LINKEDIN
+  INSTAGRAM
+  FACEBOOK
+  X
+}
+
+// Style presets have no workspace and come from the migration reference_data; custom styles
+// belong to one workspace. The prompt names a style by its key, never by its id.
+model PostStyle {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  workspaceId  String?  @map("workspace_id") @db.Uuid
+  // Presets: professional, storytelling, casual, educational, thought_leadership, promotional.
+  // Custom styles: "custom-" plus a slug of the name, unique per workspace.
+  key          String
+  name         String
+  // The prompt fragment of a preset, or the instructions of a custom style.
+  instructions String
+  isActive     Boolean  @default(true) @map("is_active")
+  sortOrder    Int      @default(0) @map("sort_order")
+  version      Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  posts     Post[]
+
+  @@unique([workspaceId, key])
+  @@unique([key], map: "post_style_preset_key_key", where: raw("workspace_id IS NULL"))
+  @@map("post_style")
+}
+
+model BrandVoice {
+  id                   String    @id @default(uuid(7)) @db.Uuid
+  workspaceId          String    @map("workspace_id") @db.Uuid
+  name                 String
+  // The version that new generations use. Every change creates a new version.
+  currentVersionNumber Int       @map("current_version_number")
+  isDefault            Boolean   @default(false) @map("is_default")
+  archivedAt           DateTime? @map("archived_at") @db.Timestamptz(3)
+  version              Int       @default(0)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  versions  BrandVoiceVersion[]
+  posts     Post[]
+
+  @@index([workspaceId])
+  @@map("brand_voice")
+}
+
+// Immutable snapshot of a brand voice: the cache key of the brand context in the prompt and the
+// reference of every AI generation. app_user may insert and read it, never change or delete it.
+model BrandVoiceVersion {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  brandVoiceId  String   @map("brand_voice_id") @db.Uuid
+  versionNumber Int      @map("version_number")
+  // Name, description, tone, dos and don'ts, vocabulary, forbidden words, emoji and hashtag
+  // policy, example posts and language; validated with the zod schema of @smp/contracts.
+  content       Json
+  // SHA-256 of the canonical JSON of content.
+  contentHash   String   @map("content_hash")
+  createdById   String?  @map("created_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brandVoice    BrandVoice     @relation(fields: [brandVoiceId], references: [id], onDelete: Cascade)
+  aiGenerations AiGeneration[]
+
+  @@unique([brandVoiceId, versionNumber])
+  @@index([workspaceId])
+  @@map("brand_voice_version")
+}
+
+enum IdeaStatus {
+  NEW
+  SAVED
+  DISCARDED
+  USED
+}
+
+enum IdeaSource {
+  AI
+  MANUAL
+}
+
+model Idea {
+  id                 String     @id @default(uuid(7)) @db.Uuid
+  workspaceId        String     @map("workspace_id") @db.Uuid
+  title              String
+  angle              String?
+  pillar             String?
+  whyNow             String?    @map("why_now")
+  basedOn            String[]   @default([]) @map("based_on")
+  suggestedPlatforms Platform[] @default([]) @map("suggested_platforms")
+  suggestedStyleKey  String?    @map("suggested_style_key")
+  format             String?
+  status             IdeaStatus @default(NEW)
+  source             IdeaSource @default(MANUAL)
+  aiGenerationId     String?    @map("ai_generation_id") @db.Uuid
+  createdById        String?    @map("created_by_id") @db.Uuid
+  version            Int        @default(0)
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  aiGeneration AiGeneration? @relation(fields: [aiGenerationId], references: [id], onDelete: SetNull)
+  posts        Post[]
+
+  @@index([workspaceId, status, createdAt(sort: Desc)])
+  // Near-duplicate detection of new idea titles (architecture 5.3, pg_trgm).
+  @@index([title(ops: raw("gin_trgm_ops"))], map: "idea_title_trgm_idx", type: Gin)
+  @@map("idea")
+}
+
+// The master content of a post: brief, style and brand voice. One variant per target.
+// The status of a post is derived from its variants (architecture 7.2).
+model Post {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  brief        String   @default("")
+  // Content language of the variants (de or en).
+  language     String
+  styleId      String?  @map("style_id") @db.Uuid
+  brandVoiceId String?  @map("brand_voice_id") @db.Uuid
+  ideaId       String?  @map("idea_id") @db.Uuid
+  createdById  String?  @map("created_by_id") @db.Uuid
+  version      Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  style         PostStyle?     @relation(fields: [styleId], references: [id], onDelete: SetNull)
+  brandVoice    BrandVoice?    @relation(fields: [brandVoiceId], references: [id], onDelete: SetNull)
+  idea          Idea?          @relation(fields: [ideaId], references: [id], onDelete: SetNull)
+  variants      PostVariant[]
+  aiGenerations AiGeneration[]
+
+  @@index([workspaceId, updatedAt(sort: Desc)])
+  @@map("post")
+}
+
+// Architecture 7.2. Only DRAFT is used before phase 4.
+enum VariantStatus {
+  DRAFT
+  SCHEDULED
+  QUEUED
+  PUBLISHING
+  RETRYING
+  PUBLISHED
+  FAILED
+  NEEDS_ATTENTION
+  CANCELED
+  DELETED
+}
+
+// One variant per target. Carries every field of architecture 6.2, including the scheduling and
+// publishing fields of phases 4 and 5, so that those phases need no migration of this table.
+model PostVariant {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  workspaceId       String        @map("workspace_id") @db.Uuid
+  postId            String        @map("post_id") @db.Uuid
+  // The publishing target from phase 4 on; the foreign key follows with social_account.
+  socialAccountId   String?       @map("social_account_id") @db.Uuid
+  platform          Platform
+  // The key of the target in the AI task (t1, t2, ...).
+  targetKey         String        @map("target_key")
+  text              String        @default("")
+  hashtags          String[]      @default([])
+  firstComment      String?       @map("first_comment")
+  linkUrl           String?       @map("link_url")
+  // Hints of the AI such as "the statistic needs a source", shown as warnings.
+  aiWarnings        String[]      @default([]) @map("ai_warnings")
+  status            VariantStatus @default(DRAFT)
+  scheduledAt       DateTime?     @map("scheduled_at") @db.Timestamptz(3)
+  scheduledTimezone String?       @map("scheduled_timezone")
+  // Raised on every rescheduling; part of the publish job id.
+  scheduleVersion   Int           @default(0) @map("schedule_version")
+  // Optimistic locking.
+  version           Int           @default(0)
+  queuedAt          DateTime?     @map("queued_at") @db.Timestamptz(3)
+  leaseOwner        String?       @map("lease_owner")
+  leaseUntil        DateTime?     @map("lease_until") @db.Timestamptz(3)
+  publishedAt       DateTime?     @map("published_at") @db.Timestamptz(3)
+  externalPostId    String?       @map("external_post_id")
+  externalUrl       String?       @map("external_url")
+  failureCode       String?       @map("failure_code")
+  lastError         String?       @map("last_error")
+  isDryRun          Boolean       @default(false) @map("is_dry_run")
+  // Hash of the published content, for the reconcile after an unclear publish attempt.
+  contentHash       String?       @map("content_hash")
+  metricsNextAt     DateTime?     @map("metrics_next_at") @db.Timestamptz(3)
+  metricsStep       Int           @default(0) @map("metrics_step")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, targetKey])
+  @@index([workspaceId])
+  @@index([scheduledAt], map: "post_variant_due_idx", where: raw("status = 'SCHEDULED'"))
+  @@index([metricsNextAt], map: "post_variant_metrics_due_idx", where: raw("status = 'PUBLISHED'"))
+  @@map("post_variant")
+}
+
+enum AiTask {
+  GENERATE
+  REFINE
+  IDEAS
+  ALT_TEXT
+  VOICE_TEST
+}
+
+enum AiOutcome {
+  OK
+  REFUSED
+  TRUNCATED
+  INVALID_OUTPUT
+  PROVIDER_ERROR
+  CANCELED
+}
+
+// Every AI call (architecture 5.3). Written once when the call ends; app_user may insert and read.
+model AiGeneration {
+  id                  String    @id @default(uuid(7)) @db.Uuid
+  workspaceId         String    @map("workspace_id") @db.Uuid
+  userId              String?   @map("user_id") @db.Uuid
+  task                AiTask
+  postId              String?   @map("post_id") @db.Uuid
+  brandVoiceVersionId String?   @map("brand_voice_version_id") @db.Uuid
+  promptVersion       String    @map("prompt_version")
+  provider            String
+  modelRequested      String    @map("model_requested")
+  // The model that produced the answer (top-level model of the response), after a fallback too.
+  modelServed         String?   @map("model_served")
+  effort              String
+  // The input without the rendered prompt: brief, style, targets, language, refine action.
+  input               Json
+  output              Json?
+  outcome             AiOutcome
+  stopReason          String?   @map("stop_reason")
+  refusalCategory     String?   @map("refusal_category")
+  // Sums over all attempts; the attempts themselves (model, tokens, cost) are in attempts.
+  inputTokens         Int       @default(0) @map("input_tokens")
+  outputTokens        Int       @default(0) @map("output_tokens")
+  cacheReadTokens     Int       @default(0) @map("cache_read_tokens")
+  cacheWriteTokens    Int       @default(0) @map("cache_write_tokens")
+  attempts            Json      @default("[]")
+  costMicros          BigInt    @default(0) @map("cost_micros")
+  latencyMs           Int?      @map("latency_ms")
+  ttftMs              Int?      @map("ttft_ms")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  post              Post?              @relation(fields: [postId], references: [id], onDelete: SetNull)
+  brandVoiceVersion BrandVoiceVersion? @relation(fields: [brandVoiceVersionId], references: [id], onDelete: SetNull)
+  ideas             Idea[]
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@map("ai_generation")
+}
+
+// Atomic quota counter per organization, meter and period (guide step 2.6).
+model UsageCounter {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  // For example "ai_micros".
+  meter          String
+  // First day of the period (UTC).
+  periodStart    DateTime @map("period_start") @db.Date
+  value          BigInt   @default(0)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, meter, periodStart])
+  @@map("usage_counter")
+}
+
+// The usage ledger: one row per source and meter, so booking twice changes nothing.
+model UsageRecord {
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  workspaceId        String?   @map("workspace_id") @db.Uuid
+  meter              String
+  // For example "ai_generation" with the id of the AiGeneration.
+  sourceType         String    @map("source_type")
+  sourceId           String    @map("source_id") @db.Uuid
+  quantity           BigInt
+  periodStart        DateTime  @map("period_start") @db.Date
+  // Set by the billing job of phase 7 after reporting to Stripe.
+  reportedToStripeAt DateTime? @map("reported_to_stripe_at") @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceType, sourceId, meter])
+  @@index([organizationId, periodStart])
+  @@map("usage_record")
+}
+
+// Model prices in micro-USD per million tokens, versioned by valid_from. Prices live only
+// here, never in code. Global reference data: app_user may read it, not change it.
+model PriceBook {
+  id                        String   @id @default(uuid(7)) @db.Uuid
+  model                     String
+  validFrom                 DateTime @map("valid_from") @db.Timestamptz(3)
+  inputMicrosPerMtok        BigInt   @map("input_micros_per_mtok")
+  outputMicrosPerMtok       BigInt   @map("output_micros_per_mtok")
+  cacheReadMicrosPerMtok    BigInt   @map("cache_read_micros_per_mtok")
+  cacheWrite5mMicrosPerMtok BigInt   @map("cache_write_5m_micros_per_mtok")
+  cacheWrite1hMicrosPerMtok BigInt   @map("cache_write_1h_micros_per_mtok")
+  // Where the prices come from and when they were last checked against it.
+  source                    String
+  checkedAt                 DateTime @map("checked_at") @db.Date
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([model, validFrom])
+  @@map("price_book")
 }

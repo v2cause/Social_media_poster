@@ -303,7 +303,7 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
   - `SocialConnection`: ein OAuth-Grant oder eine Browser-Session (verschlüsselte Tokens oder Session, Ablaufzeiten, Scopes, Status ACTIVE, EXPIRING, NEEDS_REAUTH, PAUSED oder REVOKED).
   - `SocialAccount`: ein Veröffentlichungsziel, z.B. eine Person, eine Company Page, eine Facebook-Seite oder ein IG-Konto. Eine Verbindung kann mehrere Accounts haben, z.B. mehrere Pages.
 - **Content**:
-  - `PostStyle`: System-Presets (Professionell, Storytelling, Locker, Lehrreich, Thought Leadership, Werblich) und eigene Stile.
+  - `PostStyle`: System-Presets (Professionell, Storytelling, Locker, Lehrreich, Thought Leadership, Werblich) ohne Workspace, für alle Mandanten lesbar und per Migration ausgeliefert, sowie eigene Stile pro Workspace (ADR 0014).
   - `BrandVoice` mit `BrandVoiceVersion` (unveränderliche Snapshots): Die Version dient als Cache-Key, und `AiGeneration` verweist auf sie.
   - `Idea`, `Post` (Master-Inhalt: Briefing, Stil, Brand Voice) und `PostVariant` (ein Eintrag pro Zielaccount).
 - **Media**: `MediaAsset` (Status PENDING_UPLOAD, PROCESSING, READY oder REJECTED; Maße, sha256, Alt-Text), `MediaRendition` (Profil pro Plattform plus Zuschnitt), `PostMedia` (Reihenfolge, Zuschnitt und Alt-Text pro Variante).
@@ -335,6 +335,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
 - **Explizite Filter**: Repositories filtern zusätzlich ausdrücklich nach `workspaceId` (Defense in Depth). In Dev und Test prüft eine Assertion, dass der Filter vorhanden ist und auf den Mandanten des Kontexts zeigt (`TENANT_FILTERS` in `packages/db`). Ohne Organisation im Kontext entfällt die Prüfung, dann greifen nur die nutzerbezogenen Lese-Policies.
 - **System-Client**: Jede Operation des `app_system`-Clients wirft außerhalb einer mit `@SystemScope()` markierten Methode (Laufzeitprüfung über AsyncLocalStorage). ESLint erlaubt den Import von `createSystemPrismaClient` nur unter `src/infrastructure`.
 - **CI-Prüfung**: Jede Tabelle mit Mandanten-Spalte (und `organization`) hat RLS aktiv und erzwungen, mindestens eine Policy, und jede Policy liest den Kontext über `NULLIF`. Die Prüfung (`findRlsViolations` in `packages/db`) läuft im Integrationstest gegen die migrierte Datenbank und lokal mit `pnpm check:rls`. Integrationstests mit zwei Mandanten zeigen, dass mandantenübergreifende Lesezugriffe 0 Zeilen liefern.
+- **Unveränderliche und globale Tabellen**: `brand_voice_version`, `ai_generation` und `usage_record` sind für `app_user` append-only (kein UPDATE, kein DELETE). Das `price_book` ist zur Laufzeit nur lesbar; Preise und Stil-Presets kommen als Referenzdaten mit den Migrationen (ADR 0014).
 - **Keine Materialized Views für Mandantendaten**, weil RLS dort nicht greift. Rollups sind normale Tabellen.
 
 ---

@@ -5,43 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
 
 import { findRlsViolations } from '../src';
-
-interface TenantContext {
-  userId?: string;
-  organizationId?: string;
-  workspaceId?: string;
-  invitationTokenHash?: string;
-}
-
-// Sets the context transaction-locally, as the tenant extension does, and runs fn inside.
-async function inContext<T>(client: Client, context: TenantContext, fn: () => Promise<T>): Promise<T> {
-  await client.query('BEGIN');
-  try {
-    await client.query(
-      `SELECT set_config('app.user_id', $1, true),
-              set_config('app.organization_id', $2, true),
-              set_config('app.workspace_id', $3, true),
-              set_config('app.invitation_token_hash', $4, true)`,
-      [
-        context.userId ?? '',
-        context.organizationId ?? '',
-        context.workspaceId ?? '',
-        context.invitationTokenHash ?? '',
-      ],
-    );
-    const result = await fn();
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  }
-}
-
-async function ids(client: Client, sql: string): Promise<string[]> {
-  const { rows } = await client.query<{ id: string }>(sql);
-  return rows.map((row) => row.id).sort();
-}
+import { ids, inContext } from './support/sql-context';
 
 // Two organizations: A with workspace a1 and owner alice; B with workspaces b1 and b2, the
 // unrestricted admin dave and the editor bob, who is restricted to b2.
