@@ -255,6 +255,8 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
 | 2. Workspace und Marke | Firmenprofil, Content-Säulen, Brand Voice (Ton, Do/Don't, Vokabular, verbotene Wörter, Emoji- und Hashtag-Politik, 3 bis 5 Beispielposts), eigene Stile; deterministisch serialisiert | Breakpoint 2 (pro Brand-Voice-Version) |
 | 3. Aufgabe | Aufgabentyp, Stil, Zielaccounts (`t1`, `t2`, ...), Medienbeschreibungen, Sprache, Briefing in `<brief>` | nicht gecacht |
 
+Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md` (`PROMPT_VERSION = 'gen-v1'`). Grenzwerte und Stil-Katalog setzt der Renderer aus `@smp/platform-rules` und den Presets ein, damit Prompt und Validierung übereinstimmen. Nutzerdaten in den Tags werden escaped, sodass sie keinen Tag schließen können. Snapshot-Tests vergleichen alle gerenderten Prompts byte-genau.
+
 ### 5.3 Ausgabe und Abläufe
 
 - **Structured Outputs** (zod, `output_config.format`): pro Variante `targetKey`, `platform`, `hook`, `text`, `hashtags[]`, `firstComment`, `callToAction`, `altTexts[]`, `warnings[]` (z.B. "Statistik braucht eine Quelle"). Themenideen haben `title`, `angle`, `pillar`, `whyNow`, `basedOn[]`, `suggestedPlatforms[]`, `suggestedStyleKey`, `format`.

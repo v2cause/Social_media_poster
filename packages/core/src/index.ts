@@ -6,6 +6,53 @@ export { systemClock, uuidV7Ids } from './shared/adapters/system';
 export type { Clock } from './shared/ports/clock';
 export type { IdGenerator } from './shared/ports/ids';
 
+// AI (architecture 5)
+export {
+  AI_EFFORTS,
+  AI_FAILURE_CODES,
+  AI_ROUTES,
+  CONTENT_LANGUAGES,
+  EMOJI_POLICIES,
+  HASHTAG_POLICIES,
+  REFINE_ACTIONS,
+  type AiAttempt,
+  type AiCallReport,
+  type AiEffort,
+  type AiFailure,
+  type AiFailureCode,
+  type AiRoute,
+  type AiTarget,
+  type BrandContext,
+  type BrandProfile,
+  type BrandVoiceContent,
+  type ContentLanguage,
+  type CustomStyle,
+  type EmojiPolicy,
+  type GeneratedVariant,
+  type HashtagPolicy,
+  type RefineAction,
+  type TopicIdea,
+} from './ai/domain/types';
+export {
+  attemptCostMicros,
+  callCostMicros,
+  estimateCostMicros,
+  type CallCost,
+  type ModelPrice,
+} from './ai/domain/cost';
+export type {
+  AiCallOptions,
+  AiProvider,
+  AiResult,
+  AltTextImage,
+  GenerateVariantsInput,
+  PartialVariant,
+  RefineVariantInput,
+  SuggestAltTextInput,
+  SuggestTopicsInput,
+  VariantStreamEvent,
+} from './ai/ports/ai-provider';
+
 // Audit
 export { assertSafeAuditMetadata, UnsafeAuditMetadataError } from './audit/domain/audit-metadata';
 export type { AuditEntry, AuditTrail } from './audit/ports/audit-trail';

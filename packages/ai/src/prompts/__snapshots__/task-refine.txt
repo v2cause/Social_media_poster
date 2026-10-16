@@ -1,0 +1,18 @@
+<task>
+type: refine_variant
+style: professional
+language: de
+targets:
+- t1: LINKEDIN
+action: custom
+action_description: Apply the request in <instruction>.
+Return the refined variant as the only element of variants.
+</task>
+<current_variant>
+text:
+Der neue Kalender ist da.
+hashtags: kalender, teams
+</current_variant>
+<instruction>
+Erwähne den Rabatt nicht.
+</instruction>

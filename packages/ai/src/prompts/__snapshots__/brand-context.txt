@@ -1,0 +1,55 @@
+<brand_context>
+<company>
+content_pillars:
+- Product
+- Team
+- Customer stories
+goals: More reach and qualified leads
+industry: Software
+name: Brand Studio
+target_audience: Marketing teams in mid-sized companies
+</company>
+<brand_voice>
+description: Warm, competent and direct. No buzzwords.
+dos:
+- Speak to the reader directly
+- Use concrete examples
+donts:
+- No superlatives
+emoji_policy: sparse
+forbidden_words:
+- synergy
+- disruptive
+hashtag_policy: few
+language: en
+name: Brand Studio voice
+tone:
+- warm
+- competent
+vocabulary:
+- content plan
+- reach
+</brand_voice>
+<example_posts>
+<example_post>
+We shipped the calendar view today.
+
+Three things we learned on the way:
+</example_post>
+<example_post>
+Ask us anything.
+</example_post>
+</example_posts>
+<custom_styles>
+<style key="custom-behind-the-scenes">
+name: Behind the scenes
+instructions:
+Show the people and the process.
+</style>
+<style key="custom-weekly-recap">
+name: Weekly recap
+instructions:
+Three bullet points, one sentence each.
+</style>
+</custom_styles>
+</brand_context>

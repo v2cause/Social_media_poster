@@ -1,0 +1,33 @@
+<task>
+type: suggest_ideas
+language: en
+count: 10
+fields:
+- title: a short working title
+- angle: the specific take of the post
+- pillar: the content pillar it belongs to, or null
+- whyNow: why the topic fits now
+- basedOn: what inspired it, for example "content pillar", "top post" or the label of an upcoming date
+- suggestedPlatforms: the platforms where it works best
+- suggestedStyleKey: the key of a style from the catalog or the custom styles, or null
+- format: for example "text post", "carousel", "image post", "short video" or "poll"
+Avoid topics that repeat the past posts or resemble the discarded ideas.
+</task>
+<past_posts>
+<post>
+We shipped the calendar view.
+</post>
+</past_posts>
+<top_posts>
+<post>
+Three lessons from 100 customer calls.
+</post>
+</top_posts>
+<discarded_ideas>
+<idea>
+A post about our office plants
+</idea>
+</discarded_ideas>
+<upcoming_dates>
+- 2026-11-03: Product launch
+</upcoming_dates>

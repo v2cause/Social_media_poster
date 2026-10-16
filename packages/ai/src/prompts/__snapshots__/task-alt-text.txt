@@ -1,0 +1,9 @@
+<task>
+type: alt_text
+language: de
+fields:
+- altText: one or two sentences, at most 250 characters, that describe what matters in the image for people who cannot see it. No "image of" or "picture of".
+</task>
+<post_context>
+Launch des Kalenders
+</post_context>

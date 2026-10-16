@@ -26,5 +26,12 @@
     "tsup": "^9.0.0",
     "typescript": "^5.9.3",
     "vitest": "^5.0.4"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.134.0",
+    "@smp/core": "workspace:*",
+    "@smp/platform-rules": "workspace:*",
+    "partial-json": "^0.1.7",
+    "zod": "^4.6.7"
   }
 }

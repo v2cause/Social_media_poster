@@ -1,0 +1,14 @@
+<task>
+type: generate_variants
+style: storytelling
+language: de
+targets:
+- t1: LINKEDIN
+- t2: X
+media:
+- m1: Screenshot of the calendar view
+</task>
+<brief>
+Wir starten den neuen Kalender.
+Fokus: Teams sparen Zeit.
+</brief>
