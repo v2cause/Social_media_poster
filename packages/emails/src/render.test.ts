@@ -75,3 +75,105 @@ describe('renderEmail', () => {
     ]);
   });
 });
+
+describe('the notification emails of guide step 4.9', () => {
+  const base = {
+    name: 'Olivia',
+    url: 'http://localhost:3000/w/nordlicht/accounts',
+    platform: 'LINKEDIN' as const,
+    accounts: ['Mira', 'Nordlicht Haustechnik'],
+  };
+
+  it('names the date the access ends, in the time zone of the workspace', async () => {
+    const email = {
+      ...base,
+      template: 'token-expiring' as const,
+      expiresAt: '2026-10-23T22:30:00.000Z',
+      timeZone: 'Europe/Berlin',
+    };
+    const de = await renderEmail({ ...email, locale: 'de' });
+    const en = await renderEmail({ ...email, locale: 'en' });
+
+    expect(de.subject).toBe('Der Zugang zu Mira, Nordlicht Haustechnik läuft am 24. Oktober 2026 ab');
+    expect(de.text).toContain('Hallo Olivia,');
+    expect(de.text).toContain('auf LinkedIn läuft am 24. Oktober 2026 ab');
+    expect(de.text).toContain('Neu verbinden');
+    expect(de.text).toContain('Kontoeinstellungen');
+    expect(en.subject).toBe('Access to Mira, Nordlicht Haustechnik ends on October 24, 2026');
+  });
+
+  it('counts the scheduled posts a new grant affects', async () => {
+    const email = { ...base, template: 'reauth-required' as const, locale: 'de' as const };
+
+    expect((await renderEmail({ ...email, scheduledPosts: 0 })).text).not.toContain('betroffen');
+    expect((await renderEmail({ ...email, scheduledPosts: 1 })).text).toContain(
+      'Ein geplanter Post ist betroffen.',
+    );
+    expect((await renderEmail({ ...email, scheduledPosts: 3 })).text).toContain(
+      '3 geplante Posts sind betroffen.',
+    );
+    expect((await renderEmail({ ...email, locale: 'en', scheduledPosts: 3 })).subject).toBe(
+      'Reconnect Mira, Nordlicht Haustechnik',
+    );
+  });
+
+  it('gives the reason of a failed post and escapes its text', async () => {
+    const email = await renderEmail({
+      ...base,
+      template: 'publish-failed',
+      locale: 'de',
+      url: 'http://localhost:3000/w/nordlicht/posts/p-1',
+      preview: 'Neu: <b>Ausbildung</b> 2027',
+      failureCode: 'MISSED_WINDOW',
+    });
+
+    expect(email.subject).toBe('Ein Post auf LinkedIn wurde nicht veröffentlicht');
+    expect(email.text).toContain('Grund: Der geplante Zeitpunkt lag mehr als 6 Stunden zurück.');
+    expect(email.text).toContain('Post: „Neu: <b>Ausbildung</b> 2027“');
+    expect(email.html).not.toContain('<b>Ausbildung</b>');
+    expect(email.text).toContain('Post öffnen');
+  });
+
+  it('asks for a decision in both languages', async () => {
+    const email = {
+      ...base,
+      template: 'needs-attention' as const,
+      url: 'http://localhost:3000/w/nordlicht/posts/p-1',
+      preview: 'Wir suchen Verstärkung.',
+    };
+    const de = await renderEmail({ ...email, locale: 'de' });
+    const en = await renderEmail({ ...email, locale: 'en' });
+
+    expect(de.subject).toBe('Ein Post auf LinkedIn braucht Ihre Entscheidung');
+    expect(de.text).toContain('„Erneut prüfen“, „Trotzdem posten“ oder „Verwerfen“');
+    expect(en.text).toContain('“Check again”, “Post anyway” or “Discard”');
+  });
+
+  it('names three accounts and counts the others', async () => {
+    const email = await renderEmail({
+      ...base,
+      template: 'reauth-required',
+      locale: 'de',
+      accounts: ['A', 'B', 'C'],
+      moreAccounts: 4,
+      scheduledPosts: 0,
+    });
+
+    expect(email.subject).toBe('Die Verbindung zu A, B, C (+4) muss erneuert werden');
+  });
+
+  it('refuses a notification without accounts or with an unknown time zone', async () => {
+    await expect(
+      renderEmail({ ...base, template: 'needs-attention', locale: 'de', accounts: [], preview: 'x' }),
+    ).rejects.toThrow();
+    await expect(
+      renderEmail({
+        ...base,
+        template: 'token-expiring',
+        locale: 'de',
+        expiresAt: '2026-10-23T22:30:00.000Z',
+        timeZone: 'Mars/Olympus',
+      }),
+    ).rejects.toThrow();
+  });
+});

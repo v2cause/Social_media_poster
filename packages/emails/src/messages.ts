@@ -1,4 +1,8 @@
-import type { Locale } from '@smp/contracts';
+import type { Locale, platformSchema } from '@smp/contracts';
+import type { PublishFailureCode } from '@smp/core';
+import type { z } from 'zod';
+
+type Platform = z.output<typeof platformSchema>;
 
 // Email texts per locale. The interface makes both languages carry every key.
 
@@ -17,12 +21,39 @@ export interface EmailMessages {
     greetingWithoutName: string;
     linkFallback: string;
     footer: string;
+    /** Under every notification: where to switch them off. */
+    settingsHint: string;
   };
   roles: Record<'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER', string>;
+  platforms: Record<Platform, string>;
+  /** Why a post did not go out, per failure code of the publish job (guide step 4.8). */
+  failureReasons: Record<PublishFailureCode, string>;
   verifyEmail: ActionEmailMessages;
   resetPassword: ActionEmailMessages;
   /** Placeholders: {organization}, {inviter}, {role}. */
   invitation: ActionEmailMessages;
+  /** Placeholders: {accounts}, {platform}, {date}. */
+  tokenExpiring: { subject: string; preview: string; intro: string; action: string; note: string };
+  /** Placeholders: {accounts}, {platform}, {count}. */
+  reauthRequired: {
+    subject: string;
+    preview: string;
+    intro: string;
+    action: string;
+    affectedOne: string;
+    affectedMany: string;
+  };
+  /** Placeholders: {accounts}, {platform}, {reason}, {preview}. */
+  publishFailed: {
+    subject: string;
+    preview: string;
+    intro: string;
+    reason: string;
+    post: string;
+    action: string;
+  };
+  /** Placeholders: {accounts}, {platform}, {preview}. */
+  needsAttention: { subject: string; preview: string; intro: string; post: string; action: string };
 }
 
 export const messages: Record<Locale, EmailMessages> = {
@@ -32,8 +63,29 @@ export const messages: Record<Locale, EmailMessages> = {
       greetingWithoutName: 'Hallo,',
       linkFallback: 'Falls der Button nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:',
       footer: 'Diese E-Mail wurde von Social Media Poster automatisch versendet.',
+      settingsHint:
+        'Welche Benachrichtigungen Sie per E-Mail erhalten, legen Sie in Ihren Kontoeinstellungen fest.',
     },
     roles: { OWNER: 'Inhaber', ADMIN: 'Administrator', EDITOR: 'Redakteur', VIEWER: 'Betrachter' },
+    platforms: { LINKEDIN: 'LinkedIn', FACEBOOK: 'Facebook', INSTAGRAM: 'Instagram', X: 'X' },
+    failureReasons: {
+      PERMISSION_DENIED: 'Die Plattform hat die nötige Berechtigung verweigert.',
+      VALIDATION_REJECTED: 'Die Plattform hat den Inhalt abgelehnt.',
+      DUPLICATE: 'Die Plattform hält den Post für ein Duplikat.',
+      TRANSIENT: 'Die Plattform war wiederholt nicht erreichbar.',
+      MEDIA_PROCESSING: 'Die Bilder waren nicht rechtzeitig fertig.',
+      RATE_LIMITED: 'Die Plattform hat zu viele Anfragen gemeldet.',
+      OUTCOME_UNKNOWN: 'Es ist unklar, ob der Post erschienen ist.',
+      CHALLENGE_REQUIRED: 'Die Plattform verlangt eine Bestätigung der Anmeldung.',
+      SELECTOR_DRIFT: 'Die Oberfläche der Plattform hat sich geändert.',
+      REAUTH_REQUIRED: 'Der Account muss neu verbunden werden.',
+      SPEND_CAP: 'Das Ausgabenlimit für X ist erreicht.',
+      MISSED_WINDOW: 'Der geplante Zeitpunkt lag mehr als 6 Stunden zurück.',
+      SOCIAL_ACCOUNT_DISCONNECTED: 'Der Account ist nicht mehr verbunden.',
+      ADAPTER_UNAVAILABLE: 'Die Plattform ist gerade nicht verfügbar.',
+      VARIANT_NOT_PUBLISHABLE: 'Der Inhalt erfüllt die Regeln der Plattform nicht.',
+      INTERNAL: 'Ein interner Fehler ist aufgetreten.',
+    },
     verifyEmail: {
       subject: 'Bestätigen Sie Ihre E-Mail-Adresse',
       preview: 'Ein Klick, dann ist Ihr Konto aktiv.',
@@ -60,6 +112,41 @@ export const messages: Record<Locale, EmailMessages> = {
       expiry: 'Die Einladung ist sieben Tage gültig und funktioniert nur einmal.',
       ignore: 'Wenn Sie niemanden bei {organization} kennen, können Sie diese E-Mail ignorieren.',
     },
+    tokenExpiring: {
+      subject: 'Der Zugang zu {accounts} läuft am {date} ab',
+      preview: 'Verbinden Sie den Account neu, damit geplante Posts erscheinen.',
+      intro:
+        'der Zugang zu {accounts} auf {platform} läuft am {date} ab. Danach kann Social Media Poster dort nichts mehr veröffentlichen.',
+      action: 'Neu verbinden',
+      note: 'Wenn Sie die Verbindung vorher erneuern, bleiben alle geplanten Posts erhalten.',
+    },
+    reauthRequired: {
+      subject: 'Die Verbindung zu {accounts} muss erneuert werden',
+      preview: 'Die Verbindung zu {platform} funktioniert nicht mehr.',
+      intro:
+        'die Verbindung zu {accounts} auf {platform} funktioniert nicht mehr. Bitte stellen Sie sie neu her.',
+      action: 'Neu verbinden',
+      affectedOne:
+        'Ein geplanter Post ist betroffen. Er erscheint nur, wenn Sie die Verbindung vor seinem Termin erneuern.',
+      affectedMany:
+        '{count} geplante Posts sind betroffen. Sie erscheinen nur, wenn Sie die Verbindung vor ihrem Termin erneuern.',
+    },
+    publishFailed: {
+      subject: 'Ein Post auf {platform} wurde nicht veröffentlicht',
+      preview: '{reason}',
+      intro: 'Ihr Post für {accounts} auf {platform} konnte nicht veröffentlicht werden.',
+      reason: 'Grund: {reason}',
+      post: 'Post: „{preview}“',
+      action: 'Post öffnen',
+    },
+    needsAttention: {
+      subject: 'Ein Post auf {platform} braucht Ihre Entscheidung',
+      preview: 'Es ist unklar, ob der Post erschienen ist.',
+      intro:
+        'bei Ihrem Post für {accounts} auf {platform} ist unklar, ob er erschienen ist. Bitte sehen Sie auf der Plattform nach und wählen Sie dann „Erneut prüfen“, „Trotzdem posten“ oder „Verwerfen“.',
+      post: 'Post: „{preview}“',
+      action: 'Post öffnen',
+    },
   },
   en: {
     common: {
@@ -67,8 +154,28 @@ export const messages: Record<Locale, EmailMessages> = {
       greetingWithoutName: 'Hello,',
       linkFallback: 'If the button does not work, copy this link into your browser:',
       footer: 'This email was sent automatically by Social Media Poster.',
+      settingsHint: 'You choose which notifications you get by email in your account settings.',
     },
     roles: { OWNER: 'Owner', ADMIN: 'Admin', EDITOR: 'Editor', VIEWER: 'Viewer' },
+    platforms: { LINKEDIN: 'LinkedIn', FACEBOOK: 'Facebook', INSTAGRAM: 'Instagram', X: 'X' },
+    failureReasons: {
+      PERMISSION_DENIED: 'The platform denied a permission it needs.',
+      VALIDATION_REJECTED: 'The platform rejected the content.',
+      DUPLICATE: 'The platform considers the post a duplicate.',
+      TRANSIENT: 'The platform could not be reached several times.',
+      MEDIA_PROCESSING: 'The images were not ready in time.',
+      RATE_LIMITED: 'The platform reported too many requests.',
+      OUTCOME_UNKNOWN: 'It is unclear whether the post went out.',
+      CHALLENGE_REQUIRED: 'The platform asks to confirm the login.',
+      SELECTOR_DRIFT: 'The interface of the platform has changed.',
+      REAUTH_REQUIRED: 'The account needs to be reconnected.',
+      SPEND_CAP: 'The spending cap for X has been reached.',
+      MISSED_WINDOW: 'The planned time was more than 6 hours ago.',
+      SOCIAL_ACCOUNT_DISCONNECTED: 'The account is no longer connected.',
+      ADAPTER_UNAVAILABLE: 'The platform is not available right now.',
+      VARIANT_NOT_PUBLISHABLE: 'The content does not meet the rules of the platform.',
+      INTERNAL: 'An internal error occurred.',
+    },
     verifyEmail: {
       subject: 'Confirm your email address',
       preview: 'One click and your account is active.',
@@ -93,6 +200,40 @@ export const messages: Record<Locale, EmailMessages> = {
       action: 'Accept invitation',
       expiry: 'The invitation is valid for seven days and works only once.',
       ignore: 'If you do not know anyone at {organization}, you can ignore this email.',
+    },
+    tokenExpiring: {
+      subject: 'Access to {accounts} ends on {date}',
+      preview: 'Reconnect the account so that scheduled posts go out.',
+      intro:
+        'access to {accounts} on {platform} ends on {date}. After that, Social Media Poster cannot publish there.',
+      action: 'Reconnect',
+      note: 'If you renew the connection before then, all scheduled posts are kept.',
+    },
+    reauthRequired: {
+      subject: 'Reconnect {accounts}',
+      preview: 'The connection to {platform} no longer works.',
+      intro: 'the connection to {accounts} on {platform} no longer works. Please renew it.',
+      action: 'Reconnect',
+      affectedOne:
+        'One scheduled post is affected. It only goes out if you renew the connection before its time.',
+      affectedMany:
+        '{count} scheduled posts are affected. They only go out if you renew the connection before their time.',
+    },
+    publishFailed: {
+      subject: 'A post on {platform} was not published',
+      preview: '{reason}',
+      intro: 'your post for {accounts} on {platform} could not be published.',
+      reason: 'Reason: {reason}',
+      post: 'Post: “{preview}”',
+      action: 'Open post',
+    },
+    needsAttention: {
+      subject: 'A post on {platform} needs your decision',
+      preview: 'It is unclear whether the post went out.',
+      intro:
+        'for your post for {accounts} on {platform} it is unclear whether it went out. Please check the platform, then choose “Check again”, “Post anyway” or “Discard”.',
+      post: 'Post: “{preview}”',
+      action: 'Open post',
     },
   },
 };
