@@ -702,6 +702,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Instagram: JPEG mit mozjpeg und Qualität 85; Breite 1080; Verhältnis zwischen 4:5 und 1.91:1.
   - Liegt das Verhältnis außerhalb, muss der Nutzer zuschneiden oder Letterbox wählen.
 - **Darauf achten**: Alle Bilder eines Instagram-Carousels haben dasselbe Seitenverhältnis. Renditions werden beim Anhängen erzeugt und vor dem Posten erneut sichergestellt.
+- **Umgesetzt**: Profile und `planRendition()` in `@smp/platform-rules` (dazu `thumb_640` für die Bibliothek), `SetVariantMedia`, `RenderRendition` und `RenderAttachedMedia` im Core, `PUT /api/w/:ws/variants/:variantId/media` mit der `version` der Variante; Varianten liefern ihre Medien mit signierten Thumbnails. Der Crop-Hash ist lesbar (`x200y0w960h1200`, `full-lb`). Passt eine Datei nicht ins Byte-Limit, sinkt erst die Qualität, dann die Größe. Instagram-Karussells mit verschiedenen Verhältnissen meldet `validatePost` als `MIXED_ASPECT_RATIOS` ([ADR 0020](adr/0020-renditions-und-zuschnitt.md)). Tests: `packages/platform-rules/src/renditions.test.ts` (Maße und Limits je Profil), `packages/media/src/sharp-image-processor.test.ts` (Byte-Limits mit echtem Encoder), `apps/worker/test/media.integration.test.ts`.
 - **Fertig, wenn**: Für jedes Profil ein Test die Maße und Größen-Limits prüft.
 
 #### 3.5 Alt-Text-Vorschlag

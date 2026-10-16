@@ -494,8 +494,8 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | `linkedin_image` | JPEG/PNG | ca. 5 MB | 1200x627 oder 1080x1080 empfohlen | 1 bzw. 2 bis 20 |
 | `x_image` | JPEG/PNG/WebP | max. 5 MB | max. 4096 px | max. 4 |
 
-   - Die Werte liegen zentral in `packages/platform-rules` und werden pro Adapter-Phase gegen die Doku geprüft.
-   - Liegt ein Seitenverhältnis außerhalb des Erlaubten, schneidet der Nutzer pro Plattform zu (`react-easy-crop`) oder wählt Letterbox. Der Zuschnitt wird an `PostMedia` gespeichert.
+   - Die Werte liegen zentral in `packages/platform-rules` und werden pro Adapter-Phase gegen die Doku geprüft. Umgesetzt sind JPEG-Renditions (Qualität 85, Instagram 1080 x 1350 als Box, Facebook und LinkedIn 2048, X 4096) mit Qualitäts- und Größenstufen bis zum Byte-Limit; Stand der Prüfung je Wert in [ADR 0020](adr/0020-renditions-und-zuschnitt.md).
+   - Liegt ein Seitenverhältnis außerhalb des Erlaubten, schneidet der Nutzer pro Plattform zu (`react-easy-crop`) oder wählt Letterbox (weiße Ränder). Der Zuschnitt wird in Pixeln des angezeigten Originals an `PostMedia` gespeichert; `PUT /api/w/:ws/variants/:variantId/media` setzt die Medien einer Variante mit ihrer `version` und reiht `media.render` ein.
 5. **Öffentliche URLs für Meta**: Presigned GET mit 1 h Laufzeit und `.jpg`-Key. Als Fallback gibt es einen HMAC-signierten Medien-Proxy der API. Lokal laufen Tests über einen `cloudflared`-Tunnel oder den Mock-Adapter.
 6. **Aufräumen** (in `tick.maintenance`): Assets, die nach 24 h noch auf `PENDING_UPLOAD` stehen, und S3-Objekte ohne zugehöriges `MediaAsset` nach 24 h; gelöschte Assets nach 30 Tagen. Unbenutzte, aber fertige Assets bleiben in der Bibliothek, und Thumbnails veröffentlichter Posts bleiben für die Historie erhalten.
 
