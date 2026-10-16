@@ -25,6 +25,19 @@ describe('loadApiEnv', () => {
     expect(env.LOG_LEVEL).toBe('info');
   });
 
+  it('limits the media storage of a workspace to 5 GiB unless set', () => {
+    expect(loadApiEnv(validEnv).MEDIA_STORAGE_LIMIT_BYTES).toBe(5 * 1024 ** 3);
+    expect(loadApiEnv({ ...validEnv, MEDIA_STORAGE_LIMIT_BYTES: '' }).MEDIA_STORAGE_LIMIT_BYTES).toBe(
+      5 * 1024 ** 3,
+    );
+    expect(loadApiEnv({ ...validEnv, MEDIA_STORAGE_LIMIT_BYTES: '1000' }).MEDIA_STORAGE_LIMIT_BYTES).toBe(
+      1000,
+    );
+    expect(() => loadApiEnv({ ...validEnv, MEDIA_STORAGE_LIMIT_BYTES: '0' })).toThrow(
+      /MEDIA_STORAGE_LIMIT_BYTES/,
+    );
+  });
+
   it('parses the path-style flag from its string form', () => {
     expect(loadApiEnv({ ...validEnv, S3_FORCE_PATH_STYLE: 'false' }).S3_FORCE_PATH_STYLE).toBe(false);
   });

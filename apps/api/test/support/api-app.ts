@@ -1,15 +1,26 @@
 import 'reflect-metadata';
 
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { Test } from '@nestjs/testing';
-import type { InvitationMessage, InvitationNotifier } from '@smp/core';
+import {
+  ProcessAsset,
+  systemClock,
+  uuidV7Ids,
+  type InvitationMessage,
+  type InvitationNotifier,
+} from '@smp/core';
+import { createPrismaClient, PrismaMediaUnitOfWork } from '@smp/db';
 import { createSmtpMailer, deliverEmail } from '@smp/emails';
-import { NOTIFICATIONS_QUEUE, parseNotifyDispatch } from '@smp/queue';
+import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
+import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE, parseMediaProcess, parseNotifyDispatch } from '@smp/queue';
 import {
   startMailpit,
+  startObjectStorage,
   startRedis,
   startTestDatabase,
   type StartedMailpit,
+  type StartedObjectStorage,
   type StartedRedis,
   type TestDatabase,
 } from '@smp/testing';
@@ -24,6 +35,7 @@ import { AI_RATE_LIMITS, type AiRateLimits } from '../../src/modules/content/ai-
 import { INVITATION_NOTIFIER } from '../../src/modules/tenancy/invitation-notifier';
 
 export const APP_ORIGIN = 'http://localhost:3000';
+export const TEST_BUCKET = 'smp-test-media';
 
 export interface ApiTestApp {
   app: NestExpressApplication;
@@ -33,6 +45,8 @@ export interface ApiTestApp {
   mailpit: StartedMailpit;
   /** Invitations "sent" so far, with their tokens. */
   invitations: InvitationMessage[];
+  /** SeaweedFS, when the app was started with objectStorage. */
+  objectStorage: StartedObjectStorage | null;
   close: () => Promise<void>;
 }
 
@@ -46,6 +60,37 @@ export interface ApiTestOptions {
   aiRateLimits?: AiRateLimits;
   /** Further environment variables, for example AI_MONTHLY_CAP_MICROS. */
   env?: Record<string, string>;
+  /**
+   * Start SeaweedFS with a bucket and process the media queue like the worker role "media" does.
+   * Off, the storage settings point nowhere; presigning works offline, uploads do not.
+   */
+  objectStorage?: boolean;
+}
+
+/** SeaweedFS with the bucket of the tests, and the settings of the API for it. */
+async function startStorage(): Promise<{ storage: StartedObjectStorage; env: Record<string, string> }> {
+  const storage = await startObjectStorage();
+  const admin = new S3Client({
+    endpoint: storage.endpoint,
+    region: storage.region,
+    forcePathStyle: true,
+    credentials: { accessKeyId: storage.accessKeyId, secretAccessKey: storage.secretAccessKey },
+  });
+  try {
+    await admin.send(new CreateBucketCommand({ Bucket: TEST_BUCKET }));
+  } finally {
+    admin.destroy();
+  }
+  return {
+    storage,
+    env: {
+      S3_ENDPOINT: storage.endpoint,
+      S3_REGION: storage.region,
+      S3_BUCKET: TEST_BUCKET,
+      S3_ACCESS_KEY_ID: storage.accessKeyId,
+      S3_SECRET_ACCESS_KEY: storage.secretAccessKey,
+    },
+  };
 }
 
 /**
@@ -53,10 +98,11 @@ export interface ApiTestOptions {
  * notifications queue that delivers like the worker role "notify" does.
  */
 export async function startApiTestApp(options: ApiTestOptions = {}): Promise<ApiTestApp> {
-  const [database, redis, mailpit]: [TestDatabase, StartedRedis, StartedMailpit] = await Promise.all([
+  const [database, redis, mailpit, objectStorage] = await Promise.all([
     startTestDatabase(),
     startRedis(),
     startMailpit(),
+    options.objectStorage ? startStorage() : Promise.resolve(null),
   ]);
   const env = loadApiEnv({
     NODE_ENV: 'test',
@@ -65,12 +111,14 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
     DATABASE_URL: database.url('app_user'),
     DATABASE_SYSTEM_URL: database.url('app_system'),
     REDIS_URL: redis.url,
-    // Object storage is not needed before phase 3; the readiness check is not exercised here.
+    // Without objectStorage the storage settings point nowhere; the readiness check is not
+    // exercised here.
     S3_ENDPOINT: 'http://127.0.0.1:9',
     S3_REGION: 'us-east-1',
-    S3_BUCKET: 'smp-test',
+    S3_BUCKET: TEST_BUCKET,
     S3_ACCESS_KEY_ID: 'test-access-key',
     S3_SECRET_ACCESS_KEY: 'test-secret-key',
+    ...objectStorage?.env,
     BETTER_AUTH_SECRET: 'test-only-better-auth-secret-do-not-use-elsewhere',
     BETTER_AUTH_URL: APP_ORIGIN,
     // The deterministic mock provider; automated tests never call the Claude API (architecture 7).
@@ -87,6 +135,7 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
     },
     { connection: new Redis(redis.url, { maxRetriesPerRequest: null }) },
   );
+  const media = objectStorage ? startMediaConsumer(env, redis) : null;
 
   const invitations: InvitationMessage[] = [];
   const notifier: InvitationNotifier = {
@@ -117,11 +166,40 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
     database,
     mailpit,
     invitations,
+    objectStorage: objectStorage?.storage ?? null,
     close: async () => {
       await app.close();
       await notifications.close();
+      await media?.close();
       mailer.close();
-      await Promise.all([database.stop(), redis.stop(), mailpit.stop()]);
+      await Promise.all([database.stop(), redis.stop(), mailpit.stop(), objectStorage?.storage.stop()]);
+    },
+  };
+}
+
+/** Processes media.process jobs like the worker role "media", with the real image pipeline. */
+function startMediaConsumer(env: ApiEnv, redis: StartedRedis): { close: () => Promise<void> } {
+  const base = createPrismaClient(env.DATABASE_URL);
+  const storage = new S3Storage(storageConfigOf(env));
+  const process = new ProcessAsset({
+    unitOfWork: new PrismaMediaUnitOfWork(base),
+    storage,
+    processor: new SharpImageProcessor(),
+    clock: systemClock,
+    ids: uuidV7Ids,
+  });
+  const worker = new Worker(
+    MEDIA_QUEUE,
+    async (job) => {
+      await process.execute(parseMediaProcess(job.data));
+    },
+    { connection: new Redis(redis.url, { maxRetriesPerRequest: null }) },
+  );
+  return {
+    close: async () => {
+      await worker.close();
+      storage.destroy();
+      await base.$disconnect();
     },
   };
 }

@@ -10,11 +10,12 @@ import { httpLogSerializers } from './common/logging/http-log-serializers';
 import type { ApiEnv } from './config/api-env';
 import { ConfigModule } from './config/config.module';
 import { ClientsModule } from './infrastructure/clients.module';
-import { HealthModule } from './modules/health/health.module';
-import { AccessModule } from './common/guards/access.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { AccessModule } from './common/guards/access.module';
 import { ContentModule } from './modules/content/content.module';
+import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
+import { MediaModule } from './modules/media/media.module';
 import { TenancyModule } from './modules/tenancy/tenancy.module';
 
 @Module({})
@@ -46,6 +47,7 @@ export class AppModule {
         TenancyModule,
         AuditModule,
         ContentModule,
+        MediaModule,
       ],
       providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }],
     };

@@ -245,6 +245,45 @@ const ENDPOINTS: Endpoint[] = [
       current: { text: 'A text.', hashtags: [], firstComment: null },
     }),
   },
+  {
+    method: 'post',
+    route: '/api/w/:ws/media/uploads',
+    permission: 'media.write',
+    path: (i) => `/api/w/${i.slug}/media/uploads`,
+    // A type the API refuses: allowed roles get 422, and nothing is created.
+    body: () => ({ fileName: 'logo.svg', mimeType: 'image/svg+xml', size: 100 }),
+  },
+  {
+    method: 'post',
+    route: '/api/w/:ws/media/:assetId/complete',
+    permission: 'media.write',
+    path: (i) => `/api/w/${i.slug}/media/${unknownId}/complete`,
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/media',
+    permission: 'post.read',
+    path: (i) => `/api/w/${i.slug}/media`,
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/media/:assetId',
+    permission: 'post.read',
+    path: (i) => `/api/w/${i.slug}/media/${unknownId}`,
+  },
+  {
+    method: 'patch',
+    route: '/api/w/:ws/media/:assetId',
+    permission: 'media.write',
+    path: (i) => `/api/w/${i.slug}/media/${unknownId}`,
+    body: () => ({ version: 0, altText: 'A description.' }),
+  },
+  {
+    method: 'delete',
+    route: '/api/w/:ws/media/:assetId',
+    permission: 'media.write',
+    path: (i) => `/api/w/${i.slug}/media/${unknownId}`,
+  },
   // Destructive for everyone who may leave: last.
   {
     method: 'post',

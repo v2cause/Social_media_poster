@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { AuditLogPageDto, AuditLogQueryDto } from './modules/audit/audit.controller';
 import * as contentDtos from './modules/content/content.dto';
 import { MeDto } from './modules/identity/me.controller';
+import * as mediaDtos from './modules/media/media.dto';
 import * as tenancyDtos from './modules/tenancy/tenancy.dto';
 
 // The OpenAPI document of the API. packages/api-client generates the typed TanStack Query client
@@ -18,6 +19,7 @@ export const OPENAPI_DTOS: { name: string; schema: z.ZodType }[] = [
   AuditLogQueryDto,
   ...Object.values(tenancyDtos),
   ...Object.values(contentDtos),
+  ...Object.values(mediaDtos),
 ];
 
 const capitalize = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);

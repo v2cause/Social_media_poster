@@ -138,6 +138,8 @@ services:
       DATABASE_SYSTEM_URL: postgresql://app_system:${APP_SYSTEM_PASSWORD:?set APP_SYSTEM_PASSWORD in .env}@postgres:5432/smp
       REDIS_URL: redis://redis:6379
       S3_ENDPOINT: http://s3:8333
+      # Upload and preview URLs are signed for the address the browser reaches.
+      S3_PUBLIC_ENDPOINT: http://127.0.0.1:8333
     ports:
       - '127.0.0.1:3001:3001'
     depends_on:
