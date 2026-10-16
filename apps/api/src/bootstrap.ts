@@ -1,16 +1,17 @@
 import { Reflector } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { toNodeHandler } from 'better-auth/node';
 import express from 'express';
 import helmet from 'helmet';
-import { cleanupOpenApiDoc, ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
+import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { Logger } from 'nestjs-pino';
 
 import { requestIdMiddleware } from './common/request-id.middleware';
 import { createOriginCheckMiddleware } from './common/security/origin-check.middleware';
 import type { ApiEnv } from './config/api-env';
 import { AUTH, type Auth } from './modules/identity/auth';
+import { createOpenApiDocument } from './openapi';
 
 /**
  * The HTTP pipeline of the API, shared by main.ts and the integration tests. The order matters:
@@ -40,13 +41,7 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv): void {
   app.useGlobalInterceptors(new ZodSerializerInterceptor(app.get(Reflector)));
 
   if (env.NODE_ENV !== 'production') {
-    const document = cleanupOpenApiDoc(
-      SwaggerModule.createDocument(
-        app,
-        new DocumentBuilder().setTitle('Social Media Poster API').setVersion('0.0.0').build(),
-      ),
-    );
-    SwaggerModule.setup('api/docs', app, document);
+    SwaggerModule.setup('api/docs', app, createOpenApiDocument(app));
   }
 
   app.enableShutdownHooks();

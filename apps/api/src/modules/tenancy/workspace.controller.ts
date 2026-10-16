@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Inject, Patch } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { permissionsOf } from '@smp/contracts';
 import { UpdateWorkspaceSettings, WorkspaceNotFoundError } from '@smp/core';
 import type { TenancyReadModel } from '@smp/db';
-import { ZodSerializerDto } from 'nestjs-zod';
+import { ZodResponse } from 'nestjs-zod';
 
 import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
@@ -19,18 +20,19 @@ function workspaceOf(access: RequestAccess): WorkspaceAccess {
 }
 
 /** The workspace of /api/w/:ws and its settings. */
+@ApiTags('workspaces')
 @WorkspaceScope()
 @Controller('w/:ws')
 export class WorkspaceController {
   constructor(
     @Inject(TENANCY_READ_MODEL) private readonly readModel: TenancyReadModel,
-    private readonly updateSettings: UpdateWorkspaceSettings,
+    private readonly updateSettingsUseCase: UpdateWorkspaceSettings,
   ) {}
 
   /** The workspace with the caller's role and permissions; the app shell loads it first. */
   @Get()
   @RequirePermission('workspace.read')
-  @ZodSerializerDto(WorkspaceContextDto)
+  @ZodResponse({ type: WorkspaceContextDto })
   async context(@Access() access: RequestAccess): Promise<WorkspaceContextDto> {
     const { userId, workspaceId } = workspaceOf(access);
     const workspaces = await this.readModel.listWorkspaces({ userId, organizationId: access.organizationId });
@@ -48,7 +50,7 @@ export class WorkspaceController {
 
   @Get('settings')
   @RequirePermission('workspace.read')
-  @ZodSerializerDto(WorkspaceSettingsDto)
+  @ZodResponse({ type: WorkspaceSettingsDto })
   async settings(@Access() access: RequestAccess): Promise<WorkspaceSettingsDto> {
     const { userId, organizationId, workspaceId } = workspaceOf(access);
     const settings = await this.readModel.workspaceSettings({ userId, organizationId, workspaceId });
@@ -60,12 +62,15 @@ export class WorkspaceController {
 
   @Patch('settings')
   @RequirePermission('settings.manage')
-  @ZodSerializerDto(WorkspaceSettingsDto)
-  update(
+  @ZodResponse({ type: WorkspaceSettingsDto })
+  updateSettings(
     @Access() access: RequestAccess,
     @Body() body: UpdateWorkspaceSettingsDto,
   ): Promise<WorkspaceSettingsDto> {
     const { userId, organizationId, workspaceId, role } = workspaceOf(access);
-    return this.updateSettings.execute({ actor: { userId, organizationId, workspaceId, role }, patch: body });
+    return this.updateSettingsUseCase.execute({
+      actor: { userId, organizationId, workspaceId, role },
+      patch: body,
+    });
   }
 }

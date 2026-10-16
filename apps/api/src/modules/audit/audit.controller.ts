@@ -1,17 +1,19 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { auditLogPageSchema, auditLogQuerySchema } from '@smp/contracts';
 import type { OrganizationActor } from '@smp/core';
 import type { AuditLogReadModel } from '@smp/db';
-import { createZodDto, ZodSerializerDto } from 'nestjs-zod';
+import { createZodDto, ZodResponse } from 'nestjs-zod';
 
 import { OrgScope, RequirePermission } from '../../common/decorators/access.decorators';
 import { Actor } from '../../common/guards/request-access';
 import { AUDIT_LOG_READ_MODEL } from '../../infrastructure/clients.module';
 
-class AuditLogQueryDto extends createZodDto(auditLogQuerySchema) {}
-class AuditLogPageDto extends createZodDto(auditLogPageSchema) {}
+export class AuditLogQueryDto extends createZodDto(auditLogQuerySchema) {}
+export class AuditLogPageDto extends createZodDto(auditLogPageSchema) {}
 
 /** The audit log of an organization for owners and admins (guide step 1.7). */
+@ApiTags('audit')
 @OrgScope()
 @Controller('org/:org/audit-log')
 export class AuditController {
@@ -19,7 +21,7 @@ export class AuditController {
 
   @Get()
   @RequirePermission('audit.read')
-  @ZodSerializerDto(AuditLogPageDto)
+  @ZodResponse({ type: AuditLogPageDto })
   async list(@Actor() actor: OrganizationActor, @Query() query: AuditLogQueryDto): Promise<AuditLogPageDto> {
     const page = await this.auditLog.list(actor, {
       action: query.action,

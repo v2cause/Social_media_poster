@@ -55,7 +55,7 @@ Einige Details (exakte X-Preise und Endpunkt-Formen, Instagram-Tageslimit, Meta-
 | Monorepo | pnpm Workspaces + Turborepo, Node 24 LTS, TypeScript strict | schnelle Installs, Task-Caching, `turbo prune --docker` für schlanke Images |
 | Web | Next.js 16 (App Router, React 19), Tailwind 4, shadcn/ui, TanStack Query 5, react-hook-form + zod, next-intl, Recharts, FullCalendar | ausgereift und weit verbreitet; FullCalendar inkl. Drag & Drop ist MIT-lizenziert |
 | API | NestJS 11 (Express-Adapter) mit hexagonalem Kern | breiteste Middleware-Kompatibilität (Auth-Handler, Raw Body für Webhooks) |
-| API-Vertrag | zod-Schemas in `packages/contracts`, nestjs-zod (Validierung + OpenAPI), Orval generiert den typisierten Client mit TanStack-Query-Hooks | eine Quelle der Wahrheit für Formulare, API und KI-Output; OpenAPI als Basis für eine spätere Public API; die CI schlägt bei Abweichungen fehl |
+| API-Vertrag | zod-Schemas in `packages/contracts`, nestjs-zod (Validierung und Routen-Metadaten), Component-Schemas des OpenAPI-3.0-Dokuments direkt aus zod, Orval generiert den typisierten Client mit TanStack-Query-Hooks (ADR 0013) | eine Quelle der Wahrheit für Formulare, API und KI-Output; OpenAPI als Basis für eine spätere Public API; die CI schlägt bei Abweichungen fehl |
 | Auth | Better Auth, eingebunden in NestJS (die API ist die einzige Auth-Instanz), DB-Sessions in einem httpOnly-Cookie, same-origin | Auth.js wird seit 2025 vom Better-Auth-Team betreut. Better Auth bringt E-Mail/Passwort, Verifizierung, 2FA (TOTP), Social Login und Passkeys mit, ohne selbstgebauten Security-Code. Mandanten und Rollen bleiben in unserer eigenen Domain. |
 | DB | PostgreSQL 17 + Prisma 7 (Driver Adapter `@prisma/adapter-pg`, `prisma.config.ts`) | RLS-Policies, Partial Indexes und Trigger als SQL-Migrationen |
 | Jobs | Redis 7.4 (oder Valkey 8) + BullMQ 5 | Postgres bleibt die Quelle der Wahrheit (Abschnitt 7) |
@@ -589,7 +589,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   3. Unit-Tests
   4. Integrationstests mit Testcontainers (inkl. RLS)
   5. Adapter-Contract-Tests
-  6. OpenAPI-Drift-Check
+  6. OpenAPI-Drift-Check (Integrationstest gegen `packages/api-client/openapi.json`, ADR 0013)
   7. Prisma-Migrationsprüfung (`migrate diff`, squawk)
   8. E2E mit Playwright
   9. Docker-Build (`turbo prune`, Trivy, Push nach GHCR auf main)

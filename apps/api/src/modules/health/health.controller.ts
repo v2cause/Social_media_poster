@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
 
 import { Public } from '../../common/decorators/public.decorator';
@@ -8,6 +9,7 @@ import { S3HealthIndicator } from './indicators/s3.indicator';
 
 // Health endpoints need no authentication and are excluded from request logging.
 @Public()
+@ApiExcludeController()
 @Controller('health')
 export class HealthController {
   constructor(

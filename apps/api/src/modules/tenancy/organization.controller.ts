@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { permissionsOf } from '@smp/contracts';
 import {
   ChangeMemberRole,
@@ -23,7 +24,7 @@ import {
   type OrganizationActor,
 } from '@smp/core';
 import type { TenancyReadModel } from '@smp/db';
-import { ZodSerializerDto } from 'nestjs-zod';
+import { ZodResponse } from 'nestjs-zod';
 
 import { OrgScope, RequirePermission } from '../../common/decorators/access.decorators';
 import { AccessCache } from '../../common/guards/access-cache';
@@ -44,6 +45,7 @@ import {
 const id = new ParseUUIDPipe();
 
 /** Organization, members and invitations under /api/org/:org (guide step 1.6). */
+@ApiTags('organizations')
 @OrgScope()
 @Controller('org/:org')
 export class OrganizationController {
@@ -51,17 +53,17 @@ export class OrganizationController {
     @Inject(TENANCY_READ_MODEL) private readonly readModel: TenancyReadModel,
     private readonly cache: AccessCache,
     private readonly changeRole: ChangeMemberRole,
-    private readonly removeMember: RemoveMember,
+    private readonly removeMemberUseCase: RemoveMember,
     private readonly leaveOrganization: LeaveOrganization,
     private readonly inviteMember: InviteMember,
-    private readonly resendInvitation: ResendInvitation,
-    private readonly revokeInvitation: RevokeInvitation,
+    private readonly resendInvitationUseCase: ResendInvitation,
+    private readonly revokeInvitationUseCase: RevokeInvitation,
     private readonly createWorkspace: CreateWorkspace,
   ) {}
 
   @Get()
   @RequirePermission('org.read')
-  @ZodSerializerDto(OrganizationContextDto)
+  @ZodResponse({ type: OrganizationContextDto })
   context(@Access() access: RequestAccess): OrganizationContextDto {
     return {
       organization: { id: access.organizationId, name: access.organizationName },
@@ -72,7 +74,7 @@ export class OrganizationController {
 
   @Get('members')
   @RequirePermission('member.read')
-  @ZodSerializerDto(MemberListDto)
+  @ZodResponse({ type: MemberListDto })
   async members(@Actor() actor: OrganizationActor): Promise<MemberListDto> {
     const members = await this.readModel.listMembers(actor);
     return { members: members.map((member) => ({ ...member, joinedAt: member.joinedAt.toISOString() })) };
@@ -93,11 +95,11 @@ export class OrganizationController {
   @Delete('members/:membershipId')
   @RequirePermission('member.manage')
   @HttpCode(204)
-  async remove(
+  async removeMember(
     @Actor() actor: OrganizationActor,
     @Param('membershipId', id) membershipId: string,
   ): Promise<void> {
-    const { userId } = await this.removeMember.execute({ actor, membershipId });
+    const { userId } = await this.removeMemberUseCase.execute({ actor, membershipId });
     await this.cache.invalidateUser(userId);
   }
 
@@ -111,7 +113,7 @@ export class OrganizationController {
 
   @Get('invitations')
   @RequirePermission('member.manage')
-  @ZodSerializerDto(InvitationListDto)
+  @ZodResponse({ type: InvitationListDto })
   async invitations(@Actor() actor: OrganizationActor): Promise<InvitationListDto> {
     const now = systemClock.now();
     const invitations = await this.readModel.listOpenInvitations(actor);
@@ -127,7 +129,7 @@ export class OrganizationController {
 
   @Post('invitations')
   @RequirePermission('member.manage')
-  @ZodSerializerDto(InviteMemberResponseDto)
+  @ZodResponse({ status: 201, type: InviteMemberResponseDto })
   async invite(
     @Actor() actor: OrganizationActor,
     @Body() body: InviteMemberDto,
@@ -144,33 +146,33 @@ export class OrganizationController {
   @Post('invitations/:invitationId/resend')
   @RequirePermission('member.manage')
   @HttpCode(204)
-  async resend(
+  async resendInvitation(
     @Actor() actor: OrganizationActor,
     @Param('invitationId', id) invitationId: string,
   ): Promise<void> {
-    await this.resendInvitation.execute({ actor, invitationId });
+    await this.resendInvitationUseCase.execute({ actor, invitationId });
   }
 
   @Delete('invitations/:invitationId')
   @RequirePermission('member.manage')
   @HttpCode(204)
-  async revoke(
+  async revokeInvitation(
     @Actor() actor: OrganizationActor,
     @Param('invitationId', id) invitationId: string,
   ): Promise<void> {
-    await this.revokeInvitation.execute({ actor, invitationId });
+    await this.revokeInvitationUseCase.execute({ actor, invitationId });
   }
 
   @Get('workspaces')
   @RequirePermission('workspace.manage')
-  @ZodSerializerDto(WorkspaceListDto)
+  @ZodResponse({ type: WorkspaceListDto })
   async workspaces(@Actor() actor: OrganizationActor): Promise<WorkspaceListDto> {
     return { workspaces: await this.readModel.listWorkspaces(actor) };
   }
 
   @Post('workspaces')
   @RequirePermission('workspace.manage')
-  @ZodSerializerDto(CreateWorkspaceResponseDto)
+  @ZodResponse({ status: 201, type: CreateWorkspaceResponseDto })
   addWorkspace(
     @Actor() actor: OrganizationActor,
     @Body() body: WorkspaceProfileDto,

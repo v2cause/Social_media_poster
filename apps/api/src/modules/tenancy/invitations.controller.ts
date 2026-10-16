@@ -1,8 +1,9 @@
-import { Body, Controller, HttpCode, Inject, Post } from '@nestjs/common';
+import { Body, Controller, Inject, Post } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { AcceptInvitation, InvitationNotFoundError, systemClock } from '@smp/core';
 import { secretTokens } from '@smp/crypto';
 import type { TenancyReadModel } from '@smp/db';
-import { ZodSerializerDto } from 'nestjs-zod';
+import { ZodResponse } from 'nestjs-zod';
 
 import { UserScope } from '../../common/decorators/access.decorators';
 import { Public } from '../../common/decorators/public.decorator';
@@ -15,6 +16,7 @@ import { AcceptInvitationResponseDto, InvitationPreviewDto, InvitationTokenDto }
  * Invitation links. The token travels in the body, never in the path, so that it does not end up
  * in request logs.
  */
+@ApiTags('invitations')
 @Controller('invitations')
 export class InvitationsController {
   constructor(
@@ -25,8 +27,7 @@ export class InvitationsController {
   /** What the invite page shows before sign-in or sign-up. */
   @Public()
   @Post('preview')
-  @HttpCode(200)
-  @ZodSerializerDto(InvitationPreviewDto)
+  @ZodResponse({ status: 200, type: InvitationPreviewDto })
   async preview(@Body() body: InvitationTokenDto): Promise<InvitationPreviewDto> {
     const invitation = await this.readModel.invitationPreview(secretTokens.hash(body.token));
     if (!invitation) {
@@ -50,8 +51,7 @@ export class InvitationsController {
 
   @UserScope()
   @Post('accept')
-  @HttpCode(200)
-  @ZodSerializerDto(AcceptInvitationResponseDto)
+  @ZodResponse({ status: 200, type: AcceptInvitationResponseDto })
   async accept(
     @CurrentUser() user: AuthSession['user'],
     @Body() body: InvitationTokenDto,

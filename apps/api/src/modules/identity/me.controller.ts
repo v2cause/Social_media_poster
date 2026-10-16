@@ -1,20 +1,22 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { meSchema, toLocale, type Me } from '@smp/contracts';
-import { createZodDto, ZodSerializerDto } from 'nestjs-zod';
+import { createZodDto, ZodResponse } from 'nestjs-zod';
 
 import { UserScope } from '../../common/decorators/access.decorators';
 import type { AuthSession } from './auth';
 import { CurrentUser } from './current-user.decorator';
 
-class MeDto extends createZodDto(meSchema) {}
+export class MeDto extends createZodDto(meSchema) {}
 
+@ApiTags('identity')
 @UserScope()
 @Controller('me')
 export class MeController {
   /** The signed-in user. Organizations and workspaces follow with the tenancy API. */
   @Get()
-  @ZodSerializerDto(MeDto)
-  me(@CurrentUser() user: AuthSession['user']): Me {
+  @ZodResponse({ type: MeDto })
+  get(@CurrentUser() user: AuthSession['user']): Me {
     return {
       id: user.id,
       email: user.email,

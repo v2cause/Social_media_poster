@@ -5,6 +5,7 @@ dist
 .turbo
 coverage
 **/src/generated
+packages/api-client/openapi.json
 
 # Planning documents are written by hand and kept as they are
 docs

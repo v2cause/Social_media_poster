@@ -1,4 +1,5 @@
 import { applyDecorators, SetMetadata } from '@nestjs/common';
+import { ApiParam } from '@nestjs/swagger';
 import type { Permission } from '@smp/contracts';
 
 // Route access metadata (guide step 1.6). Every route carries exactly one of @Public(),
@@ -15,11 +16,17 @@ export const UserScope = (): MethodDecorator & ClassDecorator => SetMetadata(USE
 
 /** Routes under /org/:org. The guard resolves the membership and sets the organization context. */
 export const OrgScope = (): ClassDecorator =>
-  SetMetadata(TENANT_SCOPE, 'organization' satisfies TenantScopeKind);
+  applyDecorators(
+    SetMetadata(TENANT_SCOPE, 'organization' satisfies TenantScopeKind),
+    ApiParam({ name: 'org', description: 'Organization id', schema: { type: 'string', format: 'uuid' } }),
+  );
 
 /** Routes under /w/:ws. The guard resolves the workspace by slug and sets the tenant context. */
 export const WorkspaceScope = (): ClassDecorator =>
-  SetMetadata(TENANT_SCOPE, 'workspace' satisfies TenantScopeKind);
+  applyDecorators(
+    SetMetadata(TENANT_SCOPE, 'workspace' satisfies TenantScopeKind),
+    ApiParam({ name: 'ws', description: 'Workspace slug', schema: { type: 'string' } }),
+  );
 
 /** The permission the caller's role must grant (permission matrix in @smp/contracts). */
 export const RequirePermission = (permission: Permission): MethodDecorator =>
