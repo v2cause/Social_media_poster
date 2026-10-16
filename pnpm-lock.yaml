@@ -111,6 +111,12 @@ importers:
       '@smp/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@smp/platform-adapters':
+        specifier: workspace:*
+        version: link:../../packages/platform-adapters
+      '@smp/platform-rules':
+        specifier: workspace:*
+        version: link:../../packages/platform-rules
       '@smp/queue':
         specifier: workspace:*
         version: link:../../packages/queue

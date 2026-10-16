@@ -28,6 +28,8 @@
     "@smp/db": "workspace:*",
     "@smp/media": "workspace:*",
     "@smp/observability": "workspace:*",
+    "@smp/platform-adapters": "workspace:*",
+    "@smp/platform-rules": "workspace:*",
     "@smp/queue": "workspace:*",
     "better-auth": "^1.7.9",
     "bullmq": "^5.81.5",

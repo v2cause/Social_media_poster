@@ -784,6 +784,15 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Request- und Response-Logs werden geschwärzt.
   - Jeder Aufruf bekommt einen OTel-Span.
   - Antworten werden nie ungeprüft weiterverarbeitet.
+- **Umgesetzt**:
+  - Im Core der Port `SocialPlatformAdapter` mit `OAuthConnector` und die Fehler-Taxonomie `PlatformError` (Code, Wiederholbarkeit, Wartezeit). `isPlatformError` prüft über ein Symbol, weil `instanceof` zwischen zwei Kopien eines Moduls scheitert.
+  - `PlatformHttpClient`: undici `fetch` mit 30 s Timeout und ohne Retry, zod-geprüfte Antworten, `redirect: 'error'`, ein Span pro Aufruf und ein Log ohne Query, Header und Body. Kommt keine Verbindung zustande, wird der Fehler `TRANSIENT`; geht die Antwort eines nicht idempotenten Aufrufs verloren, `OUTCOME_UNKNOWN`.
+  - `PlatformRateLimiter` mit Buckets pro Plattform, App und Account (Redis oder Speicher). Der Account-Bucket wird zuerst geprüft, damit ein abgelehnter Aufruf keine Punkte der App verbraucht.
+  - `createAdapterRegistry` baut die `AdapterRegistry` aus `PLATFORM_MODE_*` (Meta gilt für Facebook und Instagram). Mock-Plattformen gibt es nur außerhalb der Produktion; eine Plattform auf `live` ohne Adapter verhindert den Start.
+  - `MockPlatformAdapter` mit den Fail-Modes aus Teil A, Abschnitt 16, dazu `failStatus` für die Contract-Suite. Sein OAuth-Connector nutzt PKCE nur für X, wie die echten Plattformen.
+  - Die Fake-OAuth-Seite `GET /api/dev/mock-oauth/authorize` (de/en nach dem Cookie der Web-App) bietet "Zugriff erlauben", eine Freigabe ohne einen Scope (Statistik, bei X `offline.access`) für den Scope-Vergleich in Schritt 4.5 und "Ablehnen". Sie leitet nur auf den eigenen Callback `APP_URL/api/oauth/{platform}/callback` zurück und steht nicht im OpenAPI-Dokument.
+  - Die Contract-Suite heißt `describeAdapterContract(runner, name, factory, fixtures)`: Der Test reicht `describe`, `it` und `expect` herein, weil `@smp/testing` als CommonJS gebaut wird und Vitest sich nicht per `require` laden lässt.
+  - Tests: `packages/platform-adapters/src/**/*.test.ts` (Contract-Suite für alle vier Plattformen, HTTP-Client mit msw, Rate-Limiter, Registry, Zustimmungs-Links) und `apps/api/src/modules/dev/*.test.ts`.
 - **Fertig, wenn**: Der Mock-Adapter die Contract-Suite besteht.
 
 #### 4.5 OAuth-Ablauf

@@ -2,6 +2,7 @@ import { aiEnvSchema, checkAiEnv } from '@smp/ai';
 import { dbEnvSchema } from '@smp/db';
 import { storageEnvSchema } from '@smp/media';
 import { observabilityEnvSchema } from '@smp/observability';
+import { platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
 // .env.example and Compose set empty strings for unset values.
@@ -31,6 +32,7 @@ export const apiEnvSchema = z
   .extend(storageEnvSchema.shape)
   .extend(observabilityEnvSchema.shape)
   .extend(aiEnvSchema.shape)
+  .extend(platformEnvSchema.shape)
   // The mock AI provider never starts in production, and the Claude API needs a key.
   .superRefine(checkAiEnv);
 

@@ -13,6 +13,7 @@ import { ClientsModule } from './infrastructure/clients.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AccessModule } from './common/guards/access.module';
 import { ContentModule } from './modules/content/content.module';
+import { DevModule } from './modules/dev/dev.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { MediaModule } from './modules/media/media.module';
@@ -48,6 +49,8 @@ export class AppModule {
         AuditModule,
         ContentModule,
         MediaModule,
+        // The fake OAuth page of the mock platforms never exists in production (guide step 4.4).
+        ...(env.NODE_ENV === 'production' ? [] : [DevModule]),
       ],
       providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }],
     };
