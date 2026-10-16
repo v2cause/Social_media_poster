@@ -637,6 +637,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Beim Verlassen mit ungespeicherten Änderungen erscheint eine Warnung.
   - Bei einem 409-Konflikt gibt es einen Dialog "neu laden oder überschreiben".
   - Zähler und Validierung kommen aus `@smp/platform-rules`, also identisch zum Server.
+  - Umgesetzt unter `/w/:ws/compose` (neu, mit `?idea=` vorbefüllt) und `/w/:ws/posts/:postId`, dazu eine einfache Beitragsliste unter `/w/:ws/posts`. Die Seiten laden Beitrag, Stile und Brand Voices auf dem Server; der Zustand des Composers ist ein getesteter Reducer (`composer-model.ts`). Auto-Speichern 800 ms nach der letzten Änderung, nacheinander und mit der gelesenen `version`. Ein neuer Beitrag entsteht, sobald Briefing und eine Plattform da sind, und bekommt seine Adresse per `history.replaceState`, ohne den Editor neu zu laden ([ADR 0017](adr/0017-composer-zustand-und-auto-speichern.md)). Vor dem Generieren wird gespeichert, weil der Server aus dem gespeicherten Briefing generiert. Teil-Varianten werden über ihre Reihenfolge den Zielen zugeordnet ([ADR 0016](adr/0016-content-und-ki-api.md)). Verbotene Wörter der Brand Voice prüft dieselbe Funktion wie auf dem Server (`findForbiddenWords`). E2E-Test: `apps/web/e2e/composer.spec.ts`.
 - **Fertig, wenn**: Ein E2E-Test den Ablauf Briefing, Stil, Generieren (Mock), Bearbeiten, "Kürzer", Speichern und Neuladen grün durchläuft.
 
 #### 2.9 Web: Brand Voices, Stile, Ideen
