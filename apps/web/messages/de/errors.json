@@ -48,7 +48,13 @@
     "AI_INVALID_OUTPUT": "Die KI hat eine unbrauchbare Antwort geliefert. Bitte versuchen Sie es noch einmal.",
     "AI_PROVIDER_ERROR": "Der KI-Dienst ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
     "AI_CANCELED": "Die Anfrage an die KI wurde abgebrochen.",
-    "AI_RATE_LIMITED": "Zu viele KI-Anfragen in kurzer Zeit. Bitte warten Sie einen Moment."
+    "AI_RATE_LIMITED": "Zu viele KI-Anfragen in kurzer Zeit. Bitte warten Sie einen Moment.",
+    "MEDIA_NOT_FOUND": "Diese Datei gibt es in diesem Workspace nicht mehr.",
+    "MEDIA_TYPE_NOT_ALLOWED": "Hochladen lassen sich nur Bilder im Format JPEG, PNG, WebP oder als unbewegtes GIF.",
+    "MEDIA_TOO_LARGE": "Die Datei ist zu groß: Erlaubt sind höchstens 20 MB.",
+    "STORAGE_QUOTA_EXCEEDED": "Der Medienspeicher dieses Workspace ist voll. Bitte löschen Sie Dateien, die Sie nicht mehr brauchen.",
+    "MEDIA_UPLOAD_MISSING": "Die Datei ist noch nicht vollständig hochgeladen. Bitte versuchen Sie es erneut.",
+    "MEDIA_IN_USE": "Diese Datei ist an einen Beitrag angehängt. Bitte entfernen Sie sie dort zuerst."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

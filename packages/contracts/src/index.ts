@@ -26,6 +26,7 @@ export * from './content';
 export { ERROR_CODES, type ErrorCode } from './errors';
 export { meSchema, type Me } from './identity';
 export { DEFAULT_LOCALE, LOCALES, localeSchema, toLocale, type Locale } from './locale';
+export * from './media';
 export {
   can,
   PERMISSIONS,

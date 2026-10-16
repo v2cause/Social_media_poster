@@ -48,6 +48,12 @@ export const ERROR_CODES = [
   'AI_PROVIDER_ERROR',
   'AI_CANCELED',
   'AI_RATE_LIMITED',
+  'MEDIA_NOT_FOUND',
+  'MEDIA_TYPE_NOT_ALLOWED',
+  'MEDIA_TOO_LARGE',
+  'STORAGE_QUOTA_EXCEEDED',
+  'MEDIA_UPLOAD_MISSING',
+  'MEDIA_IN_USE',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

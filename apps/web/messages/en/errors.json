@@ -48,7 +48,13 @@
     "AI_INVALID_OUTPUT": "The AI returned an unusable answer. Please try again.",
     "AI_PROVIDER_ERROR": "The AI service is unavailable right now. Please try again shortly.",
     "AI_CANCELED": "The request to the AI was canceled.",
-    "AI_RATE_LIMITED": "Too many AI requests in a short time. Please wait a moment."
+    "AI_RATE_LIMITED": "Too many AI requests in a short time. Please wait a moment.",
+    "MEDIA_NOT_FOUND": "This file no longer exists in this workspace.",
+    "MEDIA_TYPE_NOT_ALLOWED": "Only JPEG, PNG, WebP and still GIF images can be uploaded.",
+    "MEDIA_TOO_LARGE": "The file is too large: at most 20 MB are allowed.",
+    "STORAGE_QUOTA_EXCEEDED": "The media storage of this workspace is full. Delete files you no longer need.",
+    "MEDIA_UPLOAD_MISSING": "The file has not been uploaded completely yet. Please try again.",
+    "MEDIA_IN_USE": "This file is attached to a post. Remove it there first."
   },
   "validation": {
     "required": "Please fill in this field.",
