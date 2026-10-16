@@ -182,6 +182,25 @@ export {
 // Notifications
 export type { MailMessage, MailPort } from './notifications/ports/mail.port';
 
+// Channels (architecture 4, guide steps 4.2 ff.)
+export {
+  accountSecretAad,
+  CONNECTION_SECRET_FIELDS,
+  connectionSecretAad,
+  SEALED_SECRET_COLUMNS,
+  type ConnectionSecretField,
+  type SealedSecretColumn,
+  type SealedSecretOwner,
+  type SecretKeyring,
+} from './channels/domain/secrets';
+export type {
+  SealedSecretRow,
+  SealedSecretStore,
+  SecretRewrapper,
+  SecretSealer,
+} from './channels/ports/secrets';
+export { RewrapSecrets, type RewrapReport } from './channels/application/rewrap-secrets';
+
 // Tenancy
 export * from './tenancy/domain/errors';
 export { INVITATION_TTL_MS, normalizeEmail } from './tenancy/domain/invitation';
