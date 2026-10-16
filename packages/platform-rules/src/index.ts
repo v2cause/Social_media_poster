@@ -22,3 +22,18 @@ export {
   type ValidationIssue,
   type ValidationIssueCode,
 } from './validate-post';
+export {
+  ASPECT_RATIO_TOLERANCE,
+  cropFits,
+  planRendition,
+  ratioFits,
+  RENDITION_PROFILE_KEYS,
+  RENDITION_PROFILES,
+  renditionProfileFor,
+  type Crop,
+  type RenditionPlan,
+  type RenditionPlanIssue,
+  type RenditionPlanResult,
+  type RenditionProfile,
+  type RenditionProfileKey,
+} from './renditions';

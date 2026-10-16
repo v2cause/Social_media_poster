@@ -27,6 +27,8 @@ export interface PlatformCapabilities {
     maxItems?: number;
     /** Whether one post may combine kinds, for example images and a video. */
     mixedKinds: boolean;
+    /** Whether all items of one post must share their aspect ratio, as in Instagram carousels. */
+    uniformAspectRatio?: boolean;
     kinds: Partial<Record<MediaKind, MediaKindRules>>;
   };
   /** Whether a first comment can be published with the post. */

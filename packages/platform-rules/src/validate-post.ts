@@ -2,6 +2,7 @@ import { capabilitiesOf } from './capabilities';
 import type { MediaKind } from './capabilities/types';
 import { composePostText, countText, extractHashtags, extractMentions } from './count-text';
 import type { Platform } from './platforms';
+import { ASPECT_RATIO_TOLERANCE, ratioFits } from './renditions';
 
 // validatePost() checks a variant against the rules of its platform (guide step 2.2). The UI
 // translates the codes (errors.validation.<CODE>); the server rejects or flags the same issues.
@@ -11,6 +12,7 @@ export const VALIDATION_ISSUE_CODES = [
   'MEDIA_REQUIRED',
   'TOO_MANY_MEDIA',
   'ASPECT_RATIO_OUT_OF_RANGE',
+  'MIXED_ASPECT_RATIOS',
   'TOO_MANY_HASHTAGS',
   'TOO_MANY_MENTIONS',
   'UNSUPPORTED_MEDIA_TYPE',
@@ -43,9 +45,6 @@ export interface PostToValidate {
   firstComment?: string | null;
   media?: readonly MediaItem[];
 }
-
-// Rounded pixel sizes such as 1080 x 566 for 1.91:1 should pass.
-const RATIO_TOLERANCE = 0.005;
 
 export function validatePost(post: PostToValidate): ValidationIssue[] {
   const capabilities = capabilitiesOf(post.platform);
@@ -81,13 +80,22 @@ export function validatePost(post: PostToValidate): ValidationIssue[] {
       issues.push({ code: 'UNSUPPORTED_MEDIA_TYPE', mediaIndex });
       return;
     }
-    if (kind.aspectRatio && item.width && item.height) {
-      const ratio = item.width / item.height;
-      if (ratio < kind.aspectRatio.min - RATIO_TOLERANCE || ratio > kind.aspectRatio.max + RATIO_TOLERANCE) {
-        issues.push({ code: 'ASPECT_RATIO_OUT_OF_RANGE', mediaIndex });
-      }
+    if (
+      kind.aspectRatio &&
+      item.width &&
+      item.height &&
+      !ratioFits(item.width / item.height, kind.aspectRatio)
+    ) {
+      issues.push({ code: 'ASPECT_RATIO_OUT_OF_RANGE', mediaIndex });
     }
   });
+  if (rules.uniformAspectRatio) {
+    const ratios = media.flatMap((item) => (item.width && item.height ? [item.width / item.height] : []));
+    const first = ratios[0];
+    if (first !== undefined && ratios.some((ratio) => Math.abs(ratio - first) > ASPECT_RATIO_TOLERANCE)) {
+      issues.push({ code: 'MIXED_ASPECT_RATIOS' });
+    }
+  }
 
   const kinds = new Set(media.map((item) => item.kind));
   if (!rules.mixedKinds && kinds.size > 1) {

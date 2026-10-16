@@ -22,13 +22,15 @@ export const instagram: PlatformCapabilities = {
     // A carousel holds up to 10 images and videos, also mixed.
     maxItems: 10,
     mixedKinds: true,
+    // Instagram crops every carousel image to the ratio of the first one (Content Publishing
+    // guide, checked 2026-10-16 through its search index), so the composer asks for one ratio.
+    uniformAspectRatio: true,
     kinds: {
       image: {
         maxItems: 10,
         // The API publishes JPEG only; the media pipeline renders JPEG for Instagram (phase 3).
         mimeTypes: ['image/jpeg'],
-        // Between 4:5 and 1.91:1. Not confirmed on the official reference from this environment;
-        // value of the architecture (media pipeline, guide phase 3). Re-check in phase 3.
+        // Between 4:5 and 1.91:1, as the instagram_feed rendition (renditions.ts).
         aspectRatio: { min: 4 / 5, max: 1.91 },
       },
       video: { maxItems: 10, mimeTypes: ['video/mp4', 'video/quicktime'] },

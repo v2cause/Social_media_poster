@@ -70,6 +70,7 @@
     "MEDIA_REQUIRED": "Diese Plattform braucht mindestens ein Bild oder Video.",
     "TOO_MANY_MEDIA": "Zu viele Medien: höchstens {limit}.",
     "ASPECT_RATIO_OUT_OF_RANGE": "Das Seitenverhältnis eines Bildes passt nicht zur Plattform.",
+    "MIXED_ASPECT_RATIOS": "In einem Instagram-Karussell brauchen alle Bilder dasselbe Seitenverhältnis. Schneiden Sie die Bilder passend zu.",
     "TOO_MANY_HASHTAGS": "Zu viele Hashtags: {actual} von höchstens {limit}.",
     "TOO_MANY_MENTIONS": "Zu viele Erwähnungen: {actual} von höchstens {limit}.",
     "UNSUPPORTED_MEDIA_TYPE": "Dieses Dateiformat unterstützt die Plattform nicht.",

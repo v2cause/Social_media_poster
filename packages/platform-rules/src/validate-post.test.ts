@@ -45,7 +45,18 @@ describe('validatePost', () => {
     ).toEqual([
       { code: 'ASPECT_RATIO_OUT_OF_RANGE', mediaIndex: 0 },
       { code: 'ASPECT_RATIO_OUT_OF_RANGE', mediaIndex: 1 },
+      { code: 'MIXED_ASPECT_RATIOS' },
     ]);
+  });
+
+  it('asks for one aspect ratio across an Instagram carousel', () => {
+    const square = jpeg(1080, 1080);
+    expect(validatePost({ platform: 'INSTAGRAM', text: 'x', media: [square, jpeg(1080, 1080)] })).toEqual([]);
+    expect(validatePost({ platform: 'INSTAGRAM', text: 'x', media: [square, jpeg(1080, 1350)] })).toEqual([
+      { code: 'MIXED_ASPECT_RATIOS' },
+    ]);
+    // Other platforms take mixed ratios.
+    expect(validatePost({ platform: 'LINKEDIN', text: 'x', media: [square, jpeg(1080, 1350)] })).toEqual([]);
   });
 
   it('allows up to 10 carousel items on Instagram, also images and videos mixed', () => {

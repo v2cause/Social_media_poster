@@ -70,6 +70,7 @@
     "MEDIA_REQUIRED": "This platform needs at least one image or video.",
     "TOO_MANY_MEDIA": "Too many media items: at most {limit}.",
     "ASPECT_RATIO_OUT_OF_RANGE": "The aspect ratio of an image does not suit the platform.",
+    "MIXED_ASPECT_RATIOS": "All images of an Instagram carousel need the same aspect ratio. Crop the images to match.",
     "TOO_MANY_HASHTAGS": "Too many hashtags: {actual} of at most {limit}.",
     "TOO_MANY_MENTIONS": "Too many mentions: {actual} of at most {limit}.",
     "UNSUPPORTED_MEDIA_TYPE": "The platform does not support this file format.",
