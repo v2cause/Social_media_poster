@@ -125,7 +125,12 @@ export class PublishRun {
     const context = (): AdapterContext => this.contextFor(target, tokens);
     const content = this.contentOf(variant, items);
 
-    // Step 7: a dry run sends nothing, not even a read or a refresh.
+    // Step 5 comes first, so the reconcile can read.
+    await tokens.refresh(context, false);
+
+    // Step 7: a dry run renews the token like a real run and validates, but neither reads nor
+    // sends: real connections can be checked without posts and without the costs of X
+    // (architecture 16).
     if (variant.dryRun || (this.deps.dryRunLive && adapter.method !== 'MOCK')) {
       const request = await this.requestFor(variant, content, adapter, target.account.type);
       if (request.kind !== 'ready') {
@@ -138,8 +143,7 @@ export class PublishRun {
       };
     }
 
-    // Steps 4 and 5: the token first, so the reconcile can read; then the reconcile.
-    await tokens.refresh(context, false);
+    // Step 4: the post of an earlier, unclear attempt.
     if (this.claimed.unclear.length > 0 || this.job.trigger === 'recheck') {
       const found = await tokens.withToken(context, (ctx) => adapter.reconcile(this.queryFor(content), ctx));
       if (found) {

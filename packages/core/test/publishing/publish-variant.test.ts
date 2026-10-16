@@ -499,7 +499,7 @@ describe('PublishVariant', () => {
   });
 
   describe('a dry run', () => {
-    it('of the workspace sends nothing and records the payload without signed URLs', async () => {
+    it('of the workspace renews the token, sends nothing and records the payload without signed URLs', async () => {
       const bed = createPublishJobTestbed({ variant: { dryRun: true } });
       bed.unitOfWork.connection().accessTokenExpiresAt = new Date(NOW + 60_000);
       bed.unitOfWork.state.media.set('variant-1', [
@@ -515,7 +515,8 @@ describe('PublishVariant', () => {
 
       await expect(publish(bed)).resolves.toEqual({ kind: 'published', reconciled: false, dryRun: true });
 
-      expect(bed.adapter.calls).toEqual({ publish: 0, reconcile: 0, refresh: 0 });
+      // The token runs out within a minute: renewed like in a real run (architecture 16).
+      expect(bed.adapter.calls).toEqual({ publish: 0, reconcile: 0, refresh: 1 });
       expect(bed.unitOfWork.variant()).toMatchObject({
         status: 'PUBLISHED',
         isDryRun: true,
