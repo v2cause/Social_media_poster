@@ -762,6 +762,14 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Getrennte Redis-Verbindungen für Queue-Producer und Worker.
   - Lock-TTL größer als die Laufzeit, oder der Lock wird verlängert.
   - Das Relay markiert Events erst nach erfolgreichem Einreihen als verarbeitet.
+- **Umgesetzt**:
+  - `@smp/queue` definiert alle Queues aus 7.4 mit zod-Payloads, Producern und Job-ID-Buildern (`jobIdOf` verbindet mit Punkt und lehnt `:` ab; `job-id.test.ts` prüft alle). Publish-, Token-, Analytics- und Media-Jobs tragen zusätzlich die `organizationId`, weil der Worker sie für den Mandanten-Kontext braucht.
+  - `withLock` mit Warten (`waitMs`) und `extend`.
+  - Das Relay (`PrismaOutboxRelay`) arbeitet als `app_system` in einer Transaktion: `FOR UPDATE SKIP LOCKED`, Dispatch, dann `processed_at`. Fehlgeschlagene Events bekommen `attempts`, `last_error` und eine wachsende Pause (`available_at`); verarbeitete werden nach 7 Tagen in `tick.maintenance` gelöscht.
+  - Die Rolle `scheduler` hat statt des Platzhalters einen `SchedulerProcessor`, der für jeden Tick mit Handler einen Job-Scheduler anlegt. Bisher sind das `tick.outbox-relay` und `tick.maintenance` (Re-Wrap aus Schritt 4.2); die übrigen Ticks kommen mit ihren Schritten. Sie braucht `DATABASE_SYSTEM_URL` und die Keyrings.
+  - `SCHEDULER_TICK_MS` steuert `tick.publish` (Standard 15 s, Zeitraffer 2 s).
+  - Produzenten im Worker haben eine eigene Redis-Verbindung mit `enableOfflineQueue: false`.
+  - Tests: `packages/queue/test/lock.integration.test.ts`, `packages/db/test/outbox-relay.integration.test.ts` und `apps/worker/test/outbox.integration.test.ts`. Letzterer prüft zwei parallele Relays: 60 Events ergeben genau 60 Jobs; außerdem den Tick der echten Rolle.
 - **Fertig, wenn**: Ein Integrationstest zeigt, dass ein `OutboxEvent` genau einmal als Job ankommt, auch wenn zwei Relays parallel laufen.
 
 #### 4.4 Adapter-Framework

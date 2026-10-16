@@ -172,6 +172,8 @@ services:
       NODE_ENV: production
       WORKER_HEALTH_PORT: '3002'
       DATABASE_URL: postgresql://app_user:${APP_USER_PASSWORD:?set APP_USER_PASSWORD in .env}@postgres:5432/smp
+      # The role "scheduler" scans across workspaces (ticks, outbox relay) as app_system.
+      DATABASE_SYSTEM_URL: postgresql://app_system:${APP_SYSTEM_PASSWORD:?set APP_SYSTEM_PASSWORD in .env}@postgres:5432/smp
       REDIS_URL: redis://redis:6379
       SMTP_URL: smtp://mailpit:1025
       # The role "media" reads uploads and writes thumbnails; it never signs URLs for the browser.

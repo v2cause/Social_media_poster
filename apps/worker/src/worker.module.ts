@@ -13,14 +13,15 @@ import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@s
 import { createSmtpMailer } from '@smp/emails';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
 import { createLogger } from '@smp/observability';
-import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE } from '@smp/queue';
+import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE, SCHEDULER_QUEUE } from '@smp/queue';
 import Redis from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 
 import { HealthServer } from './health/health.server';
+import { schedulerTicks } from './infrastructure/scheduler.providers';
 import { MediaProcessor } from './processors/media.processor';
-import { NoopProcessor, SCHEDULER_QUEUE } from './processors/noop.processor';
 import { NotifyProcessor } from './processors/notify.processor';
+import { SchedulerProcessor } from './processors/scheduler.processor';
 import type { WorkerRole } from './roles';
 import type { WorkerEnv } from './worker-env';
 import { MAIL_PORT, PROCESS_ASSET, RENDER_ATTACHED_MEDIA, WORKER_ENV } from './worker.tokens';
@@ -96,7 +97,7 @@ function mediaPipeline(env: WorkerEnv): Provider[] {
 
 // Processors per role. A role without an entry starts no processors yet.
 const WIRING_BY_ROLE: Partial<Record<WorkerRole, RoleWiring>> = {
-  scheduler: { queue: SCHEDULER_QUEUE, processor: NoopProcessor },
+  scheduler: { queue: SCHEDULER_QUEUE, processor: SchedulerProcessor, providers: schedulerTicks },
   media: { queue: MEDIA_QUEUE, processor: MediaProcessor, providers: mediaPipeline },
   notify: { queue: NOTIFICATIONS_QUEUE, processor: NotifyProcessor, providers: smtpMailer },
 };
