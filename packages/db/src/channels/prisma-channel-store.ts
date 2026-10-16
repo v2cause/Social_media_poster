@@ -3,6 +3,7 @@ import type { ChannelScope, ChannelStore, ConnectionGrant } from '@smp/core';
 import { prismaAuditTrail, type RequestOrigin } from '../audit/prisma-audit-trail';
 import type { TenantTransaction } from '../tenant-context';
 import { bytesOf, toSocialAccount, toSocialConnection } from './mappers';
+import { clearReauthMarks } from './reauth';
 
 // The repositories of the channels context on one transaction (guide step 4.5). Every method
 // filters by the workspace explicitly; row-level security limits it to the scope as well.
@@ -50,7 +51,8 @@ export function createPrismaChannelStore(
         });
       },
       async replaceGrant(workspaceId, connectionId, grant) {
-        // A new grant starts the expiry reminders afresh (guide step 4.9).
+        // A new grant starts the expiry reminders afresh and takes the marks off the scheduled
+        // variants (guide step 4.9).
         await tx.socialConnection.updateMany({
           where: { id: connectionId, workspaceId },
           data: {
@@ -61,6 +63,7 @@ export function createPrismaChannelStore(
             ...bump,
           },
         });
+        await clearReauthMarks(tx, workspaceId, connectionId);
       },
       async revoke(workspaceId, connectionId) {
         await tx.socialConnection.updateMany({

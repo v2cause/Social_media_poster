@@ -58,6 +58,11 @@ export { createPrismaChannelStore } from './channels/prisma-channel-store';
 export { ChannelReadModel, type SocialAccountView } from './channels/channel-read-model';
 export { PrismaPublishingUnitOfWork } from './publishing/prisma-publishing-unit-of-work';
 export { PrismaPublishJobUnitOfWork } from './publishing/prisma-publish-job-unit-of-work';
+export {
+  createPrismaTokenMaintenanceStore,
+  PrismaExpiringConnectionScanner,
+  PrismaTokenMaintenanceUnitOfWork,
+} from './channels/prisma-token-maintenance';
 export { PrismaNotificationDirectory, PrismaNotificationInbox } from './notifications/prisma-notifications';
 export { createPrismaPublishJobStore } from './publishing/prisma-publish-job-store';
 export { createPrismaPublishingStore } from './publishing/prisma-publishing-store';
