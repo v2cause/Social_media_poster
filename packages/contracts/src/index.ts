@@ -1,5 +1,17 @@
 // zod DTOs, enums, error codes, SSE events and the permission matrix.
 
-export { DEFAULT_LOCALE, LOCALES, localeSchema, toLocale, type Locale } from './locale';
-export { DEFAULT_TIMEZONE, isTimezone, timezoneSchema } from './timezone';
+export { ERROR_CODES, type ErrorCode } from './errors';
 export { meSchema, type Me } from './identity';
+export { DEFAULT_LOCALE, LOCALES, localeSchema, toLocale, type Locale } from './locale';
+export {
+  can,
+  PERMISSIONS,
+  permissionsOf,
+  ROLE_PERMISSIONS,
+  ROLES,
+  roleSchema,
+  type Permission,
+  type Role,
+} from './permissions';
+export * from './tenancy';
+export { DEFAULT_TIMEZONE, isTimezone, timezoneSchema } from './timezone';

@@ -1,0 +1,30 @@
+// Stable error codes of the API (guide B.1). The UI translates them under errors.<code>.
+
+export const ERROR_CODES = [
+  'VALIDATION_FAILED',
+  'INTERNAL_ERROR',
+  'ORIGIN_REJECTED',
+  'HTTP_400',
+  'HTTP_401',
+  'HTTP_403',
+  'HTTP_404',
+  'HTTP_409',
+  'HTTP_429',
+  'NOT_PERMITTED',
+  'EMAIL_NOT_VERIFIED',
+  'LAST_OWNER',
+  'ROLE_CHANGE_FORBIDDEN',
+  'MEMBER_NOT_FOUND',
+  'CANNOT_REMOVE_SELF',
+  'ALREADY_MEMBER',
+  'INVALID_WORKSPACES',
+  'INVITATION_NOT_FOUND',
+  'INVITATION_EXPIRED',
+  'INVITATION_USED',
+  'INVITATION_EMAIL_MISMATCH',
+  'SLUG_UNAVAILABLE',
+  'WORKSPACE_NOT_FOUND',
+  'ORGANIZATION_NOT_FOUND',
+] as const;
+
+export type ErrorCode = (typeof ERROR_CODES)[number];
