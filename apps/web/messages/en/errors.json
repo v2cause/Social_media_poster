@@ -1,0 +1,43 @@
+{
+  "unknown": "That did not work. Please try again.",
+  "network": "No connection to the server. Please check your connection.",
+  "codes": {
+    "VALIDATION_FAILED": "The input is incomplete or invalid.",
+    "INTERNAL_ERROR": "An error occurred on the server.",
+    "ORIGIN_REJECTED": "The request did not come from the app and was rejected.",
+    "HTTP_400": "The request was invalid.",
+    "HTTP_401": "Please sign in.",
+    "HTTP_403": "You lack the permission for this.",
+    "HTTP_404": "This does not exist, or you have no access.",
+    "HTTP_409": "This conflicts with the current state.",
+    "HTTP_429": "Too many requests. Please wait a moment.",
+    "NOT_PERMITTED": "Your role does not allow this action.",
+    "EMAIL_NOT_VERIFIED": "Please confirm your email address first.",
+    "LAST_OWNER": "An organization needs at least one owner.",
+    "ROLE_CHANGE_FORBIDDEN": "Only owners can grant the owner role or manage owners.",
+    "MEMBER_NOT_FOUND": "The member no longer exists.",
+    "CANNOT_REMOVE_SELF": "To go yourself, leave the organization.",
+    "ALREADY_MEMBER": "The person is already a member.",
+    "INVALID_WORKSPACES": "The selection contains workspaces of another organization.",
+    "INVITATION_NOT_FOUND": "This invitation does not exist.",
+    "INVITATION_EXPIRED": "This invitation has expired.",
+    "INVITATION_USED": "This invitation was already used or withdrawn.",
+    "INVITATION_EMAIL_MISMATCH": "The invitation is for another email address.",
+    "SLUG_UNAVAILABLE": "No address is free for this name. Please choose another one.",
+    "WORKSPACE_NOT_FOUND": "This workspace does not exist, or you have no access.",
+    "ORGANIZATION_NOT_FOUND": "This organization does not exist, or you are no member.",
+    "UNSAFE_AUDIT_METADATA": "An error occurred on the server.",
+    "INVALID_CURSOR": "The page is no longer valid. Please reload."
+  },
+  "validation": {
+    "required": "Please fill in this field.",
+    "too_small": "Too short: at least {minimum} characters.",
+    "too_big": "Too long: at most {maximum} characters.",
+    "invalid_format": "The format is wrong.",
+    "email": "Please enter a valid email address.",
+    "invalid_value": "Please choose a valid value.",
+    "invalid_timezone": "Please choose a valid time zone.",
+    "passwords_differ": "The passwords do not match.",
+    "invalid": "Please check the input."
+  }
+}

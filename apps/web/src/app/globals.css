@@ -1,41 +1,84 @@
 @import 'tailwindcss';
 
+/* The design system lives in packages/ui; Tailwind scans it for classes as well. */
+@source '../../../../packages/ui/src';
+
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
   --muted: #f4f4f5;
   --muted-foreground: #52525b;
   --border: #e4e4e7;
+  --input: #d4d4d8;
+  --ring: #2563eb;
   --accent: #2563eb;
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --success: #15803d;
+  --warning: #b45309;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --color-accent: var(--accent);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --background: #0a0a0a;
     --foreground: #fafafa;
+    --card: #111113;
+    --card-foreground: #fafafa;
     --muted: #18181b;
     --muted-foreground: #a1a1aa;
     --border: #27272a;
+    --input: #3f3f46;
+    --ring: #60a5fa;
     --accent: #60a5fa;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --success: #22c55e;
+    --warning: #f59e0b;
   }
 }
 
 :root[data-theme='dark'] {
   --background: #0a0a0a;
   --foreground: #fafafa;
+  --card: #111113;
+  --card-foreground: #fafafa;
   --muted: #18181b;
   --muted-foreground: #a1a1aa;
   --border: #27272a;
+  --input: #3f3f46;
+  --ring: #60a5fa;
   --accent: #60a5fa;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --success: #22c55e;
+  --warning: #f59e0b;
 }
 
 body {

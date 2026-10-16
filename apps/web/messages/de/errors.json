@@ -1,0 +1,43 @@
+{
+  "unknown": "Das hat nicht geklappt. Bitte versuchen Sie es erneut.",
+  "network": "Keine Verbindung zum Server. Bitte prüfen Sie Ihre Verbindung.",
+  "codes": {
+    "VALIDATION_FAILED": "Die Eingaben sind unvollständig oder ungültig.",
+    "INTERNAL_ERROR": "Auf dem Server ist ein Fehler aufgetreten.",
+    "ORIGIN_REJECTED": "Die Anfrage kam nicht aus der App und wurde abgewiesen.",
+    "HTTP_400": "Die Anfrage war ungültig.",
+    "HTTP_401": "Bitte melden Sie sich an.",
+    "HTTP_403": "Dafür fehlt Ihnen die Berechtigung.",
+    "HTTP_404": "Das gibt es nicht, oder Sie haben keinen Zugriff.",
+    "HTTP_409": "Das steht im Konflikt mit dem aktuellen Stand.",
+    "HTTP_429": "Zu viele Anfragen. Bitte warten Sie einen Moment.",
+    "NOT_PERMITTED": "Ihre Rolle erlaubt diese Aktion nicht.",
+    "EMAIL_NOT_VERIFIED": "Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse.",
+    "LAST_OWNER": "Eine Organisation braucht mindestens einen Inhaber.",
+    "ROLE_CHANGE_FORBIDDEN": "Nur Inhaber können die Inhaber-Rolle vergeben oder Inhaber verwalten.",
+    "MEMBER_NOT_FOUND": "Das Mitglied gibt es nicht mehr.",
+    "CANNOT_REMOVE_SELF": "Um selbst zu gehen, verlassen Sie die Organisation.",
+    "ALREADY_MEMBER": "Die Person ist bereits Mitglied.",
+    "INVALID_WORKSPACES": "Die Auswahl enthält Workspaces einer anderen Organisation.",
+    "INVITATION_NOT_FOUND": "Diese Einladung gibt es nicht.",
+    "INVITATION_EXPIRED": "Diese Einladung ist abgelaufen.",
+    "INVITATION_USED": "Diese Einladung wurde bereits verwendet oder zurückgezogen.",
+    "INVITATION_EMAIL_MISMATCH": "Die Einladung gilt für eine andere E-Mail-Adresse.",
+    "SLUG_UNAVAILABLE": "Für diesen Namen ist keine Adresse mehr frei. Bitte wählen Sie einen anderen.",
+    "WORKSPACE_NOT_FOUND": "Diesen Workspace gibt es nicht, oder Sie haben keinen Zugriff.",
+    "ORGANIZATION_NOT_FOUND": "Diese Organisation gibt es nicht, oder Sie sind kein Mitglied.",
+    "UNSAFE_AUDIT_METADATA": "Auf dem Server ist ein Fehler aufgetreten.",
+    "INVALID_CURSOR": "Die Seite ist nicht mehr gültig. Bitte laden Sie neu."
+  },
+  "validation": {
+    "required": "Bitte füllen Sie dieses Feld aus.",
+    "too_small": "Zu kurz: mindestens {minimum} Zeichen.",
+    "too_big": "Zu lang: höchstens {maximum} Zeichen.",
+    "invalid_format": "Das Format stimmt nicht.",
+    "email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+    "invalid_value": "Bitte wählen Sie einen gültigen Wert.",
+    "invalid_timezone": "Bitte wählen Sie eine gültige Zeitzone.",
+    "passwords_differ": "Die Passwörter stimmen nicht überein.",
+    "invalid": "Bitte prüfen Sie die Eingabe."
+  }
+}

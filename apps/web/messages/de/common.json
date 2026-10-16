@@ -1,13 +1,35 @@
 {
   "app": {
-    "name": "Social Media Poster"
+    "name": "Social Media Poster",
+    "tagline": "Erstellen, planen und werten Sie Ihre Posts an einem Ort aus."
+  },
+  "actions": {
+    "cancel": "Abbrechen",
+    "continue": "Weiter",
+    "back": "Zurück",
+    "retry": "Erneut versuchen",
+    "close": "Schließen"
+  },
+  "states": {
+    "loading": "Wird geladen ...",
+    "error": "Die Daten konnten nicht geladen werden."
   },
   "shell": {
-    "title": "Social Media Poster",
-    "subtitle": "Erstellen, planen und auswerten Sie Ihre Posts an einem Ort.",
-    "status": "Die Oberfläche ist bereit. Anmeldung und Workspaces folgen mit Phase 1.",
     "navigation": "Hauptnavigation",
-    "languageLabel": "Sprache"
+    "openNavigation": "Navigation öffnen",
+    "collapse": "Seitenleiste einklappen",
+    "expand": "Seitenleiste ausklappen",
+    "workspaceSwitcher": "Workspace wechseln",
+    "notifications": "Benachrichtigungen",
+    "noNotifications": "Keine neuen Benachrichtigungen.",
+    "language": "Sprache",
+    "userMenu": "Konto von {name}",
+    "account": "Konto und Sicherheit",
+    "team": "Team",
+    "signOut": "Abmelden",
+    "backToWorkspace": "Zurück zum Workspace",
+    "organizationArea": "Organisation {name}",
+    "accountArea": "Ihr Konto"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -19,6 +41,39 @@
     "analytics": "Analytics",
     "accounts": "Accounts",
     "brandVoices": "Brand Voices",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "members": "Mitglieder",
+    "security": "Sicherheit"
+  },
+  "languages": {
+    "de": "Deutsch",
+    "en": "English"
+  },
+  "roles": {
+    "OWNER": "Inhaber",
+    "ADMIN": "Administrator",
+    "EDITOR": "Redakteur",
+    "VIEWER": "Betrachter"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Willkommen in {workspace}",
+    "intro": "Hier sehen Sie bald Kennzahlen, Top-Posts und Ihre nächsten geplanten Beiträge.",
+    "nextPosts": "Nächste geplante Posts",
+    "noPosts": "Noch keine Posts geplant.",
+    "noPostsHint": "Posts erstellen und planen können Sie ab Phase 2.",
+    "accounts": "Verbundene Accounts",
+    "noAccounts": "Noch keine Accounts verbunden.",
+    "noAccountsHint": "Das Verbinden von LinkedIn, Instagram, Facebook und X folgt mit Phase 4.",
+    "role": "Ihre Rolle: {role}"
+  },
+  "section": {
+    "upcoming": "Dieser Bereich folgt",
+    "upcomingDescription": "{section} ist noch nicht verfügbar und kommt mit einer der nächsten Phasen."
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "description": "Die Seite existiert nicht, oder Sie haben keinen Zugriff darauf.",
+    "home": "Zur Startseite"
   }
 }

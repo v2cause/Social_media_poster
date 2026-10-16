@@ -1,7 +1,2 @@
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-/** Joins class names and resolves Tailwind conflicts. Used by all UI components. */
-export function cn(...inputs: ClassValue[]): string {
-  return twMerge(clsx(inputs));
-}
+// shadcn/ui expects cn here (components.json); the implementation lives in the design system.
+export { cn } from '@smp/ui';

@@ -1,13 +1,35 @@
 {
   "app": {
-    "name": "Social Media Poster"
+    "name": "Social Media Poster",
+    "tagline": "Create, schedule and analyze your posts in one place."
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "back": "Back",
+    "retry": "Try again",
+    "close": "Close"
+  },
+  "states": {
+    "loading": "Loading ...",
+    "error": "The data could not be loaded."
   },
   "shell": {
-    "title": "Social Media Poster",
-    "subtitle": "Create, schedule and analyze your posts in one place.",
-    "status": "The interface is ready. Sign-in and workspaces follow in phase 1.",
     "navigation": "Main navigation",
-    "languageLabel": "Language"
+    "openNavigation": "Open navigation",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "workspaceSwitcher": "Switch workspace",
+    "notifications": "Notifications",
+    "noNotifications": "No new notifications.",
+    "language": "Language",
+    "userMenu": "Account of {name}",
+    "account": "Account and security",
+    "team": "Team",
+    "signOut": "Sign out",
+    "backToWorkspace": "Back to the workspace",
+    "organizationArea": "Organization {name}",
+    "accountArea": "Your account"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -18,7 +40,40 @@
     "media": "Media",
     "analytics": "Analytics",
     "accounts": "Accounts",
-    "brandVoices": "Brand Voices",
-    "settings": "Settings"
+    "brandVoices": "Brand voices",
+    "settings": "Settings",
+    "members": "Members",
+    "security": "Security"
+  },
+  "languages": {
+    "de": "Deutsch",
+    "en": "English"
+  },
+  "roles": {
+    "OWNER": "Owner",
+    "ADMIN": "Admin",
+    "EDITOR": "Editor",
+    "VIEWER": "Viewer"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome to {workspace}",
+    "intro": "Key figures, top posts and your next scheduled posts will appear here soon.",
+    "nextPosts": "Next scheduled posts",
+    "noPosts": "No posts scheduled yet.",
+    "noPostsHint": "Creating and scheduling posts arrives with phase 2.",
+    "accounts": "Connected accounts",
+    "noAccounts": "No accounts connected yet.",
+    "noAccountsHint": "Connecting LinkedIn, Instagram, Facebook and X arrives with phase 4.",
+    "role": "Your role: {role}"
+  },
+  "section": {
+    "upcoming": "Coming soon",
+    "upcomingDescription": "{section} is not available yet and arrives with one of the next phases."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page does not exist, or you have no access to it.",
+    "home": "Go to the start page"
   }
 }
