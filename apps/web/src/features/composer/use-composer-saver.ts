@@ -1,6 +1,15 @@
 'use client';
 
-import { ApiError, postsCreate, postsGet, postsUpdate, variantsUpdate } from '@smp/api-client';
+import {
+  ApiError,
+  getIdeasListQueryKey,
+  getPostsListQueryKey,
+  postsCreate,
+  postsGet,
+  postsUpdate,
+  variantsUpdate,
+} from '@smp/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type Dispatch } from 'react';
 
 import {
@@ -40,6 +49,7 @@ export function useComposerSaver(options: {
   resolveConflict: (choice: 'reload' | 'overwrite') => Promise<void>;
 } {
   const { ws, state, dispatch, readOnly } = options;
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<SaverStatus>({
     saving: false,
     savedAt: null,
@@ -111,6 +121,11 @@ export function useComposerSaver(options: {
         apply({ type: 'variant-saved', variant: saved, revision: variant.revision });
       }
       setStatus({ saving: false, savedAt: new Date(), failed: false, conflict: null });
+      // The post list shows the change; a post from an idea has used the idea up.
+      void queryClient.invalidateQueries({ queryKey: getPostsListQueryKey(ws) });
+      if (postId === null && current.post.ideaId !== null) {
+        void queryClient.invalidateQueries({ queryKey: getIdeasListQueryKey(ws) });
+      }
       return stateRef.current;
     } catch (error) {
       if (error instanceof ApiError && error.code === 'VERSION_CONFLICT') {
@@ -121,7 +136,7 @@ export function useComposerSaver(options: {
       }
       return null;
     }
-  }, [apply, readOnly, ws]);
+  }, [apply, queryClient, readOnly, ws]);
 
   /** Runs the saves one after the other, never two at the same time. */
   const enqueue = useCallback((): Promise<ComposerState | null> => {
