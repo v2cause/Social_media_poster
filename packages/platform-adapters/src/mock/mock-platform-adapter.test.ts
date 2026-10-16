@@ -109,6 +109,30 @@ describe('MockPlatformAdapter', () => {
     );
   });
 
+  it('renews like the real platforms: X with its refresh token and Instagram, not LinkedIn or Facebook', async () => {
+    const { ctx } = setup();
+    const withoutRefreshToken: AdapterContext = {
+      ...ctx,
+      credentials: { accessToken: () => Promise.resolve('a'), refreshToken: () => Promise.resolve(null) },
+    };
+    const adapterOf = (platform: 'X' | 'INSTAGRAM' | 'LINKEDIN' | 'FACEBOOK') =>
+      new MockPlatformAdapter(platform, { store: new InMemoryMockPlatformStore(), clock });
+
+    await expect(adapterOf('X').refreshCredentials(ctx)).resolves.toMatchObject({ status: 'refreshed' });
+    await expect(adapterOf('X').refreshCredentials(withoutRefreshToken)).resolves.toEqual({
+      status: 'not_supported',
+    });
+    await expect(adapterOf('INSTAGRAM').refreshCredentials(withoutRefreshToken)).resolves.toMatchObject({
+      status: 'refreshed',
+      tokens: { refreshToken: null, accessTokenExpiresAt: new Date(now.getTime() + 60 * 24 * 3_600_000) },
+    });
+    for (const platform of ['LINKEDIN', 'FACEBOOK'] as const) {
+      await expect(adapterOf(platform).refreshCredentials(withoutRefreshToken)).resolves.toEqual({
+        status: 'not_supported',
+      });
+    }
+  });
+
   it('never sends in a dry run and grows its metrics over time', async () => {
     const { adapter, ctx, request } = setup();
     await expect(adapter.publish(request, { ...ctx, dryRun: true })).rejects.toThrow(/dry run/);

@@ -98,10 +98,17 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
     return capabilitiesOf(this.platform);
   }
 
+  /**
+   * Like the real platforms: Instagram renews its long-lived token and X renews with its refresh
+   * token; LinkedIn and Facebook offer no refresh, so the account is connected again in time.
+   */
   async refreshCredentials(ctx: AdapterContext): Promise<RefreshOutcome> {
     await this.call('refresh', ctx);
     if (settingsOf(ctx).failMode === 'auth_expired') {
       throw new PlatformError('AUTH_EXPIRED', 'The mock platform refused the refresh', { status: 401 });
+    }
+    if (this.platform !== 'INSTAGRAM' && (await ctx.credentials.refreshToken()) === null) {
+      return { status: 'not_supported' };
     }
     return {
       status: 'refreshed',
