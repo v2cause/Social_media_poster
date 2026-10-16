@@ -10,6 +10,9 @@
   },
   "sideEffects": false,
   "scripts": {
+    "build": "orval --config orval.config.ts",
+    "dev": "orval --config orval.config.ts",
+    "generate": "orval --config orval.config.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
