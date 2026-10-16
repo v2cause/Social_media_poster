@@ -1,4 +1,5 @@
-// Queue names, zod-validated job payloads, typed producers and job ids (architecture 7.4).
+// Queue names, zod-validated job payloads, typed producers and job ids (architecture 7.4), and
+// the Redis lock.
 
 export {
   gdprJobId,
@@ -135,3 +136,4 @@ export {
   type MediaProcess,
   type MediaRender,
 } from './media';
+export { LockNotAcquiredError, withLock, type HeldLock, type LockOptions } from './lock';
