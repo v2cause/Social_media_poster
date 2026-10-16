@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
+import { signUp } from './accounts';
 import { linkFromEmail } from './mailpit';
 
 // Guide step 1.9, "Fertig, wenn": sign-up, verification email (Mailpit API), onboarding,
@@ -12,14 +13,6 @@ const viewer = {
   email: `viewer-${run}@example.test`,
   password: 'viewer password 2026',
 };
-
-async function signUp(page: Page, person: { name: string; email: string; password: string }) {
-  await page.getByLabel('Name').fill(person.name);
-  await page.getByLabel('E-Mail-Adresse').fill(person.email);
-  await page.getByLabel('Passwort').fill(person.password);
-  await page.getByRole('button', { name: 'Registrieren' }).click();
-  await expect(page.getByRole('heading', { name: 'E-Mail bestätigen' })).toBeVisible();
-}
 
 test('from sign-up to an invited viewer without write actions', async ({ browser }) => {
   // Owner: sign-up and verification.
