@@ -152,6 +152,7 @@ model Organization {
   auditLogs            AuditLog[]
   usageCounters        UsageCounter[]
   usageRecords         UsageRecord[]
+  apiCostRecords       ApiCostRecord[]
 
   @@map("organization")
 }
@@ -186,6 +187,11 @@ model Workspace {
   mediaAssets          MediaAsset[]
   mediaRenditions      MediaRendition[]
   postMedia            PostMedia[]
+  socialConnections    SocialConnection[]
+  socialAccounts       SocialAccount[]
+  publishAttempts      PublishAttempt[]
+  outboxEvents         OutboxEvent[]
+  apiCostRecords       ApiCostRecord[]
 
   @@index([organizationId])
   @@map("workspace")
@@ -508,7 +514,7 @@ model PostVariant {
   id                String        @id @default(uuid(7)) @db.Uuid
   workspaceId       String        @map("workspace_id") @db.Uuid
   postId            String        @map("post_id") @db.Uuid
-  // The publishing target from phase 4 on; the foreign key follows with social_account.
+  // The publishing target from phase 4 on.
   socialAccountId   String?       @map("social_account_id") @db.Uuid
   platform          Platform
   // The key of the target in the AI task (t1, t2, ...).
@@ -542,14 +548,22 @@ model PostVariant {
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  post      Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
-  media     PostMedia[]
+  workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  post          Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  // Accounts are disconnected, not deleted; only deleting the workspace removes them.
+  socialAccount SocialAccount?   @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  media         PostMedia[]
+  attempts      PublishAttempt[]
 
   @@unique([postId, targetKey])
   @@index([workspaceId])
+  @@index([socialAccountId])
   @@index([scheduledAt], map: "post_variant_due_idx", where: raw("status = 'SCHEDULED'"))
   @@index([metricsNextAt], map: "post_variant_metrics_due_idx", where: raw("status = 'PUBLISHED'"))
+  // The sweeper (guide step 4.7): queued variants without a job, and publishing ones whose lease
+  // ran out.
+  @@index([queuedAt], map: "post_variant_queued_idx", where: raw("status = 'QUEUED'"))
+  @@index([leaseUntil], map: "post_variant_lease_idx", where: raw("status = 'PUBLISHING'"))
   @@map("post_variant")
 }
 
@@ -770,4 +784,222 @@ model PostMedia {
   @@index([assetId])
   @@index([workspaceId])
   @@map("post_media")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Channels and publishing (guide step 4.1, architecture 4, 6.2 and 7): the connections to the
+// platforms, the accounts they publish to, the log of publish attempts, the transactional
+// outbox, incoming webhooks and the costs of paid API calls. Secrets are sealed envelopes
+// (packages/crypto, guide step 4.2) with the AAD workspaceId:connectionId:field.
+// ---------------------------------------------------------------------------------------------
+
+// How a connection reaches its platform: the official API, the experimental browser of X
+// (phase 6) or the mock adapter of development and tests.
+enum ConnectionMethod {
+  API
+  BROWSER
+  MOCK
+}
+
+enum ConnectionStatus {
+  ACTIVE
+  // The access runs out within 14 days and cannot be renewed automatically.
+  EXPIRING
+  NEEDS_REAUTH
+  PAUSED
+  REVOKED
+}
+
+// The kind of target: the profile of a person, a company or Facebook page, an Instagram
+// professional account.
+enum SocialAccountType {
+  PROFILE
+  PAGE
+  BUSINESS
+}
+
+// One OAuth grant or browser session of a platform user in a workspace. Connecting the same
+// platform user again updates it.
+model SocialConnection {
+  id                    String           @id @default(uuid(7)) @db.Uuid
+  workspaceId           String           @map("workspace_id") @db.Uuid
+  platform              Platform
+  method                ConnectionMethod
+  status                ConnectionStatus @default(ACTIVE)
+  // Why the connection needs a new grant, for example REFRESH_FAILED or DEAUTHORIZED.
+  statusReason          String?          @map("status_reason")
+  // The platform user who granted the access, for example the OIDC sub on LinkedIn.
+  externalUserId        String           @map("external_user_id")
+  displayName           String           @map("display_name")
+  accessTokenSealed     Bytes?           @map("access_token_sealed")
+  refreshTokenSealed    Bytes?           @map("refresh_token_sealed")
+  // The browser session of X (storageState), sealed with its own keyring (SESSION_KEKS).
+  sessionSealed         Bytes?           @map("session_sealed")
+  accessTokenExpiresAt  DateTime?        @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime?        @map("refresh_token_expires_at") @db.Timestamptz(3)
+  // The scopes the platform granted; the UI names the ones missing from the request.
+  scopes                String[]         @default([])
+  // The last expiry reminder sent (14, 7 or 1 days ahead), so each stage goes out once.
+  expiryNoticeDays      Int?             @map("expiry_notice_days")
+  lastRefreshedAt       DateTime?        @map("last_refreshed_at") @db.Timestamptz(3)
+  connectedById         String?          @map("connected_by_id") @db.Uuid
+  version               Int              @default(0)
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  accounts  SocialAccount[]
+
+  @@unique([workspaceId, platform, method, externalUserId])
+  // tick.tokens (guide step 4.9) looks for access that runs out soon. Without a predicate: a
+  // list of statuses comes back from Postgres as = ANY(...), which Prisma would see as drift.
+  @@index([accessTokenExpiresAt], map: "social_connection_expiry_idx")
+  @@map("social_connection")
+}
+
+// A target to publish to: a person, a company page, a Facebook page or an Instagram account.
+// One connection can reach several, for example all pages of a Facebook user.
+model SocialAccount {
+  id                String            @id @default(uuid(7)) @db.Uuid
+  workspaceId       String            @map("workspace_id") @db.Uuid
+  connectionId      String            @map("connection_id") @db.Uuid
+  platform          Platform
+  type              SocialAccountType
+  // The id of the target on the platform: a LinkedIn URN, a page id, an Instagram or X user id.
+  externalId        String            @map("external_id")
+  name              String
+  handle            String?
+  avatarUrl         String?           @map("avatar_url")
+  // The token of a Facebook page, sealed like the tokens of the connection.
+  accessTokenSealed Bytes?            @map("access_token_sealed")
+  // Validated with zod; the mock adapter reads its latency and fail mode from here.
+  settings          Json              @default("{}")
+  // Disconnected accounts stay for the history of their posts.
+  disconnectedAt    DateTime?         @map("disconnected_at") @db.Timestamptz(3)
+  connectedById     String?           @map("connected_by_id") @db.Uuid
+  version           Int               @default(0)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace      Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  connection     SocialConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  variants       PostVariant[]
+  apiCostRecords ApiCostRecord[]
+
+  @@unique([workspaceId, platform, externalId])
+  @@index([connectionId])
+  @@map("social_account")
+}
+
+enum PublishAttemptOutcome {
+  // Running, or left behind by a crashed worker: the next attempt reconciles first.
+  STARTED
+  PUBLISHED
+  // The reconcile found the post of an earlier attempt on the platform.
+  RECONCILED
+  // Nothing was sent; meta holds the payload.
+  DRY_RUN
+  // Failed for now; the job tries again with backoff.
+  RETRY
+  FAILED
+  // Sent, but the answer is missing; the reconcile or the user decides.
+  UNKNOWN
+}
+
+// The log of every publish attempt (architecture 7, step 3 of the publish job).
+model PublishAttempt {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  workspaceId     String                @map("workspace_id") @db.Uuid
+  variantId       String                @map("variant_id") @db.Uuid
+  // The schedule version of the job, and the attempt within it.
+  scheduleVersion Int                   @map("schedule_version")
+  attemptNumber   Int                   @map("attempt_number")
+  // schedule, now, retry or sweep.
+  trigger         String
+  outcome         PublishAttemptOutcome @default(STARTED)
+  // The worker that held the lease.
+  leaseOwner      String                @map("lease_owner")
+  // A code of the error taxonomy (architecture 4.1), or for example MISSED_WINDOW.
+  errorCode       String?               @map("error_code")
+  // Without tokens or other secrets.
+  errorMessage    String?               @map("error_message")
+  externalPostId  String?               @map("external_post_id")
+  // Platform details: the Instagram container ids for retries, the payload of a dry run.
+  meta            Json                  @default("{}")
+  startedAt       DateTime              @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt      DateTime?             @map("finished_at") @db.Timestamptz(3)
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  variant   PostVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, scheduleVersion, attemptNumber])
+  @@index([workspaceId])
+  @@map("publish_attempt")
+}
+
+// The transactional outbox (architecture 7): written in the transaction of a change and turned
+// into jobs or live events by tick.outbox-relay, which marks an event only after it went out.
+model OutboxEvent {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  // For example variant.publish-requested or notification.publish-failed.
+  type        String
+  payload     Json
+  // The relay tries again after a failure, with a growing pause.
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  availableAt DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([availableAt], map: "outbox_event_pending_idx", where: raw("processed_at IS NULL"))
+  @@index([workspaceId])
+  @@map("outbox_event")
+}
+
+// Incoming webhooks (Meta deauthorize and data deletion, later Stripe), stored once per event:
+// providers send again until they get an answer, and processing must not run twice. Global,
+// without a tenant: the worker resolves the affected connections as app_system.
+model WebhookEvent {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  // meta or stripe.
+  provider    String
+  // The id of the event at the provider, or the hash of its signed request.
+  externalId  String    @map("external_id")
+  type        String
+  payload     Json
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(3)
+  receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz(3)
+
+  @@unique([provider, externalId])
+  @@map("webhook_event")
+}
+
+// The cost of a paid platform call (X) in micro-USD, booked once per source and operation like
+// the usage ledger. The accounts page shows it per workspace; the spend cap adds it up.
+model ApiCostRecord {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  workspaceId     String?  @map("workspace_id") @db.Uuid
+  socialAccountId String?  @map("social_account_id") @db.Uuid
+  platform        Platform
+  // The price key, for example x.post_create or x.media_upload.
+  operation       String
+  units           Int      @default(1)
+  costMicros      BigInt   @map("cost_micros")
+  // For example publish_attempt with its id.
+  sourceType      String   @map("source_type")
+  sourceId        String   @map("source_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace     Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  socialAccount SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceType, sourceId, operation])
+  @@index([organizationId, createdAt])
+  @@index([workspaceId, createdAt])
+  @@map("api_cost_record")
 }

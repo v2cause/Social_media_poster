@@ -37,6 +37,11 @@ export const TENANT_FILTERS: Readonly<Record<string, TenantFilterRule>> = {
   MediaAsset: { field: 'workspaceId', scope: 'workspaceId' },
   MediaRendition: { field: 'workspaceId', scope: 'workspaceId' },
   PostMedia: { field: 'workspaceId', scope: 'workspaceId' },
+  SocialConnection: { field: 'workspaceId', scope: 'workspaceId' },
+  SocialAccount: { field: 'workspaceId', scope: 'workspaceId' },
+  PublishAttempt: { field: 'workspaceId', scope: 'workspaceId' },
+  OutboxEvent: { field: 'workspaceId', scope: 'workspaceId' },
+  ApiCostRecord: { field: 'organizationId', scope: 'organizationId' },
 };
 
 const FILTERED_OPERATIONS = new Set([

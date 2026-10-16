@@ -732,6 +732,12 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 
 #### 4.1 Datenmodell
 - **Erstellen**: `SocialConnection`, `SocialAccount`, `PublishAttempt`, `OutboxEvent`, `WebhookEvent`, `ApiCostRecord`, die Partial Indexes aus Teil A und die RLS-Policies.
+- **Umgesetzt**:
+  - Migrationen `0009_channels_publishing` und `0010_rls_channels_publishing`.
+  - Tokens und Sessions liegen als versiegelte Umschläge (`*_sealed`). Accounts werden getrennt, nicht gelöscht; `post_variant.social_account_id` zeigt mit `SET NULL` auf sie.
+  - Zusätzlich zu den Partial Indexes aus Teil A gibt es zwei für den Sweeper (`QUEUED` nach `queued_at`, `PUBLISHING` nach `lease_until`).
+  - `publish_attempt`, `outbox_event` und `api_cost_record` sind für `app_user` nicht löschbar; Outbox und Kostenbuch sind zusätzlich unveränderlich, das Relay markiert als `app_system`. `webhook_event` ist global ohne Mandant.
+  - Test: `packages/db/test/rls-channels.integration.test.ts`.
 - **Fertig, wenn**: Migration und RLS-Check grün sind.
 
 #### 4.2 Verschlüsselung (`packages/crypto`)
