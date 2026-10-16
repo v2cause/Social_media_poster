@@ -1,4 +1,4 @@
-import type { AuditEntry, TenancyScope, TenancyStore } from '@smp/core';
+import { assertSafeAuditMetadata, type AuditEntry, type TenancyScope, type TenancyStore } from '@smp/core';
 
 import { Prisma } from '../generated/prisma/client';
 import type { TenantTransaction } from '../tenant-context';
@@ -201,6 +201,7 @@ export function createPrismaTenancyStore(
 
     audit: {
       async record(entry: AuditEntry) {
+        assertSafeAuditMetadata(entry.metadata);
         await tx.auditLog.create({
           data: {
             organizationId: entry.organizationId,

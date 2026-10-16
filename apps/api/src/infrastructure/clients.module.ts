@@ -2,6 +2,7 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { Global, Inject, Module, type OnApplicationShutdown } from '@nestjs/common';
 import type { MailPort } from '@smp/core';
 import {
+  AuditLogReadModel,
   createPrismaClient,
   createTenantClient,
   PrismaTenancyUnitOfWork,
@@ -25,6 +26,7 @@ export const S3_CLIENT = Symbol('S3_CLIENT');
 export const MAIL_PORT = Symbol('MAIL_PORT');
 export const TENANCY_UNIT_OF_WORK = Symbol('TENANCY_UNIT_OF_WORK');
 export const TENANCY_READ_MODEL = Symbol('TENANCY_READ_MODEL');
+export const AUDIT_LOG_READ_MODEL = Symbol('AUDIT_LOG_READ_MODEL');
 
 type ClosableMailPort = MailPort & { close(): void };
 
@@ -96,6 +98,11 @@ class ClientLifecycle implements OnApplicationShutdown {
       useFactory: (base: PrismaClient) => new TenancyReadModel(base),
     },
     {
+      provide: AUDIT_LOG_READ_MODEL,
+      inject: [DATABASE_CLIENT],
+      useFactory: (base: PrismaClient) => new AuditLogReadModel(base),
+    },
+    {
       provide: MAIL_PORT,
       inject: [API_ENV],
       useFactory: (env: ApiEnv): ClosableMailPort =>
@@ -111,6 +118,7 @@ class ClientLifecycle implements OnApplicationShutdown {
     MAIL_PORT,
     TENANCY_UNIT_OF_WORK,
     TENANCY_READ_MODEL,
+    AUDIT_LOG_READ_MODEL,
   ],
 })
 export class ClientsModule {}

@@ -25,6 +25,8 @@ export const ERROR_CODES = [
   'SLUG_UNAVAILABLE',
   'WORKSPACE_NOT_FOUND',
   'ORGANIZATION_NOT_FOUND',
+  'UNSAFE_AUDIT_METADATA',
+  'INVALID_CURSOR',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

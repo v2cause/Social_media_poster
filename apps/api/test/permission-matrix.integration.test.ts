@@ -108,6 +108,12 @@ const ENDPOINTS: Endpoint[] = [
     path: (i) => `/api/w/${i.slug}/settings`,
     body: () => ({ dryRun: true }),
   },
+  {
+    method: 'get',
+    route: '/api/org/:org/audit-log',
+    permission: 'audit.read',
+    path: (i) => `/api/org/${i.organizationId}/audit-log`,
+  },
   // Destructive for everyone who may leave: last.
   {
     method: 'post',

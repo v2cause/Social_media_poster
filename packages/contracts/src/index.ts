@@ -1,5 +1,13 @@
 // zod DTOs, enums, error codes, SSE events and the permission matrix.
 
+export {
+  auditLogEntrySchema,
+  auditLogPageSchema,
+  auditLogQuerySchema,
+  type AuditLogEntry,
+  type AuditLogPage,
+  type AuditLogQuery,
+} from './audit';
 export { ERROR_CODES, type ErrorCode } from './errors';
 export { meSchema, type Me } from './identity';
 export { DEFAULT_LOCALE, LOCALES, localeSchema, toLocale, type Locale } from './locale';

@@ -7,6 +7,7 @@ export type { Clock } from './shared/ports/clock';
 export type { IdGenerator } from './shared/ports/ids';
 
 // Audit
+export { assertSafeAuditMetadata, UnsafeAuditMetadataError } from './audit/domain/audit-metadata';
 export type { AuditEntry, AuditTrail } from './audit/ports/audit-trail';
 
 // Notifications

@@ -30,3 +30,9 @@ export {
   type WorkspaceAccess,
 } from './tenancy/tenancy-read-model';
 export { DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData, type DemoSeedResult } from './seed/demo';
+export {
+  AuditLogReadModel,
+  InvalidCursorError,
+  type AuditLogEntryView,
+  type AuditLogFilter,
+} from './audit/audit-log-read-model';
