@@ -54,7 +54,10 @@
     "MEDIA_TOO_LARGE": "The file is too large: at most 20 MB are allowed.",
     "STORAGE_QUOTA_EXCEEDED": "The media storage of this workspace is full. Delete files you no longer need.",
     "MEDIA_UPLOAD_MISSING": "The file has not been uploaded completely yet. Please try again.",
-    "MEDIA_IN_USE": "This file is attached to a post. Remove it there first."
+    "MEDIA_IN_USE": "This file is attached to a post. Remove it there first.",
+    "MEDIA_NOT_READY": "This file is still being processed or was rejected and cannot be attached yet.",
+    "CROP_OUT_OF_BOUNDS": "The crop does not lie fully inside the image. Please crop again.",
+    "VARIANT_MEDIA_INVALID": "A variant holds at most 20 files, each once."
   },
   "validation": {
     "required": "Please fill in this field.",

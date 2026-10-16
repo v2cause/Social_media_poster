@@ -16,6 +16,7 @@ import {
   postPageSchema,
   postSchema,
   refineVariantSchema,
+  setVariantMediaSchema,
   styleListSchema,
   styleSchema,
   testBrandVoiceSchema,
@@ -39,6 +40,7 @@ export class CreatePostDto extends createZodDto(createPostSchema) {}
 export class UpdatePostDto extends createZodDto(updatePostSchema) {}
 export class VariantDto extends createZodDto(variantSchema) {}
 export class UpdateVariantDto extends createZodDto(updateVariantSchema) {}
+export class SetVariantMediaDto extends createZodDto(setVariantMediaSchema) {}
 
 export class StyleDto extends createZodDto(styleSchema) {}
 export class StyleListDto extends createZodDto(styleListSchema) {}

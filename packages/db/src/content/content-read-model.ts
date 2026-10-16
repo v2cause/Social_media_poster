@@ -1,18 +1,26 @@
-import type { BrandVoiceContent, IdeaStatus, VariantStatus } from '@smp/core';
+import type { BrandVoiceContent, Crop, IdeaStatus, VariantStatus } from '@smp/core';
 import { z } from 'zod';
 
 import { InvalidCursorError } from '../audit/audit-log-read-model';
 import type { Platform } from '../generated/prisma/client';
-import { withTenantTx } from '../tenant-context';
-import type { PrismaClient } from '../generated/prisma/client';
+import { withTenantTx, type WorkspaceRef } from '../tenant-context';
+import type { Prisma, PrismaClient } from '../generated/prisma/client';
+import { mediaAssetInclude, toMediaAssetView, type MediaAssetView } from '../media/media-read-model';
+import { toCrop } from '../media/mappers';
 import { brandVoiceContentSchema, toLanguage } from './mappers';
 
 // The read side of the content context (guide step 2.7): what the composer, the post list and
 // the settings pages show. Every method names its workspace and runs in that scope.
 
-export interface WorkspaceRef {
-  organizationId: string;
-  workspaceId: string;
+/** An asset in a variant with crop, letterbox and alt text of this use. */
+export interface VariantMediaView {
+  id: string;
+  assetId: string;
+  position: number;
+  crop: Crop | null;
+  letterbox: boolean;
+  altText: string | null;
+  asset: MediaAssetView;
 }
 
 export interface VariantView {
@@ -26,6 +34,7 @@ export interface VariantView {
   linkUrl: string | null;
   aiWarnings: string[];
   status: VariantStatus;
+  media: VariantMediaView[];
   version: number;
   updatedAt: Date;
 }
@@ -131,7 +140,34 @@ const variantSelect = {
   status: true,
   version: true,
   updatedAt: true,
-} as const;
+  media: {
+    orderBy: { position: 'asc' },
+    select: {
+      id: true,
+      assetId: true,
+      position: true,
+      crop: true,
+      letterbox: true,
+      altText: true,
+      asset: { include: mediaAssetInclude },
+    },
+  },
+} as const satisfies Prisma.PostVariantSelect;
+
+type VariantRow = Prisma.PostVariantGetPayload<{ select: typeof variantSelect }>;
+
+const toVariantView = (row: VariantRow): VariantView => ({
+  ...row,
+  media: row.media.map((use) => ({
+    id: use.id,
+    assetId: use.assetId,
+    position: use.position,
+    crop: toCrop(use.crop),
+    letterbox: use.letterbox,
+    altText: use.altText,
+    asset: toMediaAssetView(use.asset),
+  })),
+});
 
 export class ContentReadModel {
   constructor(private readonly base: PrismaClient) {}
@@ -205,19 +241,20 @@ export class ContentReadModel {
             version: row.version,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
-            variants: row.variants,
+            variants: row.variants.map(toVariantView),
           }
         : null;
     });
   }
 
   variant(ref: WorkspaceRef, variantId: string): Promise<VariantView | null> {
-    return withTenantTx(this.base, ref, (tx) =>
-      tx.postVariant.findFirst({
+    return withTenantTx(this.base, ref, async (tx) => {
+      const row = await tx.postVariant.findFirst({
         where: { id: variantId, workspaceId: ref.workspaceId },
         select: variantSelect,
-      }),
-    );
+      });
+      return row ? toVariantView(row) : null;
+    });
   }
 
   /** The presets first, then the custom styles of the workspace, each in their order. */

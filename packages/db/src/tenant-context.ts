@@ -14,6 +14,12 @@ export interface TenantContext {
   invitationTokenHash?: string;
 }
 
+/** The workspace a read model call is about, with its organization. */
+export interface WorkspaceRef {
+  organizationId: string;
+  workspaceId: string;
+}
+
 /** Returns the context of the current request or job, for example from AsyncLocalStorage. */
 export type TenantContextProvider = () => TenantContext | undefined;
 

@@ -2,6 +2,7 @@ import { PLATFORMS } from '@smp/platform-rules';
 import { z } from 'zod';
 
 import { localeSchema } from './locale';
+import { variantMediaSchema } from './media';
 
 // Request and response shapes of the content API (guide step 2.7): posts and their variants,
 // styles, brand voices and ideas. The composer and the settings pages use the same schemas.
@@ -59,6 +60,8 @@ export const variantSchema = z.object({
   linkUrl: z.string().nullable(),
   aiWarnings: z.array(z.string()),
   status: variantStatusSchema,
+  /** The attached media in their order, with signed thumbnails. */
+  media: z.array(variantMediaSchema),
   version,
   updatedAt: timestamp,
 });

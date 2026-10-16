@@ -5,6 +5,7 @@ import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { Test } from '@nestjs/testing';
 import {
   ProcessAsset,
+  RenderAttachedMedia,
   systemClock,
   uuidV7Ids,
   type InvitationMessage,
@@ -13,7 +14,14 @@ import {
 import { createPrismaClient, PrismaMediaUnitOfWork } from '@smp/db';
 import { createSmtpMailer, deliverEmail } from '@smp/emails';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
-import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE, parseMediaProcess, parseNotifyDispatch } from '@smp/queue';
+import {
+  MEDIA_PROCESS,
+  MEDIA_QUEUE,
+  NOTIFICATIONS_QUEUE,
+  parseMediaProcess,
+  parseMediaRender,
+  parseNotifyDispatch,
+} from '@smp/queue';
 import {
   startMailpit,
   startObjectStorage,
@@ -177,21 +185,25 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
   };
 }
 
-/** Processes media.process jobs like the worker role "media", with the real image pipeline. */
+/** Processes the media jobs like the worker role "media", with the real image pipeline. */
 function startMediaConsumer(env: ApiEnv, redis: StartedRedis): { close: () => Promise<void> } {
   const base = createPrismaClient(env.DATABASE_URL);
   const storage = new S3Storage(storageConfigOf(env));
-  const process = new ProcessAsset({
+  const deps = {
     unitOfWork: new PrismaMediaUnitOfWork(base),
     storage,
     processor: new SharpImageProcessor(),
     clock: systemClock,
     ids: uuidV7Ids,
-  });
+  };
+  const process = new ProcessAsset(deps);
+  const render = new RenderAttachedMedia(deps);
   const worker = new Worker(
     MEDIA_QUEUE,
     async (job) => {
-      await process.execute(parseMediaProcess(job.data));
+      await (job.name === MEDIA_PROCESS
+        ? process.execute(parseMediaProcess(job.data))
+        : render.execute(parseMediaRender(job.data)));
     },
     { connection: new Redis(redis.url, { maxRetriesPerRequest: null }) },
   );

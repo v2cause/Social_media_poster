@@ -54,7 +54,10 @@
     "MEDIA_TOO_LARGE": "Die Datei ist zu groß: Erlaubt sind höchstens 20 MB.",
     "STORAGE_QUOTA_EXCEEDED": "Der Medienspeicher dieses Workspace ist voll. Bitte löschen Sie Dateien, die Sie nicht mehr brauchen.",
     "MEDIA_UPLOAD_MISSING": "Die Datei ist noch nicht vollständig hochgeladen. Bitte versuchen Sie es erneut.",
-    "MEDIA_IN_USE": "Diese Datei ist an einen Beitrag angehängt. Bitte entfernen Sie sie dort zuerst."
+    "MEDIA_IN_USE": "Diese Datei ist an einen Beitrag angehängt. Bitte entfernen Sie sie dort zuerst.",
+    "MEDIA_NOT_READY": "Diese Datei wird noch verarbeitet oder wurde abgelehnt und lässt sich noch nicht anhängen.",
+    "CROP_OUT_OF_BOUNDS": "Der Zuschnitt liegt nicht vollständig im Bild. Bitte schneiden Sie erneut zu.",
+    "VARIANT_MEDIA_INVALID": "Eine Variante nimmt höchstens 20 Dateien auf, jede nur einmal."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

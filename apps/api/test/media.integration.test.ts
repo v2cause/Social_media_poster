@@ -1,5 +1,5 @@
 import { HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import type { MediaAssetDto, MediaPageDto, UploadTicketDto } from '@smp/contracts';
+import type { MediaAssetDto, MediaPageDto, PostDto, UploadTicketDto, VariantDto } from '@smp/contracts';
 import { createPrismaClient, DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from '@smp/db';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -259,5 +259,135 @@ describe('media API', () => {
     await as(editor).delete(path).expect(204);
     expect((await as(editor).get(path).expect(404)).body).toMatchObject({ code: 'MEDIA_NOT_FOUND' });
     await as(editor).delete(path).expect(404);
+  });
+
+  it('attaches media to a variant with a crop and renders them for its platform', async () => {
+    const post = (
+      await as(editor)
+        .post(`${ws}/posts`)
+        .send({ brief: 'Sommerfest', language: 'de', platforms: ['INSTAGRAM'] })
+        .expect(201)
+    ).body as PostDto;
+    const variant = post.variants[0];
+    if (!variant) {
+      throw new Error('no variant');
+    }
+    const assets: MediaAssetDto[] = [];
+    for (const name of ['links.jpg', 'rechts.jpg']) {
+      const ticket = await upload(await photo(), { fileName: name });
+      await complete(ticket.asset.id);
+      assets.push(await settled(ticket.asset.id));
+    }
+    const [cropped, whole] = assets;
+    if (!cropped || !whole) {
+      throw new Error('no assets');
+    }
+    const path = `${ws}/variants/${variant.id}/media`;
+    // 960 x 1200 is 4:5 and stays that size; the whole 1600 x 1200 photo fits Instagram as it is.
+    const crop = { x: 200, y: 0, width: 960, height: 1200 };
+
+    const attached = (
+      await as(editor)
+        .put(path)
+        .send({
+          version: variant.version,
+          items: [{ assetId: cropped.id, crop, altText: 'Das Team' }, { assetId: whole.id }],
+        })
+        .expect(200)
+    ).body as VariantDto;
+
+    expect(attached.version).toBe(variant.version + 1);
+    expect(
+      attached.media.map((use) => [use.assetId, use.position, use.crop, use.letterbox, use.altText]),
+    ).toEqual([
+      [cropped.id, 0, crop, false, 'Das Team'],
+      [whole.id, 1, null, false, null],
+    ]);
+    expect(attached.media[0]?.asset.thumbnails).toHaveLength(2);
+    expect(attached.media[0]?.asset.thumbnails[0]?.url).toContain('X-Amz-Signature=');
+    const reloaded = (await as(editor).get(`${ws}/posts/${post.id}`).expect(200)).body as PostDto;
+    expect(reloaded.variants[0]?.media.map((use) => use.assetId)).toEqual([cropped.id, whole.id]);
+
+    const system = await api?.database.connectAs('app_system');
+    try {
+      const deadline = Date.now() + 20_000;
+      let rows: {
+        asset_id: string;
+        crop_hash: string;
+        width: number;
+        height: number;
+        storage_key: string;
+      }[] = [];
+      while (rows.length < 2 && Date.now() < deadline) {
+        rows = (
+          await system?.query(
+            `SELECT asset_id, crop_hash, width, height, storage_key FROM media_rendition
+              WHERE profile = 'instagram_feed' AND asset_id = ANY($1) ORDER BY width, height DESC`,
+            [[cropped.id, whole.id]],
+          )
+        )?.rows as typeof rows;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      expect(rows.map((row) => [row.asset_id, row.crop_hash, row.width, row.height])).toEqual([
+        [cropped.id, 'x200y0w960h1200', 960, 1200],
+        [whole.id, 'full', 1080, 810],
+      ]);
+      for (const row of rows) {
+        expect(await objectExists(row.storage_key)).toBe(true);
+      }
+    } finally {
+      await system?.end();
+    }
+
+    // Stale version, crop outside the image, the same asset twice, an asset still waiting.
+    expect(
+      (await as(editor).put(path).send({ version: variant.version, items: [] }).expect(409)).body,
+    ).toMatchObject({
+      code: 'VERSION_CONFLICT',
+    });
+    const current = attached.version;
+    expect(
+      (
+        await as(editor)
+          .put(path)
+          .send({
+            version: current,
+            items: [{ assetId: whole.id, crop: { x: 1000, y: 0, width: 1000, height: 100 } }],
+          })
+          .expect(422)
+      ).body,
+    ).toMatchObject({ code: 'CROP_OUT_OF_BOUNDS' });
+    expect(
+      (
+        await as(editor)
+          .put(path)
+          .send({ version: current, items: [{ assetId: whole.id }, { assetId: whole.id }] })
+          .expect(400)
+      ).body,
+    ).toMatchObject({ code: 'VALIDATION_FAILED' });
+    const waiting = (
+      await as(editor)
+        .post(`${ws}/media/uploads`)
+        .send({ fileName: 'later.jpg', mimeType: 'image/jpeg', size: 1000 })
+        .expect(201)
+    ).body as UploadTicketDto;
+    expect(
+      (
+        await as(editor)
+          .put(path)
+          .send({ version: current, items: [{ assetId: waiting.asset.id }] })
+          .expect(409)
+      ).body,
+    ).toMatchObject({ code: 'MEDIA_NOT_READY' });
+    await as(viewer).put(path).send({ version: current, items: [] }).expect(403);
+
+    // Media in use stay in the library until the variant lets them go.
+    expect((await as(editor).delete(`${ws}/media/${cropped.id}`).expect(409)).body).toMatchObject({
+      code: 'MEDIA_IN_USE',
+    });
+    const used = (await as(editor).get(`${ws}/media?usage=used`).expect(200)).body as MediaPageDto;
+    expect(used.assets.map(({ id }) => id).sort()).toEqual([cropped.id, whole.id].sort());
+    await as(editor).put(path).send({ version: current, items: [] }).expect(200);
+    await as(editor).delete(`${ws}/media/${cropped.id}`).expect(204);
   });
 });

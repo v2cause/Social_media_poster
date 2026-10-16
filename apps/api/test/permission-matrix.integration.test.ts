@@ -16,7 +16,7 @@ import { signIn, type Browser } from './support/browser';
 const SEED_PASSWORD = 'seed-password-for-the-matrix-test';
 
 interface Endpoint {
-  method: 'get' | 'post' | 'patch' | 'delete';
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete';
   /** The route as RouteAccessCheck lists it. */
   route: string;
   permission: Permission;
@@ -244,6 +244,13 @@ const ENDPOINTS: Endpoint[] = [
       action: 'shorter',
       current: { text: 'A text.', hashtags: [], firstComment: null },
     }),
+  },
+  {
+    method: 'put',
+    route: '/api/w/:ws/variants/:variantId/media',
+    permission: 'post.write',
+    path: (i) => `/api/w/${i.slug}/variants/${unknownId}/media`,
+    body: () => ({ version: 0, items: [] }),
   },
   {
     method: 'post',

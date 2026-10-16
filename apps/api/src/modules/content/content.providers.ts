@@ -11,6 +11,7 @@ import {
   GenerateVariants,
   QuotaService,
   RefineVariant,
+  SetVariantMedia,
   systemClock,
   TestBrandVoice,
   UpdateBrandVoice,
@@ -27,10 +28,12 @@ import {
   ContentReadModel,
   PrismaAiGenerationLog,
   PrismaContentUnitOfWork,
+  PrismaMediaUnitOfWork,
   PrismaPriceCatalog,
   PrismaQuotaStore,
   type PrismaClient,
 } from '@smp/db';
+import { MediaProducer } from '@smp/queue';
 
 import { RequestOriginService } from '../../common/cls/tenant-context';
 import type { ApiEnv } from '../../config/api-env';
@@ -125,6 +128,17 @@ export const contentProviders: Provider[] = [
     provide: CONTENT_READ_MODEL,
     inject: [DATABASE_CLIENT],
     useFactory: (base: PrismaClient) => new ContentReadModel(base),
+  },
+  {
+    // The media of a variant belong to the media context; the route sits with the variant.
+    provide: SetVariantMedia,
+    inject: [DATABASE_CLIENT, RequestOriginService, MediaProducer],
+    useFactory: (base: PrismaClient, origin: RequestOriginService, jobs: MediaProducer) =>
+      new SetVariantMedia({
+        unitOfWork: new PrismaMediaUnitOfWork(base, () => origin.get()),
+        jobs,
+        ids: uuidV7Ids,
+      }),
   },
   { provide: AI_RATE_LIMITS, useValue: DEFAULT_AI_RATE_LIMITS },
   AiRateLimiter,

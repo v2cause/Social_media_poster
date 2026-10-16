@@ -8,6 +8,7 @@ export {
   type TenantContext,
   type TenantContextProvider,
   type TenantTransaction,
+  type WorkspaceRef,
 } from './tenant-context';
 export { createTenantClient, type TenantClientOptions, type TenantPrismaClient } from './tenant-extension';
 export { TENANT_FILTERS, TenantFilterMissingError } from './assert-tenant-filter.extension';
@@ -39,8 +40,8 @@ export {
   type PostSummaryView,
   type PostView,
   type StyleView,
+  type VariantMediaView,
   type VariantView,
-  type WorkspaceRef,
 } from './content/content-read-model';
 export { PrismaAiGenerationLog } from './ai/prisma-ai-generation-log';
 export { PrismaMediaUnitOfWork } from './media/prisma-media-unit-of-work';

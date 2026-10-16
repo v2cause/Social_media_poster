@@ -2,9 +2,8 @@ import { FULL_IMAGE, THUMBNAIL_PROFILES, type MediaRejectReason, type MediaStatu
 import { z } from 'zod';
 
 import { InvalidCursorError } from '../audit/audit-log-read-model';
-import type { WorkspaceRef } from '../content/content-read-model';
 import type { Prisma, PrismaClient } from '../generated/prisma/client';
-import { withTenantTx } from '../tenant-context';
+import { withTenantTx, type WorkspaceRef } from '../tenant-context';
 import { toRejectReason } from './mappers';
 
 // The read side of the media context (guide step 3.3): what the library and the composer show.
@@ -54,7 +53,8 @@ function decodeCursor(value: string): Cursor {
   }
 }
 
-const assetInclude = {
+/** What a view of an asset needs; the content read model uses it for the media of variants. */
+export const mediaAssetInclude = {
   renditions: {
     where: { profile: { in: [...THUMBNAIL_PROFILES] }, cropHash: FULL_IMAGE },
     select: { width: true, height: true, storageKey: true },
@@ -63,9 +63,9 @@ const assetInclude = {
   _count: { select: { postMedia: true } },
 } as const satisfies Prisma.MediaAssetInclude;
 
-type AssetRow = Prisma.MediaAssetGetPayload<{ include: typeof assetInclude }>;
+type AssetRow = Prisma.MediaAssetGetPayload<{ include: typeof mediaAssetInclude }>;
 
-const toView = (row: AssetRow): MediaAssetView => ({
+export const toMediaAssetView = (row: AssetRow): MediaAssetView => ({
   id: row.id,
   status: row.status,
   fileName: row.fileName,
@@ -116,12 +116,12 @@ export class MediaReadModel {
         },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: page.limit + 1,
-        include: assetInclude,
+        include: mediaAssetInclude,
       });
       const assets = rows.slice(0, page.limit);
       const last = assets.at(-1);
       return {
-        assets: assets.map(toView),
+        assets: assets.map(toMediaAssetView),
         nextCursor:
           rows.length > page.limit && last
             ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
@@ -135,9 +135,9 @@ export class MediaReadModel {
     return withTenantTx(this.base, ref, async (tx) => {
       const row = await tx.mediaAsset.findFirst({
         where: { id: assetId, workspaceId: ref.workspaceId, deletedAt: null },
-        include: assetInclude,
+        include: mediaAssetInclude,
       });
-      return row ? toView(row) : null;
+      return row ? toMediaAssetView(row) : null;
     });
   }
 }

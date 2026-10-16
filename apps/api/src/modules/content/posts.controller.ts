@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -16,21 +17,25 @@ import {
   CreatePost,
   DeletePost,
   PostNotFoundError,
+  SetVariantMedia,
   UpdatePost,
   UpdateVariant,
   VariantNotFoundError,
   type ContentActor,
+  type StoragePort,
 } from '@smp/core';
 import type { ContentReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
 
 import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
+import { MEDIA_STORAGE } from '../../infrastructure/clients.module';
 import {
   CreatePostDto,
   PostDto,
   PostListQueryDto,
   PostPageDto,
+  SetVariantMediaDto,
   UpdatePostDto,
   UpdateVariantDto,
   VariantDto,
@@ -47,6 +52,7 @@ const id = new ParseUUIDPipe();
 export class PostsController {
   constructor(
     @Inject(CONTENT_READ_MODEL) private readonly readModel: ContentReadModel,
+    @Inject(MEDIA_STORAGE) private readonly storage: StoragePort,
     private readonly createPost: CreatePost,
     private readonly updatePost: UpdatePost,
     private readonly deletePost: DeletePost,
@@ -116,18 +122,20 @@ export class PostsController {
     if (!post) {
       throw new PostNotFoundError();
     }
-    return toPostDto(post);
+    return toPostDto(post, this.storage);
   }
 }
 
-/** The editor saves one variant at a time, with optimistic locking. */
+/** The editor saves one variant at a time, text and media, with optimistic locking. */
 @ApiTags('posts')
 @WorkspaceScope()
 @Controller('w/:ws/variants')
 export class VariantsController {
   constructor(
     @Inject(CONTENT_READ_MODEL) private readonly readModel: ContentReadModel,
+    @Inject(MEDIA_STORAGE) private readonly storage: StoragePort,
     private readonly updateVariant: UpdateVariant,
+    private readonly setVariantMedia: SetVariantMedia,
   ) {}
 
   @Patch(':variantId')
@@ -141,10 +149,31 @@ export class VariantsController {
     const actor = actorOf(access);
     const { version, ...patch } = body;
     await this.updateVariant.execute({ actor, variantId, version, patch });
+    return this.load(actor, variantId);
+  }
+
+  /**
+   * Replaces the media of the variant (guide step 3.4). Queues the renditions for its platform;
+   * crop and letterbox are kept per use.
+   */
+  @Put(':variantId/media')
+  @RequirePermission('post.write')
+  @ZodResponse({ type: VariantDto })
+  async setMedia(
+    @Access() access: RequestAccess,
+    @Param('variantId', id) variantId: string,
+    @Body() body: SetVariantMediaDto,
+  ): Promise<VariantDto> {
+    const actor = actorOf(access);
+    await this.setVariantMedia.execute({ actor, variantId, version: body.version, items: body.items });
+    return this.load(actor, variantId);
+  }
+
+  private async load(actor: ContentActor, variantId: string): Promise<VariantDto> {
     const variant = await this.readModel.variant(refOf(actor), variantId);
     if (!variant) {
       throw new VariantNotFoundError();
     }
-    return toVariantDto(variant);
+    return toVariantDto(variant, this.storage);
   }
 }

@@ -1,10 +1,12 @@
-import { WorkspaceNotFoundError, type ContentActor } from '@smp/core';
+import { WorkspaceNotFoundError, type ContentActor, type StoragePort } from '@smp/core';
 import type { BrandVoiceView, IdeaView, PostView, VariantView } from '@smp/db';
 
 import type { RequestAccess } from '../../common/guards/request-access';
+import { toMediaAssetDto } from '../media/media.mappers';
 import type { BrandVoiceDto, IdeaDto, PostDto, VariantDto } from './content.dto';
 
-// Views of the read model to the response DTOs: timestamps as ISO strings.
+// Views of the read model to the response DTOs: timestamps as ISO strings, the media of variants
+// with thumbnails behind signed URLs.
 
 /** The acting member of a /w/:ws route. */
 export function actorOf(access: RequestAccess): ContentActor {
@@ -24,16 +26,19 @@ export const refOf = (actor: ContentActor) => ({
   workspaceId: actor.workspaceId,
 });
 
-export const toVariantDto = (view: VariantView): VariantDto => ({
+export const toVariantDto = async (view: VariantView, storage: StoragePort): Promise<VariantDto> => ({
   ...view,
+  media: await Promise.all(
+    view.media.map(async (use) => ({ ...use, asset: await toMediaAssetDto(use.asset, storage) })),
+  ),
   updatedAt: view.updatedAt.toISOString(),
 });
 
-export const toPostDto = (view: PostView): PostDto => ({
+export const toPostDto = async (view: PostView, storage: StoragePort): Promise<PostDto> => ({
   ...view,
   createdAt: view.createdAt.toISOString(),
   updatedAt: view.updatedAt.toISOString(),
-  variants: view.variants.map(toVariantDto),
+  variants: await Promise.all(view.variants.map((variant) => toVariantDto(variant, storage))),
 });
 
 export const toBrandVoiceDto = (view: BrandVoiceView): BrandVoiceDto => ({

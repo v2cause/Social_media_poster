@@ -107,3 +107,51 @@ export const updateMediaSchema = z.object({
   altText: z.string().max(ALT_TEXT_MAX_LENGTH).nullable(),
 });
 export type UpdateMediaRequest = z.input<typeof updateMediaSchema>;
+
+// --- Media of a variant -------------------------------------------------------------------------
+
+/** The most media one variant holds; LinkedIn takes the most with 20 images. */
+export const MAX_VARIANT_MEDIA = 20;
+
+/** A region in pixels of the image as it is shown, after its EXIF orientation. */
+export const cropSchema = z.object({
+  x: z.number().int().min(0),
+  y: z.number().int().min(0),
+  width: z.number().int().min(1),
+  height: z.number().int().min(1),
+});
+export type CropDto = z.infer<typeof cropSchema>;
+
+/** An asset in a variant: its place, crop, letterbox and alt text for this use. */
+export const variantMediaSchema = z.object({
+  id,
+  assetId: id,
+  position: z.number().int(),
+  crop: cropSchema.nullable(),
+  /** White bars instead of a crop where the image does not fit the aspect ratio of the platform. */
+  letterbox: z.boolean(),
+  /** The alt text of this use; null takes the one of the asset. */
+  altText: z.string().nullable(),
+  asset: mediaAssetSchema,
+});
+export type VariantMediaDto = z.infer<typeof variantMediaSchema>;
+
+export const setVariantMediaSchema = z.object({
+  /** The version of the variant the client last read (409 when it is stale). */
+  version,
+  /** All media of the variant in their order; an empty list removes them. */
+  items: z
+    .array(
+      z.object({
+        assetId: id,
+        crop: cropSchema.nullable().default(null),
+        letterbox: z.boolean().default(false),
+        altText: z.string().max(ALT_TEXT_MAX_LENGTH).nullable().default(null),
+      }),
+    )
+    .max(MAX_VARIANT_MEDIA)
+    .refine((items) => new Set(items.map((item) => item.assetId)).size === items.length, {
+      message: 'duplicate_media',
+    }),
+});
+export type SetVariantMediaRequest = z.input<typeof setVariantMediaSchema>;

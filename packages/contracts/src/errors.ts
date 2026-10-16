@@ -54,6 +54,9 @@ export const ERROR_CODES = [
   'STORAGE_QUOTA_EXCEEDED',
   'MEDIA_UPLOAD_MISSING',
   'MEDIA_IN_USE',
+  'MEDIA_NOT_READY',
+  'CROP_OUT_OF_BOUNDS',
+  'VARIANT_MEDIA_INVALID',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
