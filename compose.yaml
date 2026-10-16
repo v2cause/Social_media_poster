@@ -176,7 +176,8 @@ services:
       DATABASE_SYSTEM_URL: postgresql://app_system:${APP_SYSTEM_PASSWORD:?set APP_SYSTEM_PASSWORD in .env}@postgres:5432/smp
       REDIS_URL: redis://redis:6379
       SMTP_URL: smtp://mailpit:1025
-      # The role "media" reads uploads and writes thumbnails; it never signs URLs for the browser.
+      # The role "media" reads uploads and writes renditions. The role "publisher" signs the URLs
+      # of renditions for the platforms with S3_PUBLIC_ENDPOINT, which they must be able to reach.
       S3_ENDPOINT: http://s3:8333
     ports:
       - '127.0.0.1:3002:3002'

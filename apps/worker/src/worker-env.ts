@@ -1,6 +1,7 @@
 import { dbEnvSchema } from '@smp/db';
 import { storageEnvSchema } from '@smp/media';
 import { observabilityEnvSchema } from '@smp/observability';
+import { platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
 export const workerEnvSchema = z
@@ -18,12 +19,20 @@ export const workerEnvSchema = z
     TOKEN_KEK_ACTIVE: z.string().optional(),
     SESSION_KEKS: z.string().optional(),
     SESSION_KEK_ACTIVE: z.string().optional(),
+    // The role "publisher" (guide step 4.8): publish jobs at once per process; the BullMQ lock of
+    // a running job, renewed while it runs, after which a stopped worker's job is taken over; and
+    // the lease of a run in the database (5 minutes, architecture 7).
+    PUBLISH_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(5),
+    PUBLISH_LOCK_MS: z.coerce.number().int().min(1_000).max(600_000).default(30_000),
+    PUBLISH_LEASE_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(300_000),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true }).shape)
   // Needed by the role "scheduler" for its scans across workspaces (app_system).
   .extend(dbEnvSchema.pick({ DATABASE_SYSTEM_URL: true }).partial().shape)
-  // Needed by the role "media" only; WorkerModule checks them when that role is active.
+  // Needed by the roles "media" and "publisher"; WorkerModule checks them when one is active.
   .extend(storageEnvSchema.partial().shape)
+  // Mock or live per platform and PUBLISH_DRY_RUN, for the role "publisher".
+  .extend(platformEnvSchema.shape)
   .extend(observabilityEnvSchema.shape);
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;

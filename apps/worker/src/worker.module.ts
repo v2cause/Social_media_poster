@@ -13,21 +13,24 @@ import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@s
 import { createSmtpMailer } from '@smp/emails';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
 import { createLogger } from '@smp/observability';
-import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE, SCHEDULER_QUEUE } from '@smp/queue';
+import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE, PUBLISH_QUEUE, SCHEDULER_QUEUE } from '@smp/queue';
 import Redis from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 
 import { HealthServer } from './health/health.server';
+import { publisherPipeline } from './infrastructure/publisher.providers';
 import { schedulerTicks } from './infrastructure/scheduler.providers';
 import { MediaProcessor } from './processors/media.processor';
 import { NotifyProcessor } from './processors/notify.processor';
 import { SchedulerProcessor } from './processors/scheduler.processor';
+import { PublishWorker } from './publisher/publish-worker';
 import type { WorkerRole } from './roles';
 import type { WorkerEnv } from './worker-env';
 import { MAIL_PORT, PROCESS_ASSET, RENDER_ATTACHED_MEDIA, WORKER_ENV } from './worker.tokens';
 
 interface RoleWiring {
   queue: string;
+  /** The @Processor of the queue, or a provider that runs its own BullMQ worker. */
   processor: Type<unknown>;
   /** Adapters only this role needs. */
   providers?: (env: WorkerEnv) => Provider[];
@@ -98,6 +101,7 @@ function mediaPipeline(env: WorkerEnv): Provider[] {
 // Processors per role. A role without an entry starts no processors yet.
 const WIRING_BY_ROLE: Partial<Record<WorkerRole, RoleWiring>> = {
   scheduler: { queue: SCHEDULER_QUEUE, processor: SchedulerProcessor, providers: schedulerTicks },
+  publisher: { queue: PUBLISH_QUEUE, processor: PublishWorker, providers: publisherPipeline },
   media: { queue: MEDIA_QUEUE, processor: MediaProcessor, providers: mediaPipeline },
   notify: { queue: NOTIFICATIONS_QUEUE, processor: NotifyProcessor, providers: smtpMailer },
 };

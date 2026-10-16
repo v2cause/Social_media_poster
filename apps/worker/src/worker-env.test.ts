@@ -18,6 +18,18 @@ describe('loadWorkerEnv', () => {
     expect(env.TOKEN_KEKS).toBeUndefined();
   });
 
+  it('applies the defaults of the publisher', () => {
+    expect(loadWorkerEnv(validEnv)).toMatchObject({
+      PUBLISH_CONCURRENCY: 5,
+      PUBLISH_LOCK_MS: 30_000,
+      PUBLISH_LEASE_MS: 300_000,
+      PLATFORM_MODE_LINKEDIN: 'mock',
+      PLATFORM_MODE_META: 'mock',
+      PLATFORM_MODE_X: 'mock',
+      PUBLISH_DRY_RUN: false,
+    });
+  });
+
   it('reads numeric settings from their string form', () => {
     const env = loadWorkerEnv({ ...validEnv, SCHEDULER_TICK_MS: '2000', WORKER_HEALTH_PORT: '4100' });
 

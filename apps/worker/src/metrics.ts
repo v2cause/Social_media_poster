@@ -10,3 +10,10 @@ export const jobsTotal = new Counter({
   labelNames: ['queue', 'status'] as const,
   registers: [metricsRegistry],
 });
+
+/** Publish jobs that failed for good; the alarm "dead-letter queue not empty" watches it. */
+export const publishDeadLettersTotal = new Counter({
+  name: 'smp_worker_publish_dead_letters_total',
+  help: 'Publish jobs that failed for good and went to the dead-letter queue',
+  registers: [metricsRegistry],
+});
