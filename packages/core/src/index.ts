@@ -232,5 +232,62 @@ export {
   UpdateWorkspaceSettings,
   type UpdateWorkspaceSettingsInput,
 } from './tenancy/application/update-workspace-settings';
+export {
+  MEDIA_REJECT_REASONS,
+  MEDIA_STATUSES,
+  type MediaAsset,
+  type MediaRejectReason,
+  type MediaRendition,
+  type MediaStatus,
+  type ProcessedAsset,
+} from './media/domain/types';
+export {
+  canWriteMedia,
+  displayFileName,
+  FULL_IMAGE,
+  isUploadMimeType,
+  MAX_INPUT_PIXELS,
+  MAX_UPLOAD_BYTES,
+  READ_URL_SECONDS,
+  THUMBNAIL_WIDTHS,
+  thumbnailProfile,
+  UPLOAD_MIME_TYPES,
+  UPLOAD_URL_SECONDS,
+  type UploadMimeType,
+} from './media/domain/rules';
+export {
+  ImageRejectedError,
+  MediaInUseError,
+  MediaNotFoundError,
+  MediaTooLargeError,
+  MediaTypeNotAllowedError,
+  StorageQuotaExceededError,
+  UploadMissingError,
+} from './media/domain/errors';
+export { sniffImageType, type SniffedImageType } from './media/domain/file-signature';
 export { assetPrefix, originalKey, renditionKey } from './media/domain/storage-keys';
 export type { PresignedUpload, StoragePort, StoredObject } from './media/ports/storage';
+export type { EncodedImage, EncodeOptions, ImageInfo, ImageProcessor } from './media/ports/image-processor';
+export type { MediaJob, MediaJobs } from './media/ports/media-jobs';
+export type {
+  MediaAssetRepository,
+  MediaRenditionRepository,
+  MediaScope,
+  MediaStore,
+  MediaUnitOfWork,
+} from './media/ports/media-store';
+export {
+  assertCanWriteMedia,
+  mediaScopeOf,
+  type MediaDependencies,
+  type MediaLimits,
+} from './media/application/dependencies';
+export {
+  RequestUpload,
+  type RequestUploadInput,
+  type UploadTicket,
+} from './media/application/request-upload';
+export { CompleteUpload, type CompleteUploadInput } from './media/application/complete-upload';
+export { ProcessAsset, type ProcessOutcome } from './media/application/process-asset';
+export { UpdateMediaAltText, type UpdateMediaAltTextInput } from './media/application/update-media';
+export { DeleteMedia, type DeleteMediaInput } from './media/application/delete-media';
