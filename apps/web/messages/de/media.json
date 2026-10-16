@@ -70,7 +70,6 @@
     "title": "Medien",
     "add": "Medien hinzufügen",
     "empty": "An dieser Variante hängen noch keine Medien.",
-    "saveFirst": "Medien lassen sich anhängen, sobald der Beitrag gespeichert ist.",
     "remove": "Entfernen",
     "crop": "Zuschneiden",
     "cropped": "Zugeschnitten",
@@ -78,7 +77,15 @@
     "moveBack": "Nach vorne",
     "moveForward": "Nach hinten",
     "position": "Bild {position} von {count}",
-    "dragHint": "Zum Sortieren ziehen oder mit Leertaste und Pfeiltasten verschieben."
+    "dragHint": "Zum Sortieren ziehen oder mit Leertaste und Pfeiltasten verschieben.",
+    "dragStart": "Bild {position} aufgenommen.",
+    "dragOver": "Über Position {position}.",
+    "dragEnd": "Bild an Position {position} abgelegt.",
+    "dragCancel": "Verschieben abgebrochen.",
+    "select": "Bild {position} auswählen",
+    "needsCrop": "Passt nicht zum Seitenverhältnis der Plattform: bitte zuschneiden oder Ränder wählen.",
+    "dragHandle": "Bild {position} verschieben",
+    "libraryAltText": "Leer gelassen, gilt der Alt-Text aus der Bibliothek: {text}"
   },
   "picker": {
     "title": "Medien hinzufügen",

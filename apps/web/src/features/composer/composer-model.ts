@@ -1,8 +1,27 @@
-import type { GeneratedVariantDto, Locale, PostDto, VariantDto } from '@smp/contracts';
+import type {
+  CropDto,
+  GeneratedVariantDto,
+  Locale,
+  MediaAssetDto,
+  PostDto,
+  VariantDto,
+} from '@smp/contracts';
 import type { Platform } from '@smp/platform-rules';
 
 // The state of the composer (guide step 2.8) as a reducer, so the rules are testable without a
 // browser: what is dirty and must be saved, and which variants a generation may overwrite.
+// The media of a variant (guide step 3.6) have their own revision: text and media are saved with
+// separate requests, but by the same saver and with the same version of the variant.
+
+/** An asset in a variant, with crop, letterbox and alt text of this use. */
+export interface DraftMedia {
+  assetId: string;
+  crop: CropDto | null;
+  letterbox: boolean;
+  /** The alt text of this use; null takes the one of the asset. */
+  altText: string | null;
+  asset: MediaAssetDto;
+}
 
 export interface DraftVariant {
   id: string;
@@ -19,6 +38,9 @@ export interface DraftVariant {
   savedRevision: number;
   /** The user typed in it since the AI last filled it: generations leave it alone. */
   edited: boolean;
+  media: DraftMedia[];
+  mediaRevision: number;
+  savedMediaRevision: number;
   /** What the server found in the last generated text, until the text changes. */
   check: { forbiddenWords: string[]; autoShortened: boolean } | null;
 }
@@ -53,6 +75,8 @@ export type ComposerAction =
       patch: Partial<Pick<DraftVariant, 'text' | 'hashtags' | 'firstComment' | 'aiWarnings'>>;
     }
   | { type: 'variant-saved'; variant: VariantDto; revision: number }
+  | { type: 'media-changed'; variantId: string; media: DraftMedia[] }
+  | { type: 'media-saved'; variant: VariantDto; mediaRevision: number }
   | { type: 'variant-version'; variantId: string; version: number }
   | { type: 'generation-started'; variantIds: readonly string[] }
   | { type: 'generated'; variants: readonly GeneratedVariantDto[] }
@@ -60,7 +84,11 @@ export type ComposerAction =
   | { type: 'activated'; variantId: string };
 
 export const isPostDirty = (state: ComposerState): boolean => state.revision !== state.savedRevision;
-export const isVariantDirty = (variant: DraftVariant): boolean => variant.revision !== variant.savedRevision;
+export const isTextDirty = (variant: DraftVariant): boolean => variant.revision !== variant.savedRevision;
+export const isMediaDirty = (variant: DraftVariant): boolean =>
+  variant.mediaRevision !== variant.savedMediaRevision;
+export const isVariantDirty = (variant: DraftVariant): boolean =>
+  isTextDirty(variant) || isMediaDirty(variant);
 export const isDirty = (state: ComposerState): boolean =>
   isPostDirty(state) || state.variants.some(isVariantDirty);
 
@@ -71,6 +99,17 @@ export const readyToCreate = (state: ComposerState): boolean =>
 /** Local changes the auto-save has not stored yet; a new post counts once it can be created. */
 export const hasUnsavedChanges = (state: ComposerState): boolean =>
   isDirty(state) && (state.postId !== null || readyToCreate(state));
+
+const toDraftMedia = (variant: VariantDto): DraftMedia[] =>
+  [...variant.media]
+    .sort((a, b) => a.position - b.position)
+    .map((use) => ({
+      assetId: use.assetId,
+      crop: use.crop,
+      letterbox: use.letterbox,
+      altText: use.altText,
+      asset: use.asset,
+    }));
 
 const toDraft = (variant: VariantDto): DraftVariant => ({
   id: variant.id,
@@ -85,6 +124,9 @@ const toDraft = (variant: VariantDto): DraftVariant => ({
   savedRevision: 0,
   edited: false,
   check: null,
+  media: toDraftMedia(variant),
+  mediaRevision: 0,
+  savedMediaRevision: 0,
 });
 
 const byTarget = (a: { targetKey: string }, b: { targetKey: string }): number =>
@@ -186,6 +228,20 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         ...variant,
         version: action.variant.version,
         savedRevision: Math.max(variant.savedRevision, action.revision),
+      }));
+    case 'media-changed':
+      return updateVariant(state, action.variantId, (variant) => ({
+        ...variant,
+        media: action.media,
+        mediaRevision: variant.mediaRevision + 1,
+      }));
+    case 'media-saved':
+      return updateVariant(state, action.variant.id, (variant) => ({
+        ...variant,
+        version: action.variant.version,
+        savedMediaRevision: Math.max(variant.savedMediaRevision, action.mediaRevision),
+        // Fresh thumbnail URLs, unless the user changed the media again meanwhile.
+        media: variant.mediaRevision === action.mediaRevision ? toDraftMedia(action.variant) : variant.media,
       }));
     case 'variant-version':
       return updateVariant(state, action.variantId, (variant) => ({ ...variant, version: action.version }));

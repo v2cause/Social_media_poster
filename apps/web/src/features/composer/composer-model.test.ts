@@ -1,13 +1,16 @@
-import type { GeneratedVariantDto, PostDto } from '@smp/contracts';
+import type { GeneratedVariantDto, MediaAssetDto, PostDto, VariantDto } from '@smp/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
   composerReducer,
   initialState,
   isDirty,
+  isMediaDirty,
   isPostDirty,
+  isTextDirty,
   skippedResults,
   type ComposerState,
+  type DraftMedia,
 } from './composer-model';
 
 const post: PostDto = {
@@ -165,5 +168,73 @@ describe('composerReducer', () => {
       ['v-instagram', ''],
     ]);
     expect(state.activeVariantId).toBe('v-linkedin');
+  });
+
+  it('saves media apart from the text and takes fresh thumbnails only for the saved revision', () => {
+    const asset = (id: string, url: string): MediaAssetDto => ({
+      id,
+      status: 'READY',
+      fileName: `${id}.jpg`,
+      mimeType: 'image/jpeg',
+      sizeBytes: 1000,
+      width: 1600,
+      height: 1200,
+      rejectReason: null,
+      altText: null,
+      usageCount: 0,
+      thumbnails: [{ width: 320, height: 240, url }],
+      version: 2,
+      createdAt: '2026-10-16T10:00:00.000Z',
+      updatedAt: '2026-10-16T10:00:00.000Z',
+    });
+    const media = (id: string): DraftMedia => ({
+      assetId: id,
+      crop: null,
+      letterbox: false,
+      altText: null,
+      asset: asset(id, `https://storage.test/${id}?old`),
+    });
+    let state = composerReducer(loaded(), { type: 'media-changed', variantId: 'v-x', media: [media('a')] });
+    const x = () => {
+      const variant = state.variants.find((candidate) => candidate.id === 'v-x');
+      if (!variant) {
+        throw new Error('missing variant');
+      }
+      return variant;
+    };
+    expect(x()).toMatchObject({ mediaRevision: 1, savedMediaRevision: 0 });
+    expect(isMediaDirty(x())).toBe(true);
+    expect(isTextDirty(x())).toBe(false);
+
+    // The server answers with fresh signed URLs and the next version of the variant.
+    const saved = (urlSuffix: string): VariantDto => ({
+      ...(post.variants[0] as VariantDto),
+      version: 1,
+      media: [
+        {
+          id: 'use-a',
+          assetId: 'a',
+          position: 0,
+          crop: null,
+          letterbox: false,
+          altText: null,
+          asset: asset('a', `https://storage.test/a?${urlSuffix}`),
+        },
+      ],
+    });
+    state = composerReducer(state, { type: 'media-saved', variant: saved('fresh'), mediaRevision: 1 });
+    expect(x()).toMatchObject({ version: 1, savedMediaRevision: 1 });
+    expect(x().media[0]?.asset.thumbnails[0]?.url).toBe('https://storage.test/a?fresh');
+    expect(isDirty(state)).toBe(false);
+
+    // A change while the save runs stays local.
+    state = composerReducer(state, {
+      type: 'media-changed',
+      variantId: 'v-x',
+      media: [media('a'), media('b')],
+    });
+    state = composerReducer(state, { type: 'media-saved', variant: saved('late'), mediaRevision: 1 });
+    expect(x().media.map((item) => item.assetId)).toEqual(['a', 'b']);
+    expect(isMediaDirty(x())).toBe(true);
   });
 });

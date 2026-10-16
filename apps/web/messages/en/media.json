@@ -70,7 +70,6 @@
     "title": "Media",
     "add": "Add media",
     "empty": "No media are attached to this variant yet.",
-    "saveFirst": "Media can be attached once the post is saved.",
     "remove": "Remove",
     "crop": "Crop",
     "cropped": "Cropped",
@@ -78,7 +77,15 @@
     "moveBack": "Move back",
     "moveForward": "Move forward",
     "position": "Image {position} of {count}",
-    "dragHint": "Drag to sort, or move with the space bar and the arrow keys."
+    "dragHint": "Drag to sort, or move with the space bar and the arrow keys.",
+    "dragStart": "Picked up image {position}.",
+    "dragOver": "Over position {position}.",
+    "dragEnd": "Dropped the image at position {position}.",
+    "dragCancel": "Moving canceled.",
+    "select": "Select image {position}",
+    "needsCrop": "Does not fit the aspect ratio of the platform: please crop or choose bars.",
+    "dragHandle": "Move image {position}",
+    "libraryAltText": "Left empty, the alt text from the library applies: {text}"
   },
   "picker": {
     "title": "Add media",

@@ -3,10 +3,12 @@
 import {
   ApiError,
   getIdeasListQueryKey,
+  getMediaListQueryKey,
   getPostsListQueryKey,
   postsCreate,
   postsGet,
   postsUpdate,
+  variantsSetMedia,
   variantsUpdate,
 } from '@smp/api-client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,7 +17,9 @@ import { useCallback, useEffect, useRef, useState, type Dispatch } from 'react';
 import {
   composerReducer,
   hasUnsavedChanges,
+  isMediaDirty,
   isPostDirty,
+  isTextDirty,
   isVariantDirty,
   readyToCreate,
   type ComposerAction,
@@ -24,7 +28,8 @@ import {
 
 // Auto-save of the composer (guide step 2.8): a short pause after the last change saves the post
 // and every changed variant, one request after the other, each with the version it read. A 409
-// stops saving until the user chooses to reload or to overwrite.
+// stops saving until the user chooses to reload or to overwrite. The media of a variant go in a
+// request of their own after its text (guide step 3.6), with the version the text save returned.
 
 const DELAY_MS = 800;
 
@@ -109,22 +114,45 @@ export function useComposerSaver(options: {
           window.history.replaceState(null, '', `/w/${ws}/posts/${saved.id}`);
         }
       }
+      // The version as the previous request of this round left it.
+      const versionOf = (variantId: string): number =>
+        stateRef.current.variants.find((candidate) => candidate.id === variantId)?.version ?? 0;
+      let mediaSaved = false;
       for (const variant of dirtyVariants) {
         attempt = { kind: 'variant', variantId: variant.id };
-        const saved = await variantsUpdate(ws, variant.id, {
-          version: variant.version,
-          text: variant.text,
-          hashtags: variant.hashtags,
-          firstComment: variant.firstComment,
-          aiWarnings: variant.aiWarnings,
-        });
-        apply({ type: 'variant-saved', variant: saved, revision: variant.revision });
+        if (isTextDirty(variant)) {
+          const saved = await variantsUpdate(ws, variant.id, {
+            version: versionOf(variant.id),
+            text: variant.text,
+            hashtags: variant.hashtags,
+            firstComment: variant.firstComment,
+            aiWarnings: variant.aiWarnings,
+          });
+          apply({ type: 'variant-saved', variant: saved, revision: variant.revision });
+        }
+        if (isMediaDirty(variant)) {
+          const saved = await variantsSetMedia(ws, variant.id, {
+            version: versionOf(variant.id),
+            items: variant.media.map((item) => ({
+              assetId: item.assetId,
+              crop: item.crop,
+              letterbox: item.letterbox,
+              altText: item.altText,
+            })),
+          });
+          apply({ type: 'media-saved', variant: saved, mediaRevision: variant.mediaRevision });
+          mediaSaved = true;
+        }
       }
       setStatus({ saving: false, savedAt: new Date(), failed: false, conflict: null });
       // The post list shows the change; a post from an idea has used the idea up.
       void queryClient.invalidateQueries({ queryKey: getPostsListQueryKey(ws) });
       if (postId === null && current.post.ideaId !== null) {
         void queryClient.invalidateQueries({ queryKey: getIdeasListQueryKey(ws) });
+      }
+      // The library counts the uses of every asset.
+      if (mediaSaved) {
+        void queryClient.invalidateQueries({ queryKey: getMediaListQueryKey(ws) });
       }
       return stateRef.current;
     } catch (error) {
@@ -146,7 +174,7 @@ export function useComposerSaver(options: {
   }, [saveOnce]);
 
   const variantRevisions = state.variants
-    .map((variant) => `${variant.id}:${String(variant.revision)}`)
+    .map((variant) => `${variant.id}:${String(variant.revision)}:${String(variant.mediaRevision)}`)
     .join(',');
   useEffect(() => {
     if (readOnly) {

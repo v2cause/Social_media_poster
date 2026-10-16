@@ -1,6 +1,8 @@
 import type { CropDto, MediaAssetDto } from '@smp/contracts';
 import { cn } from '@smp/ui';
 
+import { coverOf } from './crop';
+
 // Thumbnails behind signed URLs (guide step 3.6); the original is never shown. A crop shows as a
 // window on the thumbnail, so previews need no rendition of their own. Plain <img> on purpose:
 // the URLs are signed for one hour, and the image optimizer of Next.js would cache and serve them
@@ -34,9 +36,11 @@ export function MediaThumbnail(props: {
   const ratio = props.aspectRatio ?? (crop ? crop.width / crop.height : width / height);
 
   if (crop && !props.letterbox) {
-    // Scale the whole image so that the crop fills the frame, then move the crop into view.
-    const scaleX = width / crop.width;
-    const scaleY = height / crop.height;
+    // Scale the whole image so that the crop fills the frame, then move the crop into view. A
+    // frame of another ratio shows the middle of the crop instead of stretching it.
+    const view = coverOf(crop, ratio);
+    const scaleX = width / view.width;
+    const scaleY = height / view.height;
     return (
       <div
         className={cn('relative overflow-hidden bg-muted', props.className)}
@@ -52,8 +56,8 @@ export function MediaThumbnail(props: {
           style={{
             width: `${String(scaleX * 100)}%`,
             height: `${String(scaleY * 100)}%`,
-            left: `${String((-crop.x / crop.width) * 100)}%`,
-            top: `${String((-crop.y / crop.height) * 100)}%`,
+            left: `${String((-view.x / view.width) * 100)}%`,
+            top: `${String((-view.y / view.height) * 100)}%`,
           }}
         />
       </div>

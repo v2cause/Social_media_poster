@@ -51,6 +51,7 @@ import { ConflictDialog, SaveStatus } from './save-status';
 import { useComposerSaver } from './use-composer-saver';
 import { useGenerationStream } from './use-generation-stream';
 import { VariantEditor, VariantTabs } from './variant-editor';
+import { VariantMediaStrip } from './variant-media-strip';
 
 // The composer (guide step 2.8): brief on the left, the variants in the middle, the preview on
 // the right; stacked on small screens. Changes save themselves; the AI streams into the variants
@@ -269,6 +270,18 @@ export function ComposerPage(props: ComposerPageProps) {
                     dispatch({ type: 'variant-changed', variantId: active.id, patch });
                   }}
                 />
+                <VariantMediaStrip
+                  key={`media-${active.id}`}
+                  ws={props.ws}
+                  variant={active}
+                  language={state.post.language}
+                  context={state.post.brief}
+                  readOnly={readOnly}
+                  canUseAi={canGenerate}
+                  onChange={(media) => {
+                    dispatch({ type: 'media-changed', variantId: active.id, media });
+                  }}
+                />
                 {canGenerate ? (
                   <div className="border-t border-border pt-4">
                     <RefineActions
@@ -295,6 +308,7 @@ export function ComposerPage(props: ComposerPageProps) {
             platform={active?.platform ?? state.post.platforms[0] ?? null}
             text={streamingText ?? active?.text ?? ''}
             hashtags={active?.hashtags ?? []}
+            media={active?.media ?? []}
             author={props.workspaceName}
           />
         </div>

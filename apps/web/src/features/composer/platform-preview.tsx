@@ -5,8 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@smp/ui';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-// The right column of the composer (guide step 2.8): a simple mockup of the post on its platform,
-// folded with "... more" where the feed folds it.
+import { MediaThumbnail } from '@/features/media/media-thumbnail';
+
+import type { DraftMedia } from './composer-model';
+import { renderedSize } from './media-items';
+
+// The right column of the composer (guide steps 2.8 and 3.6): a simple mockup of the post on its
+// platform, folded with "... more" where the feed folds it, with the images as the platform gets
+// them: cropped or with bars. Instagram shows the image first, the others below the text.
 
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
@@ -28,6 +34,7 @@ export function PlatformPreview(props: {
   platform: Platform | null;
   text: string;
   hashtags: readonly string[];
+  media: readonly DraftMedia[];
   author: string;
 }) {
   const t = useTranslations();
@@ -35,6 +42,10 @@ export function PlatformPreview(props: {
   const full = composePostText(props.text, props.hashtags);
   const fold = props.platform ? capabilitiesOf(props.platform).text.recommendedLength : undefined;
   const folded = !expanded && fold !== undefined && [...graphemes.segment(full)].length > fold;
+  const images =
+    props.media.length > 0 && props.platform ? (
+      <PreviewImages media={props.media} platform={props.platform} />
+    ) : null;
 
   return (
     <Card>
@@ -61,6 +72,7 @@ export function PlatformPreview(props: {
               <span className="text-xs text-muted-foreground">{t('composer.preview.now')}</span>
             </div>
           </header>
+          {props.platform === 'INSTAGRAM' ? images : null}
           {full.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('composer.preview.empty')}</p>
           ) : (
@@ -82,8 +94,51 @@ export function PlatformPreview(props: {
               ) : null}
             </p>
           )}
+          {props.platform === 'INSTAGRAM' ? null : images}
         </article>
       </CardContent>
     </Card>
+  );
+}
+
+/** The first image large, further ones as a row below it, each as the platform gets it. */
+function PreviewImages(props: { media: readonly DraftMedia[]; platform: Platform }) {
+  const t = useTranslations('media.preview');
+  const [first, ...rest] = props.media;
+  if (!first) {
+    return null;
+  }
+  const ratioOf = (item: DraftMedia): number => {
+    const size = renderedSize(item, props.platform);
+    return size?.fits ? size.width / size.height : 1;
+  };
+  return (
+    <div className="flex flex-col gap-1" data-testid="preview-images">
+      <MediaThumbnail
+        asset={first.asset}
+        crop={first.crop}
+        letterbox={first.letterbox}
+        alt={first.altText ?? first.asset.altText ?? t('image', { position: 1 })}
+        aspectRatio={ratioOf(first)}
+        sizes="300px"
+        className="w-full rounded-md"
+      />
+      {rest.length > 0 ? (
+        <div className="grid grid-cols-4 gap-1">
+          {rest.map((item, index) => (
+            <MediaThumbnail
+              key={item.assetId}
+              asset={item.asset}
+              crop={item.crop}
+              letterbox={item.letterbox}
+              alt={item.altText ?? item.asset.altText ?? t('image', { position: index + 2 })}
+              aspectRatio={1}
+              sizes="80px"
+              className="rounded"
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -15,6 +15,7 @@ import { useTranslations } from 'next-intl';
 import { useState, type KeyboardEvent } from 'react';
 
 import type { DraftVariant } from './composer-model';
+import { mediaItemsFor } from './media-items';
 
 // The middle column of the composer (guide step 2.8): one tab per target, the text with a live
 // counter that turns red over the limit, hashtag chips, the first comment where the platform has
@@ -87,6 +88,7 @@ export function VariantEditor(props: {
     text,
     hashtags: variant.hashtags,
     firstComment: variant.firstComment,
+    media: mediaItemsFor(variant.media, variant.platform),
   });
   const forbidden = findForbiddenWords(
     [text, variant.hashtags.join(' '), variant.firstComment ?? ''],
