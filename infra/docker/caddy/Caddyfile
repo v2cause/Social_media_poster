@@ -10,6 +10,9 @@
 		reverse_proxy api:3001 {
 			# Server-sent events (AI generation, live updates) must reach the browser at once.
 			flush_interval -1
+			# The client address for the auth rate limits. Overwritten, never appended, so a
+			# client cannot choose it (ADR 0006).
+			header_up X-Real-IP {remote_host}
 		}
 	}
 

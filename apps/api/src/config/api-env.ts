@@ -14,6 +14,12 @@ export const apiEnvSchema = z
     S3_ACCESS_KEY_ID: z.string().min(1),
     S3_SECRET_ACCESS_KEY: z.string().min(1),
     S3_FORCE_PATH_STYLE: z.stringbool().default(true),
+    // Better Auth: signs session cookies and tokens. Generate with `pnpm gen:keys`.
+    BETTER_AUTH_SECRET: z.string().min(32),
+    // The public origin the browser talks to (same origin as the web app).
+    BETTER_AUTH_URL: z.url({ protocol: /^https?$/ }),
+    SMTP_URL: z.url({ protocol: /^smtps?$/ }),
+    MAIL_FROM: z.string().min(3),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true, DATABASE_SYSTEM_URL: true }).shape)
   .extend(observabilityEnvSchema.shape);

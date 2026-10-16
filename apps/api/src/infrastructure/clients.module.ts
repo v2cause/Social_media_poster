@@ -1,6 +1,8 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { Global, Inject, Module, type OnApplicationShutdown } from '@nestjs/common';
+import type { MailPort } from '@smp/core';
 import { createPrismaClient, createTenantClient, type PrismaClient, type TenantPrismaClient } from '@smp/db';
+import { createSmtpMailer } from '@smp/emails';
 import Redis from 'ioredis';
 
 import { TenantContextService } from '../common/cls/tenant-context';
@@ -13,6 +15,9 @@ export const DATABASE_CLIENT = Symbol('DATABASE_CLIENT');
 export const TENANT_DATABASE_CLIENT = Symbol('TENANT_DATABASE_CLIENT');
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 export const S3_CLIENT = Symbol('S3_CLIENT');
+export const MAIL_PORT = Symbol('MAIL_PORT');
+
+type ClosableMailPort = MailPort & { close(): void };
 
 // Short timeouts keep a dead dependency from stalling the readiness probe.
 const REDIS_TIMEOUT_MS = 2_000;
@@ -23,10 +28,12 @@ class ClientLifecycle implements OnApplicationShutdown {
     @Inject(DATABASE_CLIENT) private readonly prisma: PrismaClient,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @Inject(S3_CLIENT) private readonly s3: S3Client,
+    @Inject(MAIL_PORT) private readonly mail: ClosableMailPort,
   ) {}
 
   async onApplicationShutdown(): Promise<void> {
     this.s3.destroy();
+    this.mail.close();
     await Promise.allSettled([this.prisma.$disconnect(), this.redis.quit()]);
   }
 }
@@ -68,8 +75,14 @@ class ClientLifecycle implements OnApplicationShutdown {
           credentials: { accessKeyId: env.S3_ACCESS_KEY_ID, secretAccessKey: env.S3_SECRET_ACCESS_KEY },
         }),
     },
+    {
+      provide: MAIL_PORT,
+      inject: [API_ENV],
+      useFactory: (env: ApiEnv): ClosableMailPort =>
+        createSmtpMailer({ url: env.SMTP_URL, from: env.MAIL_FROM }),
+    },
     ClientLifecycle,
   ],
-  exports: [DATABASE_CLIENT, TENANT_DATABASE_CLIENT, REDIS_CLIENT, S3_CLIENT],
+  exports: [DATABASE_CLIENT, TENANT_DATABASE_CLIENT, REDIS_CLIENT, S3_CLIENT, MAIL_PORT],
 })
 export class ClientsModule {}

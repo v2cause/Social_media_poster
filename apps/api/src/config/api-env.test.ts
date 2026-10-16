@@ -12,6 +12,10 @@ const validEnv: NodeJS.ProcessEnv = {
   S3_BUCKET: 'smp-media',
   S3_ACCESS_KEY_ID: 'access-key-value',
   S3_SECRET_ACCESS_KEY: 'secret-key-value',
+  BETTER_AUTH_SECRET: 'test-better-auth-secret-of-32-characters',
+  BETTER_AUTH_URL: 'http://localhost:3000',
+  SMTP_URL: 'smtp://127.0.0.1:1025',
+  MAIL_FROM: 'noreply@localhost',
 };
 
 describe('loadApiEnv', () => {
@@ -46,5 +50,9 @@ describe('loadApiEnv', () => {
 
     expect(message).toContain('REDIS_URL');
     expect(message).not.toContain('redis-secret');
+  });
+
+  it('requires a Better Auth secret of at least 32 characters', () => {
+    expect(() => loadApiEnv({ ...validEnv, BETTER_AUTH_SECRET: 'too-short' })).toThrow(/BETTER_AUTH_SECRET/);
   });
 });

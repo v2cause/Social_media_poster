@@ -1,11 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
 import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
 
+import { Public } from '../../common/decorators/public.decorator';
 import { DatabaseHealthIndicator } from './indicators/database.indicator';
 import { RedisHealthIndicator } from './indicators/redis.indicator';
 import { S3HealthIndicator } from './indicators/s3.indicator';
 
 // Health endpoints need no authentication and are excluded from request logging.
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(

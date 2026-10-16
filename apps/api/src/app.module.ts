@@ -11,6 +11,7 @@ import type { ApiEnv } from './config/api-env';
 import { ConfigModule } from './config/config.module';
 import { ClientsModule } from './infrastructure/clients.module';
 import { HealthModule } from './modules/health/health.module';
+import { IdentityModule } from './modules/identity/identity.module';
 
 @Module({})
 export class AppModule {
@@ -36,6 +37,7 @@ export class AppModule {
         RequestContextModule,
         ClientsModule,
         HealthModule,
+        IdentityModule,
       ],
       providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }],
     };

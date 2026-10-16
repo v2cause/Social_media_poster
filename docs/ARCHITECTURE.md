@@ -500,6 +500,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
   - E-Mail/Passwort mit Verifizierung und Reset, optional Google- oder Microsoft-Login.
   - TOTP-2FA mit Backup-Codes, für Owner erzwingbar. Passkeys später.
   - Cookie mit `httpOnly; Secure; SameSite=Lax`. Alles läuft same-origin, also kein CORS.
+  - Rate-Limits pro Client-Adresse aus `X-Real-IP`, das der Reverse Proxy setzt. Details und Spike-Ergebnis in ADR 0006.
 - **Request-Pipeline**:
   1. `AuthGuard`: prüft die Session.
   2. `WorkspaceGuard`: löst den Workspace-Slug zu Mitgliedschaft und Rolle auf (60 s in Redis gecacht, bei Änderung invalidiert).
@@ -525,7 +526,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 - **Härtung**:
   - zod-Validierung aller Eingaben, Jobs, Adapter-Antworten und der Env-Konfiguration beim Start.
   - Rate Limiting eingehend (`@nestjs/throttler` mit Redis) und ausgehend pro Plattform, App und Account (`rate-limiter-flexible`, wertet die Rate-Header der Plattformen aus).
-  - Origin-Check gegen CSRF, CSP mit Nonces, HSTS, helmet.
+  - Origin-Check gegen CSRF für alle schreibenden Anfragen unter `/api`, auch für `/api/auth` (Login-CSRF), dazu CSP mit Nonces, HSTS, helmet.
   - Webhook-Signaturen prüfen: Stripe `constructEvent`; Meta `X-Hub-Signature-256` plus Deauthorize- und Data-Deletion-Callbacks (Pflicht für das App-Review).
   - Log-Redaction für Tokens, Cookies und Sessions.
 - **Lieferkette**: Renovate (3 Tage Wartezeit, Digest-Pinning), pnpm-Gates (`minimumReleaseAge`, `trustPolicy: no-downgrade`, `strictDepBuilds`), `pnpm audit`, CodeQL, Dependency Review, gitleaks, Trivy-Image-Scans, SBOM. Die ersten Punkte gelten seit Phase 0 (ADR 0009).

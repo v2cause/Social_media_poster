@@ -6,5 +6,6 @@ import { mergeConfig } from 'vitest/config';
 export default mergeConfig(baseVitestConfig, {
   test: {
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
+    exclude: ['**/node_modules/**', '**/*.integration.test.ts'],
   },
 });
