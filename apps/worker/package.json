@@ -19,6 +19,7 @@
     "@smp/core": "workspace:*",
     "@smp/db": "workspace:*",
     "@smp/emails": "workspace:*",
+    "@smp/media": "workspace:*",
     "@smp/observability": "workspace:*",
     "@smp/queue": "workspace:*",
     "bullmq": "^5.81.5",
@@ -32,6 +33,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1152.0",
     "@nestjs/cli": "^11.0.24",
     "@smp/config": "workspace:*",
     "@smp/testing": "workspace:*",
@@ -40,6 +42,7 @@
     "@types/node": "^24.19.2",
     "@vitest/coverage-v8": "^5.0.4",
     "eslint": "^10.12.0",
+    "sharp": "^0.35.5",
     "typescript": "^5.9.3",
     "vitest": "^5.0.4"
   }

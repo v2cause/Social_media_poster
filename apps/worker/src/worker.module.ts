@@ -1,17 +1,29 @@
 import { BullModule } from '@nestjs/bullmq';
-import { type DynamicModule, Module, type Provider, type Type } from '@nestjs/common';
+import {
+  type DynamicModule,
+  Inject,
+  Injectable,
+  Module,
+  type OnApplicationShutdown,
+  type Provider,
+  type Type,
+} from '@nestjs/common';
+import { ProcessAsset, systemClock, uuidV7Ids } from '@smp/core';
+import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@smp/db';
 import { createSmtpMailer } from '@smp/emails';
+import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
 import { createLogger } from '@smp/observability';
-import { NOTIFICATIONS_QUEUE } from '@smp/queue';
+import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE } from '@smp/queue';
 import Redis from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 
 import { HealthServer } from './health/health.server';
+import { MediaProcessor } from './processors/media.processor';
 import { NoopProcessor, SCHEDULER_QUEUE } from './processors/noop.processor';
 import { NotifyProcessor } from './processors/notify.processor';
 import type { WorkerRole } from './roles';
 import type { WorkerEnv } from './worker-env';
-import { MAIL_PORT, WORKER_ENV } from './worker.tokens';
+import { MAIL_PORT, PROCESS_ASSET, WORKER_ENV } from './worker.tokens';
 
 interface RoleWiring {
   queue: string;
@@ -28,9 +40,65 @@ function smtpMailer(env: WorkerEnv): Provider[] {
   return [{ provide: MAIL_PORT, useValue: mailer }];
 }
 
+const MEDIA_CLIENTS = Symbol('MEDIA_CLIENTS');
+
+/** The connections of the media pipeline, closed when the worker shuts down. */
+interface MediaClients {
+  database: PrismaClient;
+  storage: S3Storage;
+}
+
+@Injectable()
+class MediaClientsLifecycle implements OnApplicationShutdown {
+  constructor(@Inject(MEDIA_CLIENTS) private readonly clients: MediaClients) {}
+
+  async onApplicationShutdown(): Promise<void> {
+    this.clients.storage.destroy();
+    await this.clients.database.$disconnect();
+  }
+}
+
+function mediaPipeline(env: WorkerEnv): Provider[] {
+  const { S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = env;
+  if (!S3_ENDPOINT || !S3_REGION || !S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
+    throw new Error(
+      'Invalid configuration:\n  S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required for the role "media"',
+    );
+  }
+  const storage = new S3Storage(
+    storageConfigOf({
+      S3_ENDPOINT,
+      S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT,
+      S3_REGION,
+      S3_BUCKET,
+      S3_ACCESS_KEY_ID,
+      S3_SECRET_ACCESS_KEY,
+      S3_FORCE_PATH_STYLE: env.S3_FORCE_PATH_STYLE ?? true,
+    }),
+  );
+  // app_user with the tenant of each job: row-level security applies to the worker too.
+  const database = createPrismaClient(env.DATABASE_URL);
+  return [
+    { provide: MEDIA_CLIENTS, useValue: { database, storage } satisfies MediaClients },
+    MediaClientsLifecycle,
+    {
+      provide: PROCESS_ASSET,
+      useValue: new ProcessAsset({
+        unitOfWork: new PrismaMediaUnitOfWork(database),
+        storage,
+        // One libvips thread per image; MEDIA_CONCURRENCY limits the images at once.
+        processor: new SharpImageProcessor({ threads: 1 }),
+        clock: systemClock,
+        ids: uuidV7Ids,
+      }),
+    },
+  ];
+}
+
 // Processors per role. A role without an entry starts no processors yet.
 const WIRING_BY_ROLE: Partial<Record<WorkerRole, RoleWiring>> = {
   scheduler: { queue: SCHEDULER_QUEUE, processor: NoopProcessor },
+  media: { queue: MEDIA_QUEUE, processor: MediaProcessor, providers: mediaPipeline },
   notify: { queue: NOTIFICATIONS_QUEUE, processor: NotifyProcessor, providers: smtpMailer },
 };
 

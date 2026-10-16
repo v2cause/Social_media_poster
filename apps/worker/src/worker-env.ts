@@ -1,4 +1,5 @@
 import { dbEnvSchema } from '@smp/db';
+import { storageEnvSchema } from '@smp/media';
 import { observabilityEnvSchema } from '@smp/observability';
 import { z } from 'zod';
 
@@ -13,6 +14,8 @@ export const workerEnvSchema = z
     MAIL_FROM: z.string().min(3).optional(),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true }).shape)
+  // Needed by the role "media" only; WorkerModule checks them when that role is active.
+  .extend(storageEnvSchema.partial().shape)
   .extend(observabilityEnvSchema.shape);
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;
