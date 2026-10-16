@@ -41,7 +41,7 @@ auditConfig:
 # Skipped: transitive scripts from testcontainers and the spike tooling. ssh2 and cpu-features
 # only add optional native speed-ups, protobufjs needs no build at install time, @parcel/watcher
 # serves Orval's watch mode only, @scarf/scarf is telemetry, msgpackr-extract is an optional
-# native speed-up.
+# native speed-up. core-js 2 (via twitter-text) only prints a funding message after install.
 allowBuilds:
   sharp: true
   prisma: true
@@ -55,3 +55,4 @@ allowBuilds:
   '@parcel/watcher': false
   '@scarf/scarf': false
   msgpackr-extract: false
+  core-js: false
