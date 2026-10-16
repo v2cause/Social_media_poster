@@ -2,4 +2,4 @@
 
 export * from './generated/api';
 export * from './generated/model';
-export { ApiError, apiErrorOf, apiFetch } from './fetcher';
+export { ApiError, apiErrorOf, apiFetch, type ApiErrorParams } from './fetcher';

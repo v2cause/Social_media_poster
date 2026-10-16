@@ -4,11 +4,16 @@ import { z } from 'zod';
 // cookie travels along and no CORS is involved (architecture 10). Error responses are RFC 9457
 // problem documents; they become an ApiError with the stable code the UI translates.
 
+const paramsSchema = z.record(z.string(), z.union([z.string(), z.number(), z.array(z.string())]));
+export type ApiErrorParams = z.infer<typeof paramsSchema>;
+
 const problemSchema = z.object({
   status: z.number(),
   code: z.string(),
   detail: z.string().optional(),
   traceId: z.string().optional(),
+  /** Values for the translated message, for example the suggested time of SCHEDULE_TIME_IN_GAP. */
+  params: paramsSchema.optional(),
 });
 
 export class ApiError extends Error {
@@ -16,6 +21,7 @@ export class ApiError extends Error {
     readonly status: number,
     readonly code: string,
     readonly traceId?: string,
+    readonly params: ApiErrorParams = {},
   ) {
     super(`API request failed with ${String(status)} ${code}`);
     this.name = 'ApiError';
@@ -27,7 +33,7 @@ export async function apiErrorOf(response: Response): Promise<ApiError> {
   const body: unknown = await response.json().catch(() => null);
   const problem = problemSchema.safeParse(body);
   return problem.success
-    ? new ApiError(problem.data.status, problem.data.code, problem.data.traceId)
+    ? new ApiError(problem.data.status, problem.data.code, problem.data.traceId, problem.data.params)
     : new ApiError(response.status, `HTTP_${String(response.status)}`);
 }
 
