@@ -1,6 +1,6 @@
 import type { ArgumentsHost } from '@nestjs/common';
-import { NotFoundException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ZodValidationException } from 'nestjs-zod';
 
@@ -23,6 +23,10 @@ function renderWith(exception: unknown) {
 }
 
 describe('ProblemDetailsFilter', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders an HTTP exception as a problem document with its status', () => {
     const { response, body } = renderWith(new NotFoundException('Workspace not found'));
 
@@ -47,6 +51,34 @@ describe('ProblemDetailsFilter', () => {
     expect(body).toMatchObject({ status: 500, code: 'INTERNAL_ERROR' });
     expect(JSON.stringify(body)).not.toContain('hunter2');
     expect(body).not.toHaveProperty('stack');
+  });
+
+  it('hides internal messages of server errors thrown as HTTP exceptions', () => {
+    const { response, body } = renderWith(new ServiceUnavailableException('redis at 10.0.0.5:6379 refused'));
+
+    expect(response.status).toHaveBeenCalledWith(503);
+    expect(body).toMatchObject({ status: 503, code: 'HTTP_503', detail: 'An unexpected error occurred.' });
+    expect(JSON.stringify(body)).not.toContain('10.0.0.5');
+  });
+
+  it('logs server errors with the error itself and the request ID', () => {
+    const logError = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const error = new Error('boom');
+
+    renderWith(error);
+
+    expect(logError).toHaveBeenCalledWith(
+      { code: 'INTERNAL_ERROR', requestId: 'req-1', err: error },
+      'request.failed',
+    );
+  });
+
+  it('does not log client errors', () => {
+    const logError = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+
+    renderWith(new NotFoundException());
+
+    expect(logError).not.toHaveBeenCalled();
   });
 
   it('maps schema validation failures to a stable code', () => {

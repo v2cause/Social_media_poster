@@ -5,6 +5,7 @@ import { createLogger } from '@smp/observability';
 import { uuidv7 } from 'uuidv7';
 
 import { ProblemDetailsFilter } from './common/filters/problem-details.filter';
+import { httpLogSerializers } from './common/logging/http-log-serializers';
 import type { ApiEnv } from './config/api-env';
 import { ConfigModule } from './config/config.module';
 import { ClientsModule } from './infrastructure/clients.module';
@@ -22,6 +23,7 @@ export class AppModule {
         autoLogging: {
           ignore: (req) => (req.url ?? '').startsWith('/api/health'),
         },
+        serializers: httpLogSerializers,
       },
     };
 

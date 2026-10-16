@@ -22,7 +22,11 @@ const UNEXPECTED_ERROR: Pick<ProblemDetails, 'status' | 'code' | 'detail'> = {
 
 /**
  * Renders every error as an RFC 9457 problem document. Stack traces and internal messages
- * never reach the client. The code is the stable key the UI translates.
+ * never reach the client: server errors (5xx) always get a generic detail, also when they were
+ * thrown as an HttpException. The code is the stable key the UI translates.
+ *
+ * Server errors are logged with the error itself (name, message, stack), so they can be traced
+ * through the request ID without exposing anything to the caller.
  */
 @Catch()
 export class ProblemDetailsFilter implements ExceptionFilter {
@@ -37,7 +41,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
 
     const problem = this.toProblem(exception, requestId);
     if (problem.status >= 500) {
-      this.logger.error({ code: problem.code, requestId }, 'request.failed');
+      this.logger.error({ code: problem.code, requestId, err: exception }, 'request.failed');
     }
 
     response.status(problem.status).type('application/problem+json').json(problem);
@@ -64,7 +68,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
         title: STATUS_CODES[status] ?? 'Error',
         status,
         code: `HTTP_${String(status)}`,
-        detail: exception.message,
+        detail: status >= 500 ? UNEXPECTED_ERROR.detail : exception.message,
         traceId,
       };
     }
