@@ -122,6 +122,7 @@ export {
   isVariantEditable,
   isVariantInFlight,
   nextTargetKeys,
+  statusAfterEdit,
 } from './content/domain/rules';
 export {
   IDEA_STATUSES,
@@ -454,3 +455,31 @@ export {
   SCHEDULE_WARNINGS,
   type ScheduleWarning,
 } from './publishing/domain/rules';
+export type {
+  OutboxWriter,
+  PublishingScope,
+  PublishingStore,
+  PublishingTarget,
+  PublishingTargetRepository,
+  PublishingUnitOfWork,
+  PublishingVariantRepository,
+  SchedulableVariant,
+  ScheduleChange,
+  VariantMediaReader,
+  VariantMediaSource,
+} from './publishing/ports/publishing-store';
+export type { LocalTime, PlanResult, PublishingDependencies } from './publishing/application/planning';
+export {
+  RescheduleVariant,
+  ScheduleVariant,
+  type ScheduleVariantInput,
+} from './publishing/application/schedule-variant';
+export { CancelVariant } from './publishing/application/cancel-variant';
+export { PublishNow, type PublishNowInput } from './publishing/application/publish-now';
+export { RetryVariant, type RetryVariantInput } from './publishing/application/retry-variant';
+export {
+  NEEDS_ATTENTION_ACTIONS,
+  ResolveNeedsAttention,
+  type NeedsAttentionAction,
+  type ResolveNeedsAttentionInput,
+} from './publishing/application/resolve-needs-attention';

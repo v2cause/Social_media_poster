@@ -16,7 +16,7 @@ import type {
 
 export type PostPatch = Partial<Pick<Post, 'brief' | 'language' | 'styleId' | 'brandVoiceId'>>;
 export type VariantPatch = Partial<
-  Pick<PostVariant, 'text' | 'hashtags' | 'firstComment' | 'linkUrl' | 'aiWarnings'>
+  Pick<PostVariant, 'text' | 'hashtags' | 'firstComment' | 'linkUrl' | 'aiWarnings' | 'status'>
 >;
 export type StylePatch = Partial<Pick<PostStyle, 'name' | 'key' | 'instructions' | 'isActive' | 'sortOrder'>>;
 export type BrandVoicePatch = Partial<

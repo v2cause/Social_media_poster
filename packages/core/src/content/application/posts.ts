@@ -11,7 +11,7 @@ import {
   VariantLockedError,
   VariantNotFoundError,
 } from '../domain/errors';
-import { isVariantEditable, isVariantInFlight, nextTargetKeys } from '../domain/rules';
+import { isVariantEditable, isVariantInFlight, nextTargetKeys, statusAfterEdit } from '../domain/rules';
 import type { ContentActor, PostVariant } from '../domain/types';
 import type { ContentStore, PostPatch, VariantPatch } from '../ports/content-store';
 import {
@@ -233,7 +233,13 @@ export class UpdateVariant {
         throw new VariantLockedError();
       }
       assertVersion(variant.version, input.version);
-      assertUpdated(await store.variants.update(actor.workspaceId, variant.id, input.version, input.patch));
+      const status = statusAfterEdit(variant.status);
+      assertUpdated(
+        await store.variants.update(actor.workspaceId, variant.id, input.version, {
+          ...input.patch,
+          ...(status === variant.status ? {} : { status }),
+        }),
+      );
     });
   }
 }

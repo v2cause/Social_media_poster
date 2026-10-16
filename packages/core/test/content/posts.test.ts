@@ -12,6 +12,7 @@ import {
   UpdateVariant,
   VariantLockedError,
   VersionConflictError,
+  type PostVariant,
 } from '../../src';
 import { actorOf, createContentTestbed, PRESET_STYLE, ScopeViolation } from '../in-memory-content';
 
@@ -241,6 +242,33 @@ describe('UpdateVariant', () => {
         patch: { text: 'x' },
       }),
     ).rejects.toBeInstanceOf(VariantLockedError);
+  });
+
+  it('turns an edited failed variant into a draft, keeps a plan and leaves one in doubt alone', async () => {
+    const { testbed, postId } = await createPost();
+    const [linkedin] = variantsOf(testbed, postId);
+    if (!linkedin) {
+      throw new Error('missing variant');
+    }
+    const edit = (status: PostVariant['status']) => {
+      testbed.unitOfWork.state.variants.set(linkedin.id, { ...linkedin, status, version: 0 });
+      return new UpdateVariant(testbed).execute({
+        actor: editor,
+        variantId: linkedin.id,
+        version: 0,
+        patch: { text: 'Neu' },
+      });
+    };
+
+    for (const [status, after] of [
+      ['FAILED', 'DRAFT'],
+      ['CANCELED', 'DRAFT'],
+      ['SCHEDULED', 'SCHEDULED'],
+    ] as const) {
+      await edit(status);
+      expect(testbed.unitOfWork.state.variants.get(linkedin.id)?.status).toBe(after);
+    }
+    await expect(edit('NEEDS_ATTENTION')).rejects.toBeInstanceOf(VariantLockedError);
   });
 
   it('writes only inside the scope of the actor', async () => {

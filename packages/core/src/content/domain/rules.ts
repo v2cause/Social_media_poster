@@ -10,11 +10,17 @@ export const canWriteContent = (role: MemberRole): boolean => role !== 'VIEWER';
 /** Brand voices and custom styles shape every post of a workspace: owners and admins only. */
 export const canManageBrand = (role: MemberRole): boolean => isManager(role);
 
-const EDITABLE: readonly VariantStatus[] = ['DRAFT', 'FAILED', 'NEEDS_ATTENTION', 'CANCELED'];
+// Architecture 7.2: a variant waiting for attention stays as it is, because the reconcile looks
+// for the content that may have gone out.
+const EDITABLE: readonly VariantStatus[] = ['DRAFT', 'SCHEDULED', 'FAILED', 'CANCELED'];
 const IN_FLIGHT: readonly VariantStatus[] = ['QUEUED', 'PUBLISHING', 'RETRYING'];
 
-/** Whether the text of a variant may change. Scheduled variants follow with phase 4. */
+/** Whether the content of a variant may change. */
 export const isVariantEditable = (status: VariantStatus): boolean => EDITABLE.includes(status);
+
+/** The status after an edit: a failed or canceled variant becomes a draft again. */
+export const statusAfterEdit = (status: VariantStatus): VariantStatus =>
+  status === 'FAILED' || status === 'CANCELED' ? 'DRAFT' : status;
 
 /** Whether a publish of the variant is under way; its post must not change then. */
 export const isVariantInFlight = (status: VariantStatus): boolean => IN_FLIGHT.includes(status);
