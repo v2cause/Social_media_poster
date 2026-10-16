@@ -12,8 +12,12 @@ trustPolicy: no-downgrade
 # GitHub Actions with provenance, 7.10.0 by the prismabot account without it. It matches the
 # signed GitHub release 7.10.0 of prisma/prisma (2026-08-25), so it is accepted. Any later version
 # without provenance fails again and needs its own review.
+# semver 6.3.1 is the backport of the ReDoS fix (CVE-2022-25883) to the 6.x line, published on
+# 2023-07-10 by the npm CLI maintainer lukekarrys (gitHead b717044). It came after 7.5.2 to 7.5.4,
+# which had provenance, so the check reads it as a downgrade. @babel/core still needs semver 6.
 trustPolicyExclude:
   - 'prisma@7.10.0'
+  - 'semver@6.3.1'
 blockExoticSubdeps: true
 strictDepBuilds: true
 
