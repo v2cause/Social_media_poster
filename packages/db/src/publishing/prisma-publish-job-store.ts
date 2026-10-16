@@ -1,6 +1,7 @@
 import type { PublishJobStore, UnclearAttempt, VariantRunResult } from '@smp/core';
 
 import { bytesOf, toSocialConnection } from '../channels/mappers';
+import { markNeedsReauth } from '../channels/reauth';
 import type { Prisma } from '../generated/prisma/client';
 import { toCrop } from '../media/mappers';
 import type { TenantTransaction } from '../tenant-context';
@@ -225,13 +226,8 @@ export function createPrismaPublishJobStore(tx: TenantTransaction): PublishJobSt
         });
         return count === 1;
       },
-      async markNeedsReauth(workspaceId, connectionId, reason) {
-        // A paused or revoked connection keeps its status.
-        await tx.socialConnection.updateMany({
-          where: { id: connectionId, workspaceId, status: { in: ['ACTIVE', 'EXPIRING'] } },
-          data: { status: 'NEEDS_REAUTH', statusReason: reason, version: { increment: 1 } },
-        });
-      },
+      markNeedsReauth: (workspaceId, connectionId, reason) =>
+        markNeedsReauth(tx, workspaceId, connectionId, reason),
     },
 
     media: {

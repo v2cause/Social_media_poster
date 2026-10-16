@@ -704,6 +704,33 @@ describe('PublishVariant', () => {
       ]);
     });
 
+    it('asks for a new grant once and marks the scheduled variants of the account', async () => {
+      const bed = createPublishJobTestbed();
+      bed.adapter.publishAnswers = [new PlatformError('AUTH_EXPIRED', 'HTTP 401')];
+      bed.unitOfWork.state.variants.set('variant-2', {
+        ...bed.unitOfWork.variant(),
+        id: 'variant-2',
+        status: 'SCHEDULED',
+        scheduleVersion: 1,
+      });
+
+      await publish(bed);
+
+      expect(bed.unitOfWork.notifications()).toEqual([
+        {
+          type: 'reauth-required',
+          connectionId: 'connection-1',
+          reason: 'REFRESH_FAILED',
+          scheduledVariants: 1,
+        },
+        { type: 'publish-failed', variantId: 'variant-1', failureCode: 'REAUTH_REQUIRED' },
+      ]);
+      expect(bed.unitOfWork.variant('variant-2')).toMatchObject({
+        status: 'SCHEDULED',
+        failureCode: 'REAUTH_REQUIRED',
+      });
+    });
+
     it('tells of a missed window', async () => {
       const bed = createPublishJobTestbed({ variant: { scheduledAt: new Date(NOW - 7 * 60 * 60 * 1000) } });
 

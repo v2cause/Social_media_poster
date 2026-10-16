@@ -1,7 +1,8 @@
 import type { Platform } from '@smp/platform-rules';
 
-import type { AdapterAccount, SocialPlatformAdapter } from '../../channels/ports/platform-adapter';
-import type { ConnectionMethod, SocialConnection } from '../../channels/domain/types';
+import type { AdapterAccount } from '../../channels/ports/platform-adapter';
+import type { ReauthMark, TokenConnectionRepository } from '../../channels/ports/token-maintenance';
+import type { SocialConnection } from '../../channels/domain/types';
 import type { VariantStatus } from '../../content/domain/types';
 import type { Crop } from '../../media/domain/types';
 import type { MissedWindowBehavior } from '../../tenancy/domain/types';
@@ -154,27 +155,12 @@ export interface PublishJobTargetRepository {
   find(workspaceId: string, accountId: string): Promise<PublishJobTarget | null>;
 }
 
-/** The tokens of a refresh, sealed; a refresh without a new refresh token keeps the old one. */
-export interface RefreshedTokens {
-  accessTokenSealed: Uint8Array;
-  accessTokenExpiresAt: Date | null;
-  refreshTokenSealed: Uint8Array | null;
-  refreshTokenExpiresAt: Date | null;
-  scopes: string[];
-  refreshedAt: Date;
-}
-
-export interface PublishJobConnectionRepository {
-  find(workspaceId: string, connectionId: string): Promise<SocialConnection | null>;
-  /** Stores the tokens of a refresh if the version is current; false otherwise. */
-  storeRefresh(
-    workspaceId: string,
-    connectionId: string,
-    version: number,
-    tokens: RefreshedTokens,
-  ): Promise<boolean>;
-  /** NEEDS_REAUTH with the reason, for example REFRESH_FAILED. */
-  markNeedsReauth(workspaceId: string, connectionId: string, reason: string): Promise<void>;
+export interface PublishJobConnectionRepository extends TokenConnectionRepository {
+  /**
+   * NEEDS_REAUTH with the reason, for example REFRESH_FAILED; the scheduled variants of its
+   * accounts get the failure code REAUTH_REQUIRED as a mark.
+   */
+  markNeedsReauth(workspaceId: string, connectionId: string, reason: string): Promise<ReauthMark>;
 }
 
 /** An attached image with crop, letterbox and the alt text of this use (or of the asset). */
@@ -242,20 +228,6 @@ export interface PublishJobScope {
 
 export interface PublishJobUnitOfWork {
   run<T>(scope: PublishJobScope, work: (store: PublishJobStore) => Promise<T>): Promise<T>;
-}
-
-/** The adapter of an account (architecture 4.1); null when none is available or its gate is closed. */
-export interface AdapterResolver {
-  resolve(account: {
-    platform: Platform;
-    method: ConnectionMethod;
-    workspaceId: string;
-  }): Promise<SocialPlatformAdapter | null>;
-}
-
-/** The Redis lock lock:conn:{id}, so only one refresh of a connection runs at a time. */
-export interface ConnectionLock {
-  withConnectionLock<T>(connectionId: string, work: () => Promise<T>): Promise<T>;
 }
 
 /** The prices of paid platform calls in micro-USD; null for an operation without a known price. */

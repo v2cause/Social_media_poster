@@ -1,5 +1,6 @@
 import { composePostText, renditionProfileFor } from '@smp/platform-rules';
 
+import { ConnectionTokens, ReauthRequiredError } from '../../channels/application/connection-tokens';
 import { isPlatformError } from '../../channels/domain/platform-error';
 import type { SocialAccountType } from '../../channels/domain/types';
 import type {
@@ -20,7 +21,6 @@ import type {
   PublishMediaItem,
   PublishRendition,
 } from '../ports/publish-job';
-import { ConnectionTokens, ReauthRequiredError } from './connection-tokens';
 import {
   statusEvent,
   unitOfJob,
@@ -120,7 +120,13 @@ export class PublishRun {
     if (!adapter) {
       return failedEnd('ADAPTER_UNAVAILABLE', `No adapter for ${variant.platform} is available.`);
     }
-    const tokens = new ConnectionTokens(this.deps, (work) => this.unit(work), target, adapter);
+    const tokens = new ConnectionTokens(
+      this.deps,
+      (work) => this.unit((store) => work(store.connections)),
+      { account: target.account, accessTokenSealed: target.accessTokenSealed },
+      target.connection,
+      adapter,
+    );
     this.tokens = tokens;
     const context = (): AdapterContext => this.contextFor(target, tokens);
     const content = this.contentOf(variant, items);
@@ -429,7 +435,22 @@ export class PublishRun {
       await store.attempts.finish(variant.workspaceId, attemptId, attemptResultOf(end, now));
       const reauth = end.kind === 'failed' || end.kind === 'needs_attention' ? end.reauth : undefined;
       if (reauth) {
-        await store.connections.markNeedsReauth(variant.workspaceId, reauth.connectionId, reauth.reason);
+        const mark = await store.connections.markNeedsReauth(
+          variant.workspaceId,
+          reauth.connectionId,
+          reauth.reason,
+        );
+        if (mark.changed) {
+          await store.outbox.add(variant.workspaceId, {
+            type: 'notification.requested',
+            payload: {
+              type: 'reauth-required',
+              connectionId: reauth.connectionId,
+              reason: reauth.reason,
+              scheduledVariants: mark.scheduledVariants,
+            },
+          });
+        }
       }
       if (end.kind === 'lease_lost') {
         return false;

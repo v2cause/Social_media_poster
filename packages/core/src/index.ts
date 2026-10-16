@@ -330,6 +330,43 @@ export {
   type ConfirmedConnection,
 } from './channels/application/confirm-connection';
 export { DisconnectAccount, type DisconnectResult } from './channels/application/disconnect-account';
+export {
+  EXPIRY_NOTICE_DAYS,
+  isInExpiryWindow,
+  isNoticeDue,
+  noticeStageOf,
+  statusAfterRefresh,
+  TOKEN_EXPIRY_WINDOW_MS,
+  TOKEN_REFRESH_MARGIN_MS,
+} from './channels/domain/token-monitor';
+export type {
+  AdapterResolver,
+  ConnectedAccount,
+  ConnectionLock,
+  ExpiringConnection,
+  ExpiringConnectionScanner,
+  MaintainedConnectionRepository,
+  ReauthMark,
+  RefreshedTokens,
+  TokenConnectionRepository,
+  TokenMaintenanceScope,
+  TokenMaintenanceStore,
+  TokenMaintenanceUnitOfWork,
+  TokenRefreshRequests,
+} from './channels/ports/token-maintenance';
+export {
+  ConnectionTokens,
+  ReauthRequiredError,
+  type TokenRefreshResult,
+  type TokenTarget,
+} from './channels/application/connection-tokens';
+export { MonitorTokens, type TokenMonitorReport } from './channels/application/monitor-tokens';
+export {
+  RefreshConnection,
+  type RefreshConnectionDependencies,
+  type RefreshConnectionInput,
+  type RefreshConnectionOutcome,
+} from './channels/application/refresh-connection';
 
 // Tenancy
 export * from './tenancy/domain/errors';
@@ -524,17 +561,14 @@ export {
   RATE_LIMIT_FALLBACK_MS,
   reactionTo,
   RECONCILE_SKEW_MS,
-  TOKEN_REFRESH_MARGIN_MS,
   type PlatformErrorReaction,
   type PublishFailureCode,
 } from './publishing/domain/publish-job';
 export {
   PUBLISH_ATTEMPT_OUTCOMES,
   PUBLISH_JOB_TRIGGERS,
-  type AdapterResolver,
   type ApiCostEntry,
   type ApiCostRepository,
-  type ConnectionLock,
   type Lease,
   type NewPublishAttempt,
   type OperationPrices,
@@ -553,7 +587,6 @@ export {
   type PublishJobVariantRepository,
   type PublishMediaItem,
   type PublishRendition,
-  type RefreshedTokens,
   type UnclearAttempt,
   type VariantRunResult,
 } from './publishing/ports/publish-job';

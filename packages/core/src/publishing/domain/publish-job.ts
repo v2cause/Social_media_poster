@@ -35,8 +35,6 @@ export type PublishFailureCode = (typeof PUBLISH_FAILURE_CODES)[number];
 export const PUBLISH_LEASE_MS = 5 * 60 * 1000;
 /** A job that meets the live lease of another run waits this much longer than the lease. */
 export const LEASE_GRACE_MS = 1000;
-/** Access tokens that run out within this time are renewed before the platform is called. */
-export const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 /** The reconcile looks this much further back, for clocks that differ between us and the platform. */
 export const RECONCILE_SKEW_MS = 60 * 1000;
 /** The wait after a rate limit without Retry-After. */

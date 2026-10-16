@@ -298,15 +298,26 @@ export class InMemoryPublishJobs implements PublishJobUnitOfWork {
         markNeedsReauth(workspaceId, id, reason) {
           assertScope(workspaceId);
           const connection = state().connections.get(id);
-          if (connection) {
-            state().connections.set(id, {
-              ...connection,
-              status: 'NEEDS_REAUTH',
-              statusReason: reason,
-              version: connection.version + 1,
-            });
+          if (connection?.status !== 'ACTIVE' && connection?.status !== 'EXPIRING') {
+            return Promise.resolve({ changed: false, scheduledVariants: 0 });
           }
-          return Promise.resolve();
+          state().connections.set(id, {
+            ...connection,
+            status: 'NEEDS_REAUTH',
+            statusReason: reason,
+            version: connection.version + 1,
+          });
+          const accounts = [...state().accounts.values()]
+            .filter((row) => row.account.connectionId === id)
+            .map((row) => row.account.id);
+          let scheduledVariants = 0;
+          for (const variant of state().variants.values()) {
+            if (variant.status === 'SCHEDULED' && accounts.includes(variant.socialAccountId ?? '')) {
+              variant.failureCode = 'REAUTH_REQUIRED';
+              scheduledVariants += 1;
+            }
+          }
+          return Promise.resolve({ changed: true, scheduledVariants });
         },
       },
       media: {

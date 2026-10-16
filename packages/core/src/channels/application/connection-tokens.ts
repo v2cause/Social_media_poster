@@ -1,22 +1,22 @@
-import { isPlatformError } from '../../channels/domain/platform-error';
-import { accountSecretAad, connectionSecretAad } from '../../channels/domain/secrets';
-import type { SocialConnection } from '../../channels/domain/types';
+import type { Clock } from '../../shared/ports/clock';
+import { isPlatformError } from '../domain/platform-error';
+import { accountSecretAad, connectionSecretAad } from '../domain/secrets';
+import { TOKEN_REFRESH_MARGIN_MS } from '../domain/token-monitor';
+import type { SocialConnection } from '../domain/types';
 import type {
   AdapterContext,
   CredentialsAccessor,
   RefreshOutcome,
   SocialPlatformAdapter,
   TokenSet,
-} from '../../channels/ports/platform-adapter';
-import { TOKEN_REFRESH_MARGIN_MS } from '../domain/publish-job';
-import { isConnectionUsable } from '../domain/rules';
-import type { PublishJobStore, PublishJobTarget } from '../ports/publish-job';
-import type { PublishJobDependencies } from './publish-job-types';
+} from '../ports/platform-adapter';
+import type { SecretSealer } from '../ports/secrets';
+import type { ConnectedAccount, ConnectionLock, TokenConnectionRepository } from '../ports/token-maintenance';
 
-// The tokens of one publish run (guide step 4.8, architecture 7, step 5): opened only when the
-// adapter asks for them, renewed when they run out soon or the platform refused them. A refresh
-// runs under the lock of its connection and reads the connection again after the lock, because
-// the refresh tokens of X are good for one use only.
+// The tokens of a connection while a job uses them (guide steps 4.8 and 4.9, architecture 7,
+// step 5): opened only when the adapter asks for them, renewed when they run out soon or the
+// platform refused them. A refresh runs under the lock of its connection and reads the
+// connection again after the lock, because the refresh tokens of X are good for one use only.
 
 /** The connection needs a new grant from the user. */
 export class ReauthRequiredError extends Error {
@@ -26,23 +26,41 @@ export class ReauthRequiredError extends Error {
   }
 }
 
+/** The account a job acts for, with the connection that reaches it. */
+export interface TokenTarget extends ConnectedAccount {
+  connection: SocialConnection;
+}
+
+/**
+ * What a refresh did. not_due: the token lasts and nothing forced a refresh; renewed_elsewhere:
+ * another job renewed it while this one waited for the lock.
+ */
+export type TokenRefreshResult =
+  'refreshed' | 'not_needed' | 'not_supported' | 'renewed_elsewhere' | 'not_due';
+
 export class ConnectionTokens {
   private connection: SocialConnection;
-  /** A refused token gets one refresh per run. */
+  /** A refused token gets one refresh per job. */
   private refreshedAfterRefusal = false;
 
   constructor(
-    private readonly deps: Pick<PublishJobDependencies, 'sealer' | 'locks' | 'clock'>,
-    /** A unit of work of the job. */
-    private readonly unit: <T>(work: (store: PublishJobStore) => Promise<T>) => Promise<T>,
-    private readonly target: PublishJobTarget,
+    private readonly deps: { sealer: SecretSealer; locks: ConnectionLock; clock: Clock },
+    /** A unit of work of the job on the connections. */
+    private readonly unit: <T>(work: (connections: TokenConnectionRepository) => Promise<T>) => Promise<T>,
+    private readonly target: ConnectedAccount,
+    connection: SocialConnection,
     private readonly adapter: SocialPlatformAdapter,
   ) {
-    this.connection = target.connection;
+    this.connection = connection;
   }
 
   get connectionId(): string {
     return this.connection.id;
+  }
+
+  /** The connection as the job knows it now, after a refresh with its new tokens. */
+  get current(): SocialConnection {
+    return this.connection;
   }
 
   /** The tokens of the connection as it is now: the token of the account, or of the connection. */
@@ -71,7 +89,10 @@ export class ConnectionTokens {
     };
   }
 
-  /** Runs a call of the platform; a refused token gets one refresh and the call one more try. */
+  /**
+   * Runs a call of the platform; a refused token gets one refresh and the call one more try. A
+   * platform that cannot renew a refused token needs a new grant.
+   */
   async withToken<T>(context: () => AdapterContext, call: (ctx: AdapterContext) => Promise<T>): Promise<T> {
     try {
       return await call(context());
@@ -80,26 +101,27 @@ export class ConnectionTokens {
         throw error;
       }
       this.refreshedAfterRefusal = true;
-      await this.refresh(context, true);
+      if ((await this.refresh(context, true)) === 'not_supported') {
+        throw new ReauthRequiredError('REFRESH_NOT_SUPPORTED');
+      }
       return await call(context());
     }
   }
 
-  /** Renews the token when it runs out soon, or when the platform refused it (force). */
-  async refresh(context: () => AdapterContext, force: boolean): Promise<void> {
+  /** Renews the token when it runs out soon, or always (force). */
+  async refresh(context: () => AdapterContext, force: boolean): Promise<TokenRefreshResult> {
     const used = this.connection;
     if (this.adapter.method === 'BROWSER' || (!force && !this.expiresSoon(used))) {
-      return;
+      return 'not_due';
     }
-    await this.deps.locks.withConnectionLock(used.id, async () => {
-      const current = await this.unit((store) => store.connections.find(used.workspaceId, used.id));
-      if (!current?.accessTokenSealed || !isConnectionUsable(current.status)) {
+    return this.deps.locks.withConnectionLock(used.id, async () => {
+      const current = await this.unit((connections) => connections.find(used.workspaceId, used.id));
+      if (!current?.accessTokenSealed || !(current.status === 'ACTIVE' || current.status === 'EXPIRING')) {
         throw new ReauthRequiredError('TOKEN_MISSING');
       }
       this.connection = current;
       if (current.version !== used.version && !this.expiresSoon(current)) {
-        // Another run renewed it while this one waited for the lock.
-        return;
+        return 'renewed_elsewhere';
       }
       let outcome: RefreshOutcome;
       try {
@@ -112,9 +134,8 @@ export class ConnectionTokens {
       }
       if (outcome.status === 'refreshed') {
         await this.store(current, outcome.tokens);
-      } else if (force && outcome.status === 'not_supported') {
-        throw new ReauthRequiredError('REFRESH_NOT_SUPPORTED');
       }
+      return outcome.status;
     });
   }
 
@@ -141,8 +162,8 @@ export class ConnectionTokens {
         tokens.refreshToken === null ? current.refreshTokenExpiresAt : tokens.refreshTokenExpiresAt,
       scopes: tokens.scopes.length > 0 ? [...tokens.scopes] : current.scopes,
     };
-    const stored = await this.unit((store) =>
-      store.connections.storeRefresh(current.workspaceId, current.id, current.version, {
+    const stored = await this.unit((connections) =>
+      connections.storeRefresh(current.workspaceId, current.id, current.version, {
         ...sealed,
         refreshedAt: this.deps.clock.now(),
       }),

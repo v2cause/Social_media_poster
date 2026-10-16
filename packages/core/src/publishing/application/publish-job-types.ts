@@ -1,5 +1,6 @@
 import type { AdapterLogger } from '../../channels/ports/platform-adapter';
 import type { SecretSealer } from '../../channels/ports/secrets';
+import type { AdapterResolver, ConnectionLock } from '../../channels/ports/token-maintenance';
 import type { VariantStatus } from '../../content/domain/types';
 import type { StoragePort } from '../../media/ports/storage';
 import type { OutboxEventInput } from '../../shared/domain/outbox';
@@ -7,8 +8,6 @@ import type { Clock } from '../../shared/ports/clock';
 import type { IdGenerator } from '../../shared/ports/ids';
 import type { PublishFailureCode } from '../domain/publish-job';
 import type {
-  AdapterResolver,
-  ConnectionLock,
   OperationPrices,
   PublishJobStore,
   PublishJobTrigger,
