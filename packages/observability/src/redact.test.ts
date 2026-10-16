@@ -16,6 +16,19 @@ describe('redactSecrets', () => {
     expect(output).toMatchObject({ req: { headers: { 'x-request-id': 'r-1' } } });
   });
 
+  it('censors response cookies, proxy credentials and further token fields', () => {
+    const input = {
+      res: { headers: { 'set-cookie': 'session=new', 'content-type': 'application/json' } },
+      req: { headers: { 'proxy-authorization': 'Basic abc', 'x-api-key': 'k-2' } },
+      oauth: { token: 't-1', idToken: 'id-1', clientSecret: 'cs-1', secret: 's-1' },
+    };
+
+    const output = redactSecrets(input) as Record<string, unknown>;
+
+    expect(JSON.stringify(output)).not.toMatch(/session=new|Basic abc|k-2|t-1|id-1|cs-1|s-1/);
+    expect(output).toMatchObject({ res: { headers: { 'content-type': 'application/json' } } });
+  });
+
   it('does not mutate the input', () => {
     const input = { password: 'hunter2' };
 

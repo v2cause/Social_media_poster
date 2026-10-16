@@ -1,11 +1,20 @@
 // Keys whose values never reach a log line, at any depth. A key ending in "Enc" holds
 // encrypted material and is redacted as well.
 const SECRET_KEYS = new Set([
+  // HTTP headers (Node lowercases their names)
   'authorization',
+  'proxy-authorization',
   'cookie',
+  'set-cookie',
+  'x-api-key',
+  // Credentials and tokens in payloads
   'password',
+  'secret',
+  'clientSecret',
+  'token',
   'accessToken',
   'refreshToken',
+  'idToken',
   'sessionState',
   'apiKey',
 ]);
