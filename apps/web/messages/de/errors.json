@@ -57,7 +57,11 @@
     "MEDIA_IN_USE": "Diese Datei ist an einen Beitrag angehängt. Bitte entfernen Sie sie dort zuerst.",
     "MEDIA_NOT_READY": "Diese Datei wird noch verarbeitet oder wurde abgelehnt und lässt sich noch nicht anhängen.",
     "CROP_OUT_OF_BOUNDS": "Der Zuschnitt liegt nicht vollständig im Bild. Bitte schneiden Sie erneut zu.",
-    "VARIANT_MEDIA_INVALID": "Eine Variante nimmt höchstens 20 Dateien auf, jede nur einmal."
+    "VARIANT_MEDIA_INVALID": "Eine Variante nimmt höchstens 20 Dateien auf, jede nur einmal.",
+    "CHANNEL_UNAVAILABLE": "Diese Plattform kann derzeit nicht verbunden werden.",
+    "SOCIAL_ACCOUNT_NOT_FOUND": "Diesen Account gibt es in diesem Workspace nicht oder nicht mehr.",
+    "PENDING_CONNECTION_NOT_FOUND": "Die Zustimmung ist abgelaufen. Bitte verbinden Sie den Account erneut.",
+    "INVALID_ACCOUNT_SELECTION": "Bitte wählen Sie nur Accounts aus der Liste aus."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

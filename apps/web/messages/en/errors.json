@@ -57,7 +57,11 @@
     "MEDIA_IN_USE": "This file is attached to a post. Remove it there first.",
     "MEDIA_NOT_READY": "This file is still being processed or was rejected and cannot be attached yet.",
     "CROP_OUT_OF_BOUNDS": "The crop does not lie fully inside the image. Please crop again.",
-    "VARIANT_MEDIA_INVALID": "A variant holds at most 20 files, each once."
+    "VARIANT_MEDIA_INVALID": "A variant holds at most 20 files, each once.",
+    "CHANNEL_UNAVAILABLE": "This platform cannot be connected at the moment.",
+    "SOCIAL_ACCOUNT_NOT_FOUND": "This account does not exist in this workspace, or no longer does.",
+    "PENDING_CONNECTION_NOT_FOUND": "The consent has expired. Please connect the account again.",
+    "INVALID_ACCOUNT_SELECTION": "Please select accounts from the list only."
   },
   "validation": {
     "required": "Please fill in this field.",

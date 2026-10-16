@@ -9,6 +9,7 @@ export {
   type AuditLogPage,
   type AuditLogQuery,
 } from './audit';
+export * from './channels';
 export {
   emailSchema,
   forgotPasswordSchema,
