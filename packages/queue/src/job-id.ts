@@ -31,6 +31,10 @@ export const postMetricsJobId = (accountId: string, bucket: string): string =>
 /** ntf.{outboxId}: one notification per outbox event. */
 export const notifyJobId = (outboxId: string): string => jobIdOf('ntf', outboxId);
 
+/** ntf.{outboxId}.{userId}: one email per outbox event and recipient. */
+export const notifyEmailJobId = (outboxId: string, userId: string): string =>
+  jobIdOf('ntf', outboxId, userId);
+
 /** stripe.{eventId}: Stripe sends an event again until it gets an answer. */
 export const stripeJobId = (eventId: string): string => jobIdOf('stripe', eventId);
 

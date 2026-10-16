@@ -4,6 +4,7 @@
 export {
   gdprJobId,
   jobIdOf,
+  notifyEmailJobId,
   notifyJobId,
   postMetricsJobId,
   publishDeadLetterId,
@@ -119,13 +120,16 @@ export {
   type GdprRequest,
 } from './gdpr';
 export {
+  notificationRequestSchema,
   NOTIFICATIONS_QUEUE,
   NOTIFY_DISPATCH,
+  NOTIFY_EVENT_JOB_OPTIONS,
   NOTIFY_JOB_OPTIONS,
   NotificationProducer,
   notifyDispatchSchema,
   parseNotifyDispatch,
   type NotifyDispatch,
+  type NotifyEvent,
 } from './notifications';
 export {
   MEDIA_JOB_OPTIONS,

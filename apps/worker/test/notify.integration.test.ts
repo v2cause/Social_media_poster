@@ -1,9 +1,19 @@
 import 'reflect-metadata';
 
+import { randomUUID } from 'node:crypto';
+import { setTimeout as sleep } from 'node:timers/promises';
+
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NOTIFICATIONS_QUEUE, NOTIFY_DISPATCH, NotificationProducer } from '@smp/queue';
-import { startMailpit, startRedis, type StartedMailpit, type StartedRedis } from '@smp/testing';
+import {
+  startMailpit,
+  startRedis,
+  startTestDatabase,
+  type StartedMailpit,
+  type StartedRedis,
+  type TestDatabase,
+} from '@smp/testing';
 import { Queue, QueueEvents } from 'bullmq';
 import Redis from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -12,9 +22,16 @@ import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
 
 // Guide step 1.8, "Fertig, wenn": the invitation email arrives in Mailpit in both languages,
-// sent by the worker role "notify" from the queue "notifications".
+// sent by the worker role "notify" from the queue "notifications". Guide step 4.9: an event of
+// the outbox reaches the managers of a connection in the app and by email, once, also when it
+// is dispatched again.
+
+const org = randomUUID();
+const workspace = randomUUID();
+const owner = { id: randomUUID(), email: `owner-${randomUUID()}@demo.local` };
 
 describe('notify worker', () => {
+  let database: TestDatabase | undefined;
   let redis: StartedRedis | undefined;
   let mailpit: StartedMailpit | undefined;
   let worker: INestApplicationContext | undefined;
@@ -23,23 +40,40 @@ describe('notify worker', () => {
   let events: QueueEvents | undefined;
 
   const started = () => {
-    if (!mailpit || !queue || !events) {
+    if (!database || !mailpit || !queue || !events) {
       throw new Error('not started');
     }
-    return { mailpit, queue, events, producer: new NotificationProducer(queue) };
+    return { database, mailpit, queue, events, producer: new NotificationProducer(queue) };
+  };
+  const query = async <T>(sql: string, values: unknown[] = []): Promise<T[]> => {
+    const client = await started().database.connectAs('app_system');
+    try {
+      return (await client.query(sql, values)).rows as T[];
+    } finally {
+      await client.end();
+    }
+  };
+  /** The emails Mailpit holds for the address. */
+  const emailsTo = async (to: string): Promise<number> => {
+    const response = await fetch(
+      `${started().mailpit.apiUrl}/api/v1/search?query=${encodeURIComponent(`to:"${to}"`)}`,
+    );
+    const { messages } = (await response.json()) as { messages: unknown[] };
+    return messages.length;
   };
 
   beforeAll(async () => {
-    [redis, mailpit] = await Promise.all([startRedis(), startMailpit()]);
+    [database, redis, mailpit] = await Promise.all([startTestDatabase(), startRedis(), startMailpit()]);
     const env = loadWorkerEnv({
       NODE_ENV: 'test',
       LOG_LEVEL: 'warn',
       WORKER_ROLES: 'notify',
       WORKER_HEALTH_PORT: String(40_000 + Math.floor(Math.random() * 10_000)),
       REDIS_URL: redis.url,
-      DATABASE_URL: 'postgresql://unused:unused@127.0.0.1:9/unused',
+      DATABASE_URL: database.url('app_user'),
       SMTP_URL: mailpit.smtpUrl,
       MAIL_FROM: 'noreply@smp.test',
+      APP_URL: 'http://localhost:3000',
     });
     worker = await NestFactory.createApplicationContext(WorkerModule.forRoles(['notify'], env), {
       logger: false,
@@ -52,14 +86,29 @@ describe('notify worker', () => {
       connection: new Redis(redis.url, { maxRetriesPerRequest: null }),
     });
     await events.waitUntilReady();
-  });
+
+    await query(`INSERT INTO organization (id, name, updated_at) VALUES ($1, 'Nordlicht', now())`, [org]);
+    await query(
+      `INSERT INTO workspace (id, organization_id, slug, name, timezone, content_language, updated_at)
+       VALUES ($1, $2, 'nordlicht-notify', 'Nordlicht', 'Europe/Berlin', 'de', now())`,
+      [workspace, org],
+    );
+    await query(
+      `INSERT INTO users (id, name, email, locale, updated_at) VALUES ($1, 'Olivia', $2, 'de', now())`,
+      [owner.id, owner.email],
+    );
+    await query(
+      `INSERT INTO membership (id, organization_id, user_id, role, updated_at) VALUES ($1, $2, $3, 'OWNER', now())`,
+      [randomUUID(), org, owner.id],
+    );
+  }, 300_000);
 
   afterAll(async () => {
     await events?.close();
     await queue?.close();
     connection?.disconnect();
     await worker?.close();
-    await Promise.all([redis?.stop(), mailpit?.stop()]);
+    await Promise.all([database?.stop(), redis?.stop(), mailpit?.stop()]);
   });
 
   it('sends the invitation in German and in English', async () => {
@@ -85,6 +134,54 @@ describe('notify worker', () => {
     expect(en.Subject).toBe('Invitation to Acme GmbH');
     expect(en.Text).toContain('Olivia Owner invited you');
     expect(en.Text).toContain('Your role: Editor.');
+  });
+
+  it('tells the managers of a connection in the app and by email, once per event', async () => {
+    const { producer, mailpit: mail, queue: notifications } = started();
+    const connectionId = randomUUID();
+    await query(
+      `INSERT INTO social_connection (id, workspace_id, platform, method, status, external_user_id, display_name,
+                                      access_token_sealed, access_token_expires_at, updated_at)
+       VALUES ($1, $2, 'LINKEDIN', 'MOCK', 'NEEDS_REAUTH', 'mock-user', 'Mira', '\\x01', now(), now())`,
+      [connectionId, workspace],
+    );
+    await query(
+      `INSERT INTO social_account (id, workspace_id, connection_id, platform, type, external_id, name, updated_at)
+       VALUES ($1, $2, $3, 'LINKEDIN', 'PROFILE', 'urn:li:person:mira', 'Mira Becker', now())`,
+      [randomUUID(), workspace, connectionId],
+    );
+    const event = {
+      eventId: randomUUID(),
+      organizationId: org,
+      workspaceId: workspace,
+      request: { type: 'reauth-required' as const, connectionId, reason: 'EXPIRED', scheduledVariants: 2 },
+    };
+
+    await producer.dispatchEvent(event);
+    const email = await mail.waitForMessage(owner.email);
+    expect(email.Subject).toBe('Die Verbindung zu Mira Becker muss erneuert werden');
+    expect(email.Text).toContain('2 geplante Posts sind betroffen.');
+    expect(email.Text).toContain('http://localhost:3000/w/nordlicht-notify/accounts');
+    const inbox = () =>
+      query<{ type: string; workspace_id: string; payload: Record<string, unknown> }>(
+        'SELECT type, workspace_id, payload FROM notification WHERE user_id = $1 AND event_id = $2',
+        [owner.id, event.eventId],
+      );
+    expect(await inbox()).toEqual([
+      {
+        type: 'reauth-required',
+        workspace_id: workspace,
+        payload: expect.objectContaining({ accounts: ['Mira Becker'], scheduledVariants: 2 }) as unknown,
+      },
+    ]);
+
+    // A second dispatch of the event, as after a failed commit of the relay, adds nothing.
+    await producer.dispatchEvent(event);
+    const jobs = await notifications.getJobs(['completed']);
+    expect(jobs.filter((job) => job.id === `ntf.${event.eventId}`)).toHaveLength(1);
+    await sleep(1_000);
+    expect(await emailsTo(owner.email)).toBe(1);
+    expect(await inbox()).toHaveLength(1);
   });
 
   it('fails an invalid payload at once instead of retrying it', async () => {

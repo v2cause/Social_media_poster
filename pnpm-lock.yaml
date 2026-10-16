@@ -936,6 +936,9 @@ importers:
 
   packages/queue:
     dependencies:
+      '@smp/core':
+        specifier: workspace:*
+        version: link:../core
       '@smp/emails':
         specifier: workspace:*
         version: link:../emails

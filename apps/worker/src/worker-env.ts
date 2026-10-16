@@ -11,9 +11,11 @@ export const workerEnvSchema = z
     SCHEDULER_TICK_MS: z.coerce.number().int().min(1_000).default(15_000),
     WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(3002),
     REDIS_URL: z.url({ protocol: /^rediss?$/ }),
-    // Needed by the role "notify" only; WorkerModule checks it when that role is active.
+    // Needed by the role "notify" only; WorkerModule checks them when that role is active. The
+    // links of the notification emails lead into the web app at APP_URL.
     SMTP_URL: z.url({ protocol: /^smtps?$/ }).optional(),
     MAIL_FROM: z.string().min(3).optional(),
+    APP_URL: z.url({ protocol: /^https?$/ }).optional(),
     // Needed by the role "scheduler" (re-wrap in tick.maintenance); @smp/crypto checks the format.
     TOKEN_KEKS: z.string().optional(),
     TOKEN_KEK_ACTIVE: z.string().optional(),

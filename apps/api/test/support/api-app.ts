@@ -143,7 +143,10 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
     NOTIFICATIONS_QUEUE,
     async (job) => {
       const payload = parseNotifyDispatch(job.data);
-      await deliverEmail(mailer, payload.to, payload.email);
+      // The API queues emails only; events come from the outbox relay of the worker.
+      if (payload.channel === 'email') {
+        await deliverEmail(mailer, payload.to, payload.email);
+      }
     },
     { connection: new Redis(redis.url, { maxRetriesPerRequest: null }) },
   );

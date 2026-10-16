@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { ProcessAsset, RenderAttachedMedia, systemClock, uuidV7Ids } from '@smp/core';
 import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@smp/db';
-import { createSmtpMailer } from '@smp/emails';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
 import { createLogger } from '@smp/observability';
 import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE, PUBLISH_QUEUE, SCHEDULER_QUEUE } from '@smp/queue';
@@ -18,6 +17,7 @@ import Redis from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 
 import { HealthServer } from './health/health.server';
+import { notifyPipeline } from './infrastructure/notify.providers';
 import { publisherPipeline } from './infrastructure/publisher.providers';
 import { schedulerTicks } from './infrastructure/scheduler.providers';
 import { MediaProcessor } from './processors/media.processor';
@@ -26,7 +26,7 @@ import { SchedulerProcessor } from './processors/scheduler.processor';
 import { PublishWorker } from './publisher/publish-worker';
 import type { WorkerRole } from './roles';
 import type { WorkerEnv } from './worker-env';
-import { MAIL_PORT, PROCESS_ASSET, RENDER_ATTACHED_MEDIA, WORKER_ENV } from './worker.tokens';
+import { PROCESS_ASSET, RENDER_ATTACHED_MEDIA, WORKER_ENV } from './worker.tokens';
 
 interface RoleWiring {
   queue: string;
@@ -34,14 +34,6 @@ interface RoleWiring {
   processor: Type<unknown>;
   /** Adapters only this role needs. */
   providers?: (env: WorkerEnv) => Provider[];
-}
-
-function smtpMailer(env: WorkerEnv): Provider[] {
-  if (!env.SMTP_URL || !env.MAIL_FROM) {
-    throw new Error('Invalid configuration:\n  SMTP_URL and MAIL_FROM are required for the role "notify"');
-  }
-  const mailer = createSmtpMailer({ url: env.SMTP_URL, from: env.MAIL_FROM });
-  return [{ provide: MAIL_PORT, useValue: mailer }];
 }
 
 const MEDIA_CLIENTS = Symbol('MEDIA_CLIENTS');
@@ -103,7 +95,7 @@ const WIRING_BY_ROLE: Partial<Record<WorkerRole, RoleWiring>> = {
   scheduler: { queue: SCHEDULER_QUEUE, processor: SchedulerProcessor, providers: schedulerTicks },
   publisher: { queue: PUBLISH_QUEUE, processor: PublishWorker, providers: publisherPipeline },
   media: { queue: MEDIA_QUEUE, processor: MediaProcessor, providers: mediaPipeline },
-  notify: { queue: NOTIFICATIONS_QUEUE, processor: NotifyProcessor, providers: smtpMailer },
+  notify: { queue: NOTIFICATIONS_QUEUE, processor: NotifyProcessor, providers: notifyPipeline },
 };
 
 @Module({})

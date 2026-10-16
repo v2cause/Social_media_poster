@@ -7,6 +7,7 @@ import {
   jobIdOf,
   mediaProcessJobId,
   mediaRenderJobId,
+  notifyEmailJobId,
   notifyJobId,
   postMetricsJobId,
   publishDeadLetterId,
@@ -29,6 +30,7 @@ describe('job ids', () => {
       tokenRefreshJobId(id),
       postMetricsJobId(id, '202610161500'),
       notifyJobId(id),
+      notifyEmailJobId(id, id),
       stripeJobId('evt_1Abc'),
       gdprJobId(id),
       mediaProcessJobId(id),
@@ -45,6 +47,7 @@ describe('job ids', () => {
     expect(tokenRefreshJobId(id)).toBe(`tok.${id}`);
     expect(postMetricsJobId(id, 'b1')).toBe(`mp.${id}.b1`);
     expect(notifyJobId(id)).toBe(`ntf.${id}`);
+    expect(notifyEmailJobId(id, 'u1')).toBe(`ntf.${id}.u1`);
     expect(xbJobId('login.start', id, 1)).toBe(`xb.login.start.${id}.1`);
   });
 
