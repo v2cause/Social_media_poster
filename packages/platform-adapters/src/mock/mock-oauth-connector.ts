@@ -13,7 +13,7 @@ import type { Platform } from '@smp/platform-rules';
 
 import { PLATFORM_SCOPES } from '../scopes';
 import { decodeMockCode, pkceChallengeOf } from './mock-code';
-import type { InMemoryMockPlatformStore } from './mock-platform-store';
+import type { MockPlatformStore } from './mock-platform-store';
 
 // The OAuth side of the mock platforms (guide step 4.4): the authorization goes to the fake page
 // of the API, the code exchange checks state-independent parts like the PKCE verifier, and the
@@ -37,13 +37,16 @@ export class MockOAuthConnector implements OAuthConnector {
 
   constructor(
     private readonly platform: Platform,
-    private readonly options: { authorizeUrl: string; clock: Clock; store: InMemoryMockPlatformStore },
+    private readonly options: { authorizeUrl?: string; clock: Clock; store: MockPlatformStore },
   ) {
     this.scopes = PLATFORM_SCOPES[platform];
     this.usesPkce = platform === 'X';
   }
 
   authorizationUrl(request: AuthorizationRequest): string {
+    if (!this.options.authorizeUrl) {
+      throw new Error('The fake OAuth page is not configured here; only the API starts authorizations.');
+    }
     const url = new URL(this.options.authorizeUrl);
     url.searchParams.set('platform', this.platform);
     url.searchParams.set('state', request.state);
@@ -130,8 +133,7 @@ export class MockOAuthConnector implements OAuthConnector {
   }
 
   revoke(tokens: TokenSet): Promise<void> {
-    this.options.store.countCall('revoke', tokens.accessToken.slice(0, 12));
-    return Promise.resolve();
+    return this.options.store.countCall('revoke', tokens.accessToken.slice(0, 12));
   }
 
   /** A fresh token set, as a refresh returns it. */

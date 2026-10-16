@@ -25,7 +25,7 @@ import { z } from 'zod';
 
 import { platformErrorOf } from '../http/errors';
 import { MockOAuthConnector } from './mock-oauth-connector';
-import type { InMemoryMockPlatformStore, MockPost } from './mock-platform-store';
+import type { MockPlatformStore, MockPost } from './mock-platform-store';
 
 // The mock platforms of development and tests (guide step 4.4, architecture 16): the real
 // capability tables, a fake OAuth page, latency, deterministic growing metrics and failures per
@@ -78,10 +78,13 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
   constructor(
     readonly platform: Platform,
     private readonly options: {
-      store: InMemoryMockPlatformStore;
+      store: MockPlatformStore;
       clock: Clock;
-      /** The fake OAuth page of the API, for example http://localhost:3000/api/dev/mock-oauth/authorize. */
-      authorizeUrl: string;
+      /**
+       * The fake OAuth page of the API, for example http://localhost:3000/api/dev/mock-oauth/authorize.
+       * Only the API needs it; the workers never start an authorization.
+       */
+      authorizeUrl?: string;
       /** The latency of every call without a setting of its own. */
       defaultLatencyMs?: number;
     },
@@ -132,7 +135,7 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
       case 'unknown_outcome':
         throw new PlatformError('OUTCOME_UNKNOWN', 'The answer of the mock platform got lost');
       case 'rate_limit_once':
-        if (this.options.store.setOnce(`rate-limit:${ctx.account.id}:${request.variantId}`)) {
+        if (await this.options.store.setOnce(`rate-limit:${ctx.account.id}:${request.variantId}`)) {
           throw new PlatformError('RATE_LIMITED', 'The mock platform asks to wait', {
             status: 429,
             retryAfterMs: (settings.retryAfterSeconds ?? 2) * 1000,
@@ -155,8 +158,8 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
       publishedAt: this.options.clock.now(),
       deletedAt: null,
     };
-    this.options.store.save(post);
-    this.options.store.countCall('created', ctx.account.id);
+    await this.options.store.save(post);
+    await this.options.store.countCall('created', ctx.account.id);
     if (settings.failMode === 'slow') {
       await sleep(SLOW_MS, undefined, { signal: ctx.signal });
     }
@@ -168,21 +171,19 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
     ctx: AdapterContext,
   ): Promise<PublishResult | null> {
     await this.call('reconcile', ctx);
-    const post = this.options.store
-      .postsOf(ctx.account.id)
-      .find(
-        (candidate) =>
-          candidate.deletedAt === null &&
-          candidate.contentHash === query.contentHash &&
-          candidate.publishedAt >= query.since,
-      );
+    const post = (await this.options.store.postsOf(ctx.account.id)).find(
+      (candidate) =>
+        candidate.deletedAt === null &&
+        candidate.contentHash === query.contentHash &&
+        candidate.publishedAt >= query.since,
+    );
     return post ? this.resultOf(post) : null;
   }
 
   async deletePost(ref: ExternalPostRef, ctx: AdapterContext): Promise<void> {
     await this.call('delete', ctx);
-    const post = this.ownPost(ref.externalPostId, ctx);
-    this.options.store.save({ ...post, deletedAt: this.options.clock.now() });
+    const post = await this.ownPost(ref.externalPostId, ctx);
+    await this.options.store.save({ ...post, deletedAt: this.options.clock.now() });
   }
 
   async fetchPostMetrics(
@@ -190,16 +191,18 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
     ctx: AdapterContext,
   ): Promise<PostMetricsResult[]> {
     await this.call('metrics', ctx);
-    return refs.map((ref) => {
-      const post = this.ownPost(ref.externalPostId, ctx);
-      const metrics = this.metricsOf(post);
-      return {
-        externalPostId: post.externalPostId,
-        metrics,
-        raw: { mock: metrics },
-        mappingVersion: METRICS_MAPPING_VERSION,
-      };
-    });
+    return Promise.all(
+      refs.map(async (ref) => {
+        const post = await this.ownPost(ref.externalPostId, ctx);
+        const metrics = this.metricsOf(post);
+        return {
+          externalPostId: post.externalPostId,
+          metrics,
+          raw: { mock: metrics },
+          mappingVersion: METRICS_MAPPING_VERSION,
+        };
+      }),
+    );
   }
 
   async fetchAccountMetrics(
@@ -207,7 +210,7 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
     ctx: AdapterContext,
   ): Promise<AccountMetricsResult> {
     await this.call('account-metrics', ctx);
-    const posts = this.options.store.postsOf(ctx.account.id).length;
+    const posts = (await this.options.store.postsOf(ctx.account.id)).length;
     const followers = 500 + seedOf(ctx.account.id) + posts * 3;
     return {
       followers,
@@ -220,7 +223,7 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
 
   /** Counts the call, waits the latency and fails with failStatus where one is set. */
   private async call(operation: string, ctx: AdapterContext): Promise<void> {
-    this.options.store.countCall(operation, ctx.account.id);
+    await this.options.store.countCall(operation, ctx.account.id);
     const latency = settingsOf(ctx).latencyMs ?? this.options.defaultLatencyMs ?? 0;
     if (latency > 0) {
       await sleep(latency, undefined, { signal: ctx.signal });
@@ -245,8 +248,8 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
     );
   }
 
-  private ownPost(externalPostId: string, ctx: AdapterContext): MockPost {
-    const post = this.options.store.find(externalPostId);
+  private async ownPost(externalPostId: string, ctx: AdapterContext): Promise<MockPost> {
+    const post = await this.options.store.find(externalPostId);
     if (!post || post.accountId !== ctx.account.id) {
       throw new PlatformError('VALIDATION_REJECTED', 'The mock platform does not know the post', {
         status: 404,

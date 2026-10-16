@@ -30,6 +30,7 @@ export {
   type PlatformEnv,
   type PlatformMode,
 } from './env';
+export { operationPriceMicros, PLATFORM_OPERATION_PRICES_MICROS } from './prices';
 export { PLATFORM_SCOPES } from './scopes';
 export {
   decodeMockCode,
@@ -54,4 +55,9 @@ export {
   type MockAccountSettings,
   type MockFailMode,
 } from './mock/mock-platform-adapter';
-export { InMemoryMockPlatformStore, type MockPost } from './mock/mock-platform-store';
+export {
+  InMemoryMockPlatformStore,
+  RedisMockPlatformStore,
+  type MockPlatformStore,
+  type MockPost,
+} from './mock/mock-platform-store';

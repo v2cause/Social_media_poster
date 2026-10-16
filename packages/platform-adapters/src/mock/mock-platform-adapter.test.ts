@@ -69,8 +69,8 @@ describe('MockPlatformAdapter', () => {
     const error = await adapter.publish(request, ctx).catch((failed: unknown) => failed as PlatformError);
     expect(error).toMatchObject({ code: 'RATE_LIMITED', retryAfterMs: 5_000, retryable: true });
     await expect(adapter.publish(request, ctx)).resolves.toHaveProperty('externalPostId');
-    expect(store.callCount('publish', ctx.account.id)).toBe(2);
-    expect(store.callCount('created', ctx.account.id)).toBe(1);
+    expect(await store.callCount('publish', ctx.account.id)).toBe(2);
+    expect(await store.callCount('created', ctx.account.id)).toBe(1);
   });
 
   it('loses the answer without a post for unknown_outcome, so the reconcile finds nothing', async () => {
@@ -90,7 +90,7 @@ describe('MockPlatformAdapter', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     stop.abort();
     await expect(pending).rejects.toThrow();
-    expect(store.callCount('created', ctx.account.id)).toBe(1);
+    expect(await store.callCount('created', ctx.account.id)).toBe(1);
     await expect(
       adapter.reconcile({ text: request.text, since: new Date(0), contentHash: 'h1' }, ctx),
     ).resolves.toMatchObject({

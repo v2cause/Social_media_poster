@@ -3,7 +3,7 @@ import { PLATFORMS, type Platform } from '@smp/platform-rules';
 
 import { PLATFORM_MODE_VARIABLES, platformModeOf, usesMockPlatform, type PlatformEnv } from './env';
 import { MockPlatformAdapter } from './mock/mock-platform-adapter';
-import type { InMemoryMockPlatformStore } from './mock/mock-platform-store';
+import type { MockPlatformStore } from './mock/mock-platform-store';
 import { AdapterRegistry } from './registry';
 
 // Builds the registry from the platform settings (guide step 4.4). A platform in mock mode gets
@@ -22,10 +22,10 @@ export interface AdapterRegistryOptions {
     NODE_ENV: string;
   };
   mock: {
-    store: InMemoryMockPlatformStore;
+    store: MockPlatformStore;
     clock: Clock;
-    /** The fake OAuth page of the API. */
-    authorizeUrl: string;
+    /** The fake OAuth page of the API; the workers leave it out. */
+    authorizeUrl?: string;
     defaultLatencyMs?: number;
   };
   /** The real adapters by platform, built with the credentials of the app. */
