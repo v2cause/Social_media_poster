@@ -20,7 +20,8 @@
     "gen:keys": "tsx tools/gen-keys.ts",
     "check:deps": "depcruise --config .dependency-cruiser.cjs apps packages",
     "check:emoji": "tsx tools/check-no-emoji.ts",
-    "check:format": "prettier --check ."
+    "check:format": "prettier --check .",
+    "check:rls": "tsx --env-file-if-exists=.env tools/check-rls.ts"
   },
   "prettier": "@smp/config/prettier",
   "devDependencies": {

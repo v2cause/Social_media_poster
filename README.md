@@ -53,6 +53,7 @@ Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis au
 | `pnpm check:deps`       | Architekturregeln mit dependency-cruiser prüfen                             | Schritt 0.13 |
 | `pnpm check:emoji`      | Emoji in verfolgten Dateien suchen; mit `--commits A..B` in Commit-Messages | Schritt 0.13 |
 | `pnpm check:format`     | Prettier-Prüfung über das Repo                                              | Schritt 0.13 |
+| `pnpm check:rls`        | RLS und Policies aller Mandantentabellen in der lokalen Datenbank prüfen    | Schritt 1.2  |
 
 Container-Betrieb: `docker compose --profile app up -d --build --wait` startet API, Worker und Web, alle drei mit Healthcheck, dazu einen Reverse Proxy (Caddy). Die App ist dann unter `http://localhost:8080` erreichbar; der Proxy routet wie in Produktion `/api` an die API und alles andere an das Web. Das Profil `xb` startet den isolierten browser-worker, das Profil `observability` Grafana unter `http://localhost:3003`. Nach Änderungen an `infra/docker/postgres/init` einmal `docker compose down -v`, weil das Init-Skript nur auf einem leeren Volume läuft.
 

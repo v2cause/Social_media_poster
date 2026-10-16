@@ -27,7 +27,11 @@ describe('database roles and migrations', () => {
       const { rows } = await owner.query<{ migration_name: string; finished_at: Date | null }>(
         'SELECT migration_name, finished_at FROM _prisma_migrations ORDER BY migration_name',
       );
-      expect(rows.map((row) => row.migration_name)).toEqual(['0000_init', '0001_identity_tenancy']);
+      expect(rows.map((row) => row.migration_name)).toEqual([
+        '0000_init',
+        '0001_identity_tenancy',
+        '0002_rls_tenancy',
+      ]);
       expect(rows.every((row) => row.finished_at instanceof Date)).toBe(true);
     } finally {
       await owner.end();
