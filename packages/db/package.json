@@ -15,7 +15,7 @@
   "scripts": {
     "build": "prisma generate && tsup",
     "dev": "prisma generate && tsup --watch",
-    "lint": "eslint .",
+    "lint": "prisma generate && eslint .",
     "typecheck": "prisma generate && tsc --noEmit",
     "test": "prisma generate && vitest run",
     "test:integration": "prisma generate && vitest run --config vitest.integration.config.mts",
