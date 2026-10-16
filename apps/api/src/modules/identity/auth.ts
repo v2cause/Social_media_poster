@@ -1,5 +1,12 @@
 import type { Logger } from '@nestjs/common';
-import { DEFAULT_LOCALE, DEFAULT_TIMEZONE, localeSchema, timezoneSchema } from '@smp/contracts';
+import {
+  DEFAULT_LOCALE,
+  DEFAULT_TIMEZONE,
+  localeSchema,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  timezoneSchema,
+} from '@smp/contracts';
 import type { PrismaClient } from '@smp/db';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
@@ -42,8 +49,8 @@ export function createAuth({ env, prisma, mailer, logger }: AuthDependencies) {
       enabled: true,
       // No session before the address is verified, so organizations need a verified email.
       requireEmailVerification: true,
-      minPasswordLength: 12,
-      maxPasswordLength: 128,
+      minPasswordLength: PASSWORD_MIN_LENGTH,
+      maxPasswordLength: PASSWORD_MAX_LENGTH,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
         dispatch('auth.reset_mail_failed', mailer.sendResetPassword(user, url));
