@@ -32,6 +32,8 @@ pnpm install
 cp .env.example .env
 docker compose up -d
 pnpm -s gen:keys   # gibt Schlüssel aus; die Zeilen in .env eintragen
+pnpm db:migrate
+pnpm db:seed       # optional: Demo-Organisation mit vier Rollen
 pnpm build
 ```
 
@@ -54,6 +56,8 @@ Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis au
 | `pnpm check:emoji`      | Emoji in verfolgten Dateien suchen; mit `--commits A..B` in Commit-Messages | Schritt 0.13 |
 | `pnpm check:format`     | Prettier-Prüfung über das Repo                                              | Schritt 0.13 |
 | `pnpm check:rls`        | RLS und Policies aller Mandantentabellen in der lokalen Datenbank prüfen    | Schritt 1.2  |
+
+E2E-Tests: `pnpm test:e2e` läuft gegen den gestarteten Stack, wie im CI-Job "End-to-end tests". Vorher die Infrastruktur starten (`docker compose up -d --wait`), migrieren und bauen, dann in drei Terminals API und Worker (`node --env-file=../../.env --require @smp/observability/register dist/main.js` in `apps/api` und `apps/worker`) sowie das Web (`pnpm --filter @smp/web start`). Der Test liest die Verifizierungs- und Einladungs-Mails über die Mailpit-API. Ohne heruntergeladene Playwright-Browser zeigt `PLAYWRIGHT_CHROMIUM_EXECUTABLE` auf ein installiertes Chrome oder Chromium.
 
 Container-Betrieb: `docker compose --profile app up -d --build --wait` startet API, Worker und Web, alle drei mit Healthcheck, dazu einen Reverse Proxy (Caddy). Die App ist dann unter `http://localhost:8080` erreichbar; der Proxy routet wie in Produktion `/api` an die API und alles andere an das Web. Das Profil `xb` startet den isolierten browser-worker, das Profil `observability` Grafana unter `http://localhost:3003`. Nach Änderungen an `infra/docker/postgres/init` einmal `docker compose down -v`, weil das Init-Skript nur auf einem leeren Volume läuft.
 

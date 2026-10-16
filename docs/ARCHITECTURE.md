@@ -591,7 +591,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   5. Adapter-Contract-Tests
   6. OpenAPI-Drift-Check (Integrationstest gegen `packages/api-client/openapi.json`, ADR 0013)
   7. Prisma-Migrationsprüfung (`migrate diff`, squawk)
-  8. E2E mit Playwright
+  8. E2E mit Playwright gegen den gestarteten Stack (Compose-Infrastruktur, API, Worker, Web)
   9. Docker-Build (`turbo prune`, Trivy, Push nach GHCR auf main)
 
   Nächtlich laufen optionale Live-Smoke-Tests gegen Test-Accounts und die KI-Eval-Suite mit Budget-Limit. Ein eigener Workflow `security.yml` führt CodeQL, Dependency Review, `pnpm audit` und gitleaks aus (ADR 0009).

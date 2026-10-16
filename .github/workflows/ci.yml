@@ -96,6 +96,46 @@ jobs:
       # Testcontainers starts Postgres, Redis and friends on the runner's Docker daemon.
       - run: pnpm test:integration
 
+  e2e:
+    name: End-to-end tests (Playwright)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # The runner image ships Google Chrome, so no browser is downloaded.
+      PLAYWRIGHT_CHROMIUM_EXECUTABLE: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Write .env with fresh keys
+        run: |
+          grep -vE '^(BETTER_AUTH_SECRET|TOKEN_KEKS|TOKEN_KEK_ACTIVE|SESSION_KEKS|SESSION_KEK_ACTIVE)=' .env.example > .env
+          pnpm --silent gen:keys >> .env
+      - run: docker compose up -d --wait
+      - run: pnpm --filter @smp/db migrate:deploy
+      - run: pnpm build
+      - name: Start API, worker and web
+        run: |
+          mkdir -p e2e-logs
+          (cd apps/api && nohup node --env-file=../../.env --require @smp/observability/register dist/main.js > ../../e2e-logs/api.log 2>&1 &)
+          (cd apps/worker && nohup node --env-file=../../.env --require @smp/observability/register dist/main.js > ../../e2e-logs/worker.log 2>&1 &)
+          (cd apps/web && nohup ./node_modules/.bin/next start --port 3000 > ../../e2e-logs/web.log 2>&1 &)
+      - name: Wait until the stack is ready
+        run: |
+          for url in http://127.0.0.1:3001/api/health/ready http://127.0.0.1:3002/health/ready http://localhost:3000/login; do
+            timeout 120 bash -c "until curl -sf $url > /dev/null; do sleep 1; done"
+          done
+      - run: pnpm test:e2e
+      - name: Service logs
+        if: failure()
+        run: tail -n 200 e2e-logs/*.log
+
   build:
     name: Build
     runs-on: ubuntu-24.04
