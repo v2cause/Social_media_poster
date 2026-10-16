@@ -59,6 +59,13 @@ export { ChannelReadModel, type SocialAccountView } from './channels/channel-rea
 export { PrismaPublishingUnitOfWork } from './publishing/prisma-publishing-unit-of-work';
 export { createPrismaPublishingStore } from './publishing/prisma-publishing-store';
 export {
+  PrismaPublishScheduler,
+  type MissedVariant,
+  type PublishSchedulerOptions,
+  type QueuedVariant,
+  type StaleVariant,
+} from './publishing/prisma-publish-scheduler';
+export {
   PrismaOutboxRelay,
   type OutboxRelayReport,
   type PendingOutboxEvent,
