@@ -17,7 +17,7 @@ export type TenantContextProvider = () => TenantContext | undefined;
 export type TenantTransaction = Prisma.TransactionClient;
 
 export class MissingTenantContextError extends Error {
-  readonly code = 'tenant.context_missing';
+  readonly code = 'TENANT_CONTEXT_MISSING';
 
   constructor(operation: string) {
     super(`No tenant context for ${operation}. Run it inside a request or job with a tenant.`);

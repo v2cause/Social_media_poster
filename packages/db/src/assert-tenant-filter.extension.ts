@@ -39,7 +39,7 @@ const FILTERED_OPERATIONS = new Set([
 const CREATE_OPERATIONS = new Set(['create', 'createMany', 'createManyAndReturn']);
 
 export class TenantFilterMissingError extends Error {
-  readonly code = 'tenant.filter_missing';
+  readonly code = 'TENANT_FILTER_MISSING';
 
   constructor(model: string, operation: string, field: string) {
     super(`${model}.${operation} must filter by ${field} of the current tenant.`);

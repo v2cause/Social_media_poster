@@ -10,7 +10,7 @@ import { Prisma } from './generated/prisma/client';
 const systemScope = new AsyncLocalStorage<true>();
 
 export class SystemScopeViolationError extends Error {
-  readonly code = 'tenant.system_scope_violation';
+  readonly code = 'SYSTEM_SCOPE_VIOLATION';
 
   constructor(operation: string) {
     super(`${operation} on the system client is only allowed inside a @SystemScope() method.`);
