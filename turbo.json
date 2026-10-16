@@ -24,7 +24,8 @@
       "cache": false
     },
     "test:e2e": {
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["E2E_BASE_URL", "PLAYWRIGHT_CHROMIUM_EXECUTABLE"]
     }
   }
 }
