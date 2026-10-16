@@ -678,6 +678,43 @@ describe('PublishVariant', () => {
     });
   });
 
+  describe('the notifications of guide step 4.9', () => {
+    it('tells of a post that failed for good, and of none that only waits', async () => {
+      const refused = createPublishJobTestbed();
+      refused.adapter.publishAnswers = [new PlatformError('VALIDATION_REJECTED', 'refused')];
+      await publish(refused);
+      expect(refused.unitOfWork.notifications()).toEqual([
+        { type: 'publish-failed', variantId: 'variant-1', failureCode: 'VALIDATION_REJECTED' },
+      ]);
+
+      const limited = createPublishJobTestbed();
+      limited.adapter.publishAnswers = [new PlatformError('RATE_LIMITED', 'slow down')];
+      await publish(limited);
+      expect(limited.unitOfWork.notifications()).toEqual([]);
+    });
+
+    it('tells of a post that needs a decision', async () => {
+      const bed = createPublishJobTestbed();
+      bed.adapter.publishAnswers = [new PlatformError('OUTCOME_UNKNOWN', 'timeout after sending')];
+
+      await publish(bed);
+
+      expect(bed.unitOfWork.notifications()).toEqual([
+        { type: 'needs-attention', variantId: 'variant-1', failureCode: 'OUTCOME_UNKNOWN' },
+      ]);
+    });
+
+    it('tells of a missed window', async () => {
+      const bed = createPublishJobTestbed({ variant: { scheduledAt: new Date(NOW - 7 * 60 * 60 * 1000) } });
+
+      await publish(bed, jobOf({ trigger: 'sweep' }));
+
+      expect(bed.unitOfWork.notifications()).toEqual([
+        { type: 'publish-failed', variantId: 'variant-1', failureCode: 'MISSED_WINDOW' },
+      ]);
+    });
+  });
+
   it('books the paid calls of a run once per operation, at their price', async () => {
     const bed = createPublishJobTestbed({ platform: 'X' });
     bed.adapter.duringPublish = async (ctx) => {

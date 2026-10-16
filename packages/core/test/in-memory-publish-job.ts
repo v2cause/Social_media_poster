@@ -122,6 +122,13 @@ export class InMemoryPublishJobs implements PublishJobUnitOfWork {
     return this.state.attempts.filter((attempt) => attempt.variantId === variantId);
   }
 
+  /** The payloads of the notification requests in the outbox. */
+  notifications(): unknown[] {
+    return this.state.outbox.flatMap((event) =>
+      event.type === 'notification.requested' ? [event.payload] : [],
+    );
+  }
+
   statuses(): string[] {
     return this.state.outbox.flatMap((event) => ('status' in event.payload ? [event.payload.status] : []));
   }

@@ -10,6 +10,8 @@ import { createSystemPrismaClient } from '@smp/db';
 import { PrismaOutboxRelay, type SystemPrismaClient } from '@smp/db';
 import {
   LiveEventPublisher,
+  NOTIFICATIONS_QUEUE,
+  NotificationProducer,
   publishJobId,
   PUBLISH_QUEUE,
   PublishProducer,
@@ -106,6 +108,7 @@ describe('outbox relay of the worker', () => {
         dispatcher: new OutboxDispatcher({
           publish: new PublishProducer(publishQueue()),
           live: new LiveEventPublisher(new Redis(started().redis.url, { lazyConnect: true })),
+          notifications: new NotificationProducer(queueOf(NOTIFICATIONS_QUEUE)),
         }),
       };
     });

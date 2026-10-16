@@ -102,6 +102,12 @@ export class PrismaPublishScheduler {
                    jsonb_build_object('variantId', f.id, 'postId', f.post_id, 'status', 'FAILED',
                                       'scheduleVersion', f.schedule_version)
               FROM failed f
+          ), notices AS (
+            -- The author hears of it (guide step 4.9).
+            INSERT INTO outbox_event (id, workspace_id, type, payload)
+            SELECT gen_random_uuid(), f.workspace_id, 'notification.requested',
+                   jsonb_build_object('type', 'publish-failed', 'variantId', f.id, 'failureCode', 'MISSED_WINDOW')
+              FROM failed f
           )
           SELECT f.id, f.workspace_id, w.organization_id
             FROM failed f

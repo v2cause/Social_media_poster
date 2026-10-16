@@ -162,6 +162,14 @@ describe('scheduler ticks of the worker', () => {
     for (const row of anyway) {
       expect(byId.get(row.id)).toMatchObject({ status: 'QUEUED', failure_code: null });
     }
+    // Guide step 4.9: the author of each missed one hears of it.
+    const notices = await query<{ variant_id: string }>(
+      `SELECT payload->>'variantId' AS variant_id FROM outbox_event
+        WHERE type = 'notification.requested' AND payload->>'type' = 'publish-failed'
+          AND payload->>'failureCode' = 'MISSED_WINDOW' AND payload->>'variantId' = ANY($1::text[])`,
+      [[...missed, ...anyway].map((row) => row.id)],
+    );
+    expect(notices.map((row) => row.variant_id).sort()).toEqual(missed.map((row) => row.id).sort());
   });
 
   it('gives lost jobs back and restarts failed ones, leaving running ones alone', async () => {

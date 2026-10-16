@@ -441,6 +441,17 @@ export class PublishRun {
         return false;
       }
       await store.outbox.add(variant.workspaceId, statusEvent(variant, result.status));
+      // Guide step 4.9: the author hears of a post that failed or needs a decision.
+      if (end.kind === 'failed' || end.kind === 'needs_attention') {
+        await store.outbox.add(variant.workspaceId, {
+          type: 'notification.requested',
+          payload: {
+            type: end.kind === 'failed' ? 'publish-failed' : 'needs-attention',
+            variantId: variant.id,
+            failureCode: end.code,
+          },
+        });
+      }
       return true;
     });
     return changed ? outcomeOf(end) : { kind: 'skipped', reason: 'LEASE_LOST' };

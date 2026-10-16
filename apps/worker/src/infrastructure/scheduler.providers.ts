@@ -8,7 +8,13 @@ import {
   PrismaSealedSecretStore,
   type SystemPrismaClient,
 } from '@smp/db';
-import { LiveEventPublisher, PUBLISH_QUEUE, PublishProducer } from '@smp/queue';
+import {
+  LiveEventPublisher,
+  NOTIFICATIONS_QUEUE,
+  NotificationProducer,
+  PUBLISH_QUEUE,
+  PublishProducer,
+} from '@smp/queue';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
@@ -20,8 +26,8 @@ import { Sweeper } from '../scheduler/sweeper';
 import type { WorkerEnv } from '../worker-env';
 import { TICK_HANDLERS } from '../worker.tokens';
 
-// The adapters of the role "scheduler" (guide steps 4.2, 4.3 and 4.7): the system client for the
-// scans across workspaces, the producers of the jobs the ticks add, and the tick handlers.
+// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7 and 4.9): the system client
+// for the scans across workspaces, the producers of the jobs the ticks add, and the tick handlers.
 
 const SCHEDULER_CLIENTS = Symbol('SCHEDULER_CLIENTS');
 /** Variants per claim of tick.publish and per scan of the sweeper. */
@@ -30,7 +36,8 @@ const PUBLISH_BATCH = 500;
 /** The connections of the scheduler, closed when the worker shuts down. */
 interface SchedulerClients {
   system: SystemPrismaClient;
-  publishQueue: Queue;
+  queues: Queue[];
+  producers: Redis;
   live: Redis;
 }
 
@@ -39,7 +46,11 @@ class SchedulerClientsLifecycle implements OnApplicationShutdown {
   constructor(@Inject(SCHEDULER_CLIENTS) private readonly clients: SchedulerClients) {}
 
   async onApplicationShutdown(): Promise<void> {
-    await this.clients.publishQueue.close();
+    for (const queue of this.clients.queues) {
+      await queue.close();
+    }
+    // A queue leaves a connection it was given open.
+    this.clients.producers.disconnect();
     this.clients.live.disconnect();
     await this.clients.system.$disconnect();
   }
@@ -53,16 +64,20 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
   const sealers = { tokens: sealerFromEnv('tokens', env), sessions: sealerFromEnv('sessions', env) };
   // app_system for the scans across workspaces; every use runs inside a system scope.
   const system = createSystemPrismaClient(env.DATABASE_SYSTEM_URL);
-  // Producers get a connection of their own that fails fast instead of queueing commands while
-  // Redis is away, so the relay keeps the event and tries again.
-  const publishQueue = new Queue(PUBLISH_QUEUE, {
-    connection: new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false }),
-  });
+  // Producers share a connection that fails fast instead of queueing commands while Redis is
+  // away, so the relay keeps the event and tries again.
+  const producers = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false });
+  const publishQueue = new Queue(PUBLISH_QUEUE, { connection: producers });
+  const notificationsQueue = new Queue(NOTIFICATIONS_QUEUE, { connection: producers });
   // Live events go out on a plain connection that fails fast as well.
   const live = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1, enableOfflineQueue: false });
   const outbox = new PrismaOutboxRelay(system);
   const publishProducer = new PublishProducer(publishQueue);
-  const dispatcher = new OutboxDispatcher({ publish: publishProducer, live: new LiveEventPublisher(live) });
+  const dispatcher = new OutboxDispatcher({
+    publish: publishProducer,
+    live: new LiveEventPublisher(live),
+    notifications: new NotificationProducer(notificationsQueue),
+  });
   const plans = new PrismaPublishScheduler(system, { batchSize: PUBLISH_BATCH });
   const publishTick = new PublishTick({
     plans,
@@ -85,7 +100,15 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
     },
   };
   return [
-    { provide: SCHEDULER_CLIENTS, useValue: { system, publishQueue, live } satisfies SchedulerClients },
+    {
+      provide: SCHEDULER_CLIENTS,
+      useValue: {
+        system,
+        queues: [publishQueue, notificationsQueue],
+        producers,
+        live,
+      } satisfies SchedulerClients,
+    },
     SchedulerClientsLifecycle,
     { provide: TICK_HANDLERS, useValue: handlers },
   ];

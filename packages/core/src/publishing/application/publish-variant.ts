@@ -52,6 +52,10 @@ export class PublishVariant {
         return { kind: 'skipped', reason: 'STALE' };
       }
       await store.outbox.add(job.workspaceId, statusEvent(variant, 'FAILED'));
+      await store.outbox.add(job.workspaceId, {
+        type: 'notification.requested',
+        payload: { type: 'publish-failed', variantId: variant.id, failureCode: 'MISSED_WINDOW' },
+      });
       return { kind: 'failed', code: 'MISSED_WINDOW' };
     }
 

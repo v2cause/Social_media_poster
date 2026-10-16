@@ -1,4 +1,5 @@
 import type { VariantStatus } from '../../content/domain/types';
+import type { NotificationRequest } from '../../notifications/domain/types';
 
 // Events of the transactional outbox (architecture 7): a use case writes them in the transaction
 // of its change, and tick.outbox-relay turns each one into a job or a live event after the commit.
@@ -12,6 +13,8 @@ export interface OutboxEventPayloads {
   'publish.requested': { variantId: string; scheduleVersion: number; trigger: 'now' | 'retry' | 'recheck' };
   /** A variant changed its status; the relay passes it on to the live events (step 4.10). */
   'variant.status': { variantId: string; postId: string; status: VariantStatus; scheduleVersion: number };
+  /** A notification for the role "notify", which finds its recipients (step 4.9). */
+  'notification.requested': NotificationRequest;
 }
 
 export type OutboxEventType = keyof OutboxEventPayloads;
@@ -19,6 +22,7 @@ export type OutboxEventType = keyof OutboxEventPayloads;
 export const OUTBOX_EVENT_TYPES = [
   'publish.requested',
   'variant.status',
+  'notification.requested',
 ] as const satisfies readonly OutboxEventType[];
 
 export interface OutboxEventInput<T extends OutboxEventType = OutboxEventType> {
