@@ -10,8 +10,11 @@ import { publishJobId } from './job-id';
 export const PUBLISH_QUEUE = 'publish';
 export const PUBLISH_VARIANT = 'publish.variant';
 
-/** schedule: the tick; now: "Jetzt posten"; retry: after FAILED or NEEDS_ATTENTION; sweep: the sweeper. */
-export const PUBLISH_TRIGGERS = ['schedule', 'now', 'retry', 'sweep'] as const;
+/**
+ * schedule: the tick; now: "Jetzt posten" or "trotzdem posten"; retry: after FAILED or
+ * NEEDS_ATTENTION; recheck: only reconcile an unclear attempt again; sweep: the sweeper.
+ */
+export const PUBLISH_TRIGGERS = ['schedule', 'now', 'retry', 'recheck', 'sweep'] as const;
 export type PublishTrigger = (typeof PUBLISH_TRIGGERS)[number];
 
 // W3C trace context, so the publish span continues the trace of the request that planned it.

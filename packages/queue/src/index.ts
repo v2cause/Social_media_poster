@@ -137,3 +137,10 @@ export {
   type MediaRender,
 } from './media';
 export { LockNotAcquiredError, withLock, type HeldLock, type LockOptions } from './lock';
+export {
+  liveEventChannel,
+  LiveEventPublisher,
+  liveEventSchema,
+  parseLiveEvent,
+  type LiveEvent,
+} from './live-events';
