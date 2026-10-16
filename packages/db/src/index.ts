@@ -53,6 +53,11 @@ export {
 } from './media/media-read-model';
 export { PrismaQuotaStore } from './usage/prisma-quota-store';
 export { PrismaSealedSecretStore } from './channels/prisma-sealed-secret-store';
+export {
+  PrismaOutboxRelay,
+  type OutboxRelayReport,
+  type PendingOutboxEvent,
+} from './outbox/prisma-outbox-relay';
 export { PrismaPriceCatalog } from './usage/prisma-price-catalog';
 export { DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData, type DemoSeedResult } from './seed/demo';
 export {
