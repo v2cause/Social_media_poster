@@ -1,6 +1,7 @@
 import {
   composePostText,
   countText,
+  findForbiddenWords,
   validatePost,
   type TextCount,
   type ValidationIssue,
@@ -31,19 +32,9 @@ export type GenerationEvent =
   | { type: 'generation.completed'; generationId: string; variants: GeneratedVariantResult[] }
   | { type: 'generation.failed'; generationId: string; code: AiFailureCode; retryable: boolean };
 
-const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/** Whole words and phrases, case-insensitive, in any script. */
-export function forbiddenWordsIn(texts: readonly string[], forbidden: readonly string[]): string[] {
-  const haystack = texts.join('\n');
-  return forbidden.filter((word) => {
-    const trimmed = word.trim();
-    return (
-      trimmed.length > 0 &&
-      new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(trimmed)}(?![\\p{L}\\p{N}_])`, 'iu').test(haystack)
-    );
-  });
-}
+/** Whole words and phrases, case-insensitive, in any script (shared with the composer). */
+export const forbiddenWordsIn = (texts: readonly string[], forbidden: readonly string[]): string[] =>
+  findForbiddenWords(texts, forbidden);
 
 export const countOf = (variant: Pick<GeneratedVariant, 'platform' | 'text' | 'hashtags'>): TextCount =>
   countText(variant.platform, composePostText(variant.text, variant.hashtags));

@@ -13,6 +13,7 @@ export {
   xWeightedLength,
   type TextCount,
 } from './count-text';
+export { findForbiddenWords } from './forbidden-words';
 export {
   validatePost,
   VALIDATION_ISSUE_CODES,
