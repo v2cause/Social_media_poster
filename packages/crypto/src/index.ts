@@ -12,4 +12,5 @@ export {
 export { EnvelopeSealer, KEYRING_ENV, sealerFromEnv } from './envelope-sealer';
 export type { KmsPort, WrappedKey } from './kms';
 export { KeyringConfigError, LocalKeyring } from './local-keyring';
+export { oauthRandom } from './oauth-random';
 export { secretTokens, sha256Hex } from './secret-tokens';
