@@ -298,6 +298,93 @@ const ENDPOINTS: Endpoint[] = [
     path: (i) => `/api/w/${i.slug}/ai/alt-texts`,
     body: () => ({ assetId: unknownId }),
   },
+  // Channels (guide step 4.5): an unknown platform, pending connection or account.
+  {
+    method: 'get',
+    route: '/api/w/:ws/channels',
+    permission: 'workspace.read',
+    path: (i) => `/api/w/${i.slug}/channels`,
+  },
+  {
+    method: 'post',
+    route: '/api/w/:ws/channels/:platform/connect',
+    permission: 'account.manage',
+    path: (i) => `/api/w/${i.slug}/channels/myspace/connect`,
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/channels/pending/:pendingId',
+    permission: 'account.manage',
+    path: (i) => `/api/w/${i.slug}/channels/pending/${unknownId}`,
+  },
+  {
+    method: 'post',
+    route: '/api/w/:ws/channels/pending/:pendingId/confirm',
+    permission: 'account.manage',
+    path: (i) => `/api/w/${i.slug}/channels/pending/${unknownId}/confirm`,
+    body: () => ({ externalIds: ['urn:li:person:unknown'] }),
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/accounts',
+    permission: 'workspace.read',
+    path: (i) => `/api/w/${i.slug}/accounts`,
+  },
+  {
+    method: 'post',
+    route: '/api/w/:ws/accounts/:accountId/reconnect',
+    permission: 'account.manage',
+    path: (i) => `/api/w/${i.slug}/accounts/${unknownId}/reconnect`,
+  },
+  {
+    method: 'delete',
+    route: '/api/w/:ws/accounts/:accountId',
+    permission: 'account.manage',
+    path: (i) => `/api/w/${i.slug}/accounts/${unknownId}`,
+  },
+  // Planning and publishing (guide step 4.6): an unknown variant.
+  {
+    method: 'post',
+    route: '/api/w/:ws/variants/:variantId/schedule',
+    permission: 'post.schedule',
+    path: (i) => `/api/w/${i.slug}/variants/${unknownId}/schedule`,
+    body: () => ({ version: 0, localDateTime: '2030-01-07T09:30', timeZone: 'Europe/Berlin' }),
+  },
+  {
+    method: 'post',
+    route: '/api/w/:ws/variants/:variantId/reschedule',
+    permission: 'post.schedule',
+    path: (i) => `/api/w/${i.slug}/variants/${unknownId}/reschedule`,
+    body: () => ({ version: 0, localDateTime: '2030-01-07T10:30', timeZone: 'Europe/Berlin' }),
+  },
+  {
+    method: 'post',
+    route: '/api/w/:ws/variants/:variantId/cancel',
+    permission: 'post.schedule',
+    path: (i) => `/api/w/${i.slug}/variants/${unknownId}/cancel`,
+    body: () => ({ version: 0 }),
+  },
+  {
+    method: 'post',
+    route: '/api/w/:ws/variants/:variantId/publish-now',
+    permission: 'post.publish',
+    path: (i) => `/api/w/${i.slug}/variants/${unknownId}/publish-now`,
+    body: () => ({ version: 0, timeZone: 'Europe/Berlin' }),
+  },
+  {
+    method: 'post',
+    route: '/api/w/:ws/variants/:variantId/retry',
+    permission: 'post.schedule',
+    path: (i) => `/api/w/${i.slug}/variants/${unknownId}/retry`,
+    body: () => ({ version: 0, timeZone: 'Europe/Berlin' }),
+  },
+  {
+    method: 'post',
+    route: '/api/w/:ws/variants/:variantId/resolve',
+    permission: 'post.schedule',
+    path: (i) => `/api/w/${i.slug}/variants/${unknownId}/resolve`,
+    body: () => ({ version: 0, action: 'recheck' }),
+  },
   // Destructive for everyone who may leave: last.
   {
     method: 'post',
