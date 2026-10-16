@@ -15,6 +15,8 @@ import {
   publishJobId,
   PUBLISH_QUEUE,
   PublishProducer,
+  TokenProducer,
+  TOKENS_QUEUE,
 } from '@smp/queue';
 import { startRedis, startTestDatabase, type StartedRedis, type TestDatabase } from '@smp/testing';
 import { Queue, Worker } from 'bullmq';
@@ -30,7 +32,8 @@ import { WorkerModule } from '../src/worker.module';
 // Guide step 4.8, "Fertig, wenn": the worker is stopped in the middle of a publish and started
 // again, and there is no second post (the mock platform counts the calls). A second test lets the
 // job fail for good while its variant stays PUBLISHING; the sweeper brings it back. Before that,
-// the role "publisher" publishes, waits out a rate limit and fails a refused post.
+// the role "publisher" publishes, waits out a rate limit and fails a refused post. At the end it
+// renews the tokens of connections on token.refresh (guide step 4.9).
 
 const org = randomUUID();
 const workspace = randomUUID();
@@ -100,6 +103,34 @@ describe('the publisher role', () => {
       [variantId],
     );
 
+  /** A mock connection with one account, its access running out in the given days. */
+  const seedConnection = async (platform: 'LINKEDIN' | 'INSTAGRAM', expiresInDays: number) => {
+    const connectionId = randomUUID();
+    const accountId = randomUUID();
+    const token = await sealer.seal(
+      'mock-access',
+      connectionSecretAad(workspace, connectionId, 'access_token'),
+    );
+    await query(
+      `INSERT INTO social_connection (id, workspace_id, platform, method, external_user_id, display_name,
+                                      access_token_sealed, access_token_expires_at, updated_at)
+       VALUES ($1, $2, $3, 'MOCK', $4, 'Mira', $5, now() + make_interval(days => $6::int), now())`,
+      [connectionId, workspace, platform, `mock-user-${connectionId}`, Buffer.from(token), expiresInDays],
+    );
+    await query(
+      `INSERT INTO social_account (id, workspace_id, connection_id, platform, type, external_id, name, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'Mira', now())`,
+      [
+        accountId,
+        workspace,
+        connectionId,
+        platform,
+        platform === 'INSTAGRAM' ? 'BUSINESS' : 'PROFILE',
+        `mock-${accountId}`,
+      ],
+    );
+    return { connectionId, accountId };
+  };
   /** A queued LinkedIn variant on a mock account of its own, with the fail mode in its settings. */
   const seed = async (settings: Record<string, unknown> = {}): Promise<Seeded> => {
     const connectionId = randomUUID();
@@ -344,5 +375,57 @@ describe('the publisher role', () => {
       'UNKNOWN',
       'RECONCILED',
     ]);
+  });
+
+  it('renews a connection on token.refresh and leaves one EXPIRING that its platform cannot renew', async () => {
+    const renewable = await seedConnection('INSTAGRAM', 10);
+    const fixed = await seedConnection('LINKEDIN', 10);
+    const tokens = new Queue(TOKENS_QUEUE, { connection: connection() });
+    const worker = await startPublisher();
+    try {
+      const producer = new TokenProducer(tokens);
+      for (const { connectionId } of [renewable, fixed]) {
+        await producer.refresh({ organizationId: org, workspaceId: workspace, connectionId });
+      }
+      const rowOf = async (connectionId: string) =>
+        (
+          await query<{ status: string; days_left: number; refreshed: boolean }>(
+            `SELECT status, floor(extract(epoch FROM access_token_expires_at - now()) / 86400)::int AS days_left,
+                    last_refreshed_at IS NOT NULL AS refreshed
+               FROM social_connection WHERE id = $1`,
+            [connectionId],
+          )
+        )[0];
+      await waitFor('the refreshes', async () => {
+        const [renewed, expiring] = await Promise.all([
+          rowOf(renewable.connectionId),
+          rowOf(fixed.connectionId),
+        ]);
+        return renewed?.refreshed === true && expiring?.status === 'EXPIRING';
+      });
+
+      expect(await rowOf(renewable.connectionId)).toEqual({
+        status: 'ACTIVE',
+        days_left: 59,
+        refreshed: true,
+      });
+      expect(await rowOf(fixed.connectionId)).toEqual({ status: 'EXPIRING', days_left: 9, refreshed: false });
+      expect(await calls('refresh', renewable.accountId)).toBe(1);
+      expect(await calls('refresh', fixed.accountId)).toBe(1);
+      // The new token is sealed for its connection.
+      const [sealed] = await query<{ access_token_sealed: Buffer }>(
+        'SELECT access_token_sealed FROM social_connection WHERE id = $1',
+        [renewable.connectionId],
+      );
+      await expect(
+        sealer.open(
+          new Uint8Array(sealed?.access_token_sealed ?? []),
+          connectionSecretAad(workspace, renewable.connectionId, 'access_token'),
+        ),
+      ).resolves.toMatch(/^mock-access-/);
+    } finally {
+      await worker.close();
+      await tokens.close();
+    }
   });
 });

@@ -1,9 +1,21 @@
 import { createHash } from 'node:crypto';
 
 import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
-import { systemClock, uuidV7Ids, type AdapterResolver, type PublishJobDependencies } from '@smp/core';
+import {
+  systemClock,
+  uuidV7Ids,
+  type AdapterResolver,
+  type ConnectionLock,
+  type PublishJobDependencies,
+  type RefreshConnectionDependencies,
+} from '@smp/core';
 import { sealerFromEnv } from '@smp/crypto';
-import { createPrismaClient, PrismaPublishJobUnitOfWork, type PrismaClient } from '@smp/db';
+import {
+  createPrismaClient,
+  PrismaPublishJobUnitOfWork,
+  PrismaTokenMaintenanceUnitOfWork,
+  type PrismaClient,
+} from '@smp/db';
 import { S3Storage, storageConfigOf } from '@smp/media';
 import {
   AdapterNotAvailableError,
@@ -18,18 +30,21 @@ import Redis from 'ioredis';
 import type { WorkerEnv } from '../worker-env';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
 
-// The adapters of the role "publisher" (guide step 4.8): the database as app_user in the tenant
-// of each job, the token keyring, the platform adapters of PLATFORM_MODE_* (the mock platforms
-// keep their state in Redis, shared with the API), the lock of a connection for its token
-// refresh, the storage that signs the URLs of the renditions, and the dead-letter queue.
+// The adapters of the role "publisher" (guide steps 4.8 and 4.9): the database as app_user in
+// the tenant of each job, the token keyring, the platform adapters of PLATFORM_MODE_* (the mock
+// platforms keep their state in Redis, shared with the API), the lock of a connection for its
+// token refresh (before a post and in token.refresh), the storage that signs the URLs of the
+// renditions, and the dead-letter queue.
 
 /** How long the lock of a connection lasts, and how long a run waits for it. */
 const CONNECTION_LOCK_TTL_MS = 30_000;
 const CONNECTION_LOCK_WAIT_MS = 15_000;
 
-/** What the publish worker needs, apart from its logger. */
+/** What the publish worker and the token refresh need, apart from their loggers. */
 export interface PublishPipeline {
   deps: Omit<PublishJobDependencies, 'logger'>;
+  /** token.refresh shares the adapters, the keyring and the lock of a connection. */
+  tokenRefresh: Omit<RefreshConnectionDependencies, 'logger'>;
   /** The connection of the BullMQ worker; blocking commands wait on it. */
   workerConnection: Redis;
   /** Copies of the jobs that failed for good (architecture 7.1). */
@@ -112,17 +127,19 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
     },
   };
 
+  const locks: ConnectionLock = {
+    withConnectionLock: (connectionId, work) =>
+      withLock(redis, `lock:conn:${connectionId}`, CONNECTION_LOCK_TTL_MS, () => work(), {
+        waitMs: CONNECTION_LOCK_WAIT_MS,
+      }),
+  };
+
   const pipeline: PublishPipeline = {
     deps: {
       unitOfWork: new PrismaPublishJobUnitOfWork(database),
       adapters,
       sealer,
-      locks: {
-        withConnectionLock: (connectionId, work) =>
-          withLock(redis, `lock:conn:${connectionId}`, CONNECTION_LOCK_TTL_MS, () => work(), {
-            waitMs: CONNECTION_LOCK_WAIT_MS,
-          }),
-      },
+      locks,
       storage,
       prices: { priceMicros: operationPriceMicros },
       hash: (value) => createHash('sha256').update(value).digest('hex'),
@@ -130,6 +147,13 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
       ids: uuidV7Ids,
       dryRunLive: env.PUBLISH_DRY_RUN,
       leaseMs: env.PUBLISH_LEASE_MS,
+    },
+    tokenRefresh: {
+      unitOfWork: new PrismaTokenMaintenanceUnitOfWork(database),
+      adapters,
+      sealer,
+      locks,
+      clock: systemClock,
     },
     workerConnection,
     deadLetters: new PublishDeadLetters(deadLetterQueue),

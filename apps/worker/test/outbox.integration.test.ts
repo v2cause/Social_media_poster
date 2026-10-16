@@ -186,6 +186,7 @@ describe('outbox relay of the worker', () => {
       'tick.outbox-relay',
       'tick.publish',
       'tick.sweep-queued',
+      'tick.tokens',
     ]);
     const [row] = await query<{ processed: boolean }>(
       'SELECT processed_at IS NOT NULL AS processed FROM outbox_event WHERE id = $1',

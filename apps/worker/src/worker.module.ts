@@ -12,7 +12,7 @@ import { ProcessAsset, RenderAttachedMedia, systemClock, uuidV7Ids } from '@smp/
 import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@smp/db';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
 import { createLogger } from '@smp/observability';
-import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE, PUBLISH_QUEUE, SCHEDULER_QUEUE } from '@smp/queue';
+import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE, PUBLISH_QUEUE, SCHEDULER_QUEUE, TOKENS_QUEUE } from '@smp/queue';
 import Redis from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 
@@ -23,15 +23,16 @@ import { schedulerTicks } from './infrastructure/scheduler.providers';
 import { MediaProcessor } from './processors/media.processor';
 import { NotifyProcessor } from './processors/notify.processor';
 import { SchedulerProcessor } from './processors/scheduler.processor';
+import { TokenRefreshProcessor } from './processors/token-refresh.processor';
 import { PublishWorker } from './publisher/publish-worker';
 import type { WorkerRole } from './roles';
 import type { WorkerEnv } from './worker-env';
 import { PROCESS_ASSET, RENDER_ATTACHED_MEDIA, WORKER_ENV } from './worker.tokens';
 
 interface RoleWiring {
-  queue: string;
-  /** The @Processor of the queue, or a provider that runs its own BullMQ worker. */
-  processor: Type<unknown>;
+  queues: string[];
+  /** The @Processor of each queue, or providers that run their own BullMQ worker. */
+  processors: Type<unknown>[];
   /** Adapters only this role needs. */
   providers?: (env: WorkerEnv) => Provider[];
 }
@@ -92,10 +93,15 @@ function mediaPipeline(env: WorkerEnv): Provider[] {
 
 // Processors per role. A role without an entry starts no processors yet.
 const WIRING_BY_ROLE: Partial<Record<WorkerRole, RoleWiring>> = {
-  scheduler: { queue: SCHEDULER_QUEUE, processor: SchedulerProcessor, providers: schedulerTicks },
-  publisher: { queue: PUBLISH_QUEUE, processor: PublishWorker, providers: publisherPipeline },
-  media: { queue: MEDIA_QUEUE, processor: MediaProcessor, providers: mediaPipeline },
-  notify: { queue: NOTIFICATIONS_QUEUE, processor: NotifyProcessor, providers: notifyPipeline },
+  scheduler: { queues: [SCHEDULER_QUEUE], processors: [SchedulerProcessor], providers: schedulerTicks },
+  // token.refresh shares the adapters and the lock of a connection with the publish job.
+  publisher: {
+    queues: [PUBLISH_QUEUE, TOKENS_QUEUE],
+    processors: [PublishWorker, TokenRefreshProcessor],
+    providers: publisherPipeline,
+  },
+  media: { queues: [MEDIA_QUEUE], processors: [MediaProcessor], providers: mediaPipeline },
+  notify: { queues: [NOTIFICATIONS_QUEUE], processors: [NotifyProcessor], providers: notifyPipeline },
 };
 
 @Module({})
@@ -115,12 +121,12 @@ export class WorkerModule {
       imports: [
         LoggerModule.forRoot({ pinoHttp: { logger } }),
         BullModule.forRoot({ connection }),
-        ...wiring.map(({ queue }) => BullModule.registerQueue({ name: queue })),
+        ...wiring.flatMap(({ queues }) => queues.map((name) => BullModule.registerQueue({ name }))),
       ],
       providers: [
         { provide: WORKER_ENV, useValue: env },
         HealthServer,
-        ...wiring.flatMap(({ processor, providers }) => [processor, ...(providers?.(env) ?? [])]),
+        ...wiring.flatMap(({ processors, providers }) => [...processors, ...(providers?.(env) ?? [])]),
       ],
     };
   }
