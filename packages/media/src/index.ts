@@ -2,3 +2,4 @@
 
 export { storageConfigOf, storageEnvSchema, type StorageEnv } from './env';
 export { S3Storage, StorageObjectTooLargeError, type S3StorageConfig } from './s3-storage';
+export { SharpImageProcessor, type SharpImageProcessorOptions } from './sharp-image-processor';
