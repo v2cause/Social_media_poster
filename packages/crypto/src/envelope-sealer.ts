@@ -36,8 +36,9 @@ export const KEYRING_ENV: Readonly<Record<SecretKeyring, { keys: string; active:
 /** A sealer on the local keyring of the env; throws a KeyringConfigError when it is unusable. */
 export const sealerFromEnv = (
   keyring: SecretKeyring,
-  env: Readonly<Record<string, string | undefined>>,
+  env: Readonly<Record<string, unknown>>,
 ): EnvelopeSealer => {
   const names = KEYRING_ENV[keyring];
-  return new EnvelopeSealer(LocalKeyring.fromEnv(names, env[names.keys], env[names.active]));
+  const text = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined);
+  return new EnvelopeSealer(LocalKeyring.fromEnv(names, text(env[names.keys]), text(env[names.active])));
 };
