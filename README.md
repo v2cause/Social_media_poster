@@ -14,7 +14,9 @@ KI-gestützte Plattform zum Erstellen, Planen und Auswerten von Social-Media-Pos
 
 ## Status
 
-Die Planung ist abgeschlossen. Phase 0 (Fundament) ist weitgehend umgesetzt: die Schritte 0.1 bis 0.14 sind gebaut, drei der fünf Spikes sind mit Messung bestanden. Offen sind der Spike zur KI-Anbindung (0.14a, braucht einen API-Schlüssel), der Spike zur Authentifizierung (0.14d, folgt mit Schritt 1.4) und das Größenziel der Images (siehe [ADR 0001](docs/adr/0001-monorepo-und-stack.md)). Architekturentscheidungen stehen in [docs/adr/](docs/adr/).
+Die Planung ist abgeschlossen. Phase 0 (Fundament) ist weitgehend umgesetzt: die Schritte 0.1 bis 0.14 sind gebaut, vier der fünf Spikes sind bestanden. Offen sind der Spike zur KI-Anbindung (0.14a, braucht einen API-Schlüssel) und das Größenziel der Images (siehe [ADR 0001](docs/adr/0001-monorepo-und-stack.md)).
+
+Phase 1 (Identity und Mandanten) ist umgesetzt: Registrierung mit E-Mail-Verifizierung, Passwort-Reset und 2FA über Better Auth, Organisationen, Workspaces, Mitglieder und Einladungen per E-Mail, Rechte-Matrix mit Guards, RLS auf allen Mandantentabellen, Audit-Log, die Web-Oberfläche mit Onboarding, App-Shell, Team- und Sicherheitsseite auf Deutsch und Englisch sowie ein Playwright-E2E über den ganzen Ablauf. Als Nächstes folgt Phase 2 (Composer, KI und Stile). Architekturentscheidungen stehen in [docs/adr/](docs/adr/).
 
 ## Entwicklung
 
