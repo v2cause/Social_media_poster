@@ -59,6 +59,71 @@ export type {
 export { assertSafeAuditMetadata, UnsafeAuditMetadataError } from './audit/domain/audit-metadata';
 export type { AuditEntry, AuditTrail } from './audit/ports/audit-trail';
 
+// Content (architecture 6.2)
+export * from './content/domain/errors';
+export {
+  canManageBrand,
+  canonicalJson,
+  canWriteContent,
+  customStyleKey,
+  isVariantEditable,
+  isVariantInFlight,
+  nextTargetKeys,
+} from './content/domain/rules';
+export {
+  IDEA_STATUSES,
+  VARIANT_STATUSES,
+  type BrandVoice,
+  type BrandVoiceVersion,
+  type ContentActor,
+  type Idea,
+  type IdeaStatus,
+  type Post,
+  type PostStyle,
+  type PostVariant,
+  type VariantStatus,
+} from './content/domain/types';
+export type {
+  BrandVoicePatch,
+  BrandVoiceRepository,
+  ContentScope,
+  ContentStore,
+  ContentUnitOfWork,
+  IdeaPatch,
+  IdeaRepository,
+  PostPatch,
+  PostRepository,
+  StylePatch,
+  StyleRepository,
+  VariantPatch,
+  VariantRepository,
+  WorkspaceProfileReader,
+} from './content/ports/content-store';
+export type { ContentDependencies } from './content/application/dependencies';
+export {
+  CreatePost,
+  DeletePost,
+  UpdatePost,
+  UpdateVariant,
+  type CreatePostInput,
+  type DeletePostInput,
+  type UpdatePostInput,
+  type UpdateVariantInput,
+} from './content/application/posts';
+export {
+  CreateStyle,
+  UpdateStyle,
+  type CreateStyleInput,
+  type UpdateStyleInput,
+} from './content/application/styles';
+export {
+  CreateBrandVoice,
+  UpdateBrandVoice,
+  type CreateBrandVoiceInput,
+  type UpdateBrandVoiceInput,
+} from './content/application/brand-voices';
+export { UpdateIdea, type UpdateIdeaInput } from './content/application/ideas';
+
 // Usage and quotas
 export { monthlyPeriodStart, USAGE_METERS, type UsageMeter } from './usage/domain/meters';
 export { QuotaExceededError } from './usage/domain/errors';

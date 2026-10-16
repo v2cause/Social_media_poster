@@ -29,7 +29,19 @@
     "ORGANIZATION_NOT_FOUND": "This organization does not exist, or you are no member.",
     "UNSAFE_AUDIT_METADATA": "An error occurred on the server.",
     "INVALID_CURSOR": "The page is no longer valid. Please reload.",
-    "QUOTA_EXCEEDED": "Your organization's AI budget for this month is used up."
+    "QUOTA_EXCEEDED": "Your organization's AI budget for this month is used up.",
+    "POST_NOT_FOUND": "This post no longer exists.",
+    "VARIANT_NOT_FOUND": "This variant no longer exists.",
+    "STYLE_NOT_FOUND": "This style no longer exists.",
+    "BRAND_VOICE_NOT_FOUND": "This brand voice no longer exists.",
+    "IDEA_NOT_FOUND": "This idea no longer exists.",
+    "VERSION_CONFLICT": "Someone changed this in the meantime. Reload it or overwrite the change.",
+    "VARIANT_LOCKED": "This variant is being published or was published and can no longer change.",
+    "POST_LOCKED": "A variant of this post is being published. Please wait a moment.",
+    "STYLE_IS_PRESET": "Presets cannot be changed. Create a custom style instead.",
+    "STYLE_NAME_TAKEN": "A style with this name already exists.",
+    "BRAND_VOICE_ARCHIVED": "This brand voice is archived. Please choose another one.",
+    "BRIEF_REQUIRED": "Please describe in the brief what the post is about first."
   },
   "validation": {
     "required": "Please fill in this field.",

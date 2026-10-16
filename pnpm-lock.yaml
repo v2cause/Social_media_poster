@@ -513,6 +513,9 @@ importers:
 
   packages/contracts:
     dependencies:
+      '@smp/platform-rules':
+        specifier: workspace:*
+        version: link:../platform-rules
       zod:
         specifier: ^4
         version: 4.6.7

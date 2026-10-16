@@ -29,7 +29,19 @@
     "ORGANIZATION_NOT_FOUND": "Diese Organisation gibt es nicht, oder Sie sind kein Mitglied.",
     "UNSAFE_AUDIT_METADATA": "Auf dem Server ist ein Fehler aufgetreten.",
     "INVALID_CURSOR": "Die Seite ist nicht mehr gültig. Bitte laden Sie neu.",
-    "QUOTA_EXCEEDED": "Das KI-Budget Ihrer Organisation für diesen Monat ist aufgebraucht."
+    "QUOTA_EXCEEDED": "Das KI-Budget Ihrer Organisation für diesen Monat ist aufgebraucht.",
+    "POST_NOT_FOUND": "Diesen Beitrag gibt es nicht mehr.",
+    "VARIANT_NOT_FOUND": "Diese Variante gibt es nicht mehr.",
+    "STYLE_NOT_FOUND": "Diesen Stil gibt es nicht mehr.",
+    "BRAND_VOICE_NOT_FOUND": "Diese Brand Voice gibt es nicht mehr.",
+    "IDEA_NOT_FOUND": "Diese Idee gibt es nicht mehr.",
+    "VERSION_CONFLICT": "Jemand hat das inzwischen geändert. Bitte laden Sie neu oder überschreiben Sie die Änderung.",
+    "VARIANT_LOCKED": "Diese Variante wird gerade veröffentlicht oder ist bereits veröffentlicht und lässt sich nicht mehr ändern.",
+    "POST_LOCKED": "Eine Variante dieses Beitrags wird gerade veröffentlicht. Bitte warten Sie einen Moment.",
+    "STYLE_IS_PRESET": "Vorlagen lassen sich nicht ändern. Legen Sie stattdessen einen eigenen Stil an.",
+    "STYLE_NAME_TAKEN": "Einen Stil mit diesem Namen gibt es bereits.",
+    "BRAND_VOICE_ARCHIVED": "Diese Brand Voice ist archiviert. Bitte wählen Sie eine andere.",
+    "BRIEF_REQUIRED": "Bitte beschreiben Sie zuerst im Briefing, worum es gehen soll."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

@@ -22,6 +22,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@smp/platform-rules": "workspace:*",
     "zod": "^4"
   },
   "devDependencies": {
