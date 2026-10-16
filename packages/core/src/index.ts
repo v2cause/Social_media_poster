@@ -193,6 +193,7 @@ export {
   accountSecretAad,
   CONNECTION_SECRET_FIELDS,
   connectionSecretAad,
+  pendingSecretAad,
   SEALED_SECRET_COLUMNS,
   type ConnectionSecretField,
   type SealedSecretColumn,
@@ -212,8 +213,18 @@ export {
   SOCIAL_ACCOUNT_TYPES,
   type ConnectionMethod,
   type ConnectionStatus,
+  type SocialAccount,
   type SocialAccountType,
+  type SocialConnection,
 } from './channels/domain/types';
+export {
+  accessExpiryOf,
+  canManageChannels,
+  missingScopesOf,
+  OAUTH_STATE_TTL_MS,
+  PENDING_CONNECTION_TTL_MS,
+} from './channels/domain/rules';
+export * from './channels/domain/errors';
 export {
   isPlatformError,
   PLATFORM_ERROR_CODES,
@@ -243,6 +254,44 @@ export type {
   SocialPlatformAdapter,
   TokenSet,
 } from './channels/ports/platform-adapter';
+export type {
+  ChannelScope,
+  ChannelStore,
+  ChannelUnitOfWork,
+  ConnectionGrant,
+  NewSocialConnection,
+  SocialAccountRepository,
+  SocialAccountWrite,
+  SocialConnectionRepository,
+} from './channels/ports/channel-store';
+export type {
+  ChannelConnectors,
+  ConnectableAccountView,
+  OAuthRandom,
+  OAuthState,
+  OAuthStateStore,
+  PendingConnection,
+  PendingConnectionStore,
+} from './channels/ports/oauth';
+export type { ChannelDependencies } from './channels/application/dependencies';
+export { StartConnection, type StartConnectionInput } from './channels/application/start-connection';
+export {
+  AUTHORIZATION_FAILURES,
+  CompleteAuthorization,
+  type AuthorizationFailure,
+  type AuthorizationOutcome,
+  type CompleteAuthorizationInput,
+} from './channels/application/complete-authorization';
+export {
+  GetPendingConnection,
+  type PendingConnectionView,
+} from './channels/application/get-pending-connection';
+export {
+  ConfirmConnection,
+  type ConfirmConnectionInput,
+  type ConfirmedConnection,
+} from './channels/application/confirm-connection';
+export { DisconnectAccount, type DisconnectResult } from './channels/application/disconnect-account';
 
 // Tenancy
 export * from './tenancy/domain/errors';

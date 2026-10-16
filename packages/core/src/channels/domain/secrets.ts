@@ -16,6 +16,10 @@ export const connectionSecretAad = (
 export const accountSecretAad = (workspaceId: string, connectionId: string, accountId: string): string =>
   `${workspaceId}:${connectionId}:account.${accountId}.access_token`;
 
+/** The AAD of the tokens of a consent that waits for the selection of the accounts. */
+export const pendingSecretAad = (workspaceId: string, pendingId: string): string =>
+  `${workspaceId}:pending.${pendingId}:token_set`;
+
 /** Browser sessions have a keyring of their own (SESSION_KEKS), tokens use TOKEN_KEKS. */
 export type SecretKeyring = 'tokens' | 'sessions';
 
