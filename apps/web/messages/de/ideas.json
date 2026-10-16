@@ -1,0 +1,37 @@
+{
+  "title": "Ideen",
+  "description": "Themenvorschläge der KI für Ihre nächsten Beiträge, passend zu Profil, Content-Säulen und bisherigen Posts.",
+  "generate": "Ideen generieren",
+  "generating": "Die KI sucht Ideen ...",
+  "generated": "{count, plural, =0 {Keine neuen Ideen.} one {Eine neue Idee.} other {# neue Ideen.}}",
+  "duplicates": "{count, plural, one {Ein Vorschlag war einer bestehenden Idee zu ähnlich.} other {# Vorschläge waren bestehenden Ideen zu ähnlich.}}",
+  "empty": "Noch keine Ideen.",
+  "emptyHint": "Lassen Sie die KI Themen vorschlagen, passend zu Ihrem Profil und Ihren letzten Beiträgen.",
+  "emptyFiltered": "Keine Ideen mit diesem Status.",
+  "filter": "Nach Status filtern",
+  "filters": {
+    "open": "Offen",
+    "SAVED": "Gespeichert",
+    "USED": "Verwendet",
+    "DISCARDED": "Verworfen",
+    "all": "Alle"
+  },
+  "status": {
+    "NEW": "Neu",
+    "SAVED": "Gespeichert",
+    "USED": "Verwendet",
+    "DISCARDED": "Verworfen"
+  },
+  "whyNow": "Warum jetzt",
+  "basedOn": "Grundlage: {items}",
+  "platforms": "Vorgeschlagene Plattformen",
+  "manual": "Eigene Idee",
+  "actions": "Aktionen für {title}",
+  "save": "Speichern",
+  "discard": "Verwerfen",
+  "restore": "Wiederherstellen",
+  "createPost": "Post erstellen",
+  "savedToast": "Idee gespeichert.",
+  "discardedToast": "Idee verworfen.",
+  "restoredToast": "Idee wiederhergestellt."
+}

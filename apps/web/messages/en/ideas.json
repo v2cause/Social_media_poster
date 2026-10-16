@@ -1,0 +1,37 @@
+{
+  "title": "Ideas",
+  "description": "Topic suggestions from the AI for your next posts, based on your profile, content pillars and recent posts.",
+  "generate": "Generate ideas",
+  "generating": "The AI is looking for ideas ...",
+  "generated": "{count, plural, =0 {No new ideas.} one {One new idea.} other {# new ideas.}}",
+  "duplicates": "{count, plural, one {One suggestion was too similar to an existing idea.} other {# suggestions were too similar to existing ideas.}}",
+  "empty": "No ideas yet.",
+  "emptyHint": "Let the AI suggest topics that fit your profile and your recent posts.",
+  "emptyFiltered": "No ideas with this status.",
+  "filter": "Filter by status",
+  "filters": {
+    "open": "Open",
+    "SAVED": "Saved",
+    "USED": "Used",
+    "DISCARDED": "Discarded",
+    "all": "All"
+  },
+  "status": {
+    "NEW": "New",
+    "SAVED": "Saved",
+    "USED": "Used",
+    "DISCARDED": "Discarded"
+  },
+  "whyNow": "Why now",
+  "basedOn": "Based on: {items}",
+  "platforms": "Suggested platforms",
+  "manual": "Own idea",
+  "actions": "Actions for {title}",
+  "save": "Save",
+  "discard": "Discard",
+  "restore": "Restore",
+  "createPost": "Create post",
+  "savedToast": "Idea saved.",
+  "discardedToast": "Idea discarded.",
+  "restoredToast": "Idea restored."
+}
