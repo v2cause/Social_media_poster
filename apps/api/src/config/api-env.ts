@@ -27,6 +27,9 @@ export const apiEnvSchema = z
     BETTER_AUTH_SECRET: z.string().min(32),
     // The public origin the browser talks to (same origin as the web app).
     BETTER_AUTH_URL: z.url({ protocol: /^https?$/ }),
+    // Seal the tokens of the platforms; @smp/crypto checks the format at start.
+    TOKEN_KEKS: z.string().min(1),
+    TOKEN_KEK_ACTIVE: z.string().min(1),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true, DATABASE_SYSTEM_URL: true }).shape)
   .extend(storageEnvSchema.shape)

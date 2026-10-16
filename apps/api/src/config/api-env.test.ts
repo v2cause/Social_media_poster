@@ -14,6 +14,8 @@ const validEnv: NodeJS.ProcessEnv = {
   S3_SECRET_ACCESS_KEY: 'secret-key-value',
   BETTER_AUTH_SECRET: 'test-better-auth-secret-of-32-characters',
   BETTER_AUTH_URL: 'http://localhost:3000',
+  TOKEN_KEKS: 'test-kek:c21wLXRlc3Qta2VrLW1hdGVyaWFsLTAwMDAwMDAwMDA=',
+  TOKEN_KEK_ACTIVE: 'test-kek',
 };
 
 describe('loadApiEnv', () => {

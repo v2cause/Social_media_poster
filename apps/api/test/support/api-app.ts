@@ -43,6 +43,8 @@ import { AI_RATE_LIMITS, type AiRateLimits } from '../../src/modules/content/ai-
 import { INVITATION_NOTIFIER } from '../../src/modules/tenancy/invitation-notifier';
 
 export const APP_ORIGIN = 'http://localhost:3000';
+/** The token keyring of the tests, as in .env.test. */
+export const TEST_TOKEN_KEKS = 'test-kek:c21wLXRlc3Qta2VrLW1hdGVyaWFsLTAwMDAwMDAwMDA=';
 export const TEST_BUCKET = 'smp-test-media';
 
 export interface ApiTestApp {
@@ -129,6 +131,8 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
     ...objectStorage?.env,
     BETTER_AUTH_SECRET: 'test-only-better-auth-secret-do-not-use-elsewhere',
     BETTER_AUTH_URL: APP_ORIGIN,
+    TOKEN_KEKS: TEST_TOKEN_KEKS,
+    TOKEN_KEK_ACTIVE: 'test-kek',
     // The deterministic mock provider; automated tests never call the Claude API (architecture 7).
     AI_PROVIDER: 'mock',
     ...options.env,

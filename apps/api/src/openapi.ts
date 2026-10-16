@@ -4,6 +4,7 @@ import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { z } from 'zod';
 
 import { AuditLogPageDto, AuditLogQueryDto } from './modules/audit/audit.controller';
+import * as channelDtos from './modules/channels/channels.dto';
 import * as contentDtos from './modules/content/content.dto';
 import { MeDto } from './modules/identity/me.controller';
 import * as mediaDtos from './modules/media/media.dto';
@@ -20,6 +21,7 @@ export const OPENAPI_DTOS: { name: string; schema: z.ZodType }[] = [
   ...Object.values(tenancyDtos),
   ...Object.values(contentDtos),
   ...Object.values(mediaDtos),
+  ...Object.values(channelDtos),
 ];
 
 const capitalize = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);

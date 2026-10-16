@@ -810,6 +810,17 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - `error=access_denied` wird sauber behandelt.
   - Gewährte Scopes werden mit den angefragten verglichen; fehlen welche, wird das angezeigt.
   - Der PKCE-Verifier verlässt nie den Server.
+- **Umgesetzt**:
+  - Use Cases im Core: `StartConnection` (auch für "Neu verbinden"), `CompleteAuthorization`, `GetPendingConnection`, `ConfirmConnection` und `DisconnectAccount`. Ports gibt es für den `state` und die geparkte Zustimmung (Redis), für die Connectoren (die `AdapterRegistry` erfüllt den Port) und für die Zufallswerte (`oauthRandom` in `@smp/crypto`).
+  - Der `state` (32 Zufallsbytes) liegt 10 min unter `oauth:state:{state}` und wird per `GETDEL` gelesen, also genau einmal. Er bindet Nutzer, Workspace, Plattform und Methode; ein Callback einer anderen Plattform oder einer anderen Session wird abgelehnt. Der PKCE-Verifier (nur X) steht nur dort.
+  - Nach dem Code-Tausch liegen Token-Set und Seiten-Tokens als ein versiegelter Umschlag (AAD `workspaceId:pending.{id}:token_set`) 15 min unter `oauth:pending:{id}`, die Account-Liste ohne Tokens daneben. Beim Bestätigen wird jedes Token mit der AAD seiner Zeile neu versiegelt.
+  - Der Callback `GET /api/oauth/:platform/callback` ist öffentlich und prüft die Session selbst. Ohne Session geht es zur Anmeldung, sonst zur Auswahl `/w/:ws/accounts/connect/select?pending=...` oder zurück auf `/w/:ws/accounts?connect_error=...` (`ACCESS_DENIED`, `USER_MISMATCH`, `EXCHANGE_FAILED` und weitere aus `CONNECT_FAILURES`). Ist der `state` unbekannt oder abgelaufen, ist auch der Workspace unbekannt; dann geht es auf `/?connect_error=STATE_INVALID`.
+  - Eine Zustimmung desselben Plattform-Nutzers erneuert die bestehende Verbindung; verbundene und getrennte Accounts kommen unter ihrer ID zurück. "Neu verbinden" läuft deshalb über dieselbe Auswahlseite, mit dem Account vorausgewählt.
+  - Trennen markiert den Account (Token gelöscht, Historie bleibt). Nutzt kein anderer Account die Verbindung mehr, wird sie `REVOKED` und verliert ihre Tokens; nach dem Commit wird der Zugriff bei der Plattform widerrufen. Scheitert das, wird es nur geloggt.
+  - Zusätzlich für die Seiten aus Schritt 4.11: `GET /api/w/:ws/channels` (Plattformen mit Methode) und `GET /api/w/:ws/accounts` (Status, Ablauf des Zugangs, fehlende Scopes). Verbinden und Trennen brauchen `account.manage` (Owner, Admin), das Lesen `workspace.read`.
+  - Die API braucht dafür `TOKEN_KEKS` und `TOKEN_KEK_ACTIVE`.
+  - Tests: `packages/core/test/channels/oauth-flow.test.ts`, `packages/db/test/channel-adapters.integration.test.ts` und `apps/api/test/channels.integration.test.ts`. Letzterer prüft den kompletten Ablauf mit der Mock-Seite: abgelehnte Zustimmung, abgelaufener und doppelt benutzter `state`, fremde Session, PKCE, Teil-Zustimmung, Neu verbinden und Trennen.
+  - Nicht gegen die Doku geprüft (die Netzwerkrichtlinie sperrt learn.microsoft.com): LinkedIns Fehlerwerte `user_cancelled_login` und `user_cancelled_authorize` für eine abgelehnte Zustimmung.
 - **Fertig, wenn**: Mit dem Mock-OAuth der komplette Ablauf grün ist, inklusive abgelehnter Zustimmung und abgelaufenem state.
 
 #### 4.6 Publishing-Domain
