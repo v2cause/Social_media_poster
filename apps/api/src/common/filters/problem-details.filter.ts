@@ -2,7 +2,7 @@ import { STATUS_CODES } from 'node:http';
 
 import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, Logger } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
-import { DomainError, type DomainErrorKind } from '@smp/core';
+import { isDomainError, type DomainErrorKind } from '@smp/core';
 import type { Request, Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
 
@@ -70,7 +70,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
       };
     }
 
-    if (exception instanceof DomainError) {
+    if (isDomainError(exception)) {
       const status = STATUS_BY_KIND[exception.kind];
       return {
         type: 'about:blank',

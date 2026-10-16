@@ -1,7 +1,7 @@
 // Domain core: entities, use cases and ports. Framework-free by rule.
 
 // Shared kernel
-export { DomainError, NotPermittedError, type DomainErrorKind } from './shared/domain/errors';
+export { DomainError, isDomainError, NotPermittedError, type DomainErrorKind } from './shared/domain/errors';
 export { systemClock, uuidV7Ids } from './shared/adapters/system';
 export type { Clock } from './shared/ports/clock';
 export type { IdGenerator } from './shared/ports/ids';
