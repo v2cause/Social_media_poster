@@ -96,10 +96,13 @@ export const generatedVariantSchema = z.object({
 });
 export type GeneratedVariantDto = z.infer<typeof generatedVariantSchema>;
 
-/** A variant while it streams in; every field can still be missing or incomplete. */
+/**
+ * A variant while it streams in; every field can still be missing or incomplete, even the
+ * platform ("LINK" before "LINKEDIN"). The variants come in the order of the targets.
+ */
 export const partialVariantSchema = z.object({
   targetKey: z.string().optional(),
-  platform: platformSchema.optional(),
+  platform: z.string().optional(),
   hook: z.string().optional(),
   text: z.string().optional(),
   hashtags: z.array(z.string()).optional(),

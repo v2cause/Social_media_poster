@@ -22,6 +22,7 @@ const STATUS_BY_KIND: Record<DomainErrorKind, number> = {
   not_found: 404,
   conflict: 409,
   quota_exceeded: 402,
+  rate_limited: 429,
   unavailable: 503,
 };
 

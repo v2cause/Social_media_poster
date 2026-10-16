@@ -701,6 +701,812 @@
           "audit"
         ]
       }
+    },
+    "/api/w/{ws}/posts": {
+      "get": {
+        "operationId": "postsList",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostPageDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "post": {
+        "operationId": "postsCreate",
+        "parameters": [
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePostDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      }
+    },
+    "/api/w/{ws}/posts/{postId}": {
+      "get": {
+        "operationId": "postsGet",
+        "parameters": [
+          {
+            "name": "postId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "patch": {
+        "operationId": "postsUpdate",
+        "parameters": [
+          {
+            "name": "postId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePostDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "delete": {
+        "operationId": "postsRemove",
+        "parameters": [
+          {
+            "name": "postId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      }
+    },
+    "/api/w/{ws}/variants/{variantId}": {
+      "patch": {
+        "operationId": "variantsUpdate",
+        "parameters": [
+          {
+            "name": "variantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVariantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariantDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      }
+    },
+    "/api/w/{ws}/styles": {
+      "get": {
+        "operationId": "stylesList",
+        "parameters": [
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StyleListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "styles"
+        ]
+      },
+      "post": {
+        "operationId": "stylesCreate",
+        "parameters": [
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStyleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StyleDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/api/w/{ws}/styles/{styleId}": {
+      "patch": {
+        "operationId": "stylesUpdate",
+        "parameters": [
+          {
+            "name": "styleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStyleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StyleDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/api/w/{ws}/brand-voices": {
+      "get": {
+        "operationId": "brandVoicesList",
+        "parameters": [
+          {
+            "name": "archived",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandVoiceListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "brand-voices"
+        ]
+      },
+      "post": {
+        "operationId": "brandVoicesCreate",
+        "parameters": [
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBrandVoiceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandVoiceDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "brand-voices"
+        ]
+      }
+    },
+    "/api/w/{ws}/brand-voices/{brandVoiceId}": {
+      "patch": {
+        "operationId": "brandVoicesUpdate",
+        "parameters": [
+          {
+            "name": "brandVoiceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBrandVoiceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandVoiceDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "brand-voices"
+        ]
+      }
+    },
+    "/api/w/{ws}/brand-voices/{brandVoiceId}/versions": {
+      "get": {
+        "operationId": "brandVoicesVersions",
+        "parameters": [
+          {
+            "name": "brandVoiceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandVoiceVersionListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "brand-voices"
+        ]
+      }
+    },
+    "/api/w/{ws}/brand-voices/{brandVoiceId}/test": {
+      "post": {
+        "operationId": "brandVoicesTest",
+        "parameters": [
+          {
+            "name": "brandVoiceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestBrandVoiceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandVoiceTestResponseDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "brand-voices"
+        ]
+      }
+    },
+    "/api/w/{ws}/ideas": {
+      "get": {
+        "operationId": "ideasList",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NEW",
+                "SAVED",
+                "DISCARDED",
+                "USED"
+              ]
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdeaListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ideas"
+        ]
+      }
+    },
+    "/api/w/{ws}/ideas/generate": {
+      "post": {
+        "operationId": "ideasGenerate",
+        "parameters": [
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateIdeasDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateIdeasResponseDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ideas"
+        ]
+      }
+    },
+    "/api/w/{ws}/ideas/{ideaId}": {
+      "patch": {
+        "operationId": "ideasUpdate",
+        "parameters": [
+          {
+            "name": "ideaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIdeaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdeaDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ideas"
+        ]
+      }
+    },
+    "/api/w/{ws}/ai/generations": {
+      "post": {
+        "operationId": "aiGenerate",
+        "parameters": [
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateVariantsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Server-sent events: generation.started, variant.partial, variant.reset, generation.completed or generation.failed (schema generationEventSchema in @smp/contracts).",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/w/{ws}/ai/refinements": {
+      "post": {
+        "operationId": "aiRefine",
+        "parameters": [
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefineVariantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Server-sent events: generation.started, variant.partial, variant.reset, generation.completed or generation.failed (schema generationEventSchema in @smp/contracts).",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ]
+      }
     }
   },
   "info": {
@@ -1718,6 +2524,1989 @@
           "nextCursor"
         ],
         "additionalProperties": false
+      },
+      "PostPageDto_Output": {
+        "type": "object",
+        "properties": {
+          "posts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "brief": {
+                  "type": "string"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "de",
+                    "en"
+                  ]
+                },
+                "styleId": {
+                  "nullable": true,
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "variants": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "platform": {
+                        "type": "string",
+                        "enum": [
+                          "LINKEDIN",
+                          "INSTAGRAM",
+                          "FACEBOOK",
+                          "X"
+                        ]
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "DRAFT",
+                          "SCHEDULED",
+                          "QUEUED",
+                          "PUBLISHING",
+                          "RETRYING",
+                          "PUBLISHED",
+                          "FAILED",
+                          "NEEDS_ATTENTION",
+                          "CANCELED",
+                          "DELETED"
+                        ]
+                      },
+                      "excerpt": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "platform",
+                      "status",
+                      "excerpt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "brief",
+                "language",
+                "styleId",
+                "updatedAt",
+                "variants"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "posts",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "CreatePostDto": {
+        "type": "object",
+        "properties": {
+          "brief": {
+            "default": "",
+            "type": "string",
+            "maxLength": 4000
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "de",
+              "en"
+            ]
+          },
+          "styleId": {
+            "default": null,
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "brandVoiceId": {
+            "default": null,
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "ideaId": {
+            "default": null,
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "platforms": {
+            "minItems": 1,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "LINKEDIN",
+                "INSTAGRAM",
+                "FACEBOOK",
+                "X"
+              ]
+            }
+          }
+        },
+        "required": [
+          "language",
+          "platforms"
+        ]
+      },
+      "PostDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "brief": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "de",
+              "en"
+            ]
+          },
+          "styleId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "brandVoiceId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "ideaId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "postId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "platform": {
+                  "type": "string",
+                  "enum": [
+                    "LINKEDIN",
+                    "INSTAGRAM",
+                    "FACEBOOK",
+                    "X"
+                  ]
+                },
+                "targetKey": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "hashtags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "firstComment": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "linkUrl": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "aiWarnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "DRAFT",
+                    "SCHEDULED",
+                    "QUEUED",
+                    "PUBLISHING",
+                    "RETRYING",
+                    "PUBLISHED",
+                    "FAILED",
+                    "NEEDS_ATTENTION",
+                    "CANCELED",
+                    "DELETED"
+                  ]
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "postId",
+                "platform",
+                "targetKey",
+                "text",
+                "hashtags",
+                "firstComment",
+                "linkUrl",
+                "aiWarnings",
+                "status",
+                "version",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "brief",
+          "language",
+          "styleId",
+          "brandVoiceId",
+          "ideaId",
+          "version",
+          "createdAt",
+          "updatedAt",
+          "variants"
+        ],
+        "additionalProperties": false
+      },
+      "UpdatePostDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "brief": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "de",
+              "en"
+            ]
+          },
+          "styleId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "brandVoiceId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "platforms": {
+            "minItems": 1,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "LINKEDIN",
+                "INSTAGRAM",
+                "FACEBOOK",
+                "X"
+              ]
+            }
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "UpdateVariantDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 100000
+          },
+          "hashtags": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "firstComment": {
+            "nullable": true,
+            "type": "string",
+            "maxLength": 8000
+          },
+          "linkUrl": {
+            "nullable": true,
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "aiWarnings": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "VariantDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "postId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "LINKEDIN",
+              "INSTAGRAM",
+              "FACEBOOK",
+              "X"
+            ]
+          },
+          "targetKey": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "hashtags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "firstComment": {
+            "nullable": true,
+            "type": "string"
+          },
+          "linkUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "aiWarnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SCHEDULED",
+              "QUEUED",
+              "PUBLISHING",
+              "RETRYING",
+              "PUBLISHED",
+              "FAILED",
+              "NEEDS_ATTENTION",
+              "CANCELED",
+              "DELETED"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "postId",
+          "platform",
+          "targetKey",
+          "text",
+          "hashtags",
+          "firstComment",
+          "linkUrl",
+          "aiWarnings",
+          "status",
+          "version",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "StyleListDto_Output": {
+        "type": "object",
+        "properties": {
+          "styles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "instructions": {
+                  "type": "string"
+                },
+                "isPreset": {
+                  "type": "boolean"
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "sortOrder": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "key",
+                "name",
+                "instructions",
+                "isPreset",
+                "isActive",
+                "sortOrder",
+                "version"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "styles"
+        ],
+        "additionalProperties": false
+      },
+      "CreateStyleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "instructions": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "name",
+          "instructions"
+        ]
+      },
+      "StyleDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "isPreset": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "name",
+          "instructions",
+          "isPreset",
+          "isActive",
+          "sortOrder",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateStyleDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "instructions": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "BrandVoiceListDto_Output": {
+        "type": "object",
+        "properties": {
+          "brandVoices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "isDefault": {
+                  "type": "boolean"
+                },
+                "archived": {
+                  "type": "boolean"
+                },
+                "currentVersionNumber": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "content": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "description": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "tone": {
+                      "default": [],
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                      }
+                    },
+                    "dos": {
+                      "default": [],
+                      "maxItems": 20,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "donts": {
+                      "default": [],
+                      "maxItems": 20,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "vocabulary": {
+                      "default": [],
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      }
+                    },
+                    "forbiddenWords": {
+                      "default": [],
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      }
+                    },
+                    "emojiPolicy": {
+                      "default": "sparse",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "sparse",
+                        "normal"
+                      ]
+                    },
+                    "hashtagPolicy": {
+                      "default": "few",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "few",
+                        "normal"
+                      ]
+                    },
+                    "examplePosts": {
+                      "default": [],
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 3000
+                      }
+                    },
+                    "language": {
+                      "type": "string",
+                      "enum": [
+                        "de",
+                        "en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "description",
+                    "tone",
+                    "dos",
+                    "donts",
+                    "vocabulary",
+                    "forbiddenWords",
+                    "emojiPolicy",
+                    "hashtagPolicy",
+                    "examplePosts",
+                    "language"
+                  ],
+                  "additionalProperties": false
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "isDefault",
+                "archived",
+                "currentVersionNumber",
+                "content",
+                "version",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "brandVoices"
+        ],
+        "additionalProperties": false
+      },
+      "CreateBrandVoiceDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "description": {
+                "default": "",
+                "type": "string",
+                "maxLength": 1000
+              },
+              "tone": {
+                "default": [],
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                }
+              },
+              "dos": {
+                "default": [],
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "donts": {
+                "default": [],
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "vocabulary": {
+                "default": [],
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
+              },
+              "forbiddenWords": {
+                "default": [],
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
+              },
+              "emojiPolicy": {
+                "default": "sparse",
+                "type": "string",
+                "enum": [
+                  "none",
+                  "sparse",
+                  "normal"
+                ]
+              },
+              "hashtagPolicy": {
+                "default": "few",
+                "type": "string",
+                "enum": [
+                  "none",
+                  "few",
+                  "normal"
+                ]
+              },
+              "examplePosts": {
+                "default": [],
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 3000
+                }
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "en"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "language"
+            ]
+          },
+          "isDefault": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "BrandVoiceDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "currentVersionNumber": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "content": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "description": {
+                "default": "",
+                "type": "string",
+                "maxLength": 1000
+              },
+              "tone": {
+                "default": [],
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                }
+              },
+              "dos": {
+                "default": [],
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "donts": {
+                "default": [],
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "vocabulary": {
+                "default": [],
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
+              },
+              "forbiddenWords": {
+                "default": [],
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
+              },
+              "emojiPolicy": {
+                "default": "sparse",
+                "type": "string",
+                "enum": [
+                  "none",
+                  "sparse",
+                  "normal"
+                ]
+              },
+              "hashtagPolicy": {
+                "default": "few",
+                "type": "string",
+                "enum": [
+                  "none",
+                  "few",
+                  "normal"
+                ]
+              },
+              "examplePosts": {
+                "default": [],
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 3000
+                }
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "en"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "description",
+              "tone",
+              "dos",
+              "donts",
+              "vocabulary",
+              "forbiddenWords",
+              "emojiPolicy",
+              "hashtagPolicy",
+              "examplePosts",
+              "language"
+            ],
+            "additionalProperties": false
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isDefault",
+          "archived",
+          "currentVersionNumber",
+          "content",
+          "version",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateBrandVoiceDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "content": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "description": {
+                "default": "",
+                "type": "string",
+                "maxLength": 1000
+              },
+              "tone": {
+                "default": [],
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                }
+              },
+              "dos": {
+                "default": [],
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "donts": {
+                "default": [],
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "vocabulary": {
+                "default": [],
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
+              },
+              "forbiddenWords": {
+                "default": [],
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
+              },
+              "emojiPolicy": {
+                "default": "sparse",
+                "type": "string",
+                "enum": [
+                  "none",
+                  "sparse",
+                  "normal"
+                ]
+              },
+              "hashtagPolicy": {
+                "default": "few",
+                "type": "string",
+                "enum": [
+                  "none",
+                  "few",
+                  "normal"
+                ]
+              },
+              "examplePosts": {
+                "default": [],
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 3000
+                }
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "en"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "language"
+            ]
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "archived": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "BrandVoiceVersionListDto_Output": {
+        "type": "object",
+        "properties": {
+          "versions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "versionNumber": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "content": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "description": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "tone": {
+                      "default": [],
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                      }
+                    },
+                    "dos": {
+                      "default": [],
+                      "maxItems": 20,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "donts": {
+                      "default": [],
+                      "maxItems": 20,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "vocabulary": {
+                      "default": [],
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      }
+                    },
+                    "forbiddenWords": {
+                      "default": [],
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      }
+                    },
+                    "emojiPolicy": {
+                      "default": "sparse",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "sparse",
+                        "normal"
+                      ]
+                    },
+                    "hashtagPolicy": {
+                      "default": "few",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "few",
+                        "normal"
+                      ]
+                    },
+                    "examplePosts": {
+                      "default": [],
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 3000
+                      }
+                    },
+                    "language": {
+                      "type": "string",
+                      "enum": [
+                        "de",
+                        "en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "description",
+                    "tone",
+                    "dos",
+                    "donts",
+                    "vocabulary",
+                    "forbiddenWords",
+                    "emojiPolicy",
+                    "hashtagPolicy",
+                    "examplePosts",
+                    "language"
+                  ],
+                  "additionalProperties": false
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "versionNumber",
+                "content",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "versions"
+        ],
+        "additionalProperties": false
+      },
+      "TestBrandVoiceDto": {
+        "type": "object",
+        "properties": {
+          "brief": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        }
+      },
+      "BrandVoiceTestResponseDto_Output": {
+        "type": "object",
+        "properties": {
+          "generationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "variant": {
+            "type": "object",
+            "properties": {
+              "targetKey": {
+                "type": "string"
+              },
+              "platform": {
+                "type": "string",
+                "enum": [
+                  "LINKEDIN",
+                  "INSTAGRAM",
+                  "FACEBOOK",
+                  "X"
+                ]
+              },
+              "hook": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "hashtags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "firstComment": {
+                "nullable": true,
+                "type": "string"
+              },
+              "callToAction": {
+                "nullable": true,
+                "type": "string"
+              },
+              "altTexts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "count": {
+                "type": "object",
+                "properties": {
+                  "length": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "max": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "overLimit": {
+                    "type": "boolean"
+                  },
+                  "recommendedLength": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "length",
+                  "max",
+                  "overLimit"
+                ],
+                "additionalProperties": false
+              },
+              "issues": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "TEXT_TOO_LONG",
+                        "MEDIA_REQUIRED",
+                        "TOO_MANY_MEDIA",
+                        "ASPECT_RATIO_OUT_OF_RANGE",
+                        "TOO_MANY_HASHTAGS",
+                        "TOO_MANY_MENTIONS",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "MIXED_MEDIA_NOT_SUPPORTED",
+                        "FIRST_COMMENT_NOT_SUPPORTED"
+                      ]
+                    },
+                    "limit": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "actual": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "mediaIndex": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "code"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "forbiddenWords": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "autoShortened": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "targetKey",
+              "platform",
+              "hook",
+              "text",
+              "hashtags",
+              "firstComment",
+              "callToAction",
+              "altTexts",
+              "warnings",
+              "count",
+              "issues",
+              "forbiddenWords",
+              "autoShortened"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "generationId",
+          "variant"
+        ],
+        "additionalProperties": false
+      },
+      "IdeaListDto_Output": {
+        "type": "object",
+        "properties": {
+          "ideas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "angle": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "pillar": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "whyNow": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "basedOn": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "suggestedPlatforms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "LINKEDIN",
+                      "INSTAGRAM",
+                      "FACEBOOK",
+                      "X"
+                    ]
+                  }
+                },
+                "suggestedStyleKey": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "format": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "NEW",
+                    "SAVED",
+                    "DISCARDED",
+                    "USED"
+                  ]
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "AI",
+                    "MANUAL"
+                  ]
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "angle",
+                "pillar",
+                "whyNow",
+                "basedOn",
+                "suggestedPlatforms",
+                "suggestedStyleKey",
+                "format",
+                "status",
+                "source",
+                "version",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "ideas"
+        ],
+        "additionalProperties": false
+      },
+      "GenerateIdeasDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "default": 10,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        }
+      },
+      "GenerateIdeasResponseDto_Output": {
+        "type": "object",
+        "properties": {
+          "ideas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "angle": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "pillar": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "whyNow": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "basedOn": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "suggestedPlatforms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "LINKEDIN",
+                      "INSTAGRAM",
+                      "FACEBOOK",
+                      "X"
+                    ]
+                  }
+                },
+                "suggestedStyleKey": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "format": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "NEW",
+                    "SAVED",
+                    "DISCARDED",
+                    "USED"
+                  ]
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "AI",
+                    "MANUAL"
+                  ]
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "angle",
+                "pillar",
+                "whyNow",
+                "basedOn",
+                "suggestedPlatforms",
+                "suggestedStyleKey",
+                "format",
+                "status",
+                "source",
+                "version",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "duplicates": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "ideas",
+          "duplicates"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateIdeaDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "SAVED",
+              "DISCARDED",
+              "USED"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "angle": {
+            "nullable": true,
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "IdeaDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "angle": {
+            "nullable": true,
+            "type": "string"
+          },
+          "pillar": {
+            "nullable": true,
+            "type": "string"
+          },
+          "whyNow": {
+            "nullable": true,
+            "type": "string"
+          },
+          "basedOn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "suggestedPlatforms": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "LINKEDIN",
+                "INSTAGRAM",
+                "FACEBOOK",
+                "X"
+              ]
+            }
+          },
+          "suggestedStyleKey": {
+            "nullable": true,
+            "type": "string"
+          },
+          "format": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "SAVED",
+              "DISCARDED",
+              "USED"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "AI",
+              "MANUAL"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "angle",
+          "pillar",
+          "whyNow",
+          "basedOn",
+          "suggestedPlatforms",
+          "suggestedStyleKey",
+          "format",
+          "status",
+          "source",
+          "version",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "GenerateVariantsDto": {
+        "type": "object",
+        "properties": {
+          "postId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "variantIds": {
+            "minItems": 1,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        },
+        "required": [
+          "postId"
+        ]
+      },
+      "RefineVariantDto": {
+        "type": "object",
+        "properties": {
+          "variantId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "shorter",
+              "longer",
+              "more_formal",
+              "more_casual",
+              "stronger_hook",
+              "add_cta",
+              "fewer_emojis",
+              "translate",
+              "rewrite_for_platform",
+              "custom"
+            ]
+          },
+          "instruction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "de",
+              "en"
+            ]
+          },
+          "current": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "maxLength": 100000
+              },
+              "hashtags": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "firstComment": {
+                "nullable": true,
+                "type": "string",
+                "maxLength": 8000
+              }
+            },
+            "required": [
+              "text",
+              "hashtags",
+              "firstComment"
+            ]
+          }
+        },
+        "required": [
+          "variantId",
+          "action",
+          "current"
+        ]
       }
     }
   }

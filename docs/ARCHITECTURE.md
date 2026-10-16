@@ -262,10 +262,12 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md` (`PROM
 - **Structured Outputs** (zod, `output_config.format`): pro Variante `targetKey`, `platform`, `hook`, `text`, `hashtags[]`, `firstComment`, `callToAction`, `altTexts[]`, `warnings[]` (z.B. "Statistik braucht eine Quelle"). Themenideen haben `title`, `angle`, `pillar`, `whyNow`, `basedOn[]`, `suggestedPlatforms[]`, `suggestedStyleKey`, `format`.
 - **Zeichenzahl auf dem Server**: Sie wird berechnet, nicht vom Modell geliefert (X gewichtet per `twitter-text`, sonst Grapheme). Ist eine Variante zu lang, läuft einmal automatisch "kürzen"; bleibt sie zu lang, markiert die UI sie.
 - **Generieren**: `POST /api/w/:ws/ai/generations` liefert `text/event-stream` mit diesen Events:
-  - `generation.started`, `variant.partial` (Teil-Varianten), `variant.reset` (vor dem einen Neuversuch nach `max_tokens`; der Client verwirft die Teilausgabe), `generation.completed` (Varianten inkl. Zeichenzahl und Validierungsfehlern), `generation.failed` (REFUSED, QUOTA_EXCEEDED, TRUNCATED, INVALID_OUTPUT, PROVIDER_ERROR),
+  - `generation.started`, `variant.partial` (Teil-Varianten), `variant.reset` (vor dem einen Neuversuch nach `max_tokens`; der Client verwirft die Teilausgabe), `generation.completed` (Varianten inkl. Zeichenzahl, Validierungsfehlern und verbotenen Wörtern), `generation.failed` (REFUSED, TRUNCATED, INVALID_OUTPUT, PROVIDER_ERROR, CANCELED),
+  - Fehler vor dem ersten Event (unbekannter Post 404, leeres Briefing 422, erschöpfte Quote 402 `QUOTA_EXCEEDED`) kommen als Problem-Dokument, weil Laden und Quoten-Reservierung vor dem Senden der Header laufen (ADR 0016),
   - einen Heartbeat alle 15 s.
 
   Der Server parst das partielle JSON (`partial-json`) und sendet Teil-Varianten; das Endergebnis validiert zod auf dem Server (ADR 0015).
+- **Speichern**: Die KI schreibt nie selbst in Varianten. Der Editor übernimmt Ergebnisse in unbearbeitete Varianten und speichert sie mit Optimistic Locking (ADR 0016).
 - **Refine**: Schnellaktionen "kürzer", "länger", "formeller", "lockerer", "stärkerer Hook", "CTA ergänzen", "weniger Emojis", "DE/EN übersetzen", "für Plattform X umschreiben" sowie eigene Anweisungen. Jede Aktion ist ein eigener zustandsloser Aufruf mit demselben gecachten Präfix. Die UI zeigt einen Diff mit Übernehmen und Verwerfen.
 - **Themenvorschläge**:
   - Kontext: Workspace-Profil, Content-Säulen, die letzten 30 Posts, die Top-5-Performer der letzten 90 Tage mit Metriken, verworfene Ideen (als Negativbeispiele) und anstehende Termine (Feiertage, eigene Daten).
@@ -274,7 +276,7 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md` (`PROM
   - Optional ein wöchentlicher Auto-Lauf sowie aktuelle Themen über das Claude-Tool `web_search` (eigener Schalter, kostet zusätzlich).
 - **Leitplanken**:
   - Briefing höchstens 4.000 Zeichen.
-  - Rate-Limits pro Nutzer (10/min, 2 parallele Streams) und pro Workspace (60/h).
+  - Rate-Limits pro Nutzer (10/min, 2 parallele Streams) und pro Workspace (60/h), als feste Zeitfenster in Redis; Überschreitung 429 `AI_RATE_LIMITED` (ADR 0016).
   - Prüfung auf verbotene Wörter der Brand Voice.
   - Die KI veröffentlicht nie selbst; Planen ist immer eine bewusste Nutzeraktion.
 - **Kosten**:

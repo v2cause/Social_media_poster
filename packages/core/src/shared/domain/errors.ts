@@ -1,10 +1,10 @@
 /**
- * How the caller should treat a domain error. The API maps it to an HTTP status
- * (invalid 422, forbidden 403, not_found 404, conflict 409, quota_exceeded 402, unavailable 503);
- * the UI translates the code.
+ * How the caller should treat a domain error. The API maps it to an HTTP status (invalid 422,
+ * forbidden 403, not_found 404, conflict 409, quota_exceeded 402, rate_limited 429, unavailable
+ * 503); the UI translates the code.
  */
 export type DomainErrorKind =
-  'invalid' | 'forbidden' | 'not_found' | 'conflict' | 'quota_exceeded' | 'unavailable';
+  'invalid' | 'forbidden' | 'not_found' | 'conflict' | 'quota_exceeded' | 'rate_limited' | 'unavailable';
 
 // A global symbol, so that the check works across copies of this package, for example when a
 // test runner loads it once transformed and once through require().

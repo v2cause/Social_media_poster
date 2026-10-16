@@ -18,3 +18,12 @@ export class AiCallFailedError extends DomainError {
     this.retryable = failure.retryable;
   }
 }
+
+/** Too many AI calls in a short time, or too many at once (architecture 5.3, HTTP 429). */
+export class AiRateLimitedError extends DomainError {
+  readonly code = 'AI_RATE_LIMITED';
+  readonly kind = 'rate_limited';
+  constructor() {
+    super('Too many AI requests. Wait a moment before the next one.');
+  }
+}

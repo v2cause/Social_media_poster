@@ -614,6 +614,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Compression-Middleware muss SSE auslassen.
   - Alle 15 s ein Heartbeat (`: ping`).
   - Updates nutzen Optimistic Locking über `version` (bei Konflikt 409).
+  - Umgesetzt mit zusätzlich `GET /api/w/:ws/brand-voices/:id/versions` für die Versionshistorie (Schritt 2.9). Laden und Quoten-Reservierung laufen vor dem ersten Event, ihre Fehler kommen als Problem-Dokument (404, 422, 402); die KI schreibt nie selbst in Varianten ([ADR 0016](adr/0016-content-und-ki-api.md)).
 - **Fertig, wenn**: Die API-E2E-Tests für alle Endpunkte grün sind, inklusive der Rechte-Matrix.
 
 #### 2.8 Web: Composer

@@ -47,7 +47,8 @@
     "AI_TRUNCATED": "The answer of the AI was too long and was cut off. Please shorten the brief or choose fewer platforms.",
     "AI_INVALID_OUTPUT": "The AI returned an unusable answer. Please try again.",
     "AI_PROVIDER_ERROR": "The AI service is unavailable right now. Please try again shortly.",
-    "AI_CANCELED": "The request to the AI was canceled."
+    "AI_CANCELED": "The request to the AI was canceled.",
+    "AI_RATE_LIMITED": "Too many AI requests in a short time. Please wait a moment."
   },
   "validation": {
     "required": "Please fill in this field.",

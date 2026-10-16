@@ -41,7 +41,7 @@ export {
   type ModelPrice,
 } from './ai/domain/cost';
 export { CostCalculator, type CostCalculatorDependencies } from './ai/application/cost-calculator';
-export { AiCallFailedError } from './ai/domain/errors';
+export { AiCallFailedError, AiRateLimitedError } from './ai/domain/errors';
 export {
   AI_OUTCOMES,
   AI_TASKS,

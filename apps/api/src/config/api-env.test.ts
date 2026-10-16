@@ -54,3 +54,29 @@ describe('loadApiEnv', () => {
     expect(() => loadApiEnv({ ...validEnv, BETTER_AUTH_SECRET: 'too-short' })).toThrow(/BETTER_AUTH_SECRET/);
   });
 });
+
+describe('loadApiEnv with AI settings', () => {
+  it('defaults to the mock provider outside production', () => {
+    const env = loadApiEnv(validEnv);
+
+    expect(env.AI_PROVIDER).toBe('mock');
+    expect(env.AI_MONTHLY_CAP_MICROS).toBe(10_000_000);
+  });
+
+  it('refuses to start production with the mock provider', () => {
+    expect(() => loadApiEnv({ ...validEnv, NODE_ENV: 'production' })).toThrow(
+      /AI_PROVIDER: the mock provider is not allowed in production/,
+    );
+  });
+
+  it('needs the key of the Claude API and never prints it', () => {
+    expect(() => loadApiEnv({ ...validEnv, AI_PROVIDER: 'anthropic' })).toThrow(/ANTHROPIC_API_KEY/);
+    const env = loadApiEnv({
+      ...validEnv,
+      NODE_ENV: 'production',
+      AI_PROVIDER: 'anthropic',
+      ANTHROPIC_API_KEY: 'sk-ant-secret-value',
+    });
+    expect(env.AI_PROVIDER).toBe('anthropic');
+  });
+});

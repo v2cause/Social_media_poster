@@ -13,6 +13,7 @@ import { ClientsModule } from './infrastructure/clients.module';
 import { HealthModule } from './modules/health/health.module';
 import { AccessModule } from './common/guards/access.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { ContentModule } from './modules/content/content.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { TenancyModule } from './modules/tenancy/tenancy.module';
 
@@ -44,6 +45,7 @@ export class AppModule {
         AccessModule,
         TenancyModule,
         AuditModule,
+        ContentModule,
       ],
       providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }],
     };

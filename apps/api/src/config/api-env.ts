@@ -1,3 +1,4 @@
+import { aiEnvSchema, checkAiEnv } from '@smp/ai';
 import { dbEnvSchema } from '@smp/db';
 import { observabilityEnvSchema } from '@smp/observability';
 import { z } from 'zod';
@@ -20,7 +21,10 @@ export const apiEnvSchema = z
     BETTER_AUTH_URL: z.url({ protocol: /^https?$/ }),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true, DATABASE_SYSTEM_URL: true }).shape)
-  .extend(observabilityEnvSchema.shape);
+  .extend(observabilityEnvSchema.shape)
+  .extend(aiEnvSchema.shape)
+  // The mock AI provider never starts in production, and the Claude API needs a key.
+  .superRefine(checkAiEnv);
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
 

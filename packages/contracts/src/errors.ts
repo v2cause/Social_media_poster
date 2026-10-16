@@ -47,6 +47,7 @@ export const ERROR_CODES = [
   'AI_INVALID_OUTPUT',
   'AI_PROVIDER_ERROR',
   'AI_CANCELED',
+  'AI_RATE_LIMITED',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

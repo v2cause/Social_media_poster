@@ -47,7 +47,8 @@
     "AI_TRUNCATED": "Die Antwort der KI war zu lang und wurde abgebrochen. Bitte kürzen Sie das Briefing oder wählen Sie weniger Plattformen.",
     "AI_INVALID_OUTPUT": "Die KI hat eine unbrauchbare Antwort geliefert. Bitte versuchen Sie es noch einmal.",
     "AI_PROVIDER_ERROR": "Der KI-Dienst ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
-    "AI_CANCELED": "Die Anfrage an die KI wurde abgebrochen."
+    "AI_CANCELED": "Die Anfrage an die KI wurde abgebrochen.",
+    "AI_RATE_LIMITED": "Zu viele KI-Anfragen in kurzer Zeit. Bitte warten Sie einen Moment."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

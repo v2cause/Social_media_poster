@@ -3,7 +3,14 @@ import { Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ZodValidationException } from 'nestjs-zod';
-import { LastOwnerError, NotPermittedError, QuotaExceededError, WorkspaceNotFoundError } from '@smp/core';
+import {
+  AiCallFailedError,
+  AiRateLimitedError,
+  LastOwnerError,
+  NotPermittedError,
+  QuotaExceededError,
+  WorkspaceNotFoundError,
+} from '@smp/core';
 
 import { ProblemDetailsFilter } from './problem-details.filter';
 
@@ -54,6 +61,13 @@ describe('ProblemDetailsFilter', () => {
       status: 402,
       code: 'QUOTA_EXCEEDED',
     });
+    expect(renderWith(new AiRateLimitedError()).body).toMatchObject({ status: 429, code: 'AI_RATE_LIMITED' });
+    expect(renderWith(new AiCallFailedError({ code: 'PROVIDER_ERROR', retryable: true })).body).toMatchObject(
+      {
+        status: 503,
+        code: 'AI_PROVIDER_ERROR',
+      },
+    );
   });
 
   it('hides the message and stack of unexpected errors', () => {
