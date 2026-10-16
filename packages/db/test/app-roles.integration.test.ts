@@ -28,9 +28,13 @@ describe('database roles and migrations', () => {
     return container;
   };
 
-  const url = (role: 'app_migrator' | 'app_user' | 'app_system', password: string): string => {
+  const url = (
+    role: 'app_migrator' | 'app_user' | 'app_system',
+    password: string,
+    database = 'smp',
+  ): string => {
     const started = startedContainer();
-    return `postgresql://${role}:${password}@${started.getHost()}:${String(started.getMappedPort(5432))}/smp`;
+    return `postgresql://${role}:${password}@${started.getHost()}:${String(started.getMappedPort(5432))}/${database}`;
   };
 
   const connectAs = async (connectionString: string): Promise<Client> => {
@@ -98,6 +102,30 @@ describe('database roles and migrations', () => {
         'SELECT current_user, r.rolbypassrls FROM pg_roles r WHERE r.rolname = current_user',
       );
       expect(rows).toEqual([{ current_user: 'app_user', rolbypassrls: false }]);
+    } finally {
+      await runtime.end();
+    }
+  });
+
+  it('keeps the runtime roles out of the shadow database', async () => {
+    await expect(connectAs(url('app_user', PASSWORDS.user, 'smp_shadow'))).rejects.toThrow(
+      /permission denied for database/,
+    );
+    await expect(connectAs(url('app_system', PASSWORDS.system, 'smp_shadow'))).rejects.toThrow(
+      /permission denied for database/,
+    );
+  });
+
+  it('limits query and idle transaction time for the runtime roles', async () => {
+    const runtime = await connectAs(url('app_user', PASSWORDS.user));
+    try {
+      const { rows } = await runtime.query<{ statement_timeout: string; idle: string }>(
+        "SELECT current_setting('statement_timeout') AS statement_timeout, current_setting('idle_in_transaction_session_timeout') AS idle",
+      );
+      expect(rows).toEqual([{ statement_timeout: '30s', idle: '1min' }]);
+      await expect(runtime.query('SET statement_timeout = 50; SELECT pg_sleep(1)')).rejects.toThrow(
+        /canceling statement due to statement timeout/,
+      );
     } finally {
       await runtime.end();
     }
