@@ -192,8 +192,39 @@ export {
   type UsageBooking,
 } from './usage/application/quota-service';
 
-// Notifications
+// Notifications (guide steps 1.8 and 4.9)
 export type { MailMessage, MailPort } from './notifications/ports/mail.port';
+export {
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_TYPES,
+  type NotificationChannel,
+  type NotificationChannels,
+  type NotificationContent,
+  type NotificationRecipient,
+  type NotificationRequest,
+  type NotificationType,
+  type NotificationWorkspace,
+} from './notifications/domain/types';
+export {
+  audienceOf,
+  DEFAULT_CHANNELS,
+  PREVIEW_LENGTH,
+  PREVIEW_MAX_UNITS,
+  previewOf,
+} from './notifications/domain/rules';
+export type {
+  InAppNotification,
+  NotificationDirectory,
+  NotificationEmail,
+  NotificationInbox,
+  NotificationMailer,
+  NotificationScope,
+} from './notifications/ports/notification-store';
+export {
+  DeliverNotification,
+  type DeliverNotificationInput,
+  type DeliveryReport,
+} from './notifications/application/deliver-notification';
 
 // Channels (architecture 4, guide steps 4.2 ff.)
 export {
