@@ -206,6 +206,43 @@ export type {
   SecretSealer,
 } from './channels/ports/secrets';
 export { RewrapSecrets, type RewrapReport } from './channels/application/rewrap-secrets';
+export {
+  CONNECTION_METHODS,
+  CONNECTION_STATUSES,
+  SOCIAL_ACCOUNT_TYPES,
+  type ConnectionMethod,
+  type ConnectionStatus,
+  type SocialAccountType,
+} from './channels/domain/types';
+export {
+  isPlatformError,
+  PLATFORM_ERROR_CODES,
+  PlatformError,
+  type PlatformErrorCode,
+  type PlatformErrorDetails,
+} from './channels/domain/platform-error';
+export type {
+  AccountMetricsResult,
+  AdapterAccount,
+  AdapterContext,
+  AdapterLogger,
+  ApiCostRecorder,
+  AuthorizationRequest,
+  ConnectableAccount,
+  CredentialsAccessor,
+  DateRange,
+  ExternalPostRef,
+  NormalizedPostMetrics,
+  OAuthConnector,
+  OAuthGrant,
+  PostMetricsResult,
+  PublishMedia,
+  PublishRequest,
+  PublishResult,
+  RefreshOutcome,
+  SocialPlatformAdapter,
+  TokenSet,
+} from './channels/ports/platform-adapter';
 
 // Tenancy
 export * from './tenancy/domain/errors';
