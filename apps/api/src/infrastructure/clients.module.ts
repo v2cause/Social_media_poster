@@ -1,12 +1,16 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { Global, Inject, Module, type OnApplicationShutdown } from '@nestjs/common';
-import { createPrismaClient, type PrismaClient } from '@smp/db';
+import { createPrismaClient, createTenantClient, type PrismaClient, type TenantPrismaClient } from '@smp/db';
 import Redis from 'ioredis';
 
+import { TenantContextService } from '../common/cls/tenant-context';
 import type { ApiEnv } from '../config/api-env';
 import { API_ENV } from '../config/config.module';
 
+/** app_user without tenant context: health checks, Better Auth and withTenantTx. */
 export const DATABASE_CLIENT = Symbol('DATABASE_CLIENT');
+/** app_user with the tenant of the current request set in every operation. */
+export const TENANT_DATABASE_CLIENT = Symbol('TENANT_DATABASE_CLIENT');
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 export const S3_CLIENT = Symbol('S3_CLIENT');
 
@@ -36,6 +40,14 @@ class ClientLifecycle implements OnApplicationShutdown {
       useFactory: (env: ApiEnv): PrismaClient => createPrismaClient(env.DATABASE_URL),
     },
     {
+      provide: TENANT_DATABASE_CLIENT,
+      inject: [API_ENV, DATABASE_CLIENT, TenantContextService],
+      useFactory: (env: ApiEnv, base: PrismaClient, tenant: TenantContextService): TenantPrismaClient =>
+        createTenantClient(base, () => tenant.get(), {
+          assertTenantFilter: env.NODE_ENV !== 'production',
+        }),
+    },
+    {
       provide: REDIS_CLIENT,
       inject: [API_ENV],
       useFactory: (env: ApiEnv): Redis =>
@@ -58,6 +70,6 @@ class ClientLifecycle implements OnApplicationShutdown {
     },
     ClientLifecycle,
   ],
-  exports: [DATABASE_CLIENT, REDIS_CLIENT, S3_CLIENT],
+  exports: [DATABASE_CLIENT, TENANT_DATABASE_CLIENT, REDIS_CLIENT, S3_CLIENT],
 })
 export class ClientsModule {}

@@ -17,6 +17,21 @@ const IGNORES = [
   '**/src/generated/**',
 ];
 
+const RESTRICTED_PATTERNS = [
+  {
+    group: ['@smp/*/**'],
+    message: 'Deep imports are not allowed. Import from the package entry point (@smp/<name>).',
+  },
+];
+const RESTRICTED_PATHS = [
+  {
+    name: '@smp/db',
+    importNames: ['createSystemPrismaClient'],
+    message:
+      'The system client bypasses row-level security. Wire it up in src/infrastructure and use it only in @SystemScope() methods.',
+  },
+];
+
 // import-x only knows plain JavaScript extensions by default. Without the TypeScript ones,
 // import-no-cycle never sees the imports between .ts files.
 const importResolver = importX.createNodeResolver({
@@ -67,18 +82,13 @@ function createEslintConfig({ tsconfigRootDir, typed = true, web = false }) {
         '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
         'import-x/no-cycle': 'error',
         'no-console': 'error',
-        'no-restricted-imports': [
-          'error',
-          {
-            patterns: [
-              {
-                group: ['@smp/*/**'],
-                message: 'Deep imports are not allowed. Import from the package entry point (@smp/<name>).',
-              },
-            ],
-          },
-        ],
+        'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS, patterns: RESTRICTED_PATTERNS }],
       },
+    },
+    {
+      // The system client is wired up in the infrastructure layer only (guide step 1.3).
+      files: ['**/src/infrastructure/**'],
+      rules: { 'no-restricted-imports': ['error', { patterns: RESTRICTED_PATTERNS }] },
     },
     {
       // Tool configuration files may load other workspace presets by subpath.

@@ -4,6 +4,7 @@ import { Params, LoggerModule } from 'nestjs-pino';
 import { createLogger } from '@smp/observability';
 import { uuidv7 } from 'uuidv7';
 
+import { RequestContextModule } from './common/cls/request-context.module';
 import { ProblemDetailsFilter } from './common/filters/problem-details.filter';
 import { httpLogSerializers } from './common/logging/http-log-serializers';
 import type { ApiEnv } from './config/api-env';
@@ -29,7 +30,13 @@ export class AppModule {
 
     return {
       module: AppModule,
-      imports: [ConfigModule.register(env), LoggerModule.forRoot(pinoParams), ClientsModule, HealthModule],
+      imports: [
+        ConfigModule.register(env),
+        LoggerModule.forRoot(pinoParams),
+        RequestContextModule,
+        ClientsModule,
+        HealthModule,
+      ],
       providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }],
     };
   }
