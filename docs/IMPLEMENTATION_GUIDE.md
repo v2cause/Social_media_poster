@@ -717,6 +717,13 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Bibliothek: Grid mit Thumbnails, Status-Badges und Filtern (verwendet / unbenutzt).
   - Im Composer: ein Medienstreifen pro Variante, Warnungen wie "Instagram braucht mindestens 1 Bild" oder "X erlaubt höchstens 4 Bilder" und eine Zuschnitt-Schaltfläche pro Plattform.
 - **Darauf achten**: Höchstens 3 parallele Uploads. Der Fortschritt kommt über XHR `upload.onprogress`. Die Vorschau nutzt signierte Thumbnail-URLs.
+- **Umgesetzt**:
+  - Bibliothek unter `/w/:ws/media` mit Filtern (alle, verwendet, unbenutzt, abgelehnt), Alt-Text mit KI-Vorschlag und Löschen.
+  - Im Composer `VariantMediaStrip` mit Auswahldialog, der auch hochlädt, `CropDialog` mit den Verhältnissen der Plattform als Voreinstellungen und weißen Rändern als Alternative, dazu "Nach vorne" und "Nach hinten" für die Reihenfolge ohne Ziehen.
+  - Die Medien einer Variante speichert das Auto-Speichern in einer eigenen Anfrage nach dem Text.
+  - Die Vorschau zeigt den Zuschnitt als Fenster auf dem Thumbnail.
+  - Die CSP erlaubt den Objektspeicher in `img-src` und `connect-src` ([ADR 0022](adr/0022-medien-im-web.md)).
+  - Tests: `apps/web/e2e/media.spec.ts` (Hochladen, Prüfung durch den Worker, Anhängen an Instagram, Zuschnitt 1:1, Alt-Text vom Mock, Neuladen) und Unit-Tests für Upload-Warteschlange, Zuschnitt und Composer-Zustand.
 - **Fertig, wenn**: Ein E2E-Test den Ablauf Hochladen, Zuschneiden, Anhängen und Vorschau mit Bild grün durchläuft.
 
 ---

@@ -16,7 +16,7 @@ Die Architektur nennt Härtung und Lieferkette (CSP mit Nonces, Log-Redaction, R
 - **`style-src 'self' 'unsafe-inline'`**: Next.js rendert `style`-Attribute (z.B. auf den eingebauten Fehlerseiten), und Attribute können keine Nonce tragen. Eingeschleustes CSS führt keinen Code aus.
 - **Feste Header** für jede Antwort (`next.config.ts`): `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Cross-Origin-Opener-Policy`, eine restriktive `Permissions-Policy`; kein `X-Powered-By`.
 - **HSTS** setzt der TLS-terminierende Reverse Proxy in Produktion, nicht die App.
-- Phase 3 ergänzt den Objektspeicher in `img-src` und `connect-src`.
+- Phase 3 ergänzt den Objektspeicher in `img-src` und `connect-src` (umgesetzt in Schritt 3.6, [ADR 0022](0022-medien-im-web.md)).
 
 ### Logs und Fehlerberichte
 

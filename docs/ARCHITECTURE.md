@@ -534,7 +534,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 - **Härtung**:
   - zod-Validierung aller Eingaben, Jobs, Adapter-Antworten und der Env-Konfiguration beim Start.
   - Rate Limiting eingehend (`@nestjs/throttler` mit Redis) und ausgehend pro Plattform, App und Account (`rate-limiter-flexible`, wertet die Rate-Header der Plattformen aus).
-  - Origin-Check gegen CSRF für alle schreibenden Anfragen unter `/api`, auch für `/api/auth` (Login-CSRF), dazu CSP mit Nonces, HSTS, helmet.
+  - Origin-Check gegen CSRF für alle schreibenden Anfragen unter `/api`, auch für `/api/auth` (Login-CSRF), dazu CSP mit Nonces (der Objektspeicher nur in `img-src` und `connect-src`, ADR 0022), HSTS, helmet.
   - Webhook-Signaturen prüfen: Stripe `constructEvent`; Meta `X-Hub-Signature-256` plus Deauthorize- und Data-Deletion-Callbacks (Pflicht für das App-Review).
   - Log-Redaction für Tokens, Cookies und Sessions.
 - **Lieferkette**: Renovate (3 Tage Wartezeit, Digest-Pinning), pnpm-Gates (`minimumReleaseAge`, `trustPolicy: no-downgrade`, `strictDepBuilds`), `pnpm audit`, CodeQL, Dependency Review, gitleaks, Trivy-Image-Scans, SBOM. Die ersten Punkte gelten seit Phase 0 (ADR 0009).
@@ -571,7 +571,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 - **Composer**:
   - Links: Briefing, **Dropdown für den Post-Stil** (Presets und eigene), Brand Voice, Zielaccounts.
   - KI-Panel: streamt die Varianten als Tabs pro Ziel. Jede Variante ist editierbar, mit Live-Zeichenzähler aus `platform-rules`, Hashtag-Chips, erstem Kommentar und Refine-Schnellaktionen mit Diff.
-  - Medien: Drag & Drop, Zuschnitt pro Plattform, Alt-Text mit KI-Vorschlag.
+  - Medien: Drag & Drop (mit Schaltflächen als Alternative zum Ziehen), Zuschnitt pro Plattform, Alt-Text mit KI-Vorschlag. Die Vorschau zeigt den Zuschnitt auf dem Thumbnail, die Datei für die Plattform rendert der Worker nach dem Speichern ([ADR 0022](adr/0022-medien-im-web.md)).
   - Vorschau: Mockups für LinkedIn, Instagram, Facebook und X, inklusive "...mehr"-Kürzung.
   - Planen: Datum und Uhrzeit in der Workspace-Zeitzone, "Jetzt posten", Zeitpunkt pro Variante überschreibbar, Kostenhinweis bei X.
   - Entwürfe werden automatisch gespeichert: 800 ms nach der letzten Änderung, nacheinander und mit Optimistic Locking; ein neuer Beitrag entsteht, sobald Briefing und eine Plattform da sind ([ADR 0017](adr/0017-composer-zustand-und-auto-speichern.md)).
