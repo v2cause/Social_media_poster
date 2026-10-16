@@ -1,0 +1,105 @@
+import { DomainError } from '../../shared/domain/errors';
+
+export class EmailNotVerifiedError extends DomainError {
+  readonly code = 'EMAIL_NOT_VERIFIED';
+  readonly kind = 'forbidden';
+  constructor() {
+    super('The email address must be verified first.');
+  }
+}
+
+export class LastOwnerError extends DomainError {
+  readonly code = 'LAST_OWNER';
+  readonly kind = 'conflict';
+  constructor() {
+    super('An organization needs at least one owner.');
+  }
+}
+
+export class RoleChangeForbiddenError extends DomainError {
+  readonly code = 'ROLE_CHANGE_FORBIDDEN';
+  readonly kind = 'forbidden';
+  constructor() {
+    super('Only owners can grant the owner role or manage owners.');
+  }
+}
+
+export class MemberNotFoundError extends DomainError {
+  readonly code = 'MEMBER_NOT_FOUND';
+  readonly kind = 'not_found';
+  constructor() {
+    super('The member does not exist in this organization.');
+  }
+}
+
+export class CannotRemoveSelfError extends DomainError {
+  readonly code = 'CANNOT_REMOVE_SELF';
+  readonly kind = 'invalid';
+  constructor() {
+    super('Leave the organization instead of removing yourself.');
+  }
+}
+
+export class AlreadyMemberError extends DomainError {
+  readonly code = 'ALREADY_MEMBER';
+  readonly kind = 'conflict';
+  constructor() {
+    super('The person is already a member of this organization.');
+  }
+}
+
+export class InvalidWorkspaceSelectionError extends DomainError {
+  readonly code = 'INVALID_WORKSPACES';
+  readonly kind = 'invalid';
+  constructor() {
+    super('Every selected workspace must belong to the organization.');
+  }
+}
+
+export class InvitationNotFoundError extends DomainError {
+  readonly code = 'INVITATION_NOT_FOUND';
+  readonly kind = 'not_found';
+  constructor() {
+    super('The invitation does not exist.');
+  }
+}
+
+export class InvitationExpiredError extends DomainError {
+  readonly code = 'INVITATION_EXPIRED';
+  readonly kind = 'conflict';
+  constructor() {
+    super('The invitation has expired.');
+  }
+}
+
+export class InvitationUsedError extends DomainError {
+  readonly code = 'INVITATION_USED';
+  readonly kind = 'conflict';
+  constructor() {
+    super('The invitation was already accepted or revoked.');
+  }
+}
+
+export class InvitationEmailMismatchError extends DomainError {
+  readonly code = 'INVITATION_EMAIL_MISMATCH';
+  readonly kind = 'forbidden';
+  constructor() {
+    super('The invitation was sent to another email address.');
+  }
+}
+
+export class SlugUnavailableError extends DomainError {
+  readonly code = 'SLUG_UNAVAILABLE';
+  readonly kind = 'conflict';
+  constructor() {
+    super('No free workspace address could be found.');
+  }
+}
+
+export class WorkspaceNotFoundError extends DomainError {
+  readonly code = 'WORKSPACE_NOT_FOUND';
+  readonly kind = 'not_found';
+  constructor() {
+    super('The workspace does not exist.');
+  }
+}

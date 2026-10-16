@@ -18,8 +18,8 @@ module.exports = {
     {
       name: 'core-is-framework-free',
       severity: 'error',
-      comment: 'The core context may depend only on zod and uuidv7 from npm.',
-      from: { path: '^packages/core/' },
+      comment: 'The core context may depend only on zod and uuidv7 from npm. Tests may use vitest.',
+      from: { path: '^packages/core/', pathNot: '^packages/core/test/|\\.test\\.ts$' },
       to: { path: '^node_modules/', pathNot: '^node_modules/(zod|uuidv7)/' },
     },
     {
