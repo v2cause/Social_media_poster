@@ -13,6 +13,17 @@ import {
   type DraftMedia,
 } from './composer-model';
 
+/** The planning fields of a draft that was never planned. */
+const unplanned = {
+  socialAccountId: null,
+  scheduledAt: null,
+  scheduledTimezone: null,
+  publishedAt: null,
+  externalUrl: null,
+  failureCode: null,
+  isDryRun: false,
+};
+
 const post: PostDto = {
   id: '0199f0a0-0000-7000-8000-000000000010',
   brief: 'Neues Büro',
@@ -36,6 +47,7 @@ const post: PostDto = {
       aiWarnings: [],
       status: 'DRAFT',
       media: [],
+      ...unplanned,
       version: 0,
       updatedAt: '2026-10-16T10:00:00.000Z',
     },
@@ -51,6 +63,7 @@ const post: PostDto = {
       aiWarnings: [],
       status: 'DRAFT',
       media: [],
+      ...unplanned,
       version: 2,
       updatedAt: '2026-10-16T10:00:00.000Z',
     },

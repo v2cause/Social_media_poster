@@ -401,15 +401,16 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
                                        (FAILED, NEEDS_ATTENTION --"erneut"--> SCHEDULED)
 ```
 
-- **Durchsetzung**: Der Automat ist eine reine Übergangstabelle in `packages/core/src/publishing/domain/variant-state-machine.ts`. Jeder Übergang wird mit Versionsprüfung gespeichert; verbotene Übergänge werfen Domain-Fehler.
-- **Bearbeiten**: in `DRAFT` und `SCHEDULED` erlaubt, aus `FAILED` zurück nach `DRAFT`. Gesperrt in `QUEUED`, `PUBLISHING`, `RETRYING` und `NEEDS_ATTENTION`, weil der Reconcile einen unveränderten `contentHash` braucht.
+- **Durchsetzung**: Der Automat ist eine reine Übergangstabelle in `packages/core/src/publishing/domain/variant-state-machine.ts`. Jeder Übergang wird mit Versionsprüfung gespeichert und schreibt ein Outbox-Ereignis `variant.status`; verbotene Übergänge werfen Domain-Fehler.
+- **Über das Diagramm hinaus** ([ADR 0023](adr/0023-planen-zeitzonen-und-zustandsautomat.md)): "Jetzt posten" direkt nach `QUEUED`; Abbrechen auch aus `QUEUED` und `RETRYING`; aus `NEEDS_ATTENTION` "erneut prüfen" und "trotzdem posten" nach `QUEUED`, "verwerfen" nach `CANCELED`; `PUBLISHING` nach `PUBLISHING`, wenn ein Job eine Variante mit abgelaufenem Lease übernimmt.
+- **Bearbeiten**: in `DRAFT` und `SCHEDULED` erlaubt, aus `FAILED` und `CANCELED` zurück nach `DRAFT`. Gesperrt in `QUEUED`, `PUBLISHING`, `RETRYING` und `NEEDS_ATTENTION`, weil der Reconcile einen unveränderten `contentHash` braucht.
 - **Status des Master-Posts**: wird abgeleitet (DRAFT, SCHEDULED, PARTIAL, PUBLISHED, FAILED).
 - **Später**: ein Freigabe-Workflow (`PENDING_APPROVAL`).
 
 ### 7.3 Zeitzonen
 
-- Die Server laufen in UTC. Die API nimmt `{ localDateTime, timeZone }` entgegen und rechnet mit `@date-fns/tz` um. Gespeichert werden der UTC-Zeitpunkt und die IANA-Zone.
-- Zeiten in einer Zeitumstellungslücke ergeben einen 422-Fehler mit Vorschlag. Bei doppelten Zeiten wird der frühere Offset verwendet.
+- Die Server laufen in UTC. Die API nimmt `{ localDateTime, timeZone }` entgegen; der Core rechnet mit `Intl` um (`resolveLocalTime`, [ADR 0023](adr/0023-planen-zeitzonen-und-zustandsautomat.md)). Gespeichert werden der UTC-Zeitpunkt und die IANA-Zone.
+- Zeiten in einer Zeitumstellungslücke ergeben einen 422-Fehler mit Vorschlag (die erste gültige Minute nach der Lücke, im Problem-Dokument unter `params`). Bei doppelten Zeiten wird der frühere Offset verwendet.
 - Der Kalender zeigt standardmäßig die Workspace-Zeitzone und lässt sich auf die eigene Zeitzone umschalten.
 
 ### 7.4 Queues (`packages/queue`, Payloads beim Einreihen und Verarbeiten per zod validiert)

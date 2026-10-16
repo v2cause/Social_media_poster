@@ -827,6 +827,15 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Erstellen**: `packages/core/src/publishing/domain/variant-state-machine.ts` und die Use Cases `ScheduleVariant`, `RescheduleVariant`, `CancelVariant`, `PublishNow`, `RetryVariant`, `ResolveNeedsAttention`.
 - **So sieht es aus**: Die Übergangstabelle aus Teil A, Abschnitt 7.2. Jeder Use Case prüft per `can(role, permission)`, validiert (`validatePost`, Account-Status, Token-Ablauf, Quote) und schreibt Status, `scheduleVersion`, `OutboxEvent` und Audit-Eintrag in einer Transaktion.
 - **Darauf achten**: Die Eingabe ist `{ localDateTime, timeZone }`. Zeiten in einer Zeitumstellungslücke ergeben 422 mit Vorschlag; Zeitpunkte in der Vergangenheit sind verboten (außer "Jetzt posten").
+- **Umgesetzt**:
+  - `VARIANT_TRANSITIONS` in `variant-state-machine.ts`, mit den Ergänzungen aus [ADR 0023](adr/0023-planen-zeitzonen-und-zustandsautomat.md) ("Jetzt posten", Abbrechen aus `QUEUED` und `RETRYING`, die drei Antworten auf `NEEDS_ATTENTION`, Übernahme nach abgelaufenem Lease).
+  - `resolveLocalTime` rechnet im Core mit `Intl` statt mit `@date-fns/tz` in der API. Eine Zeit in der Lücke ergibt `SCHEDULE_TIME_IN_GAP` mit der ersten gültigen Minute danach in `params.suggestion`; eine doppelte Zeit nimmt den früheren Offset.
+  - Use Cases `ScheduleVariant` (aus `DRAFT`, `CANCELED`), `RescheduleVariant` (aus `SCHEDULED`, `QUEUED`), `CancelVariant` (aus `SCHEDULED`, `QUEUED`, `RETRYING`), `PublishNow`, `RetryVariant` (aus `FAILED`, `NEEDS_ATTENTION`, jetzt oder später) und `ResolveNeedsAttention` (`recheck`, `publish_anyway`, `discard`).
+  - Geprüft werden Rolle (Editor und höher), Zeitpunkt, Account (verbunden, gleiche Plattform, Verbindung `ACTIVE` oder `EXPIRING`) und Inhalt (`validatePost` mit den Bildern nach Zuschnitt und Letterbox, dazu "nicht leer"). Läuft der Zugang vor dem Zeitpunkt ab, gibt es nur eine Warnung. Die Quote folgt mit den Tarifen (Phase 7).
+  - Jeder Wechsel schreibt Status, neue `scheduleVersion`, Outbox-Ereignisse (`variant.status`, bei `QUEUED` zusätzlich `publish.requested`) und den Audit-Eintrag in einer Transaktion. Das Relay gibt `variant.status` an den Redis-Kanal `ws:{workspaceId}:events` weiter.
+  - Bearbeiten macht `FAILED` und `CANCELED` wieder zu `DRAFT`, eine geplante Variante bleibt geplant, `NEEDS_ATTENTION` ist gesperrt.
+  - API: `POST /api/w/:ws/variants/:id/{schedule,reschedule,cancel,publish-now,retry,resolve}`, Antwort mit der aktuellen Variante und den Warnungen. Domain-Fehler geben `params` im Problem-Dokument weiter.
+  - Tests: `packages/core/test/publishing/variant-state-machine.test.ts` (alle 100 Paare), `local-time.test.ts` (Beispiele und Property-Tests über elf Zonen und zwanzig Jahre), `planning.test.ts`, `packages/db/test/publishing-adapters.integration.test.ts` und `apps/api/test/publishing.integration.test.ts`.
 - **Fertig, wenn**: Alle erlaubten und verbotenen Übergänge als Tabellentest grün sind, dazu Property-Tests für die Zeitumstellung (fast-check).
 
 #### 4.7 Scheduler, Sweeper, verpasste Zeitfenster

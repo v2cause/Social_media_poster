@@ -9,6 +9,7 @@ import {
   LastOwnerError,
   NotPermittedError,
   QuotaExceededError,
+  ScheduleTimeInGapError,
   WorkspaceNotFoundError,
 } from '@smp/core';
 
@@ -68,6 +69,17 @@ describe('ProblemDetailsFilter', () => {
         code: 'AI_PROVIDER_ERROR',
       },
     );
+  });
+
+  it('passes the parameters of a domain error on, and leaves them out without any', () => {
+    const { body } = renderWith(new ScheduleTimeInGapError('2027-03-28T03:00', 'Europe/Berlin'));
+
+    expect(body).toMatchObject({
+      status: 422,
+      code: 'SCHEDULE_TIME_IN_GAP',
+      params: { suggestion: '2027-03-28T03:00', timeZone: 'Europe/Berlin' },
+    });
+    expect(renderWith(new LastOwnerError()).body).not.toHaveProperty('params');
   });
 
   it('hides the message and stack of unexpected errors', () => {

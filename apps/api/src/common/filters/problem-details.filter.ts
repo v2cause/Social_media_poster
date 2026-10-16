@@ -2,7 +2,7 @@ import { STATUS_CODES } from 'node:http';
 
 import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, Logger } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
-import { isDomainError, type DomainErrorKind } from '@smp/core';
+import { isDomainError, type DomainErrorKind, type DomainErrorParams } from '@smp/core';
 import type { Request, Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
 
@@ -13,6 +13,8 @@ export interface ProblemDetails {
   code: string;
   detail: string;
   traceId: string;
+  /** Values for the translated message of a domain error, for example a suggested time. */
+  params?: DomainErrorParams;
 }
 
 /** HTTP status per kind of domain error (guide B.1). */
@@ -82,6 +84,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
         code: exception.code,
         detail: exception.message,
         traceId,
+        ...(exception.params ? { params: exception.params } : {}),
       };
     }
 

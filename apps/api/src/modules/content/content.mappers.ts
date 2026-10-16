@@ -31,6 +31,8 @@ export const toVariantDto = async (view: VariantView, storage: StoragePort): Pro
   media: await Promise.all(
     view.media.map(async (use) => ({ ...use, asset: await toMediaAssetDto(use.asset, storage) })),
   ),
+  scheduledAt: view.scheduledAt?.toISOString() ?? null,
+  publishedAt: view.publishedAt?.toISOString() ?? null,
   updatedAt: view.updatedAt.toISOString(),
 });
 

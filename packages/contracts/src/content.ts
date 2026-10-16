@@ -62,6 +62,18 @@ export const variantSchema = z.object({
   status: variantStatusSchema,
   /** The attached media in their order, with signed thumbnails. */
   media: z.array(variantMediaSchema),
+  /** The account the variant goes out to. */
+  socialAccountId: id.nullable(),
+  /** When it goes out, or went out for "Jetzt posten"; shown in scheduledTimezone. */
+  scheduledAt: timestamp.nullable(),
+  scheduledTimezone: z.string().nullable(),
+  publishedAt: timestamp.nullable(),
+  /** The post on the platform. */
+  externalUrl: z.string().nullable(),
+  /** Why the last attempt failed, for example MISSED_WINDOW or REAUTH_REQUIRED. */
+  failureCode: z.string().nullable(),
+  /** Published in a dry run: nothing went out. */
+  isDryRun: z.boolean(),
   version,
   updatedAt: timestamp,
 });

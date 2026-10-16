@@ -61,7 +61,14 @@
     "CHANNEL_UNAVAILABLE": "This platform cannot be connected at the moment.",
     "SOCIAL_ACCOUNT_NOT_FOUND": "This account does not exist in this workspace, or no longer does.",
     "PENDING_CONNECTION_NOT_FOUND": "The consent has expired. Please connect the account again.",
-    "INVALID_ACCOUNT_SELECTION": "Please select accounts from the list only."
+    "INVALID_ACCOUNT_SELECTION": "Please select accounts from the list only.",
+    "INVALID_STATUS_TRANSITION": "This is not possible in the current status of the variant. Please reload the page.",
+    "INVALID_SCHEDULE_TIME": "The date, time or time zone is not valid.",
+    "SCHEDULE_TIME_IN_PAST": "The time is in the past. Please pick a later one or post now.",
+    "SCHEDULE_TIME_IN_GAP": "This time does not exist on that day because of the change of the clocks. Please pick another one.",
+    "SOCIAL_ACCOUNT_REQUIRED": "Please choose the account the variant goes out to.",
+    "SOCIAL_ACCOUNT_NOT_READY": "The account is not connected or needs to be connected again.",
+    "VARIANT_NOT_PUBLISHABLE": "The variant does not meet the rules of the platform, or it is empty."
   },
   "validation": {
     "required": "Please fill in this field.",
