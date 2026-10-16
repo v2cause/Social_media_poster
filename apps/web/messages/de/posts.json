@@ -1,0 +1,24 @@
+{
+  "title": "Beiträge",
+  "description": "Ihre Entwürfe und Beiträge, zuletzt geändert zuerst.",
+  "new": "Neuer Beitrag",
+  "empty": "Noch keine Beiträge.",
+  "emptyHint": "Erstellen Sie den ersten Beitrag mit dem Composer.",
+  "brief": "Briefing",
+  "platforms": "Plattformen",
+  "updated": "Geändert",
+  "noBrief": "Ohne Briefing",
+  "more": "Weitere laden",
+  "status": {
+    "DRAFT": "Entwurf",
+    "SCHEDULED": "Geplant",
+    "QUEUED": "In Warteschlange",
+    "PUBLISHING": "Wird veröffentlicht",
+    "RETRYING": "Neuer Versuch",
+    "PUBLISHED": "Veröffentlicht",
+    "FAILED": "Fehlgeschlagen",
+    "NEEDS_ATTENTION": "Prüfen",
+    "CANCELED": "Abgebrochen",
+    "DELETED": "Gelöscht"
+  }
+}

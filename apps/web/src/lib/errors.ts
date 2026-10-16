@@ -3,10 +3,8 @@ import { ERROR_CODES, type ErrorCode } from '@smp/contracts';
 
 const KNOWN_CODES = new Set<string>(ERROR_CODES);
 
-/** The translation key of an API error under errors.codes, or "unknown". */
+/** The translation key of an API error or an error code under errors.codes, or "unknown". */
 export function errorCodeOf(error: unknown): ErrorCode | 'unknown' {
-  if (error instanceof ApiError && KNOWN_CODES.has(error.code)) {
-    return error.code as ErrorCode;
-  }
-  return 'unknown';
+  const code = error instanceof ApiError ? error.code : typeof error === 'string' ? error : null;
+  return code !== null && KNOWN_CODES.has(code) ? (code as ErrorCode) : 'unknown';
 }

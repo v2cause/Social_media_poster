@@ -1,14 +1,18 @@
 import deAccount from '../../messages/de/account.json';
 import deAuth from '../../messages/de/auth.json';
 import deCommon from '../../messages/de/common.json';
+import deComposer from '../../messages/de/composer.json';
 import deErrors from '../../messages/de/errors.json';
 import deOnboarding from '../../messages/de/onboarding.json';
+import dePosts from '../../messages/de/posts.json';
 import deTeam from '../../messages/de/team.json';
 import enAccount from '../../messages/en/account.json';
 import enAuth from '../../messages/en/auth.json';
 import enCommon from '../../messages/en/common.json';
+import enComposer from '../../messages/en/composer.json';
 import enErrors from '../../messages/en/errors.json';
 import enOnboarding from '../../messages/en/onboarding.json';
+import enPosts from '../../messages/en/posts.json';
 import enTeam from '../../messages/en/team.json';
 import type { Locale } from './locale';
 
@@ -21,6 +25,8 @@ const MESSAGES = {
     onboarding: deOnboarding,
     team: deTeam,
     account: deAccount,
+    composer: deComposer,
+    posts: dePosts,
     errors: deErrors,
   },
   en: {
@@ -29,6 +35,8 @@ const MESSAGES = {
     onboarding: enOnboarding,
     team: enTeam,
     account: enAccount,
+    composer: enComposer,
+    posts: enPosts,
     errors: enErrors,
   },
 } as const;

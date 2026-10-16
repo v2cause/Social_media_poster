@@ -75,5 +75,11 @@
     "title": "Page not found",
     "description": "The page does not exist, or you have no access to it.",
     "home": "Go to the start page"
+  },
+  "platforms": {
+    "LINKEDIN": "LinkedIn",
+    "INSTAGRAM": "Instagram",
+    "FACEBOOK": "Facebook",
+    "X": "X"
   }
 }

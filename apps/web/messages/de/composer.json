@@ -1,0 +1,117 @@
+{
+  "title": "Beitrag erstellen",
+  "editTitle": "Beitrag bearbeiten",
+  "readOnly": "Sie können diesen Beitrag nur ansehen.",
+  "brief": {
+    "title": "Briefing",
+    "label": "Worum geht es?",
+    "placeholder": "Thema, Anlass, wichtige Fakten und Links. Die KI erfindet keine Zahlen oder Zitate.",
+    "counter": "{count} / {max}",
+    "style": "Stil",
+    "voice": "Brand Voice",
+    "noVoice": "Keine",
+    "platforms": "Plattformen",
+    "platformsHint": "Mindestens eine Plattform auswählen.",
+    "language": "Sprache",
+    "generate": "Generieren",
+    "regenerate": "Neu generieren",
+    "cancel": "Abbrechen",
+    "generating": "Die KI schreibt ...",
+    "briefRequired": "Bitte beschreiben Sie zuerst im Briefing, worum es gehen soll."
+  },
+  "replace": {
+    "title": "Vorhandene Texte ersetzen?",
+    "description": "Die KI schreibt alle Varianten neu. Texte, die Sie gerade bearbeiten, bleiben erhalten.",
+    "confirm": "Ersetzen"
+  },
+  "styles": {
+    "presets": "Vorlagen",
+    "custom": "Eigene Stile",
+    "professional": {
+      "name": "Professionell",
+      "description": "Klar, sachlich und präzise."
+    },
+    "storytelling": {
+      "name": "Storytelling",
+      "description": "Eine kurze, konkrete Geschichte mit einer Erkenntnis."
+    },
+    "casual": {
+      "name": "Locker",
+      "description": "Entspannt und im Gesprächston."
+    },
+    "educational": {
+      "name": "Lehrreich",
+      "description": "Erklärt eine nützliche Sache in Schritten."
+    },
+    "thought_leadership": {
+      "name": "Thought Leadership",
+      "description": "Eine begründete Haltung zu einem Trend."
+    },
+    "promotional": {
+      "name": "Werblich",
+      "description": "Stellt ein Angebot mit klarem Nutzen vor."
+    }
+  },
+  "variants": {
+    "title": "Varianten",
+    "empty": "Wählen Sie Plattformen und lassen Sie die KI Varianten schreiben.",
+    "tabs": "Varianten nach Plattform",
+    "text": "Text",
+    "counter": "{length} / {max}",
+    "overLimit": "Der Text ist zu lang für {platform}.",
+    "folded": "Ab {length} Zeichen klappt {platform} den Text ein.",
+    "hashtags": "Hashtags",
+    "addHashtag": "Hashtag hinzufügen",
+    "hashtagPlaceholder": "Hashtag und Enter",
+    "removeHashtag": "{tag} entfernen",
+    "invalidHashtag": "Hashtags bestehen aus Buchstaben, Ziffern und Unterstrichen.",
+    "firstComment": "Erster Kommentar",
+    "firstCommentHint": "Wird direkt nach dem Beitrag als Kommentar veröffentlicht.",
+    "warnings": "Hinweise",
+    "forbidden": "Verbotene Wörter der Brand Voice: {words}",
+    "autoShortened": "Automatisch gekürzt",
+    "streaming": "Wird geschrieben ...",
+    "notOverwritten": "{count, plural, one {Eine Variante, die Sie bearbeitet haben, wurde} other {# Varianten, die Sie bearbeitet haben, wurden}} nicht überschrieben."
+  },
+  "refine": {
+    "title": "Verfeinern",
+    "shorter": "Kürzer",
+    "longer": "Länger",
+    "more_formal": "Formeller",
+    "more_casual": "Lockerer",
+    "stronger_hook": "Stärkerer Hook",
+    "add_cta": "CTA ergänzen",
+    "fewer_emojis": "Weniger Emojis",
+    "translate": "Übersetzen ({language})",
+    "rewrite_for_platform": "Für {platform} umschreiben",
+    "custom": "Eigene Anweisung",
+    "customPlaceholder": "Zum Beispiel: Erwähne die Eröffnung am Freitag.",
+    "apply": "Anwenden",
+    "running": "Die KI überarbeitet den Text ..."
+  },
+  "diff": {
+    "title": "Vorschlag prüfen",
+    "description": "Entfernte Wörter sind durchgestrichen, neue hervorgehoben.",
+    "hashtags": "Hashtags: {tags}",
+    "accept": "Übernehmen",
+    "discard": "Verwerfen"
+  },
+  "preview": {
+    "title": "Vorschau",
+    "more": "... mehr",
+    "empty": "Noch kein Text.",
+    "now": "Gerade eben"
+  },
+  "save": {
+    "unsaved": "Nicht gespeichert",
+    "saving": "Speichert ...",
+    "saved": "Gespeichert {relative}",
+    "failed": "Speichern fehlgeschlagen"
+  },
+  "conflict": {
+    "title": "Inzwischen geändert",
+    "description": "Jemand hat diesen Beitrag geändert, seit Sie ihn geöffnet haben. Laden Sie den neuen Stand, oder überschreiben Sie ihn mit Ihren Änderungen.",
+    "reload": "Neu laden",
+    "overwrite": "Überschreiben"
+  }
+}

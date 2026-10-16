@@ -1,0 +1,117 @@
+{
+  "title": "Create post",
+  "editTitle": "Edit post",
+  "readOnly": "You can only view this post.",
+  "brief": {
+    "title": "Brief",
+    "label": "What is it about?",
+    "placeholder": "Topic, occasion, key facts and links. The AI never invents numbers or quotes.",
+    "counter": "{count} / {max}",
+    "style": "Style",
+    "voice": "Brand voice",
+    "noVoice": "None",
+    "platforms": "Platforms",
+    "platformsHint": "Choose at least one platform.",
+    "language": "Language",
+    "generate": "Generate",
+    "regenerate": "Generate again",
+    "cancel": "Cancel",
+    "generating": "The AI is writing ...",
+    "briefRequired": "Please describe in the brief what the post is about first."
+  },
+  "replace": {
+    "title": "Replace the existing texts?",
+    "description": "The AI rewrites all variants. Texts you are editing right now stay as they are.",
+    "confirm": "Replace"
+  },
+  "styles": {
+    "presets": "Presets",
+    "custom": "Custom styles",
+    "professional": {
+      "name": "Professional",
+      "description": "Clear, factual and precise."
+    },
+    "storytelling": {
+      "name": "Storytelling",
+      "description": "A short, concrete story with a takeaway."
+    },
+    "casual": {
+      "name": "Casual",
+      "description": "Relaxed and conversational."
+    },
+    "educational": {
+      "name": "Educational",
+      "description": "Explains one useful thing step by step."
+    },
+    "thought_leadership": {
+      "name": "Thought leadership",
+      "description": "A reasoned position on a trend."
+    },
+    "promotional": {
+      "name": "Promotional",
+      "description": "Presents an offer with a clear benefit."
+    }
+  },
+  "variants": {
+    "title": "Variants",
+    "empty": "Choose platforms and let the AI write the variants.",
+    "tabs": "Variants by platform",
+    "text": "Text",
+    "counter": "{length} / {max}",
+    "overLimit": "The text is too long for {platform}.",
+    "folded": "{platform} folds the text after {length} characters.",
+    "hashtags": "Hashtags",
+    "addHashtag": "Add hashtag",
+    "hashtagPlaceholder": "Hashtag and Enter",
+    "removeHashtag": "Remove {tag}",
+    "invalidHashtag": "Hashtags consist of letters, digits and underscores.",
+    "firstComment": "First comment",
+    "firstCommentHint": "Published as a comment right after the post.",
+    "warnings": "Notes",
+    "forbidden": "Forbidden words of the brand voice: {words}",
+    "autoShortened": "Shortened automatically",
+    "streaming": "Writing ...",
+    "notOverwritten": "{count, plural, one {One variant you edited was} other {# variants you edited were}} not overwritten."
+  },
+  "refine": {
+    "title": "Refine",
+    "shorter": "Shorter",
+    "longer": "Longer",
+    "more_formal": "More formal",
+    "more_casual": "More casual",
+    "stronger_hook": "Stronger hook",
+    "add_cta": "Add CTA",
+    "fewer_emojis": "Fewer emojis",
+    "translate": "Translate ({language})",
+    "rewrite_for_platform": "Rewrite for {platform}",
+    "custom": "Own instruction",
+    "customPlaceholder": "For example: Mention the opening on Friday.",
+    "apply": "Apply",
+    "running": "The AI is revising the text ..."
+  },
+  "diff": {
+    "title": "Review the suggestion",
+    "description": "Removed words are struck through, new ones highlighted.",
+    "hashtags": "Hashtags: {tags}",
+    "accept": "Accept",
+    "discard": "Discard"
+  },
+  "preview": {
+    "title": "Preview",
+    "more": "... more",
+    "empty": "No text yet.",
+    "now": "Just now"
+  },
+  "save": {
+    "unsaved": "Not saved",
+    "saving": "Saving ...",
+    "saved": "Saved {relative}",
+    "failed": "Saving failed"
+  },
+  "conflict": {
+    "title": "Changed in the meantime",
+    "description": "Someone changed this post since you opened it. Load the new state, or overwrite it with your changes.",
+    "reload": "Reload",
+    "overwrite": "Overwrite"
+  }
+}

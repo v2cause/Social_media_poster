@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 
 import { errorCodeOf } from './errors';
 
-/** The translated message of an API error (errors.codes.<code>), or a general one. */
+/** The translated message of an API error or an error code (errors.codes.<code>), or a general one. */
 export function useErrorMessage() {
   const t = useTranslations('errors');
   return (error: unknown): string => {

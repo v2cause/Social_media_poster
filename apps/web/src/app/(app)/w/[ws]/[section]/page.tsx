@@ -5,9 +5,7 @@ import { getTranslations } from 'next-intl/server';
 // Sections of the navigation that arrive with later phases. Each one gets its own route then,
 // which takes precedence over this placeholder.
 const UPCOMING = {
-  compose: 'create',
   calendar: 'calendar',
-  posts: 'posts',
   ideas: 'ideas',
   media: 'media',
   analytics: 'analytics',

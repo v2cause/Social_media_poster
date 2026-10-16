@@ -59,6 +59,15 @@
     "invalid_value": "Bitte wählen Sie einen gültigen Wert.",
     "invalid_timezone": "Bitte wählen Sie eine gültige Zeitzone.",
     "passwords_differ": "Die Passwörter stimmen nicht überein.",
-    "invalid": "Bitte prüfen Sie die Eingabe."
+    "invalid": "Bitte prüfen Sie die Eingabe.",
+    "TEXT_TOO_LONG": "Zu lang: {actual} von {limit} Zeichen.",
+    "MEDIA_REQUIRED": "Diese Plattform braucht mindestens ein Bild oder Video.",
+    "TOO_MANY_MEDIA": "Zu viele Medien: höchstens {limit}.",
+    "ASPECT_RATIO_OUT_OF_RANGE": "Das Seitenverhältnis eines Bildes passt nicht zur Plattform.",
+    "TOO_MANY_HASHTAGS": "Zu viele Hashtags: {actual} von höchstens {limit}.",
+    "TOO_MANY_MENTIONS": "Zu viele Erwähnungen: {actual} von höchstens {limit}.",
+    "UNSUPPORTED_MEDIA_TYPE": "Dieses Dateiformat unterstützt die Plattform nicht.",
+    "MIXED_MEDIA_NOT_SUPPORTED": "Die Plattform erlaubt keine Mischung aus Bildern und Videos.",
+    "FIRST_COMMENT_NOT_SUPPORTED": "Diese Plattform unterstützt keinen ersten Kommentar."
   }
 }

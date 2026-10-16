@@ -1,0 +1,24 @@
+{
+  "title": "Posts",
+  "description": "Your drafts and posts, most recently changed first.",
+  "new": "New post",
+  "empty": "No posts yet.",
+  "emptyHint": "Create the first post with the composer.",
+  "brief": "Brief",
+  "platforms": "Platforms",
+  "updated": "Changed",
+  "noBrief": "No brief",
+  "more": "Load more",
+  "status": {
+    "DRAFT": "Draft",
+    "SCHEDULED": "Scheduled",
+    "QUEUED": "Queued",
+    "PUBLISHING": "Publishing",
+    "RETRYING": "Retrying",
+    "PUBLISHED": "Published",
+    "FAILED": "Failed",
+    "NEEDS_ATTENTION": "Needs attention",
+    "CANCELED": "Canceled",
+    "DELETED": "Deleted"
+  }
+}

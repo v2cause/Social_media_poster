@@ -75,5 +75,11 @@
     "title": "Seite nicht gefunden",
     "description": "Die Seite existiert nicht, oder Sie haben keinen Zugriff darauf.",
     "home": "Zur Startseite"
+  },
+  "platforms": {
+    "LINKEDIN": "LinkedIn",
+    "INSTAGRAM": "Instagram",
+    "FACEBOOK": "Facebook",
+    "X": "X"
   }
 }

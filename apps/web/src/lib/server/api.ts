@@ -1,13 +1,21 @@
 import {
+  brandVoiceListSchema,
+  ideaListSchema,
   invitationPreviewSchema,
   meSchema,
   myMembershipsSchema,
   organizationContextSchema,
+  postSchema,
+  styleListSchema,
   workspaceContextSchema,
+  type BrandVoiceDto,
+  type IdeaDto,
   type InvitationPreview,
   type Me,
   type MyMemberships,
   type OrganizationContext,
+  type PostDto,
+  type StyleDto,
   type WorkspaceContext,
 } from '@smp/contracts';
 import { headers } from 'next/headers';
@@ -78,6 +86,36 @@ export async function getOrganizationContext(organizationId: string): Promise<Or
     notFound();
   }
   return result.data;
+}
+
+/** The post of /w/:ws/posts/:postId; unknown posts render the 404 page. */
+export async function getPost(slug: string, postId: string): Promise<PostDto> {
+  const result = await serverFetch(
+    `/api/w/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}`,
+    postSchema,
+  );
+  if (!result.data) {
+    notFound();
+  }
+  return result.data;
+}
+
+/** What the composer offers: the styles and the brand voices that are not archived. */
+export async function getComposerOptions(
+  slug: string,
+): Promise<{ styles: StyleDto[]; voices: BrandVoiceDto[] }> {
+  const base = `/api/w/${encodeURIComponent(slug)}`;
+  const [styles, voices] = await Promise.all([
+    serverFetch(`${base}/styles`, styleListSchema),
+    serverFetch(`${base}/brand-voices`, brandVoiceListSchema),
+  ]);
+  return { styles: styles.data?.styles ?? [], voices: voices.data?.brandVoices ?? [] };
+}
+
+/** An idea of the workspace for a new post, or null when it does not exist. */
+export async function getIdea(slug: string, ideaId: string): Promise<IdeaDto | null> {
+  const result = await serverFetch(`/api/w/${encodeURIComponent(slug)}/ideas`, ideaListSchema);
+  return result.data?.ideas.find((idea) => idea.id === ideaId) ?? null;
 }
 
 /** The invite page: what the token holder may see, or null for unknown tokens. */
