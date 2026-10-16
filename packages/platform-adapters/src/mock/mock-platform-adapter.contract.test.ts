@@ -37,6 +37,7 @@ const contextFor = (platform: Platform, settings: Record<string, unknown> = {}):
   logger: { info: () => undefined, warn: () => undefined },
   signal: new AbortController().signal,
   dryRun: false,
+  keepAlive: () => Promise.resolve(),
 });
 
 const requestFor = (platform: Platform, text: string): PublishRequest => ({

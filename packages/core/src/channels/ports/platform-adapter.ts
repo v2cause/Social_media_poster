@@ -93,6 +93,12 @@ export interface AdapterContext {
   signal: AbortSignal;
   /** Validate and prepare, but send nothing. */
   dryRun: boolean;
+  /**
+   * Extends the lease of the publish job before a long step, for example while Instagram
+   * processes a container (up to 5 minutes). Throws when the run lost its lease; a no-op outside
+   * of publishing.
+   */
+  keepAlive(): Promise<void>;
 }
 
 export interface PublishMedia {
