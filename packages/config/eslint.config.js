@@ -15,6 +15,8 @@ const IGNORES = [
   '**/coverage/**',
   '**/node_modules/**',
   '**/src/generated/**',
+  // tsup bundles its config next to it while it builds; lint can run at the same time.
+  '**/*.bundled_*.mjs',
 ];
 
 const RESTRICTED_PATTERNS = [
