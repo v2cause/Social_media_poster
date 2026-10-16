@@ -1,0 +1,45 @@
+{
+  "security": {
+    "title": "Security",
+    "description": "Two-factor authentication and signed-in devices."
+  },
+  "twoFactor": {
+    "title": "Two-factor authentication",
+    "statusOn": "On",
+    "statusOff": "Off",
+    "enabled": "On. Every sign-in asks for a code from your authenticator app.",
+    "disabled": "Off. Protect your account with a second factor.",
+    "enable": "Set up 2FA",
+    "disable": "Turn off 2FA",
+    "passwordTitle": "Confirm your password",
+    "passwordDescription": "For your security we need your current password.",
+    "scanTitle": "Connect your app",
+    "scanDescription": "Scan the QR code with your authenticator app or enter the key by hand.",
+    "qrLabel": "QR code for the authenticator app",
+    "secret": "Key",
+    "backupTitle": "Backup codes",
+    "backupDescription": "Use these codes to sign in when your phone is missing. Each code works once. You see them only now.",
+    "backupDownload": "Download codes",
+    "backupFileName": "social-media-poster-backup-codes.txt",
+    "verifyTitle": "Confirm the code",
+    "verifyDescription": "Enter the current code from the app to finish the setup.",
+    "verifySubmit": "Turn on",
+    "enabledToast": "Two-factor authentication is on.",
+    "disabledToast": "Two-factor authentication is off."
+  },
+  "sessions": {
+    "title": "Signed-in devices",
+    "description": "You are signed in here right now.",
+    "loading": "Loading devices ...",
+    "empty": "No other devices.",
+    "device": "Device",
+    "address": "Address",
+    "since": "Signed in since",
+    "current": "This device",
+    "unknownDevice": "Unknown device",
+    "revoke": "Sign out",
+    "revokeOthers": "Sign out all others",
+    "revoked": "The device has been signed out.",
+    "othersRevoked": "All other devices have been signed out."
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "security": {
+    "title": "Sicherheit",
+    "description": "Zwei-Faktor-Authentifizierung und angemeldete Geräte."
+  },
+  "twoFactor": {
+    "title": "Zwei-Faktor-Authentifizierung",
+    "statusOn": "Aktiv",
+    "statusOff": "Aus",
+    "enabled": "Aktiv. Bei jeder Anmeldung fragen wir nach einem Code aus Ihrer Authenticator-App.",
+    "disabled": "Nicht aktiv. Schützen Sie Ihr Konto mit einem zweiten Faktor.",
+    "enable": "2FA einrichten",
+    "disable": "2FA ausschalten",
+    "passwordTitle": "Passwort bestätigen",
+    "passwordDescription": "Zur Sicherheit brauchen wir Ihr aktuelles Passwort.",
+    "scanTitle": "App verbinden",
+    "scanDescription": "Scannen Sie den QR-Code mit Ihrer Authenticator-App oder geben Sie den Schlüssel von Hand ein.",
+    "qrLabel": "QR-Code für die Authenticator-App",
+    "secret": "Schlüssel",
+    "backupTitle": "Backup-Codes",
+    "backupDescription": "Mit diesen Codes melden Sie sich an, wenn Ihr Telefon fehlt. Jeder Code funktioniert einmal. Sie sehen sie nur jetzt.",
+    "backupDownload": "Codes herunterladen",
+    "backupFileName": "social-media-poster-backup-codes.txt",
+    "verifyTitle": "Code bestätigen",
+    "verifyDescription": "Geben Sie den aktuellen Code aus der App ein, um die Einrichtung abzuschließen.",
+    "verifySubmit": "Aktivieren",
+    "enabledToast": "Die Zwei-Faktor-Authentifizierung ist aktiv.",
+    "disabledToast": "Die Zwei-Faktor-Authentifizierung ist ausgeschaltet."
+  },
+  "sessions": {
+    "title": "Angemeldete Geräte",
+    "description": "Hier sind Sie gerade angemeldet.",
+    "loading": "Geräte werden geladen ...",
+    "empty": "Keine weiteren Geräte.",
+    "device": "Gerät",
+    "address": "Adresse",
+    "since": "Angemeldet seit",
+    "current": "Dieses Gerät",
+    "unknownDevice": "Unbekanntes Gerät",
+    "revoke": "Abmelden",
+    "revokeOthers": "Alle anderen abmelden",
+    "revoked": "Das Gerät wurde abgemeldet.",
+    "othersRevoked": "Alle anderen Geräte wurden abgemeldet."
+  }
+}

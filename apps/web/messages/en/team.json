@@ -1,0 +1,59 @@
+{
+  "title": "Members",
+  "description": "Who works in {organization} and with which role.",
+  "table": {
+    "caption": "Members of the organization",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "workspaces": "Workspaces",
+    "joined": "Joined",
+    "actions": "Actions",
+    "you": "You",
+    "allWorkspaces": "All",
+    "someWorkspaces": "{count, plural, one {# workspace} other {# workspaces}}",
+    "roleOf": "Role of {name}"
+  },
+  "empty": "No members yet.",
+  "loading": "Loading members ...",
+  "remove": {
+    "action": "Remove",
+    "title": "Remove {name}?",
+    "description": "{name} loses access to every workspace of this organization at once.",
+    "confirm": "Remove",
+    "done": "{name} has been removed."
+  },
+  "roleChanged": "The role of {name} is now {role}.",
+  "invite": {
+    "action": "Invite",
+    "title": "Invite a person",
+    "description": "We send an invitation by email. It is valid for seven days.",
+    "email": "Email address",
+    "role": "Role",
+    "workspaces": "Access to workspaces",
+    "workspacesHint": "Without a selection the person sees every workspace.",
+    "managersSeeAll": "Owners and admins always see every workspace.",
+    "submit": "Send invitation",
+    "sent": "The invitation to {email} is on its way."
+  },
+  "invitations": {
+    "title": "Open invitations",
+    "empty": "No open invitations.",
+    "loading": "Loading invitations ...",
+    "email": "Email",
+    "role": "Role",
+    "invitedBy": "Invited by",
+    "expires": "Valid until",
+    "expired": "Expired",
+    "resend": "Send again",
+    "revoke": "Withdraw",
+    "resent": "The invitation was sent again.",
+    "revoked": "The invitation was withdrawn."
+  },
+  "leave": {
+    "title": "Leave the organization",
+    "description": "You lose access to every workspace of {organization}.",
+    "action": "Leave organization",
+    "confirm": "Leave"
+  }
+}

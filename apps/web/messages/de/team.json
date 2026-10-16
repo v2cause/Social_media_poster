@@ -1,0 +1,59 @@
+{
+  "title": "Mitglieder",
+  "description": "Wer in {organization} mitarbeitet und mit welcher Rolle.",
+  "table": {
+    "caption": "Mitglieder der Organisation",
+    "name": "Name",
+    "email": "E-Mail",
+    "role": "Rolle",
+    "workspaces": "Workspaces",
+    "joined": "Beigetreten",
+    "actions": "Aktionen",
+    "you": "Sie",
+    "allWorkspaces": "Alle",
+    "someWorkspaces": "{count, plural, one {# Workspace} other {# Workspaces}}",
+    "roleOf": "Rolle von {name}"
+  },
+  "empty": "Noch keine Mitglieder.",
+  "loading": "Mitglieder werden geladen ...",
+  "remove": {
+    "action": "Entfernen",
+    "title": "{name} entfernen?",
+    "description": "{name} verliert sofort den Zugriff auf alle Workspaces dieser Organisation.",
+    "confirm": "Entfernen",
+    "done": "{name} wurde entfernt."
+  },
+  "roleChanged": "Die Rolle von {name} ist jetzt {role}.",
+  "invite": {
+    "action": "Einladen",
+    "title": "Person einladen",
+    "description": "Wir schicken eine Einladung per E-Mail. Sie gilt sieben Tage.",
+    "email": "E-Mail-Adresse",
+    "role": "Rolle",
+    "workspaces": "Zugriff auf Workspaces",
+    "workspacesHint": "Ohne Auswahl sieht die Person alle Workspaces.",
+    "managersSeeAll": "Inhaber und Administratoren sehen immer alle Workspaces.",
+    "submit": "Einladung senden",
+    "sent": "Die Einladung an {email} ist unterwegs."
+  },
+  "invitations": {
+    "title": "Offene Einladungen",
+    "empty": "Keine offenen Einladungen.",
+    "loading": "Einladungen werden geladen ...",
+    "email": "E-Mail",
+    "role": "Rolle",
+    "invitedBy": "Eingeladen von",
+    "expires": "Gültig bis",
+    "expired": "Abgelaufen",
+    "resend": "Erneut senden",
+    "revoke": "Widerrufen",
+    "resent": "Die Einladung wurde erneut gesendet.",
+    "revoked": "Die Einladung wurde widerrufen."
+  },
+  "leave": {
+    "title": "Organisation verlassen",
+    "description": "Sie verlieren den Zugriff auf alle Workspaces von {organization}.",
+    "action": "Organisation verlassen",
+    "confirm": "Verlassen"
+  }
+}
