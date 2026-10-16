@@ -35,6 +35,13 @@ export interface VariantView {
   aiWarnings: string[];
   status: VariantStatus;
   media: VariantMediaView[];
+  socialAccountId: string | null;
+  scheduledAt: Date | null;
+  scheduledTimezone: string | null;
+  publishedAt: Date | null;
+  externalUrl: string | null;
+  failureCode: string | null;
+  isDryRun: boolean;
   version: number;
   updatedAt: Date;
 }
@@ -138,6 +145,13 @@ const variantSelect = {
   linkUrl: true,
   aiWarnings: true,
   status: true,
+  socialAccountId: true,
+  scheduledAt: true,
+  scheduledTimezone: true,
+  publishedAt: true,
+  externalUrl: true,
+  failureCode: true,
+  isDryRun: true,
   version: true,
   updatedAt: true,
   media: {
