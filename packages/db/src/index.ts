@@ -53,6 +53,9 @@ export {
 } from './media/media-read-model';
 export { PrismaQuotaStore } from './usage/prisma-quota-store';
 export { PrismaSealedSecretStore } from './channels/prisma-sealed-secret-store';
+export { PrismaChannelUnitOfWork } from './channels/prisma-channel-unit-of-work';
+export { createPrismaChannelStore } from './channels/prisma-channel-store';
+export { ChannelReadModel, type SocialAccountView } from './channels/channel-read-model';
 export {
   PrismaOutboxRelay,
   type OutboxRelayReport,
