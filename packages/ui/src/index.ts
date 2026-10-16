@@ -24,6 +24,16 @@ export {
   PopoverTrigger,
   SheetContent,
 } from './components/overlay';
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from './components/select';
 export { Steps } from './components/steps';
 export {
   Table,
