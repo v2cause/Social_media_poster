@@ -552,20 +552,21 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
     messages: [{ role: 'user', content: task }],
   }, { signal });
   // Text-Deltas sammeln -> partielles JSON -> 'partial'-Events (gedrosselt auf ca. 50 ms)
-  // 'fallback'-Content-Block im Stream -> Puffer leeren, 'variant.reset' senden
-  // final: stop_reason prüfen ('refusal' -> stop_details.category; 'max_tokens' -> truncated),
-  // dann zod.safeParse; Kosten pro Versuch aus usage.iterations (inkl. Cache-Tokens); served model = msg.model
+  // 'fallback'-Content-Block im Stream: das Fallback-Modell setzt die Teilausgabe fort, Puffer behalten
+  // final: stop_reason prüfen ('refusal' -> stop_details.category; 'max_tokens' -> ein Neuversuch mit
+  // höherem Limit und 'variant.reset', danach truncated), dann alle Textblöcke verbinden und zod.safeParse;
+  // Kosten pro Versuch aus usage.iterations (inkl. Cache-Tokens); served model = letzter fallback_message-Eintrag, sonst msg.model
   ```
-  Nicht gestreamte Aufrufe (Ideen, Alt-Text) nutzen `client.messages.parse(...)` und lesen `parsed_output`, das `null` sein kann.
+  Ideen und Alt-Text laufen ebenfalls über den Stream mit `finalMessage()` und derselben Prüfung; `client.messages.parse(...)` würfe bei der Fortsetzung nach einem Fallback und bei abgeschnittenen Antworten ([ADR 0015](adr/0015-anthropic-adapter-fallback-und-parsing.md)).
 - **Darauf achten**:
   - Kein `temperature`, kein Assistant-Prefill, kein `thinking: disabled` (alle drei liefern beim Modell einen 400-Fehler).
   - Effort ist pro Route fest, damit der Cache nicht verloren geht.
   - Bricht der Client ab, wird der Aufruf abgebrochen.
   - SDK-Fehler werden typisiert behandelt, in dieser Reihenfolge: `RateLimitError`, `APIConnectionError`, `APIError` mit Status. Im TypeScript-SDK ist `APIConnectionError` eine Unterklasse von `APIError`; andersherum geprüft, landen Netzwerkfehler im falschen Zweig. `APIUserAbortError` nach einem Client-Abbruch wird nicht als Fehler gemeldet.
   - Die Kosten kommen aus `usage.iterations`. Das Top-Level-`usage` enthält nur den Versuch, der die Antwort geliefert hat; ein abgelehnter Erstversuch und der Fallback-Versuch werden einzeln zu den Preisen ihres Modells abgerechnet.
-  - Wechselt der Server mitten im Stream auf das Fallback-Modell, markiert ein `fallback`-Content-Block die Stelle. Die bis dahin gesammelte Teilausgabe wird verworfen und der Client per `variant.reset` informiert.
+  - Wechselt der Server mitten im Stream auf das Fallback-Modell, markiert ein `fallback`-Content-Block die Stelle. Das Fallback-Modell setzt die Teilausgabe fort; die Texte aller Blöcke bilden zusammen die Antwort ([ADR 0015](adr/0015-anthropic-adapter-fallback-und-parsing.md)).
   - Prompts mit Kundendaten werden nicht auf Info-Level geloggt.
-  - Ob der `zodOutputFormat`-Helper auf dem Beta-Pfad funktioniert, prüft Spike 0.14(a). Ausweichlösung: das JSON-Schema aus `z.toJSONSchema()` direkt in `output_config.format` übergeben.
+  - Für den Beta-Pfad gibt es `betaZodOutputFormat`. Übergeben wird nur sein JSON-Schema, ohne die `parse`-Funktion, weil das SDK sonst jeden Textblock einzeln parst ([ADR 0015](adr/0015-anthropic-adapter-fallback-und-parsing.md)).
 - **Fertig, wenn**: Ein Integrationstest mit msw (das SDK nutzt fetch) alle Pfade abdeckt: ok, refusal, Fallback mitten im Stream, max_tokens, ungültiges JSON, 429, 529, Verbindungsfehler, Abbruch durch den Client.
 
 #### 2.5 `MockAiProvider`
@@ -621,7 +622,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
     - Refine-Buttons ("Kürzer", "Formeller", ...) plus ein freies Anweisungsfeld. Das Ergebnis erscheint als Diff-Dialog mit "Übernehmen" und "Verwerfen".
   - **Rechts, "Vorschau"**: Mockup der Plattform mit "...mehr"-Kürzung.
   - **Unten**: Statusanzeige zum Auto-Speichern ("Gespeichert vor 3 s"). Ab Phase 4 kommt dort die Leiste zum Planen hin.
-  - **SSE-Client**: `fetch` + `eventsource-parser`, partielles JSON über `partial-json`, `variant.reset` leert die bisherige Teilausgabe, `AbortController` beim Abbrechen oder Verlassen der Seite.
+  - **SSE-Client**: `fetch` + `eventsource-parser`, Teil-Varianten aus `variant.partial` (der Server parst das partielle JSON), `variant.reset` leert die bisherige Teilausgabe, `AbortController` beim Abbrechen oder Verlassen der Seite.
 - **Darauf achten**:
   - Streaming überschreibt nie Varianten, die der Nutzer bereits bearbeitet hat.
   - Beim Verlassen mit ungespeicherten Änderungen erscheint eine Warnung.

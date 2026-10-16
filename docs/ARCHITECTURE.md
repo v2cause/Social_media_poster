@@ -242,8 +242,8 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
   - Thinking ist adaptiv und bei diesem Modell nicht abschaltbar. `temperature` und Assistant-Prefill werden vom Modell abgelehnt; Abwechslung beim Neu-Generieren entsteht über den Prompt.
 - **Robustheit**:
   - Vor dem Lesen des Inhalts wird immer `stop_reason` geprüft. `refusal` wird verständlich angezeigt und nie automatisch umgangen. `max_tokens` löst einen Retry mit höherem Limit aus.
-  - Server-seitige Fallbacks (`fallbacks: "default"`, Beta-Header `server-side-fallback-2026-07-01`) sind standardmäßig an und per `AI_REFUSAL_FALLBACK=off` abschaltbar. Gespeichert wird das tatsächlich verwendete Modell (Top-Level-`model` der Antwort).
-  - Wechselt der Server mitten im Stream auf das Fallback-Modell, markiert ein `fallback`-Content-Block die Stelle. Die bis dahin gestreamte Teilausgabe wird verworfen.
+  - Server-seitige Fallbacks (`fallbacks: "default"`, Beta-Header `server-side-fallback-2026-07-01`) sind standardmäßig an und per `AI_REFUSAL_FALLBACK=false` abschaltbar. Gespeichert wird das tatsächlich verwendete Modell: der letzte `fallback_message`-Eintrag in `usage.iterations`, sonst das Top-Level-`model` der Antwort.
+  - Wechselt der Server mitten im Stream auf das Fallback-Modell, markiert ein `fallback`-Content-Block die Stelle. Das Fallback-Modell setzt die Teilausgabe fort; die Texte aller Blöcke bilden zusammen die Antwort (ADR 0015).
   - Die Kosten werden aus `usage.iterations` berechnet, pro Versuch zum Preis des ausführenden Modells. Das Top-Level-`usage` enthält nur den Versuch, der die Antwort geliefert hat.
   - SDK-Fehler werden typisiert behandelt, vom spezifischsten zum allgemeinsten: `RateLimitError`, dann `APIConnectionError` (inkl. Timeout), dann `APIError` mit Status. Die Reihenfolge ist wichtig, weil im TypeScript-SDK `APIConnectionError` eine Unterklasse von `APIError` ist. `APIUserAbortError` nach einem Abbruch durch den Client ist kein Fehler.
 
@@ -262,10 +262,10 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md` (`PROM
 - **Structured Outputs** (zod, `output_config.format`): pro Variante `targetKey`, `platform`, `hook`, `text`, `hashtags[]`, `firstComment`, `callToAction`, `altTexts[]`, `warnings[]` (z.B. "Statistik braucht eine Quelle"). Themenideen haben `title`, `angle`, `pillar`, `whyNow`, `basedOn[]`, `suggestedPlatforms[]`, `suggestedStyleKey`, `format`.
 - **Zeichenzahl auf dem Server**: Sie wird berechnet, nicht vom Modell geliefert (X gewichtet per `twitter-text`, sonst Grapheme). Ist eine Variante zu lang, läuft einmal automatisch "kürzen"; bleibt sie zu lang, markiert die UI sie.
 - **Generieren**: `POST /api/w/:ws/ai/generations` liefert `text/event-stream` mit diesen Events:
-  - `generation.started`, `variant.partial`, `variant.reset` (nach einem Modellwechsel mitten im Stream; der Client verwirft die Teilausgabe), `generation.completed` (Varianten inkl. Zeichenzahl und Validierungsfehlern), `generation.failed` (REFUSED, QUOTA_EXCEEDED, TRUNCATED, INVALID_OUTPUT, PROVIDER_ERROR),
+  - `generation.started`, `variant.partial` (Teil-Varianten), `variant.reset` (vor dem einen Neuversuch nach `max_tokens`; der Client verwirft die Teilausgabe), `generation.completed` (Varianten inkl. Zeichenzahl und Validierungsfehlern), `generation.failed` (REFUSED, QUOTA_EXCEEDED, TRUNCATED, INVALID_OUTPUT, PROVIDER_ERROR),
   - einen Heartbeat alle 15 s.
 
-  Das Frontend parst partielles JSON (`partial-json`), final validiert zod.
+  Der Server parst das partielle JSON (`partial-json`) und sendet Teil-Varianten; das Endergebnis validiert zod auf dem Server (ADR 0015).
 - **Refine**: Schnellaktionen "kürzer", "länger", "formeller", "lockerer", "stärkerer Hook", "CTA ergänzen", "weniger Emojis", "DE/EN übersetzen", "für Plattform X umschreiben" sowie eigene Anweisungen. Jede Aktion ist ein eigener zustandsloser Aufruf mit demselben gecachten Präfix. Die UI zeigt einen Diff mit Übernehmen und Verwerfen.
 - **Themenvorschläge**:
   - Kontext: Workspace-Profil, Content-Säulen, die letzten 30 Posts, die Top-5-Performer der letzten 90 Tage mit Metriken, verworfene Ideen (als Negativbeispiele) und anstehende Termine (Feiertage, eigene Daten).

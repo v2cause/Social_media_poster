@@ -22,3 +22,9 @@ export {
   type VariantsOutput,
 } from './schemas';
 export { attemptsFromUsage, estimateTokens } from './pricing';
+export { partialVariants } from './partial-variants';
+export {
+  AnthropicAiProvider,
+  type AiLogger,
+  type AnthropicAiProviderConfig,
+} from './anthropic/anthropic-ai-provider';
