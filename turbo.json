@@ -10,12 +10,17 @@
       "persistent": true,
       "cache": false
     },
-    "lint": {},
+    "lint": {
+      "dependsOn": ["^build"]
+    },
     "typecheck": {
       "dependsOn": ["^build"]
     },
-    "test": {},
+    "test": {
+      "dependsOn": ["^build"]
+    },
     "test:integration": {
+      "dependsOn": ["^build"],
       "cache": false
     },
     "test:e2e": {
