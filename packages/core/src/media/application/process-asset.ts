@@ -1,12 +1,8 @@
+import { RENDITION_PROFILES } from '@smp/platform-rules';
+
 import { ImageRejectedError } from '../domain/errors';
 import { sniffImageType } from '../domain/file-signature';
-import {
-  FULL_IMAGE,
-  isUploadMimeType,
-  MAX_UPLOAD_BYTES,
-  THUMBNAIL_WIDTHS,
-  thumbnailProfile,
-} from '../domain/rules';
+import { FULL_IMAGE, isUploadMimeType, MAX_UPLOAD_BYTES, THUMBNAIL_PROFILES } from '../domain/rules';
 import { assetPrefix, renditionKey } from '../domain/storage-keys';
 import type { MediaAsset, MediaRejectReason, MediaRendition } from '../domain/types';
 import type { MediaJob } from '../ports/media-jobs';
@@ -62,18 +58,13 @@ export class ProcessAsset {
         return await this.reject(scope, asset, 'ANIMATED_NOT_SUPPORTED');
       }
       const thumbnails: MediaRendition[] = [];
-      for (const width of THUMBNAIL_WIDTHS) {
-        const encoded = await this.deps.processor.encode(bytes, {
-          format: 'webp',
-          quality: 80,
-          maxWidth: width,
-          maxHeight: width * 4,
-        });
-        const profile = thumbnailProfile(width);
+      for (const profile of THUMBNAIL_PROFILES) {
+        const { format, quality, maxWidth, maxHeight } = RENDITION_PROFILES[profile];
+        const encoded = await this.deps.processor.encode(bytes, { format, quality, maxWidth, maxHeight });
         const storageKey = renditionKey(asset.workspaceId, asset.id, {
           profile,
           cropHash: FULL_IMAGE,
-          extension: 'webp',
+          extension: format,
         });
         await this.deps.storage.put(storageKey, encoded.bytes, { contentType: encoded.mimeType });
         thumbnails.push({

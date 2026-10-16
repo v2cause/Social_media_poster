@@ -1,6 +1,7 @@
 import { crc32 } from 'node:zlib';
 
 import { ImageRejectedError, type MediaRejectReason } from '@smp/core';
+import { planRendition, RENDITION_PROFILES, type RenditionProfileKey } from '@smp/platform-rules';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
@@ -152,5 +153,76 @@ describe('SharpImageProcessor', () => {
     expect(processor.sha256(new TextEncoder().encode('abc'))).toBe(
       'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
     );
+  });
+
+  it('renders the crop of the image as it is shown, after the EXIF orientation', async () => {
+    // Landscape pixels, left half red, right half blue; orientation 6 shows red on top.
+    const pixels = Buffer.alloc(400 * 300 * 3);
+    for (let index = 0; index < 400 * 300; index += 1) {
+      pixels[index * 3 + (index % 400 < 200 ? 0 : 2)] = 255;
+    }
+    const photo = await sharp(pixels, { raw: { width: 400, height: 300, channels: 3 } })
+      .withMetadata({ orientation: 6 })
+      .jpeg({ quality: 95 })
+      .toBuffer();
+
+    const top = await processor.render(photo, {
+      extract: { x: 0, y: 0, width: 300, height: 200 },
+      resize: { width: 150, height: 100 },
+      extend: { top: 10, right: 0, bottom: 10, left: 0 },
+      format: 'jpeg',
+      quality: 90,
+    });
+
+    expect(top).toMatchObject({ mimeType: 'image/jpeg', width: 150, height: 120 });
+    const { data } = await sharp(top.bytes).raw().toBuffer({ resolveWithObject: true });
+    const pixel = (x: number, y: number) => [...data.subarray((y * 150 + x) * 3, (y * 150 + x) * 3 + 3)];
+    // White bar above, red content below it.
+    expect(pixel(75, 3).every((value) => value > 245)).toBe(true);
+    const [red = 0, green = 0, blue = 0] = pixel(75, 60);
+    expect(red).toBeGreaterThan(200);
+    expect(Math.max(green, blue)).toBeLessThan(40);
+    expect((await sharp(top.bytes).metadata()).exif).toBeUndefined();
+  });
+
+  it('keeps every platform rendition of a photo within the byte limit of its profile', async () => {
+    // Photo-like: a gradient with grain, 4000 x 3000 pixels.
+    const width = 4000;
+    const height = 3000;
+    const pixels = Buffer.alloc(width * height * 3);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = (y * width + x) * 3;
+        const grain = ((x * 7919 + y * 104_729) % 23) - 11;
+        pixels[index] = Math.max(0, Math.min(255, Math.round((x / width) * 200) + 30 + grain));
+        pixels[index + 1] = Math.max(0, Math.min(255, Math.round((y / height) * 180) + 40 + grain));
+        pixels[index + 2] = Math.max(0, Math.min(255, 120 + grain));
+      }
+    }
+    const photo = await sharp(pixels, { raw: { width, height, channels: 3 } })
+      .jpeg({ quality: 92 })
+      .toBuffer();
+    const keys: RenditionProfileKey[] = ['instagram_feed', 'facebook_photo', 'linkedin_image', 'x_image'];
+
+    for (const key of keys) {
+      const profile = RENDITION_PROFILES[key];
+      const planned = planRendition({ width, height }, { crop: null, letterbox: false }, profile);
+      if (!planned.ok) {
+        throw new Error(`no plan for ${key}`);
+      }
+      const rendition = await processor.render(photo, {
+        ...planned.plan,
+        format: profile.format,
+        quality: profile.quality,
+      });
+
+      expect(rendition, key).toMatchObject({
+        mimeType: 'image/jpeg',
+        width: planned.plan.width,
+        height: planned.plan.height,
+      });
+      expect(rendition.bytes.byteLength, key).toBeLessThanOrEqual(profile.maxBytes);
+      expect((await sharp(rendition.bytes).metadata()).space, key).toBe('srgb');
+    }
   });
 });

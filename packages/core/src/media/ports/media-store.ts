@@ -1,5 +1,14 @@
+import type { Platform } from '@smp/platform-rules';
+
 import type { AuditTrail } from '../../audit/ports/audit-trail';
-import type { MediaAsset, MediaRejectReason, MediaRendition, ProcessedAsset } from '../domain/types';
+import type { VariantStatus } from '../../content/domain/types';
+import type {
+  MediaAsset,
+  MediaRejectReason,
+  MediaRendition,
+  PostMedia,
+  ProcessedAsset,
+} from '../domain/types';
 
 // The repositories of the media context (guide step 3.3). Every method names the workspace;
 // row-level security limits the statements to it as well (architecture 6.3).
@@ -46,10 +55,34 @@ export interface MediaRenditionRepository {
   upsert(rendition: MediaRendition): Promise<void>;
 }
 
+export interface PostMediaRepository {
+  find(workspaceId: string, postMediaId: string): Promise<PostMedia | null>;
+  /** The media of a variant in their order. */
+  ofVariant(workspaceId: string, variantId: string): Promise<PostMedia[]>;
+  /** Replaces all media of a variant. */
+  replace(workspaceId: string, variantId: string, items: readonly PostMedia[]): Promise<void>;
+}
+
+/** What the media context needs to know of a variant. */
+export interface VariantRef {
+  id: string;
+  platform: Platform;
+  status: VariantStatus;
+  version: number;
+}
+
+export interface VariantRefRepository {
+  find(workspaceId: string, variantId: string): Promise<VariantRef | null>;
+  /** Raises the version of the variant if it is current; false otherwise. */
+  touch(workspaceId: string, variantId: string, version: number): Promise<boolean>;
+}
+
 /** The repositories of one transaction. */
 export interface MediaStore {
   assets: MediaAssetRepository;
   renditions: MediaRenditionRepository;
+  postMedia: PostMediaRepository;
+  variants: VariantRefRepository;
   audit: AuditTrail;
 }
 

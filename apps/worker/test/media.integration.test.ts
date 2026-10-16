@@ -8,6 +8,7 @@ import { NestFactory } from '@nestjs/core';
 import {
   CompleteUpload,
   RequestUpload,
+  SetVariantMedia,
   systemClock,
   uuidV7Ids,
   type ContentActor,
@@ -60,10 +61,10 @@ describe('media worker', () => {
     return { base, storage, queue, events, objectStorage };
   };
 
-  /** The upload side as the API runs it: ticket, presigned PUT, completion. */
-  const uploadAndComplete = async (bytes: Uint8Array, fileName: string): Promise<MediaAsset> => {
+  /** The API side of the media use cases. */
+  const apiDeps = (): Omit<MediaDependencies, 'processor'> => {
     const started = ready();
-    const deps: Omit<MediaDependencies, 'processor'> = {
+    return {
       unitOfWork: new PrismaMediaUnitOfWork(started.base),
       storage: started.storage,
       jobs: new MediaProducer(started.queue),
@@ -71,6 +72,11 @@ describe('media worker', () => {
       clock: systemClock,
       ids: uuidV7Ids,
     };
+  };
+
+  /** The upload side as the API runs it: ticket, presigned PUT, completion. */
+  const uploadAndComplete = async (bytes: Uint8Array, fileName: string): Promise<MediaAsset> => {
+    const deps = apiDeps();
     const ticket = await new RequestUpload(deps).execute({
       actor,
       fileName,
@@ -189,8 +195,9 @@ describe('media worker', () => {
     await Promise.all([database?.stop(), redis?.stop(), objectStorage?.stop()]);
   });
 
-  it('makes a 10 MB JPEG ready in under 5 seconds', async () => {
-    const photo = await sharp({
+  /** Gaussian noise, the worst case for JPEG: 4000 x 3000 pixels make more than 10 MB. */
+  const noisyPhoto = (): Promise<Buffer> =>
+    sharp({
       create: {
         width: 4000,
         height: 3000,
@@ -201,6 +208,9 @@ describe('media worker', () => {
     })
       .jpeg({ quality: 95 })
       .toBuffer();
+
+  it('makes a 10 MB JPEG ready in under 5 seconds', async () => {
+    const photo = await noisyPhoto();
     expect(photo.byteLength).toBeGreaterThanOrEqual(10 * MB);
     expect(photo.byteLength).toBeLessThanOrEqual(20 * MB);
 
@@ -256,5 +266,56 @@ describe('media worker', () => {
 
     await expect(job.waitUntilFinished(queueEvents)).rejects.toThrow(/invalid media.process payload/);
     expect((await media.getJob(job.id ?? ''))?.attemptsMade).toBe(1);
+  });
+
+  it('renders an attached image for X within its 5 MB', async () => {
+    const processing = await uploadAndComplete(await noisyPhoto(), 'Rauschen.jpg');
+    expect(await settled(processing.id, 10_000)).toMatchObject({ status: 'READY' });
+    const postId = randomUUID();
+    const variantId = randomUUID();
+    const system = await database?.connectAs('app_system');
+    try {
+      await system?.query(
+        `INSERT INTO post (id, workspace_id, language, updated_at) VALUES ($1, $2, 'de', now())`,
+        [postId, workspaceId],
+      );
+      await system?.query(
+        `INSERT INTO post_variant (id, workspace_id, post_id, platform, target_key, updated_at)
+         VALUES ($1, $2, $3, 'X', 't1', now())`,
+        [variantId, workspaceId, postId],
+      );
+    } finally {
+      await system?.end();
+    }
+
+    await new SetVariantMedia(apiDeps()).execute({
+      actor,
+      variantId,
+      version: 0,
+      items: [{ assetId: processing.id, crop: null, letterbox: false, altText: null }],
+    });
+
+    const unitOfWork = new PrismaMediaUnitOfWork(ready().base);
+    const scope = { userId: null, organizationId, workspaceId };
+    const deadline = Date.now() + 30_000;
+    let rendition = null;
+    while (!rendition && Date.now() < deadline) {
+      rendition = await unitOfWork.run(scope, (store) =>
+        store.renditions.find(workspaceId, processing.id, 'x_image', 'full'),
+      );
+      if (!rendition) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+
+    expect(rendition).toMatchObject({ mimeType: 'image/jpeg' });
+    expect(rendition?.sizeBytes).toBeLessThanOrEqual(5 * MB);
+    const stored = await ready().storage.head(rendition?.storageKey ?? '');
+    expect(stored).toEqual({ size: rendition?.sizeBytes, contentType: 'image/jpeg' });
+    const metadata = await sharp(
+      await ready().storage.get(rendition?.storageKey ?? '', { maxBytes: 5 * MB }),
+    ).metadata();
+    expect(metadata).toMatchObject({ format: 'jpeg', width: rendition?.width, height: rendition?.height });
+    expect(metadata.exif).toBeUndefined();
   });
 });

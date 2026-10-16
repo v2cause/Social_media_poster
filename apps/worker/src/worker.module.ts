@@ -8,7 +8,7 @@ import {
   type Provider,
   type Type,
 } from '@nestjs/common';
-import { ProcessAsset, systemClock, uuidV7Ids } from '@smp/core';
+import { ProcessAsset, RenderAttachedMedia, systemClock, uuidV7Ids } from '@smp/core';
 import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@smp/db';
 import { createSmtpMailer } from '@smp/emails';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
@@ -23,7 +23,7 @@ import { NoopProcessor, SCHEDULER_QUEUE } from './processors/noop.processor';
 import { NotifyProcessor } from './processors/notify.processor';
 import type { WorkerRole } from './roles';
 import type { WorkerEnv } from './worker-env';
-import { MAIL_PORT, PROCESS_ASSET, WORKER_ENV } from './worker.tokens';
+import { MAIL_PORT, PROCESS_ASSET, RENDER_ATTACHED_MEDIA, WORKER_ENV } from './worker.tokens';
 
 interface RoleWiring {
   queue: string;
@@ -78,20 +78,19 @@ function mediaPipeline(env: WorkerEnv): Provider[] {
   );
   // app_user with the tenant of each job: row-level security applies to the worker too.
   const database = createPrismaClient(env.DATABASE_URL);
+  const deps = {
+    unitOfWork: new PrismaMediaUnitOfWork(database),
+    storage,
+    // One libvips thread per image; MEDIA_CONCURRENCY limits the images at once.
+    processor: new SharpImageProcessor({ threads: 1 }),
+    clock: systemClock,
+    ids: uuidV7Ids,
+  };
   return [
     { provide: MEDIA_CLIENTS, useValue: { database, storage } satisfies MediaClients },
     MediaClientsLifecycle,
-    {
-      provide: PROCESS_ASSET,
-      useValue: new ProcessAsset({
-        unitOfWork: new PrismaMediaUnitOfWork(database),
-        storage,
-        // One libvips thread per image; MEDIA_CONCURRENCY limits the images at once.
-        processor: new SharpImageProcessor({ threads: 1 }),
-        clock: systemClock,
-        ids: uuidV7Ids,
-      }),
-    },
+    { provide: PROCESS_ASSET, useValue: new ProcessAsset(deps) },
+    { provide: RENDER_ATTACHED_MEDIA, useValue: new RenderAttachedMedia(deps) },
   ];
 }
 

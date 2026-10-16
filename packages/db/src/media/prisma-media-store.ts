@@ -1,8 +1,9 @@
 import type { MediaScope, MediaStore } from '@smp/core';
 
 import { prismaAuditTrail, type RequestOrigin } from '../audit/prisma-audit-trail';
+import { Prisma } from '../generated/prisma/client';
 import type { TenantTransaction } from '../tenant-context';
-import { toMediaAsset, toMediaRendition } from './mappers';
+import { toMediaAsset, toMediaRendition, toPostMedia } from './mappers';
 
 // The repositories of the media context on one transaction (guide step 3.3). Every method filters
 // by the workspace explicitly; row-level security limits it to the scope as well. Status changes
@@ -104,6 +105,48 @@ export function createPrismaMediaStore(
             sizeBytes: rendition.sizeBytes,
           },
         });
+      },
+    },
+
+    postMedia: {
+      async find(workspaceId, postMediaId) {
+        const row = await tx.postMedia.findFirst({ where: { id: postMediaId, workspaceId } });
+        return row ? toPostMedia(row) : null;
+      },
+      async ofVariant(workspaceId, variantId) {
+        const rows = await tx.postMedia.findMany({
+          where: { variantId, workspaceId },
+          orderBy: { position: 'asc' },
+        });
+        return rows.map(toPostMedia);
+      },
+      async replace(workspaceId, variantId, items) {
+        await tx.postMedia.deleteMany({ where: { variantId, workspaceId } });
+        if (items.length > 0) {
+          await tx.postMedia.createMany({
+            data: items.map((item) => ({
+              ...item,
+              // A copy as a plain object, which Prisma accepts as JSON; SQL NULL for the whole image.
+              crop: item.crop ? { ...item.crop } : Prisma.DbNull,
+            })),
+          });
+        }
+      },
+    },
+
+    variants: {
+      find(workspaceId, variantId) {
+        return tx.postVariant.findFirst({
+          where: { id: variantId, workspaceId },
+          select: { id: true, platform: true, status: true, version: true },
+        });
+      },
+      async touch(workspaceId, variantId, version) {
+        const { count } = await tx.postVariant.updateMany({
+          where: { id: variantId, workspaceId, version },
+          data: bump,
+        });
+        return count === 1;
       },
     },
 

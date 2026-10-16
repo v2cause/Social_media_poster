@@ -1,4 +1,5 @@
 import type { MemberRole } from '../../tenancy/domain/types';
+import type { Crop } from './types';
 
 // Rules of the media pipeline (architecture 9, ADR 0008).
 
@@ -18,11 +19,24 @@ export const UPLOAD_URL_SECONDS = 5 * 60;
 /** Previews in the browser and images for platforms are readable for one hour. */
 export const READ_URL_SECONDS = 60 * 60;
 
-/** WebP thumbnails of every accepted image, by width. */
-export const THUMBNAIL_WIDTHS = [320, 640] as const;
-export const thumbnailProfile = (width: number): string => `thumb_${String(width)}`;
+/** The WebP thumbnails of every accepted image, profiles of @smp/platform-rules. */
+export const THUMBNAIL_PROFILES = ['thumb_320', 'thumb_640'] as const;
 /** The crop hash of a rendition of the whole image. */
 export const FULL_IMAGE = 'full';
+
+/** The most media one variant holds; LinkedIn takes the most with 20 images. */
+export const MAX_VARIANT_MEDIA = 20;
+
+/**
+ * Identifies crop and letterbox in the key of a rendition, for example "x0y120w1080h1350" or
+ * "full-lb". Readable, and only letters, digits and "-", as object keys need.
+ */
+export function cropHashOf(crop: Crop | null, letterbox: boolean): string {
+  const region = crop
+    ? `x${String(crop.x)}y${String(crop.y)}w${String(crop.width)}h${String(crop.height)}`
+    : FULL_IMAGE;
+  return letterbox ? `${region}-lb` : region;
+}
 
 /** Editors and above upload and change media; viewers only see the library. */
 export const canWriteMedia = (role: MemberRole): boolean => role !== 'VIEWER';

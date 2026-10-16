@@ -1,15 +1,17 @@
 import {
   MEDIA_REJECT_REASONS,
+  type Crop,
   type MediaAsset,
   type MediaRejectReason,
   type MediaRendition,
+  type PostMedia,
 } from '@smp/core';
 import { z } from 'zod';
 
 import type * as Prisma from '../generated/prisma/client';
 
-// Prisma rows to the media entities of the core. The reject reason is free text in the table and
-// validated like every other external input (guide B.1).
+// Prisma rows to the media entities of the core. The reject reason is free text and the crop JSON
+// in the table; both are validated like every other external input (guide B.1).
 
 const rejectReasonSchema = z.enum(MEDIA_REJECT_REASONS).nullable();
 
@@ -48,4 +50,26 @@ export const toMediaRendition = (row: Prisma.MediaRendition): MediaRendition => 
   width: row.width,
   height: row.height,
   sizeBytes: row.sizeBytes,
+});
+
+const cropSchema = z
+  .object({
+    x: z.number().int().min(0),
+    y: z.number().int().min(0),
+    width: z.number().int().min(1),
+    height: z.number().int().min(1),
+  })
+  .nullable() satisfies z.ZodType<Crop | null>;
+
+export const toCrop = (value: unknown): Crop | null => cropSchema.parse(value);
+
+export const toPostMedia = (row: Prisma.PostMedia): PostMedia => ({
+  id: row.id,
+  workspaceId: row.workspaceId,
+  variantId: row.variantId,
+  assetId: row.assetId,
+  position: row.position,
+  crop: toCrop(row.crop),
+  letterbox: row.letterbox,
+  altText: row.altText,
 });

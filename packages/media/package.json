@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@smp/config": "workspace:*",
+    "@smp/platform-rules": "workspace:*",
     "@smp/testing": "workspace:*",
     "@types/node": "^24.19.2",
     "eslint": "^10.12.0",

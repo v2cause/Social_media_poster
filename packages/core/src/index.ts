@@ -235,46 +235,63 @@ export {
 export {
   MEDIA_REJECT_REASONS,
   MEDIA_STATUSES,
+  type Crop,
   type MediaAsset,
   type MediaRejectReason,
   type MediaRendition,
   type MediaStatus,
+  type PostMedia,
   type ProcessedAsset,
 } from './media/domain/types';
 export {
   canWriteMedia,
+  cropHashOf,
   displayFileName,
   FULL_IMAGE,
   isUploadMimeType,
   MAX_INPUT_PIXELS,
   MAX_UPLOAD_BYTES,
+  MAX_VARIANT_MEDIA,
   READ_URL_SECONDS,
-  THUMBNAIL_WIDTHS,
-  thumbnailProfile,
+  THUMBNAIL_PROFILES,
   UPLOAD_MIME_TYPES,
   UPLOAD_URL_SECONDS,
   type UploadMimeType,
 } from './media/domain/rules';
 export {
+  CropOutOfBoundsError,
   ImageRejectedError,
   MediaInUseError,
   MediaNotFoundError,
+  MediaNotReadyError,
   MediaTooLargeError,
   MediaTypeNotAllowedError,
+  RenditionNotPossibleError,
+  RenditionTooLargeError,
   StorageQuotaExceededError,
   UploadMissingError,
+  VariantMediaInvalidError,
 } from './media/domain/errors';
 export { sniffImageType, type SniffedImageType } from './media/domain/file-signature';
 export { assetPrefix, originalKey, renditionKey } from './media/domain/storage-keys';
 export type { PresignedUpload, StoragePort, StoredObject } from './media/ports/storage';
-export type { EncodedImage, EncodeOptions, ImageInfo, ImageProcessor } from './media/ports/image-processor';
-export type { MediaJob, MediaJobs } from './media/ports/media-jobs';
+export type {
+  EncodedImage,
+  EncodeOptions,
+  ImageInfo,
+  ImageProcessor,
+  RenderOptions,
+} from './media/ports/image-processor';
+export type { MediaJob, MediaJobs, RenderJob } from './media/ports/media-jobs';
 export type {
   MediaAssetRepository,
   MediaRenditionRepository,
   MediaScope,
   MediaStore,
   MediaUnitOfWork,
+  PostMediaRepository,
+  VariantRef,
+  VariantRefRepository,
 } from './media/ports/media-store';
 export {
   assertCanWriteMedia,
@@ -291,3 +308,10 @@ export { CompleteUpload, type CompleteUploadInput } from './media/application/co
 export { ProcessAsset, type ProcessOutcome } from './media/application/process-asset';
 export { UpdateMediaAltText, type UpdateMediaAltTextInput } from './media/application/update-media';
 export { DeleteMedia, type DeleteMediaInput } from './media/application/delete-media';
+export { RenderRendition, type RenderRenditionInput } from './media/application/render-rendition';
+export { RenderAttachedMedia, type RenderJobOutcome } from './media/application/render-attached-media';
+export {
+  SetVariantMedia,
+  type SetVariantMediaInput,
+  type VariantMediaItem,
+} from './media/application/set-variant-media';

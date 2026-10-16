@@ -7,6 +7,7 @@ import {
   type EncodeOptions,
   type ImageInfo,
   type ImageProcessor,
+  type RenderOptions,
 } from '@smp/core';
 import sharp from 'sharp';
 
@@ -25,6 +26,8 @@ export interface SharpImageProcessorOptions {
 const INPUT_OPTIONS = { limitInputPixels: MAX_INPUT_PIXELS, failOn: 'error' } as const;
 
 const MIME_TYPES = { jpeg: 'image/jpeg', webp: 'image/webp', png: 'image/png' } as const;
+
+const WHITE = '#ffffff';
 
 /** Errors of sharp for an input it refuses, as a reason the user sees. */
 function rejection(error: unknown): ImageRejectedError {
@@ -59,8 +62,8 @@ export class SharpImageProcessor implements ImageProcessor {
     };
   }
 
-  async encode(bytes: Uint8Array, options: EncodeOptions): Promise<EncodedImage> {
-    let pipeline = sharp(bytes, INPUT_OPTIONS)
+  encode(bytes: Uint8Array, options: EncodeOptions): Promise<EncodedImage> {
+    const pipeline = sharp(bytes, INPUT_OPTIONS)
       .rotate()
       .resize({
         width: options.maxWidth,
@@ -69,18 +72,43 @@ export class SharpImageProcessor implements ImageProcessor {
         withoutEnlargement: true,
       })
       .toColourspace('srgb');
+    return this.output(pipeline, options);
+  }
+
+  render(bytes: Uint8Array, options: RenderOptions): Promise<EncodedImage> {
+    // With autoOrient the crop lies in the image as it is shown, as the user cropped it.
+    let pipeline = sharp(bytes, { ...INPUT_OPTIONS, autoOrient: true });
+    if (options.extract) {
+      const { x, y, width, height } = options.extract;
+      pipeline = pipeline.extract({ left: x, top: y, width, height });
+    }
+    pipeline = pipeline.resize(options.resize.width, options.resize.height, { fit: 'fill' });
+    if (options.extend) {
+      // sharp adds the bars after scaling, in pixels of the result.
+      pipeline = pipeline.extend({ ...options.extend, background: WHITE });
+    }
+    return this.output(pipeline.toColourspace('srgb'), options);
+  }
+
+  sha256(bytes: Uint8Array): string {
+    return createHash('sha256').update(bytes).digest('hex');
+  }
+
+  private async output(
+    pipeline: sharp.Sharp,
+    options: { format: 'jpeg' | 'webp' | 'png'; quality: number },
+  ): Promise<EncodedImage> {
+    let encoder = pipeline;
     if (options.format === 'jpeg') {
       // JPEG has no transparency: transparent areas turn white instead of black.
-      pipeline = pipeline
-        .flatten({ background: '#ffffff' })
-        .jpeg({ quality: options.quality, mozjpeg: true });
+      encoder = encoder.flatten({ background: WHITE }).jpeg({ quality: options.quality, mozjpeg: true });
     } else if (options.format === 'webp') {
-      pipeline = pipeline.webp({ quality: options.quality });
+      encoder = encoder.webp({ quality: options.quality });
     } else {
-      pipeline = pipeline.png();
+      encoder = encoder.png();
     }
     try {
-      const { data, info } = await pipeline.toBuffer({ resolveWithObject: true });
+      const { data, info } = await encoder.toBuffer({ resolveWithObject: true });
       return {
         bytes: new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
         mimeType: MIME_TYPES[options.format],
@@ -90,9 +118,5 @@ export class SharpImageProcessor implements ImageProcessor {
     } catch (error) {
       throw rejection(error);
     }
-  }
-
-  sha256(bytes: Uint8Array): string {
-    return createHash('sha256').update(bytes).digest('hex');
   }
 }

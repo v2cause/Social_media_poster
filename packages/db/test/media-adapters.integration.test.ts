@@ -6,7 +6,9 @@ import {
   MediaInUseError,
   MediaNotFoundError,
   ProcessAsset,
+  RenderAttachedMedia,
   RequestUpload,
+  SetVariantMedia,
   StorageQuotaExceededError,
   systemClock,
   UpdateMediaAltText,
@@ -19,6 +21,8 @@ import {
   type MediaDependencies,
   type MediaJob,
   type PresignedUpload,
+  type RenderJob,
+  type RenderOptions,
   type StoragePort,
   type StoredObject,
 } from '@smp/core';
@@ -105,6 +109,15 @@ const processor: ImageProcessor = {
       height: Math.round(1500 * scale),
     });
   },
+  render: (_bytes: Uint8Array, options: RenderOptions): Promise<EncodedImage> => {
+    const bars = options.extend ?? { top: 0, right: 0, bottom: 0, left: 0 };
+    return Promise.resolve({
+      bytes: new Uint8Array(200),
+      mimeType: `image/${options.format}`,
+      width: options.resize.width + bars.left + bars.right,
+      height: options.resize.height + bars.top + bars.bottom,
+    });
+  },
   sha256: () => 'a'.repeat(64),
 };
 
@@ -113,6 +126,7 @@ describe('media adapters on PostgreSQL', () => {
   let base: PrismaClient | undefined;
   const storage = new MapStorage();
   const jobs: MediaJob[] = [];
+  const renders: RenderJob[] = [];
 
   const client = (): PrismaClient => {
     if (!base) {
@@ -126,6 +140,10 @@ describe('media adapters on PostgreSQL', () => {
     jobs: {
       process: (job) => {
         jobs.push(job);
+        return Promise.resolve();
+      },
+      render: (job) => {
+        renders.push(job);
         return Promise.resolve();
       },
     },
@@ -367,5 +385,105 @@ describe('media adapters on PostgreSQL', () => {
     expect([...first.assets, ...second.assets].map(({ id }) => id)).toEqual(all);
     expect(first.nextCursor).not.toBeNull();
     expect(second.nextCursor).toBeNull();
+  });
+
+  it('keeps the media of a variant with crop and letterbox and renders them for its platform', async () => {
+    const first = await upload(editor);
+    const second = await upload(editor);
+    for (const asset of [first, second]) {
+      await new ProcessAsset(deps()).execute({
+        organizationId: orgA,
+        workspaceId: workspaceA,
+        assetId: asset.id,
+      });
+    }
+    const postId = randomUUID();
+    const variantId = randomUUID();
+    await system(async (query) => {
+      await query(`INSERT INTO post (id, workspace_id, language, updated_at) VALUES ($1, $2, 'de', now())`, [
+        postId,
+        workspaceA,
+      ]);
+      await query(
+        `INSERT INTO post_variant (id, workspace_id, post_id, platform, target_key, version, updated_at)
+         VALUES ($1, $2, $3, 'INSTAGRAM', 't1', 5, now())`,
+        [variantId, workspaceA, postId],
+      );
+    });
+    const crop = { x: 200, y: 0, width: 1200, height: 1500 };
+
+    await new SetVariantMedia(deps()).execute({
+      actor: editor,
+      variantId,
+      version: 5,
+      items: [
+        { assetId: first.id, crop, letterbox: false, altText: 'Erstes Bild' },
+        // 2000 x 1500 fits Instagram as it is.
+        { assetId: second.id, crop: null, letterbox: true, altText: null },
+      ],
+    });
+
+    const unitOfWork = new PrismaMediaUnitOfWork(client());
+    const scope = { userId: null, organizationId: orgA, workspaceId: workspaceA };
+    const uses = await unitOfWork.run(scope, (store) => store.postMedia.ofVariant(workspaceA, variantId));
+    expect(uses).toEqual([
+      expect.objectContaining({
+        assetId: first.id,
+        position: 0,
+        crop,
+        letterbox: false,
+        altText: 'Erstes Bild',
+      }),
+      expect.objectContaining({
+        assetId: second.id,
+        position: 1,
+        crop: null,
+        letterbox: true,
+        altText: null,
+      }),
+    ]);
+    const versions = await system(
+      async (query) =>
+        (await query('SELECT version FROM post_variant WHERE id = $1', [variantId])) as {
+          rows: { version: number }[];
+        },
+    );
+    expect(versions.rows).toEqual([{ version: 6 }]);
+    expect(await readModel().asset(refA, first.id)).toMatchObject({ usageCount: 1 });
+    await expect(
+      new SetVariantMedia(deps()).execute({ actor: editor, variantId, version: 5, items: [] }),
+    ).rejects.toBeInstanceOf(VersionConflictError);
+
+    const queued = renders.filter(
+      (job) => job.workspaceId === workspaceA && uses.some((use) => use.id === job.postMediaId),
+    );
+    expect(queued.map((job) => [job.profile, job.cropHash])).toEqual([
+      ['instagram_feed', 'x200y0w1200h1500'],
+      ['instagram_feed', 'full-lb'],
+    ]);
+    for (const job of queued) {
+      await expect(new RenderAttachedMedia(deps()).execute(job)).resolves.toBe('RENDERED');
+    }
+    const renditions = await system(
+      async (query) =>
+        (await query(
+          `SELECT profile, crop_hash, width, height FROM media_rendition WHERE asset_id = ANY($1) AND profile = 'instagram_feed' ORDER BY crop_hash`,
+          [[first.id, second.id]],
+        )) as { rows: unknown[] },
+    );
+    expect(renditions.rows).toEqual([
+      { profile: 'instagram_feed', crop_hash: 'full-lb', width: 1080, height: 810 },
+      { profile: 'instagram_feed', crop_hash: 'x200y0w1200h1500', width: 1080, height: 1350 },
+    ]);
+
+    // Replacing the media drops the old uses; the job of a removed use has nothing left to do.
+    await new SetVariantMedia(deps()).execute({ actor: editor, variantId, version: 6, items: [] });
+    expect(await unitOfWork.run(scope, (store) => store.postMedia.ofVariant(workspaceA, variantId))).toEqual(
+      [],
+    );
+    const [stale] = queued;
+    if (stale) {
+      await expect(new RenderAttachedMedia(deps()).execute(stale)).resolves.toBe('SKIPPED');
+    }
   });
 });

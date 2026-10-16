@@ -12,9 +12,13 @@ import type {
   MediaScope,
   MediaStore,
   MediaUnitOfWork,
+  PostMedia,
   PresignedUpload,
+  RenderJob,
+  RenderOptions,
   StoragePort,
   StoredObject,
+  VariantRef,
 } from '../src';
 import { ImageRejectedError } from '../src';
 import { fixedClock, ScopeViolation, sequentialIds } from './in-memory-content';
@@ -25,8 +29,10 @@ import { fixedClock, ScopeViolation, sequentialIds } from './in-memory-content';
 interface State {
   assets: Map<string, MediaAsset>;
   renditions: Map<string, MediaRendition>;
-  /** Variants using an asset, by asset id. */
+  /** Further variants using an asset, by asset id, on top of postMedia. */
   usage: Map<string, number>;
+  postMedia: Map<string, PostMedia>;
+  variants: Map<string, VariantRef & { workspaceId: string }>;
   audit: AuditEntry[];
 }
 
@@ -34,7 +40,14 @@ const renditionId = (assetId: string, profile: string, cropHash: string): string
   `${assetId}/${profile}/${cropHash}`;
 
 export class InMemoryMedia implements MediaUnitOfWork {
-  state: State = { assets: new Map(), renditions: new Map(), usage: new Map(), audit: [] };
+  state: State = {
+    assets: new Map(),
+    renditions: new Map(),
+    usage: new Map(),
+    postMedia: new Map(),
+    variants: new Map(),
+    audit: [],
+  };
   readonly scopes: MediaScope[] = [];
   locks = 0;
 
@@ -135,7 +148,61 @@ export class InMemoryMedia implements MediaUnitOfWork {
         },
         usageCount: (workspaceId, assetId) => {
           assertScope(workspaceId);
-          return Promise.resolve(this.state.usage.get(assetId) ?? 0);
+          const uses = [...this.state.postMedia.values()].filter((use) => use.assetId === assetId).length;
+          return Promise.resolve(uses + (this.state.usage.get(assetId) ?? 0));
+        },
+      },
+      postMedia: {
+        find: (workspaceId, postMediaId) => {
+          assertScope(workspaceId);
+          const use = this.state.postMedia.get(postMediaId);
+          return Promise.resolve(use?.workspaceId === workspaceId ? use : null);
+        },
+        ofVariant: (workspaceId, variantId) => {
+          assertScope(workspaceId);
+          return Promise.resolve(
+            [...this.state.postMedia.values()]
+              .filter((use) => use.workspaceId === workspaceId && use.variantId === variantId)
+              .sort((a, b) => a.position - b.position),
+          );
+        },
+        replace: (workspaceId, variantId, items) => {
+          assertScope(workspaceId);
+          for (const [id, use] of this.state.postMedia) {
+            if (use.variantId === variantId) {
+              this.state.postMedia.delete(id);
+            }
+          }
+          for (const item of items) {
+            assertScope(item.workspaceId);
+            this.state.postMedia.set(item.id, item);
+          }
+          return Promise.resolve();
+        },
+      },
+      variants: {
+        find: (workspaceId, variantId) => {
+          assertScope(workspaceId);
+          const variant = this.state.variants.get(variantId);
+          return Promise.resolve(
+            variant?.workspaceId === workspaceId
+              ? {
+                  id: variant.id,
+                  platform: variant.platform,
+                  status: variant.status,
+                  version: variant.version,
+                }
+              : null,
+          );
+        },
+        touch: (workspaceId, variantId, version) => {
+          assertScope(workspaceId);
+          const variant = this.state.variants.get(variantId);
+          if (variant?.workspaceId !== workspaceId || variant.version !== version) {
+            return Promise.resolve(false);
+          }
+          this.state.variants.set(variantId, { ...variant, version: version + 1 });
+          return Promise.resolve(true);
         },
       },
       renditions: {
@@ -226,9 +293,15 @@ export class MemoryStorage implements StoragePort {
 
 export class RecordingJobs implements MediaJobs {
   readonly jobs: MediaJob[] = [];
+  readonly renders: RenderJob[] = [];
 
   process(job: MediaJob): Promise<void> {
     this.jobs.push(job);
+    return Promise.resolve();
+  }
+
+  render(job: RenderJob): Promise<void> {
+    this.renders.push(job);
     return Promise.resolve();
   }
 }
@@ -239,6 +312,9 @@ export class FakeProcessor implements ImageProcessor {
   /** Thrown by inspect, for example an ImageRejectedError. */
   failure: Error | null = null;
   readonly encodings: EncodeOptions[] = [];
+  readonly renders: RenderOptions[] = [];
+  /** The bytes a rendition gets, by its options; small by default. */
+  renditionBytes: (options: RenderOptions) => number = () => 1000;
 
   inspect(): Promise<ImageInfo> {
     return this.failure ? Promise.reject(this.failure) : Promise.resolve(this.info);
@@ -252,6 +328,17 @@ export class FakeProcessor implements ImageProcessor {
       mimeType: `image/${options.format}`,
       width: Math.round(this.info.width * scale),
       height: Math.round(this.info.height * scale),
+    });
+  }
+
+  render(_bytes: Uint8Array, options: RenderOptions): Promise<EncodedImage> {
+    this.renders.push(options);
+    const bars = options.extend ?? { top: 0, right: 0, bottom: 0, left: 0 };
+    return Promise.resolve({
+      bytes: new Uint8Array(this.renditionBytes(options)),
+      mimeType: `image/${options.format}`,
+      width: options.resize.width + bars.left + bars.right,
+      height: options.resize.height + bars.top + bars.bottom,
     });
   }
 

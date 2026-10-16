@@ -759,6 +759,9 @@ importers:
       '@smp/config':
         specifier: workspace:*
         version: link:../config
+      '@smp/platform-rules':
+        specifier: workspace:*
+        version: link:../platform-rules
       '@smp/testing':
         specifier: workspace:*
         version: link:../testing
@@ -884,6 +887,9 @@ importers:
       '@smp/emails':
         specifier: workspace:*
         version: link:../emails
+      '@smp/platform-rules':
+        specifier: workspace:*
+        version: link:../platform-rules
       bullmq:
         specifier: ^5.81.5
         version: 5.81.5

@@ -64,3 +64,27 @@ export interface ProcessedAsset {
   sha256: string;
   processedAt: Date;
 }
+
+/** A region in pixels of the image as it is shown, after the EXIF orientation. */
+export interface Crop {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** An asset in a variant: its place, and crop, letterbox and alt text for this use. */
+export interface PostMedia {
+  id: string;
+  workspaceId: string;
+  variantId: string;
+  assetId: string;
+  /** 0, 1, ... in the order the platform shows them. */
+  position: number;
+  /** The region the platform gets; null for the whole image. */
+  crop: Crop | null;
+  /** White bars instead of a crop where the image does not fit the aspect ratio of the platform. */
+  letterbox: boolean;
+  /** The alt text of this use; null takes the alt text of the asset. */
+  altText: string | null;
+}

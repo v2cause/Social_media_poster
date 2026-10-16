@@ -1,10 +1,4 @@
-import {
-  FULL_IMAGE,
-  THUMBNAIL_WIDTHS,
-  thumbnailProfile,
-  type MediaRejectReason,
-  type MediaStatus,
-} from '@smp/core';
+import { FULL_IMAGE, THUMBNAIL_PROFILES, type MediaRejectReason, type MediaStatus } from '@smp/core';
 import { z } from 'zod';
 
 import { InvalidCursorError } from '../audit/audit-log-read-model';
@@ -60,11 +54,9 @@ function decodeCursor(value: string): Cursor {
   }
 }
 
-const THUMBNAIL_PROFILES = THUMBNAIL_WIDTHS.map(thumbnailProfile);
-
 const assetInclude = {
   renditions: {
-    where: { profile: { in: THUMBNAIL_PROFILES }, cropHash: FULL_IMAGE },
+    where: { profile: { in: [...THUMBNAIL_PROFILES] }, cropHash: FULL_IMAGE },
     select: { width: true, height: true, storageKey: true },
     orderBy: { width: 'asc' },
   },

@@ -3,7 +3,14 @@ import { randomUUID } from 'node:crypto';
 import type { Queue } from 'bullmq';
 import { describe, expect, it, vi } from 'vitest';
 
-import { MEDIA_JOB_OPTIONS, MEDIA_PROCESS, MediaProducer, parseMediaProcess } from './media';
+import {
+  MEDIA_JOB_OPTIONS,
+  MEDIA_PROCESS,
+  MEDIA_RENDER,
+  MediaProducer,
+  parseMediaProcess,
+  parseMediaRender,
+} from './media';
 
 const job = { organizationId: randomUUID(), workspaceId: randomUUID(), assetId: randomUUID() };
 
@@ -32,5 +39,25 @@ describe('media queue', () => {
     expect(add).not.toHaveBeenCalled();
     expect(parseMediaProcess(job)).toEqual(job);
     expect(() => parseMediaProcess({ assetId: job.assetId })).toThrow();
+  });
+
+  it('adds one media.render job per asset, profile and crop', async () => {
+    const add = vi.fn().mockResolvedValue(undefined);
+    const render = {
+      ...job,
+      postMediaId: randomUUID(),
+      profile: 'instagram_feed' as const,
+      cropHash: 'x0y250w3000h3750',
+    };
+
+    await new MediaProducer({ add } as unknown as Queue).render(render);
+
+    expect(add).toHaveBeenCalledWith(MEDIA_RENDER, render, {
+      ...MEDIA_JOB_OPTIONS,
+      jobId: `rend.${job.assetId}.instagram_feed.x0y250w3000h3750`,
+    });
+    expect(parseMediaRender(render)).toEqual(render);
+    expect(() => parseMediaRender({ ...render, profile: 'tiktok' })).toThrow();
+    expect(() => parseMediaRender({ ...render, cropHash: '../x' })).toThrow();
   });
 });
