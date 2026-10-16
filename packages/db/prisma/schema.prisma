@@ -183,6 +183,9 @@ model Workspace {
   postVariants         PostVariant[]
   aiGenerations        AiGeneration[]
   usageRecords         UsageRecord[]
+  mediaAssets          MediaAsset[]
+  mediaRenditions      MediaRendition[]
+  postMedia            PostMedia[]
 
   @@index([organizationId])
   @@map("workspace")
@@ -539,8 +542,9 @@ model PostVariant {
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  post      Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  media     PostMedia[]
 
   @@unique([postId, targetKey])
   @@index([workspaceId])
@@ -664,4 +668,106 @@ model PriceBook {
 
   @@unique([model, validFrom])
   @@map("price_book")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Media (guide step 3.1, architecture 9): uploaded images, their renditions per platform and
+// their use in variants. Keyed by workspace, with row-level security.
+// ---------------------------------------------------------------------------------------------
+
+enum MediaStatus {
+  PENDING_UPLOAD
+  PROCESSING
+  READY
+  REJECTED
+}
+
+// An uploaded image. The original stays in storage for the pipeline only; platforms and the
+// browser get renditions.
+model MediaAsset {
+  id               String      @id @default(uuid(7)) @db.Uuid
+  workspaceId      String      @map("workspace_id") @db.Uuid
+  status           MediaStatus @default(PENDING_UPLOAD)
+  // The name of the user's file, for display only; storage keys never contain it.
+  fileName         String      @map("file_name")
+  // What the browser announced. The pipeline measures the real values and never trusts these.
+  declaredMimeType String      @map("declared_mime_type")
+  declaredSize     Int         @map("declared_size")
+  // ws/{workspaceId}/assets/{id}/original
+  storageKey       String      @map("storage_key")
+  // Measured by media.process on the normalized original.
+  mimeType         String?     @map("mime_type")
+  sizeBytes        Int?        @map("size_bytes")
+  width            Int?
+  height           Int?
+  sha256           String?
+  // Why the pipeline rejected the file, for example NOT_AN_IMAGE or HEIC_NOT_SUPPORTED.
+  rejectReason     String?     @map("reject_reason")
+  altText          String?     @map("alt_text")
+  uploadedById     String?     @map("uploaded_by_id") @db.Uuid
+  version          Int         @default(0)
+  processedAt      DateTime?   @map("processed_at") @db.Timestamptz(3)
+  // Removed from the library; the objects are deleted after 30 days.
+  deletedAt        DateTime?   @map("deleted_at") @db.Timestamptz(3)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace  Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  renditions MediaRendition[]
+  postMedia  PostMedia[]
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@map("media_asset")
+}
+
+// A derived image: a thumbnail or the version of an asset for a platform, with its crop.
+model MediaRendition {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  assetId     String   @map("asset_id") @db.Uuid
+  // A profile of @smp/platform-rules, for example instagram_feed or thumb_320.
+  profile     String
+  // The hash of crop and fit; "full" for the whole image.
+  cropHash    String   @map("crop_hash")
+  storageKey  String   @map("storage_key")
+  mimeType    String   @map("mime_type")
+  width       Int
+  height      Int
+  sizeBytes   Int      @map("size_bytes")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  asset     MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, profile, cropHash])
+  @@index([workspaceId])
+  @@map("media_rendition")
+}
+
+// An image of a variant, in order, with the crop and alt text for that variant's platform.
+model PostMedia {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  variantId   String   @map("variant_id") @db.Uuid
+  assetId     String   @map("asset_id") @db.Uuid
+  position    Int
+  // { x, y, width, height } in pixels of the original, or null for the whole image.
+  crop        Json?
+  // Bars instead of a crop where the image does not fit the aspect ratio of the platform.
+  letterbox   Boolean  @default(false)
+  // The alt text of this use; null takes the alt text of the asset.
+  altText     String?  @map("alt_text")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  variant   PostVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  // An asset in use cannot be removed; the library asks to detach it first.
+  asset     MediaAsset  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@unique([variantId, assetId])
+  @@index([variantId, position])
+  @@index([assetId])
+  @@index([workspaceId])
+  @@map("post_media")
 }
