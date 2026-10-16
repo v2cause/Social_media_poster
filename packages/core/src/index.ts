@@ -232,3 +232,5 @@ export {
   UpdateWorkspaceSettings,
   type UpdateWorkspaceSettingsInput,
 } from './tenancy/application/update-workspace-settings';
+export { assetPrefix, originalKey, renditionKey } from './media/domain/storage-keys';
+export type { PresignedUpload, StoragePort, StoredObject } from './media/ports/storage';

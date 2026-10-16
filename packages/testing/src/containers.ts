@@ -1,7 +1,7 @@
 import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainers';
 import { z } from 'zod';
 
-// Redis and Mailpit with the images of compose.yaml, for integration tests of the apps.
+// Redis, Mailpit and the object storage with the images of compose.yaml, for integration tests.
 
 export interface StartedRedis {
   container: StartedTestContainer;
@@ -80,6 +80,58 @@ export async function startMailpit(): Promise<StartedMailpit> {
     smtpUrl: `smtp://${host}:${String(container.getMappedPort(1025))}`,
     apiUrl,
     waitForMessage,
+    stop: async () => {
+      await container.stop();
+    },
+  };
+}
+
+export interface StartedObjectStorage {
+  container: StartedTestContainer;
+  endpoint: string;
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  stop: () => Promise<void>;
+}
+
+const STORAGE_ACCESS_KEY = 'smp-test-access-key';
+const STORAGE_SECRET_KEY = 'smp-test-secret-key';
+
+/** SeaweedFS with its S3 gateway, as in compose.yaml, with a test key pair. No bucket yet. */
+export async function startObjectStorage(): Promise<StartedObjectStorage> {
+  const config = {
+    identities: [
+      {
+        name: 'smp-test',
+        credentials: [{ accessKey: STORAGE_ACCESS_KEY, secretKey: STORAGE_SECRET_KEY }],
+        actions: ['Admin', 'Read', 'Write', 'List', 'Tagging'],
+      },
+    ],
+  };
+  const container = await new GenericContainer('chrislusf/seaweedfs:4.48')
+    // The services find each other on loopback; the gateway listens on every interface for the
+    // mapped port.
+    .withCommand([
+      'server',
+      '-s3',
+      '-s3.config=/etc/seaweedfs/s3.json',
+      '-dir=/data',
+      '-ip=127.0.0.1',
+      '-ip.bind=0.0.0.0',
+    ])
+    .withCopyContentToContainer([{ content: JSON.stringify(config), target: '/etc/seaweedfs/s3.json' }])
+    .withExposedPorts(8333)
+    // Any answer of the S3 port means the gateway is up; the master status alone is not enough.
+    .withWaitStrategy(Wait.forHttp('/', 8333).forStatusCodeMatching(() => true))
+    .withStartupTimeout(120_000)
+    .start();
+  return {
+    container,
+    endpoint: `http://${container.getHost()}:${String(container.getMappedPort(8333))}`,
+    region: 'us-east-1',
+    accessKeyId: STORAGE_ACCESS_KEY,
+    secretAccessKey: STORAGE_SECRET_KEY,
     stop: async () => {
       await container.stop();
     },
