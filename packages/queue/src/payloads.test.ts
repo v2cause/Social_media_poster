@@ -6,6 +6,7 @@ import {
   isTick,
   parsePublishVariant,
   parseStripeWebhook,
+  publishDeadLetterSchema,
   parseTokenRefresh,
   parseXbCommand,
   parseXbResult,
@@ -27,6 +28,19 @@ describe('queue payloads', () => {
     expect(() => parsePublishVariant({ ...job, scheduleVersion: -1 })).toThrow();
     expect(() => parsePublishVariant({ ...job, trigger: 'later' })).toThrow();
     expect(() => parsePublishVariant({ ...job, traceparent: 'not-a-trace' })).toThrow();
+  });
+
+  it('keeps the reason and the time of a dead letter next to the ids of its job', () => {
+    const job = { ...ids, variantId: randomUUID(), scheduleVersion: 2, trigger: 'schedule' };
+    const letter = {
+      ...job,
+      failedReason: 'VALIDATION_REJECTED',
+      attemptsMade: 1,
+      failedAt: '2026-10-16T12:00:00.000Z',
+    };
+    expect(publishDeadLetterSchema.parse(letter)).toEqual(letter);
+    expect(() => publishDeadLetterSchema.parse({ ...letter, failedReason: 'x'.repeat(1_001) })).toThrow();
+    expect(() => publishDeadLetterSchema.parse({ ...letter, failedAt: 'yesterday' })).toThrow();
   });
 
   it('carries ids only, except for the browser worker', () => {

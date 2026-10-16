@@ -17,6 +17,10 @@ export function jobIdOf(prefix: string, ...parts: readonly (string | number)[]):
 export const publishJobId = (variantId: string, scheduleVersion: number): string =>
   jobIdOf('pub', variantId, scheduleVersion);
 
+/** dead.pub.{variantId}.{scheduleVersion}: one copy per publish job that failed for good. */
+export const publishDeadLetterId = (variantId: string, scheduleVersion: number): string =>
+  jobIdOf('dead', publishJobId(variantId, scheduleVersion));
+
 /** tok.{connectionId}: one waiting refresh per connection. */
 export const tokenRefreshJobId = (connectionId: string): string => jobIdOf('tok', connectionId);
 

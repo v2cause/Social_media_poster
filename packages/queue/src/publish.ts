@@ -1,7 +1,7 @@
 import type { JobsOptions, Queue } from 'bullmq';
 import { z } from 'zod';
 
-import { publishJobId } from './job-id';
+import { publishDeadLetterId, publishJobId } from './job-id';
 
 // Queue "publish", job "publish.variant" (architecture 7 and 7.4), processed by the worker role
 // "publisher". The payload names the variant and the schedule version it belongs to; the job
@@ -57,6 +57,36 @@ export class PublishProducer {
       ...PUBLISH_JOB_OPTIONS,
       jobId: publishJobId(payload.variantId, payload.scheduleVersion),
       delay: Math.max(0, Math.round(options.delayMs ?? 0)),
+    });
+  }
+}
+
+/**
+ * The dead-letter queue of the publisher (architecture 7.1): a copy of every publish job that
+ * failed for good, to look at in Bull Board. Nothing processes it; the copies stay until someone
+ * removes them, and the alarm "dead-letter queue not empty" watches it (architecture 12).
+ */
+export const PUBLISH_DEAD_LETTER_QUEUE = 'publish-dead';
+export const PUBLISH_DEAD_LETTER = 'publish.dead';
+
+export const publishDeadLetterSchema = publishVariantSchema.extend({
+  /** The code of the job, or the reason BullMQ gave, for example a stall. */
+  failedReason: z.string().max(1_000),
+  attemptsMade: z.number().int().nonnegative(),
+  failedAt: z.iso.datetime(),
+});
+export type PublishDeadLetter = z.output<typeof publishDeadLetterSchema>;
+
+export class PublishDeadLetters {
+  constructor(private readonly queue: Queue) {}
+
+  /** Keeps the copy of a job that failed for good; a second copy of the same job changes nothing. */
+  async add(letter: PublishDeadLetter): Promise<void> {
+    const payload = publishDeadLetterSchema.parse(letter);
+    await this.queue.add(PUBLISH_DEAD_LETTER, payload, {
+      jobId: publishDeadLetterId(payload.variantId, payload.scheduleVersion),
+      removeOnComplete: false,
+      removeOnFail: false,
     });
   }
 }

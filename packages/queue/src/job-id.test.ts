@@ -9,6 +9,7 @@ import {
   mediaRenderJobId,
   notifyJobId,
   postMetricsJobId,
+  publishDeadLetterId,
   publishJobId,
   stripeJobId,
   tokenRefreshJobId,
@@ -24,6 +25,7 @@ describe('job ids', () => {
   it('builds every id without ":" in the documented form', () => {
     const ids = [
       publishJobId(id, 3),
+      publishDeadLetterId(id, 3),
       tokenRefreshJobId(id),
       postMetricsJobId(id, '202610161500'),
       notifyJobId(id),
@@ -39,6 +41,7 @@ describe('job ids', () => {
       expect(jobId).not.toMatch(/\s/);
     }
     expect(publishJobId(id, 3)).toBe(`pub.${id}.3`);
+    expect(publishDeadLetterId(id, 3)).toBe(`dead.pub.${id}.3`);
     expect(tokenRefreshJobId(id)).toBe(`tok.${id}`);
     expect(postMetricsJobId(id, 'b1')).toBe(`mp.${id}.b1`);
     expect(notifyJobId(id)).toBe(`ntf.${id}`);
