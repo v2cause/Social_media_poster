@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 
 import type { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { startTestDatabase, type TestDatabase } from '@smp/testing';
 
 import { findRlsViolations } from '../src';
-import { startTestDatabase, type TestDatabase } from './support/database';
 
 interface TenantContext {
   userId?: string;

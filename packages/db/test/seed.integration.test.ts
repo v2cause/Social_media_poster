@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { startTestDatabase, type TestDatabase } from '@smp/testing';
 
 import { createPrismaClient, type PrismaClient } from '../src';
 import { DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from '../src/seed/demo';
-import { startTestDatabase, type TestDatabase } from './support/database';
 
 describe('demo seed', () => {
   let database: TestDatabase | undefined;

@@ -1,3 +1,3 @@
 // Factories, Testcontainers helpers, msw fixtures and the adapter contract suite.
 
-export {};
+export { PASSWORDS, startTestDatabase, type DatabaseRole, type TestDatabase } from './postgres';

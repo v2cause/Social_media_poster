@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { startTestDatabase, type TestDatabase } from '@smp/testing';
 
 import { createPrismaClient, type PrismaClient } from '../src';
-import { startTestDatabase, type TestDatabase } from './support/database';
 
 describe('database roles and migrations', () => {
   let database: TestDatabase | undefined;

@@ -6,8 +6,10 @@ import { Client } from 'pg';
 
 // Starts PostgreSQL with the real init script of the local stack and applies all migrations as
 // app_migrator, exactly as `docker compose up` and `pnpm db:migrate` do.
-const PACKAGE_ROOT = resolve(__dirname, '../..');
-const INIT_DIR = resolve(PACKAGE_ROOT, '../../infra/docker/postgres/init');
+// The paths work from src/ and from dist/, both one level below the package root.
+const REPO_ROOT = resolve(__dirname, '../../..');
+const DB_PACKAGE_ROOT = resolve(REPO_ROOT, 'packages/db');
+const INIT_DIR = resolve(REPO_ROOT, 'infra/docker/postgres/init');
 
 export const PASSWORDS = {
   migrator: 'test-migrator-password',
@@ -47,8 +49,8 @@ export async function startTestDatabase(): Promise<TestDatabase> {
   const url = (role: DatabaseRole, database = 'smp'): string =>
     `postgresql://${role}:${PASSWORD_BY_ROLE[role]}@${container.getHost()}:${String(container.getMappedPort(5432))}/${database}`;
 
-  execFileSync(join(PACKAGE_ROOT, 'node_modules', '.bin', 'prisma'), ['migrate', 'deploy'], {
-    cwd: PACKAGE_ROOT,
+  execFileSync(join(DB_PACKAGE_ROOT, 'node_modules', '.bin', 'prisma'), ['migrate', 'deploy'], {
+    cwd: DB_PACKAGE_ROOT,
     env: { ...process.env, MIGRATION_DATABASE_URL: url('app_migrator') },
     stdio: 'pipe',
   });

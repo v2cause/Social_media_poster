@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@smp/config": "workspace:*",
-    "@testcontainers/postgresql": "^12.2.1",
+    "@smp/testing": "workspace:*",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
     "@vitest/coverage-v8": "^5.0.4",
