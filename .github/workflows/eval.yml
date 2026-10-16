@@ -1,0 +1,75 @@
+name: AI eval
+
+# The eval suite of the AI (guide step 2.10) costs money, so it never runs with a push: by hand,
+# or nightly once the repository variable EVAL_NIGHTLY is "true". It needs the secret
+# ANTHROPIC_API_KEY and stops at the budget (micro-USD, 1000000 = 1 USD).
+
+on:
+  workflow_dispatch:
+    inputs:
+      budget_micros:
+        description: Budget in micro-USD (1000000 = 1 USD)
+        required: true
+        default: '3000000'
+      only:
+        description: Only the cases whose id contains this text, for example de-
+        required: false
+        default: ''
+  schedule:
+    - cron: '17 2 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+
+jobs:
+  eval:
+    name: AI eval suite
+    if: github.event_name == 'workflow_dispatch' || vars.EVAL_NIGHTLY == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      AI_PROVIDER: anthropic
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      EVAL_BUDGET_MICROS: ${{ inputs.budget_micros || '3000000' }}
+      EVAL_ONLY: ${{ inputs.only }}
+    steps:
+      - name: Require the API key
+        if: env.ANTHROPIC_API_KEY == ''
+        run: |
+          echo "::error::The secret ANTHROPIC_API_KEY is not set; the eval runs against the Claude API."
+          exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Only the database for the price book; the variables of the job take precedence over .env.
+      - run: cp .env.example .env
+      - run: docker compose up -d --wait postgres
+      - run: pnpm --filter @smp/db migrate:deploy
+      - name: Run the eval
+        run: |
+          touch "$RUNNER_TEMP/eval-started"
+          if [ -n "$EVAL_ONLY" ]; then
+            pnpm eval:ai --only "$EVAL_ONLY"
+          else
+            pnpm eval:ai
+          fi
+      - name: Report in the job summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/eval-started" ]; then
+            latest=$(find packages/ai/eval/reports -name '*-anthropic.md' -newer "$RUNNER_TEMP/eval-started" | sort | tail -n 1)
+            if [ -n "$latest" ]; then cat "$latest" >> "$GITHUB_STEP_SUMMARY"; fi
+          fi
