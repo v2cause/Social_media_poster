@@ -29,6 +29,7 @@ interface State {
   ideas: Map<string, Idea>;
   profiles: Map<string, BrandProfile>;
   efforts: Map<string, Record<string, string>>;
+  languages: Map<string, 'de' | 'en'>;
   audit: AuditEntry[];
 }
 
@@ -43,6 +44,7 @@ const emptyState = (): State => ({
   ideas: new Map(),
   profiles: new Map(),
   efforts: new Map(),
+  languages: new Map(),
   audit: [],
 });
 
@@ -125,6 +127,21 @@ export class InMemoryContent implements ContentUnitOfWork {
           Promise.resolve(update(state().posts, workspaceId, postId, version, patch)),
         touch: (workspaceId, postId, version) =>
           Promise.resolve(update(state().posts, workspaceId, postId, version, {})),
+        recentTexts: (workspaceId, limit) => {
+          assertScope(workspaceId);
+          const posts = [...state().posts.values()].filter((post) => inScope(post.workspaceId)).reverse();
+          return Promise.resolve(
+            posts
+              .map(
+                (post) =>
+                  [...state().variants.values()].find(
+                    (variant) => variant.postId === post.id && variant.text !== '',
+                  )?.text,
+              )
+              .filter((text): text is string => text !== undefined)
+              .slice(0, limit),
+          );
+        },
         delete: (workspaceId, postId) => {
           assertScope(workspaceId);
           state().posts.delete(postId);
@@ -296,6 +313,10 @@ export class InMemoryContent implements ContentUnitOfWork {
               contentPillars: [],
             },
           );
+        },
+        languageOf: (workspaceId) => {
+          assertScope(workspaceId);
+          return Promise.resolve(state().languages.get(workspaceId) ?? 'de');
         },
         effortOverridesOf: (workspaceId) => {
           assertScope(workspaceId);

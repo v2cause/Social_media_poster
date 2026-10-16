@@ -41,6 +41,42 @@ export {
   type ModelPrice,
 } from './ai/domain/cost';
 export { CostCalculator, type CostCalculatorDependencies } from './ai/application/cost-calculator';
+export { AiCallFailedError } from './ai/domain/errors';
+export {
+  AI_OUTCOMES,
+  AI_TASKS,
+  type AiGenerationEntry,
+  type AiGenerationLog,
+  type AiOutcome,
+  type AiTask,
+} from './ai/ports/ai-generation-log';
+export type { AiRequest, AiUsageEstimator, TokenEstimate } from './ai/ports/ai-usage-estimator';
+export type { AiDependencies, AiWarn } from './ai/application/ai-dependencies';
+export {
+  checkContent,
+  checkVariant,
+  countOf,
+  forbiddenWordsIn,
+  type GeneratedVariantResult,
+  type GenerationEvent,
+} from './ai/application/variant-results';
+export {
+  DEFAULT_STYLE_KEY,
+  GenerateVariants,
+  type GenerateVariantsCommand,
+} from './ai/application/generate-variants';
+export { RefineVariant, type RefineVariantCommand } from './ai/application/refine-variant';
+export {
+  GenerateIdeas,
+  type GenerateIdeasCommand,
+  type GenerateIdeasResult,
+} from './ai/application/generate-ideas';
+export {
+  SAMPLE_BRIEFS,
+  TestBrandVoice,
+  type TestBrandVoiceCommand,
+  type TestBrandVoiceResult,
+} from './ai/application/test-brand-voice';
 export type { PriceCatalog } from './ai/ports/price-catalog';
 export type {
   AiCallOptions,

@@ -1,5 +1,5 @@
 import type { AuditTrail } from '../../audit/ports/audit-trail';
-import type { BrandProfile } from '../../ai/domain/types';
+import type { BrandProfile, ContentLanguage } from '../../ai/domain/types';
 import type {
   BrandVoice,
   BrandVoiceVersion,
@@ -31,6 +31,8 @@ export interface PostRepository {
   /** Raises the version without other changes, when only the variants of the post changed. */
   touch(workspaceId: string, postId: string, version: number): Promise<boolean>;
   delete(workspaceId: string, postId: string): Promise<void>;
+  /** The texts of the latest posts (their first non-empty variant), newest first. */
+  recentTexts(workspaceId: string, limit: number): Promise<string[]>;
 }
 
 export interface VariantRepository {
@@ -90,6 +92,8 @@ export interface IdeaRepository {
 export interface WorkspaceProfileReader {
   /** The company profile of the workspace for the brand context. */
   profileOf(workspaceId: string): Promise<BrandProfile>;
+  /** The content language of the workspace. */
+  languageOf(workspaceId: string): Promise<ContentLanguage>;
   /** The AI effort the workspace set per route, if any. */
   effortOverridesOf(workspaceId: string): Promise<Record<string, string> | null>;
 }

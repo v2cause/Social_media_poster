@@ -17,6 +17,7 @@ import type {
   VariantStreamEvent,
 } from '@smp/core';
 
+import { IMAGE_TOKENS } from '../estimate';
 import { partialVariants } from '../partial-variants';
 import { estimateTokens } from '../pricing';
 import { renderBrandContext } from '../prompts/render-brand-context';
@@ -67,8 +68,6 @@ const REFUSED_AT = 0.25;
 const CUT_AT = 0.6;
 /** The share of the answer the declined model wrote before the server switched models. */
 const FALLBACK_AT = 0.3;
-/** Input tokens of an image at the size the alt text task sends. */
-const IMAGE_TOKENS = 1600;
 
 const failure = (code: AiFailure['code'], detail: string, overrides: Partial<AiFailure> = {}): AiFailure => ({
   code,
@@ -152,6 +151,7 @@ class MockCall {
 
 export class MockAiProvider implements AiProvider {
   readonly name = 'mock';
+  readonly promptVersion = PROMPT_VERSION;
   private readonly fallbackModel: string;
   private readonly chunkDelayMs: number;
   private readonly slowChunkDelayMs: number;

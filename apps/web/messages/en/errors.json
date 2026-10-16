@@ -41,7 +41,13 @@
     "STYLE_IS_PRESET": "Presets cannot be changed. Create a custom style instead.",
     "STYLE_NAME_TAKEN": "A style with this name already exists.",
     "BRAND_VOICE_ARCHIVED": "This brand voice is archived. Please choose another one.",
-    "BRIEF_REQUIRED": "Please describe in the brief what the post is about first."
+    "BRIEF_REQUIRED": "Please describe in the brief what the post is about first.",
+    "HTTP_503": "The service is unavailable right now. Please try again shortly.",
+    "AI_REFUSED": "The AI declined this request. Please rephrase the brief.",
+    "AI_TRUNCATED": "The answer of the AI was too long and was cut off. Please shorten the brief or choose fewer platforms.",
+    "AI_INVALID_OUTPUT": "The AI returned an unusable answer. Please try again.",
+    "AI_PROVIDER_ERROR": "The AI service is unavailable right now. Please try again shortly.",
+    "AI_CANCELED": "The request to the AI was canceled."
   },
   "validation": {
     "required": "Please fill in this field.",

@@ -41,7 +41,13 @@
     "STYLE_IS_PRESET": "Vorlagen lassen sich nicht ändern. Legen Sie stattdessen einen eigenen Stil an.",
     "STYLE_NAME_TAKEN": "Einen Stil mit diesem Namen gibt es bereits.",
     "BRAND_VOICE_ARCHIVED": "Diese Brand Voice ist archiviert. Bitte wählen Sie eine andere.",
-    "BRIEF_REQUIRED": "Bitte beschreiben Sie zuerst im Briefing, worum es gehen soll."
+    "BRIEF_REQUIRED": "Bitte beschreiben Sie zuerst im Briefing, worum es gehen soll.",
+    "HTTP_503": "Der Dienst ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
+    "AI_REFUSED": "Die KI hat diese Anfrage abgelehnt. Bitte formulieren Sie das Briefing um.",
+    "AI_TRUNCATED": "Die Antwort der KI war zu lang und wurde abgebrochen. Bitte kürzen Sie das Briefing oder wählen Sie weniger Plattformen.",
+    "AI_INVALID_OUTPUT": "Die KI hat eine unbrauchbare Antwort geliefert. Bitte versuchen Sie es noch einmal.",
+    "AI_PROVIDER_ERROR": "Der KI-Dienst ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
+    "AI_CANCELED": "Die Anfrage an die KI wurde abgebrochen."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

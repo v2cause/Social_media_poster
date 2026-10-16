@@ -138,6 +138,7 @@ class CallState {
 
 export class AnthropicAiProvider implements AiProvider {
   readonly name = 'anthropic';
+  readonly promptVersion = PROMPT_VERSION;
   private readonly client: Anthropic;
   private readonly maxTokens: number;
   private readonly retryMaxTokens: number;

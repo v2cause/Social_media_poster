@@ -42,6 +42,7 @@ export {
   type VariantView,
   type WorkspaceRef,
 } from './content/content-read-model';
+export { PrismaAiGenerationLog } from './ai/prisma-ai-generation-log';
 export { PrismaQuotaStore } from './usage/prisma-quota-store';
 export { PrismaPriceCatalog } from './usage/prisma-price-catalog';
 export { DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData, type DemoSeedResult } from './seed/demo';

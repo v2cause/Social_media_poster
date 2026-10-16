@@ -22,6 +22,7 @@ export {
   type VariantsOutput,
 } from './schemas';
 export { attemptsFromUsage, estimateTokens } from './pricing';
+export { IMAGE_TOKENS, PromptTokenEstimator } from './estimate';
 export { partialVariants } from './partial-variants';
 export {
   AnthropicAiProvider,

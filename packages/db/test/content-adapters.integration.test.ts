@@ -21,7 +21,13 @@ import {
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { ContentReadModel, createPrismaClient, PrismaContentUnitOfWork, type PrismaClient } from '../src';
+import {
+  ContentReadModel,
+  createPrismaClient,
+  PrismaAiGenerationLog,
+  PrismaContentUnitOfWork,
+  type PrismaClient,
+} from '../src';
 
 // The Prisma adapters of the content ports against PostgreSQL with row-level security: the use
 // cases of the core run unchanged, every workspace sees only its own content, and the read model
@@ -253,6 +259,84 @@ describe('content adapters on PostgreSQL', () => {
     expect(
       await readModel().brandVoiceVersions({ organizationId: orgB, workspaceId: workspaceB }, brandVoiceId),
     ).toBeNull();
+  });
+
+  it('writes an AiGeneration with the sums over all attempts, readable only in its workspace', async () => {
+    const id = uuidV7Ids.newId();
+    await new PrismaAiGenerationLog(client()).record({
+      id,
+      organizationId: orgA,
+      workspaceId: workspaceA,
+      userId: editor.userId,
+      task: 'GENERATE',
+      postId: null,
+      brandVoiceVersionId: null,
+      report: {
+        provider: 'mock',
+        promptVersion: 'gen-v1',
+        modelRequested: 'claude-opus-5-5',
+        modelServed: 'claude-opus-5',
+        effort: 'medium',
+        attempts: [
+          {
+            kind: 'message',
+            model: 'claude-opus-5-5',
+            inputTokens: 100,
+            outputTokens: 10,
+            cacheReadTokens: 1000,
+            cacheWrite5mTokens: 5,
+            cacheWrite1hTokens: 0,
+          },
+          {
+            kind: 'fallback_message',
+            model: 'claude-opus-5',
+            inputTokens: 100,
+            outputTokens: 200,
+            cacheReadTokens: 0,
+            cacheWrite5mTokens: 0,
+            cacheWrite1hTokens: 7,
+          },
+        ],
+        stopReason: 'end_turn',
+        refusalCategory: null,
+        ttftMs: 120,
+        latencyMs: 2400,
+      },
+      provider: 'mock',
+      promptVersion: 'gen-v1',
+      modelRequested: 'claude-opus-5-5',
+      effort: 'medium',
+      input: { brief: 'Neues Büro', skipped: undefined },
+      output: [{ targetKey: 't1' }],
+      outcome: 'OK',
+      costMicros: 12_345n,
+    });
+
+    const system = await (database as TestDatabase).connectAs('app_system');
+    try {
+      const { rows } = await system.query(
+        `SELECT model_served, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+                cost_micros::text, input, jsonb_array_length(attempts) AS attempts, latency_ms, ttft_ms
+           FROM ai_generation WHERE id = $1`,
+        [id],
+      );
+      expect(rows).toEqual([
+        {
+          model_served: 'claude-opus-5',
+          input_tokens: 200,
+          output_tokens: 210,
+          cache_read_tokens: 1000,
+          cache_write_tokens: 12,
+          cost_micros: '12345',
+          input: { brief: 'Neues Büro' },
+          attempts: 2,
+          latency_ms: 2400,
+          ttft_ms: 120,
+        },
+      ]);
+    } finally {
+      await system.end();
+    }
   });
 
   it('finds near-duplicate idea titles with pg_trgm', async () => {

@@ -11,7 +11,7 @@ import { z } from 'zod';
 
 import { prismaAuditTrail, type RequestOrigin } from '../audit/prisma-audit-trail';
 import type { TenantTransaction } from '../tenant-context';
-import { toBrandVoice, toBrandVoiceVersion, toIdea, toPost, toStyle, toVariant } from './mappers';
+import { toBrandVoice, toBrandVoiceVersion, toIdea, toLanguage, toPost, toStyle, toVariant } from './mappers';
 
 // The repositories of the content context on one transaction (guide step 2.7). Every method
 // filters by the workspace explicitly; row-level security limits it to the scope as well.
@@ -69,6 +69,22 @@ export function createPrismaContentStore(
       },
       async delete(workspaceId, postId) {
         await tx.post.deleteMany({ where: { id: postId, workspaceId } });
+      },
+      async recentTexts(workspaceId, limit) {
+        const posts = await tx.post.findMany({
+          where: { workspaceId, variants: { some: { text: { not: '' } } } },
+          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+          take: limit,
+          select: {
+            variants: {
+              where: { text: { not: '' } },
+              orderBy: { targetKey: 'asc' },
+              take: 1,
+              select: { text: true },
+            },
+          },
+        });
+        return posts.flatMap((post) => post.variants.map((variant) => variant.text));
       },
     },
 
@@ -231,6 +247,13 @@ export function createPrismaContentStore(
           select: { name: true, industry: true, targetAudience: true, goals: true, contentPillars: true },
         });
         return row;
+      },
+      async languageOf(workspaceId) {
+        const row = await tx.workspace.findFirstOrThrow({
+          where: { id: workspaceId, organizationId: scope.organizationId },
+          select: { contentLanguage: true },
+        });
+        return toLanguage(row.contentLanguage);
       },
       async effortOverridesOf(workspaceId) {
         const row = await tx.workspaceSettings.findUnique({

@@ -77,6 +77,8 @@ export type AiResult<T> =
 export interface AiProvider {
   /** anthropic or mock; stored with every AiGeneration. */
   readonly name: string;
+  /** The version of the prompts (PROMPT_VERSION), stored with every AiGeneration. */
+  readonly promptVersion: string;
   generateVariants(input: GenerateVariantsInput, options: AiCallOptions): AsyncIterable<VariantStreamEvent>;
   refineVariant(input: RefineVariantInput, options: AiCallOptions): AsyncIterable<VariantStreamEvent>;
   suggestTopics(input: SuggestTopicsInput, options: AiCallOptions): Promise<AiResult<TopicIdea[]>>;

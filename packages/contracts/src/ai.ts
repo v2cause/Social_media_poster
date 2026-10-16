@@ -89,6 +89,8 @@ export const generatedVariantSchema = z.object({
   warnings: z.array(z.string()),
   count: textCountSchema,
   issues: z.array(validationIssueSchema),
+  /** Forbidden words of the brand voice in the text, hashtags or first comment. */
+  forbiddenWords: z.array(z.string()),
   /** The first answer was over the limit and was shortened once automatically. */
   autoShortened: z.boolean(),
 });

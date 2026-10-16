@@ -41,6 +41,12 @@ export const ERROR_CODES = [
   'STYLE_NAME_TAKEN',
   'BRAND_VOICE_ARCHIVED',
   'BRIEF_REQUIRED',
+  'HTTP_503',
+  'AI_REFUSED',
+  'AI_TRUNCATED',
+  'AI_INVALID_OUTPUT',
+  'AI_PROVIDER_ERROR',
+  'AI_CANCELED',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
