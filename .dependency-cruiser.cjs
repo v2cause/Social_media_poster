@@ -20,7 +20,11 @@ module.exports = {
       severity: 'error',
       comment: 'The core context may depend only on zod and uuidv7 from npm. Tests may use vitest.',
       from: { path: '^packages/core/', pathNot: '^packages/core/test/|\\.test\\.ts$' },
-      to: { path: '^node_modules/', pathNot: '^node_modules/(zod|uuidv7)/' },
+      // pnpm resolves packages into node_modules/.pnpm/<name>@<version>/node_modules/<name>.
+      to: {
+        path: '^node_modules/',
+        pathNot: ['^node_modules/(zod|uuidv7)/', '^node_modules/\\.pnpm/(zod|uuidv7)@'],
+      },
     },
     {
       name: 'domain-imports-nothing',
