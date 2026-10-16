@@ -478,11 +478,11 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 ## 9. Medien-Pipeline
 
-1. **Upload anfordern**: `POST /api/w/:ws/media/uploads` prüft Speicher-Quote, Größe (max. 20 MB) und MIME-Whitelist (JPEG, PNG, WebP, statisches GIF; kein SVG). Die API legt `MediaAsset(PENDING_UPLOAD)` an und liefert eine Presigned-PUT-URL (5 min gültig, Content-Type signiert).
+1. **Upload anfordern**: `POST /api/w/:ws/media/uploads` prüft Speicher-Quote, Größe (max. 20 MB) und MIME-Whitelist (JPEG, PNG, WebP, statisches GIF; kein SVG). Die API legt `MediaAsset(PENDING_UPLOAD)` an und liefert eine Presigned-PUT-URL (5 min gültig, Content-Type signiert). Die Quote gilt bis Phase 7 pro Workspace (`MEDIA_STORAGE_LIMIT_BYTES`, Standard 5 GiB) und wird unter einer Advisory-Sperre pro Workspace geprüft ([ADR 0019](adr/0019-medien-upload-und-verarbeitung.md)).
 2. **Upload**: Der Browser lädt direkt in den S3-Speicher hoch, mit Fortschrittsanzeige, und meldet dann `complete`. Die API prüft dabei per `HeadObject` die tatsächliche Größe und den Content-Type und löscht Objekte, die gegen die Regeln verstoßen.
 3. **`media.process`**:
-   - Magic-Byte-Prüfung (`file-type`).
-   - `sharp` mit Pixel-Limit, Auto-Rotate und entfernten EXIF/GPS-Daten (Datenschutz).
+   - Magic-Byte-Prüfung mit eigener Signaturprüfung (`sniffImageType` in `@smp/core`; `file-type` ist nur ESM, ADR 0019). HEIC wird mit eigenem Grund abgelehnt.
+   - `sharp` mit Pixel-Limit (50 MP), `failOn: 'error'`, Auto-Rotate, sRGB und entfernten EXIF/GPS-Daten (Datenschutz); ohne Cache, ein Thread pro Bild, zwei Bilder gleichzeitig pro Worker.
    - Maße, sha256 und Thumbnails (320/640 px WebP).
    - Optional ein ClamAV-Scan. Die Neukodierung ist der Hauptschutz, das Original wird nie ausgeliefert.
 4. **Renditions** pro Plattform, erzeugt beim Anhängen und vor dem Posten sichergestellt:

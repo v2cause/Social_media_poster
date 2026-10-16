@@ -668,6 +668,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 
 #### 3.1 Datenmodell
 - **Erstellen**: `MediaAsset`, `MediaRendition`, `PostMedia` und die RLS-Policies dafür.
+- **Umgesetzt**: Migrationen `0007_media` und `0008_rls_media` (Policy `tenant_isolation` über `workspace_id`). Ein Asset, das eine Variante verwendet, lässt sich nicht löschen (`onDelete: Restrict`); mit der Variante verschwindet nur die Verwendung. Test: `packages/db/test/rls-media.integration.test.ts`.
 - **Fertig, wenn**: Migration und RLS-Check grün sind.
 
 #### 3.2 Storage-Adapter (`packages/media`)
@@ -676,6 +677,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Object-Keys: `ws/{workspaceId}/assets/{assetId}/original` und `.../renditions/{profile}-{cropHash}.jpg`.
   - Lokal mit `forcePathStyle: true`.
 - **Darauf achten**: Keys enthalten nie Dateinamen der Nutzer. Presigned-URLs sind kurz gültig (PUT 5 min, GET 1 h).
+- **Umgesetzt**: `S3Storage` in `@smp/media` mit zusätzlich `get` (mit Größenlimit) für den Worker. URLs für den Browser signiert ein zweiter Client für `S3_PUBLIC_ENDPOINT`, wenn die Dienste den Speicher unter einer anderen Adresse erreichen (Compose). `deletePrefix` löscht nur innerhalb eines Workspace. Thumbnails liegen als `.webp` unter demselben Schema. Test: `packages/media/test/s3-storage.integration.test.ts`.
 - **Fertig, wenn**: Ein Integrationstest gegen SeaweedFS (Testcontainers) Upload, Head, signierten GET und Löschen abdeckt.
 
 #### 3.3 Upload-Ablauf (API + Worker)
@@ -690,6 +692,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - HEIC wird mit klarer Fehlermeldung abgelehnt.
   - Das Original wird nie ausgeliefert.
   - sharp läuft mit `sharp.cache(false)` und begrenzter Concurrency.
+- **Umgesetzt**: Use Cases `RequestUpload`, `CompleteUpload`, `ProcessAsset`, `UpdateMediaAltText` und `DeleteMedia` im Core, `PrismaMediaUnitOfWork` und `MediaReadModel` in `@smp/db`, `SharpImageProcessor` in `@smp/media`, Producer `MediaProducer` in `@smp/queue`, zusätzlich `GET /api/w/:ws/media/:id`. Die Speicher-Quote gilt pro Workspace (`MEDIA_STORAGE_LIMIT_BYTES`) und wird unter einer Advisory-Sperre geprüft. Die Magic Bytes prüft eine eigene Signaturprüfung statt `file-type` ([ADR 0019](adr/0019-medien-upload-und-verarbeitung.md)). Gemessen: 11,4 MB JPEG in 610 ms auf `READY`. Tests: `apps/api/test/media.integration.test.ts`, `apps/worker/test/media.integration.test.ts`.
 - **Fertig, wenn**: Ein 10-MB-JPEG in unter 5 s auf `READY` steht und eine als `.jpg` getarnte Nicht-Bild-Datei auf `REJECTED`.
 
 #### 3.4 Renditions und Zuschnitt
