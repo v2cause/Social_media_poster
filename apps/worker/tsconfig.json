@@ -4,5 +4,5 @@
     "types": ["node"],
     "outDir": "./dist"
   },
-  "include": ["src", "test", "vitest.config.mts", "eslint.config.js"]
+  "include": ["src", "test", "vitest.config.mts", "vitest.integration.config.mts", "eslint.config.js"]
 }

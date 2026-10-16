@@ -8,6 +8,9 @@ export const workerEnvSchema = z
     SCHEDULER_TICK_MS: z.coerce.number().int().min(1_000).default(60_000),
     WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(3002),
     REDIS_URL: z.url({ protocol: /^rediss?$/ }),
+    // Needed by the role "notify" only; WorkerModule checks it when that role is active.
+    SMTP_URL: z.url({ protocol: /^smtps?$/ }).optional(),
+    MAIL_FROM: z.string().min(3).optional(),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true }).shape)
   .extend(observabilityEnvSchema.shape);

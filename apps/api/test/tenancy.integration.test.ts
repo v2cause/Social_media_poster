@@ -194,3 +194,40 @@ describe('tenancy API', () => {
     }
   });
 });
+
+describe('invitation email', () => {
+  let api: ApiTestApp | undefined;
+
+  beforeAll(async () => {
+    api = await startApiTestApp({ captureInvitations: false });
+  });
+
+  afterAll(async () => {
+    await api?.close();
+  });
+
+  it('reaches the invitee through the queue with a working link, in the inviter language', async () => {
+    if (!api) {
+      throw new Error('API is not running');
+    }
+    const owner = await signUpVerified(api, 'mail-owner@acme.test', 'Mia Owner');
+    const created = await owner.post('/api/organizations').send({ name: 'Mail GmbH', workspace }).expect(201);
+    const { organizationId } = created.body as { organizationId: string };
+    await owner
+      .post(`/api/org/${organizationId}/invitations`)
+      .send({ email: 'newcomer@example.test', role: 'VIEWER' })
+      .expect(201);
+
+    const message = await api.mailpit.waitForMessage('newcomer@example.test');
+    expect(message.Subject).toBe('Einladung zu Mail GmbH');
+    expect(message.Text).toContain('Mia Owner hat Sie eingeladen');
+    const link = /http:\/\/localhost:3000\/invite\/(\S+)/.exec(message.Text);
+    expect(link).not.toBeNull();
+
+    const preview = await browser(api.server)
+      .post('/api/invitations/preview')
+      .send({ token: decodeURIComponent(link?.[1] ?? '') })
+      .expect(200);
+    expect(preview.body).toMatchObject({ organizationName: 'Mail GmbH', status: 'open' });
+  });
+});

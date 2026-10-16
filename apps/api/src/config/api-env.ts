@@ -18,8 +18,6 @@ export const apiEnvSchema = z
     BETTER_AUTH_SECRET: z.string().min(32),
     // The public origin the browser talks to (same origin as the web app).
     BETTER_AUTH_URL: z.url({ protocol: /^https?$/ }),
-    SMTP_URL: z.url({ protocol: /^smtps?$/ }),
-    MAIL_FROM: z.string().min(3),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true, DATABASE_SYSTEM_URL: true }).shape)
   .extend(observabilityEnvSchema.shape);

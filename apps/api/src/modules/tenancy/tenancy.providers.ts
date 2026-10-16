@@ -19,7 +19,7 @@ import {
 import { secretTokens } from '@smp/crypto';
 
 import { TENANCY_UNIT_OF_WORK } from '../../infrastructure/clients.module';
-import { INVITATION_NOTIFIER, LoggingInvitationNotifier } from './invitation-notifier';
+import { INVITATION_NOTIFIER, QueueInvitationNotifier } from './invitation-notifier';
 
 export const TENANCY_DEPENDENCIES = Symbol('TENANCY_DEPENDENCIES');
 
@@ -38,7 +38,7 @@ const USE_CASES = [
 
 /** The use cases of the core, wired to the adapters of the API. */
 export const tenancyProviders: Provider[] = [
-  { provide: INVITATION_NOTIFIER, useClass: LoggingInvitationNotifier },
+  { provide: INVITATION_NOTIFIER, useClass: QueueInvitationNotifier },
   {
     provide: TENANCY_DEPENDENCIES,
     inject: [TENANCY_UNIT_OF_WORK, INVITATION_NOTIFIER],

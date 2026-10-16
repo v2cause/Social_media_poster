@@ -1,23 +1,37 @@
 import { BullModule } from '@nestjs/bullmq';
-import { type DynamicModule, Module, type Type } from '@nestjs/common';
+import { type DynamicModule, Module, type Provider, type Type } from '@nestjs/common';
+import { createSmtpMailer } from '@smp/emails';
 import { createLogger } from '@smp/observability';
+import { NOTIFICATIONS_QUEUE } from '@smp/queue';
 import Redis from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 
 import { HealthServer } from './health/health.server';
 import { NoopProcessor, SCHEDULER_QUEUE } from './processors/noop.processor';
+import { NotifyProcessor } from './processors/notify.processor';
 import type { WorkerRole } from './roles';
 import type { WorkerEnv } from './worker-env';
-import { WORKER_ENV } from './worker.tokens';
+import { MAIL_PORT, WORKER_ENV } from './worker.tokens';
 
 interface RoleWiring {
   queue: string;
   processor: Type<unknown>;
+  /** Adapters only this role needs. */
+  providers?: (env: WorkerEnv) => Provider[];
+}
+
+function smtpMailer(env: WorkerEnv): Provider[] {
+  if (!env.SMTP_URL || !env.MAIL_FROM) {
+    throw new Error('Invalid configuration:\n  SMTP_URL and MAIL_FROM are required for the role "notify"');
+  }
+  const mailer = createSmtpMailer({ url: env.SMTP_URL, from: env.MAIL_FROM });
+  return [{ provide: MAIL_PORT, useValue: mailer }];
 }
 
 // Processors per role. A role without an entry starts no processors yet.
 const WIRING_BY_ROLE: Partial<Record<WorkerRole, RoleWiring>> = {
   scheduler: { queue: SCHEDULER_QUEUE, processor: NoopProcessor },
+  notify: { queue: NOTIFICATIONS_QUEUE, processor: NotifyProcessor, providers: smtpMailer },
 };
 
 @Module({})
@@ -42,7 +56,7 @@ export class WorkerModule {
       providers: [
         { provide: WORKER_ENV, useValue: env },
         HealthServer,
-        ...wiring.map(({ processor }) => processor),
+        ...wiring.flatMap(({ processor, providers }) => [processor, ...(providers?.(env) ?? [])]),
       ],
     };
   }

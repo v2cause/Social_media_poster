@@ -421,7 +421,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | `gdpr` | `gdpr.export`, `gdpr.erase` | `gdpr.{requestId}` | `gdpr` |
 
 - **Job-IDs ohne Doppelpunkt**: BullMQ lehnt eigene Job-IDs mit `:` ab (`Custom Id cannot contain :`; geduldet wird nur eine Altform mit genau drei Segmenten). Deshalb trennt der Punkt die Bestandteile. Redis-Schlüssel für Locks und Pub/Sub (`lock:conn:{id}`, `ws:{workspaceId}:events`) sind davon nicht betroffen.
-- **Payloads**: enthalten nur IDs und werden im Job neu aus der DB gelesen. Ausnahme sind die `xb-*`-Queues, weil der browser-worker keinen DB-Zugriff hat.
+- **Payloads**: enthalten nur IDs und werden im Job neu aus der DB gelesen. Ausnahmen sind die `xb-*`-Queues, weil der browser-worker keinen DB-Zugriff hat, und E-Mails mit Link in `notifications` (Verifizierung, Passwort-Reset, Einladung): Gespeichert ist nur der Hash des Tokens, also trägt der Job den Link. Solche Jobs verlassen Redis direkt nach dem Versand, fehlgeschlagene nach einem Tag (ADR 0012).
 - **Redis-Betrieb**: `maxmemory-policy noeviction` (Voraussetzung für BullMQ) und AOF-Persistenz.
 - **Outbox-Relay**: läuft als `tick.outbox-relay` im 1-s-Takt mit `FOR UPDATE SKIP LOCKED`.
 - **`tick.maintenance`**: bündelt die nächtlichen Aufgaben: Rollup-Komplettlauf (Abschnitt 8), Aufräumen der Medien (Abschnitt 9) und Aufbewahrungsfristen (Leitfaden, Schritt 8.3).

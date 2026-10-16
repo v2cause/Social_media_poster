@@ -1,6 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { Global, Inject, Module, type OnApplicationShutdown } from '@nestjs/common';
-import type { MailPort } from '@smp/core';
 import {
   AuditLogReadModel,
   createPrismaClient,
@@ -10,7 +9,8 @@ import {
   type PrismaClient,
   type TenantPrismaClient,
 } from '@smp/db';
-import { createSmtpMailer } from '@smp/emails';
+import { NOTIFICATIONS_QUEUE, NotificationProducer } from '@smp/queue';
+import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
 import { RequestOriginService, TenantContextService } from '../common/cls/tenant-context';
@@ -23,12 +23,10 @@ export const DATABASE_CLIENT = Symbol('DATABASE_CLIENT');
 export const TENANT_DATABASE_CLIENT = Symbol('TENANT_DATABASE_CLIENT');
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 export const S3_CLIENT = Symbol('S3_CLIENT');
-export const MAIL_PORT = Symbol('MAIL_PORT');
+export const NOTIFICATIONS = Symbol('NOTIFICATIONS');
 export const TENANCY_UNIT_OF_WORK = Symbol('TENANCY_UNIT_OF_WORK');
 export const TENANCY_READ_MODEL = Symbol('TENANCY_READ_MODEL');
 export const AUDIT_LOG_READ_MODEL = Symbol('AUDIT_LOG_READ_MODEL');
-
-type ClosableMailPort = MailPort & { close(): void };
 
 // Short timeouts keep a dead dependency from stalling the readiness probe.
 const REDIS_TIMEOUT_MS = 2_000;
@@ -39,13 +37,12 @@ class ClientLifecycle implements OnApplicationShutdown {
     @Inject(DATABASE_CLIENT) private readonly prisma: PrismaClient,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @Inject(S3_CLIENT) private readonly s3: S3Client,
-    @Inject(MAIL_PORT) private readonly mail: ClosableMailPort,
+    @Inject(NOTIFICATIONS) private readonly notifications: Queue,
   ) {}
 
   async onApplicationShutdown(): Promise<void> {
     this.s3.destroy();
-    this.mail.close();
-    await Promise.allSettled([this.prisma.$disconnect(), this.redis.quit()]);
+    await Promise.allSettled([this.prisma.$disconnect(), this.redis.quit(), this.notifications.close()]);
   }
 }
 
@@ -103,10 +100,19 @@ class ClientLifecycle implements OnApplicationShutdown {
       useFactory: (base: PrismaClient) => new AuditLogReadModel(base),
     },
     {
-      provide: MAIL_PORT,
+      // Producer side of the queue "notifications" (guide step 1.8). Without the offline queue an
+      // unreachable Redis fails the request at once instead of hanging it.
+      provide: NOTIFICATIONS,
       inject: [API_ENV],
-      useFactory: (env: ApiEnv): ClosableMailPort =>
-        createSmtpMailer({ url: env.SMTP_URL, from: env.MAIL_FROM }),
+      useFactory: (env: ApiEnv): Queue =>
+        new Queue(NOTIFICATIONS_QUEUE, {
+          connection: new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false }),
+        }),
+    },
+    {
+      provide: NotificationProducer,
+      inject: [NOTIFICATIONS],
+      useFactory: (queue: Queue) => new NotificationProducer(queue),
     },
     ClientLifecycle,
   ],
@@ -115,7 +121,7 @@ class ClientLifecycle implements OnApplicationShutdown {
     TENANT_DATABASE_CLIENT,
     REDIS_CLIENT,
     S3_CLIENT,
-    MAIL_PORT,
+    NotificationProducer,
     TENANCY_UNIT_OF_WORK,
     TENANCY_READ_MODEL,
     AUDIT_LOG_READ_MODEL,

@@ -138,7 +138,6 @@ services:
       DATABASE_SYSTEM_URL: postgresql://app_system:${APP_SYSTEM_PASSWORD:?set APP_SYSTEM_PASSWORD in .env}@postgres:5432/smp
       REDIS_URL: redis://redis:6379
       S3_ENDPOINT: http://s3:8333
-      SMTP_URL: smtp://mailpit:1025
     ports:
       - '127.0.0.1:3001:3001'
     depends_on:
@@ -172,6 +171,7 @@ services:
       WORKER_HEALTH_PORT: '3002'
       DATABASE_URL: postgresql://app_user:${APP_USER_PASSWORD:?set APP_USER_PASSWORD in .env}@postgres:5432/smp
       REDIS_URL: redis://redis:6379
+      SMTP_URL: smtp://mailpit:1025
     ports:
       - '127.0.0.1:3002:3002'
     depends_on:

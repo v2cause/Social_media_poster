@@ -55,6 +55,13 @@ export interface InvitationPreviewView {
   revokedAt: Date | null;
 }
 
+export interface InvitationMailContext {
+  organizationName: string;
+  inviterName: string;
+  /** The invitee's language if the address already has an account, else the inviter's. */
+  locale: string;
+}
+
 export class TenancyReadModel {
   constructor(private readonly base: PrismaClient) {}
 
@@ -173,6 +180,29 @@ export class TenancyReadModel {
     return withTenantTx(this.base, scope, async (tx) => {
       const row = await tx.workspaceSettings.findUnique({ where: { workspaceId: scope.workspaceId } });
       return row ? toSettings(row) : null;
+    });
+  }
+
+  /** Names and language for the invitation email (guide step 1.8). */
+  invitationMailContext(
+    scope: { userId: string; organizationId: string },
+    email: string,
+  ): Promise<InvitationMailContext> {
+    return withTenantTx(this.base, scope, async (tx) => {
+      const organization = await tx.organization.findUnique({
+        where: { id: scope.organizationId },
+        select: { name: true },
+      });
+      const inviter = await tx.user.findUnique({
+        where: { id: scope.userId },
+        select: { name: true, locale: true },
+      });
+      const invitee = await tx.user.findUnique({ where: { email }, select: { locale: true } });
+      return {
+        organizationName: organization?.name ?? '',
+        inviterName: inviter?.name ?? '',
+        locale: invitee?.locale ?? inviter?.locale ?? 'de',
+      };
     });
   }
 

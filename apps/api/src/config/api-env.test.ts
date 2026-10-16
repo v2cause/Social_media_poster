@@ -14,8 +14,6 @@ const validEnv: NodeJS.ProcessEnv = {
   S3_SECRET_ACCESS_KEY: 'secret-key-value',
   BETTER_AUTH_SECRET: 'test-better-auth-secret-of-32-characters',
   BETTER_AUTH_URL: 'http://localhost:3000',
-  SMTP_URL: 'smtp://127.0.0.1:1025',
-  MAIL_FROM: 'noreply@localhost',
 };
 
 describe('loadApiEnv', () => {

@@ -1,9 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { toLocale } from '@smp/contracts';
-import type { MailPort } from '@smp/core';
-import { renderEmail } from '@smp/emails';
-
-import { MAIL_PORT } from '../../infrastructure/clients.module';
+import { NotificationProducer } from '@smp/queue';
 
 /** The fields of a Better Auth user the emails need. */
 export interface AuthMailRecipient {
@@ -12,25 +9,26 @@ export interface AuthMailRecipient {
   locale?: unknown;
 }
 
-/** Sends the emails of the auth flows in the user's language. */
+/** Queues the emails of the auth flows in the user's language; the notify worker sends them. */
 @Injectable()
 export class AuthMailer {
-  constructor(@Inject(MAIL_PORT) private readonly mail: MailPort) {}
+  constructor(private readonly notifications: NotificationProducer) {}
 
   sendVerificationEmail(user: AuthMailRecipient, url: string): Promise<void> {
-    return this.send('verify-email', user, url);
+    return this.notifications.dispatchEmail(user.email, {
+      template: 'verify-email',
+      locale: toLocale(user.locale),
+      name: user.name,
+      url,
+    });
   }
 
   sendResetPassword(user: AuthMailRecipient, url: string): Promise<void> {
-    return this.send('reset-password', user, url);
-  }
-
-  private async send(
-    template: 'verify-email' | 'reset-password',
-    user: AuthMailRecipient,
-    url: string,
-  ): Promise<void> {
-    const email = await renderEmail({ template, locale: toLocale(user.locale), name: user.name, url });
-    await this.mail.send({ to: user.email, ...email });
+    return this.notifications.dispatchEmail(user.email, {
+      template: 'reset-password',
+      locale: toLocale(user.locale),
+      name: user.name,
+      url,
+    });
   }
 }
