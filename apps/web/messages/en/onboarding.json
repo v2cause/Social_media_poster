@@ -1,0 +1,35 @@
+{
+  "title": "Welcome",
+  "description": "Three steps to your first workspace.",
+  "progress": "Setup progress",
+  "steps": {
+    "organization": "Organization",
+    "workspace": "Workspace",
+    "done": "Done"
+  },
+  "organization": {
+    "title": "Your organization",
+    "description": "The organization holds your team, billing and every workspace.",
+    "name": "Organization name",
+    "namePlaceholder": "e.g. Example Ltd"
+  },
+  "workspace": {
+    "title": "Your first workspace",
+    "description": "A workspace stands for a brand or a client. The profile helps the AI later.",
+    "name": "Workspace name",
+    "industry": "Industry",
+    "targetAudience": "Target audience",
+    "goals": "Goals",
+    "contentLanguage": "Content language",
+    "timezone": "Time zone",
+    "optional": "optional",
+    "submit": "Create workspace"
+  },
+  "done": {
+    "title": "All set",
+    "description": "Your workspace {workspace} is ready.",
+    "accountsTitle": "Connect accounts",
+    "accountsHint": "You connect LinkedIn, Instagram, Facebook and X under Accounts from phase 4.",
+    "toDashboard": "Go to the dashboard"
+  }
+}

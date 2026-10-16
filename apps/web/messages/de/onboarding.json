@@ -1,0 +1,35 @@
+{
+  "title": "Willkommen",
+  "description": "In drei Schritten zu Ihrem ersten Workspace.",
+  "progress": "Fortschritt der Einrichtung",
+  "steps": {
+    "organization": "Organisation",
+    "workspace": "Workspace",
+    "done": "Fertig"
+  },
+  "organization": {
+    "title": "Ihre Organisation",
+    "description": "Die Organisation umfasst Ihr Team, die Abrechnung und alle Workspaces.",
+    "name": "Name der Organisation",
+    "namePlaceholder": "z.B. Muster GmbH"
+  },
+  "workspace": {
+    "title": "Ihr erster Workspace",
+    "description": "Ein Workspace steht für eine Marke oder einen Kunden. Das Profil hilft später der KI.",
+    "name": "Name des Workspace",
+    "industry": "Branche",
+    "targetAudience": "Zielgruppe",
+    "goals": "Ziele",
+    "contentLanguage": "Sprache der Inhalte",
+    "timezone": "Zeitzone",
+    "optional": "optional",
+    "submit": "Workspace anlegen"
+  },
+  "done": {
+    "title": "Alles bereit",
+    "description": "Ihr Workspace {workspace} ist angelegt.",
+    "accountsTitle": "Accounts verbinden",
+    "accountsHint": "LinkedIn, Instagram, Facebook und X verbinden Sie ab Phase 4 unter Accounts.",
+    "toDashboard": "Zum Dashboard"
+  }
+}
