@@ -17,6 +17,22 @@ trustPolicyExclude:
 blockExoticSubdeps: true
 strictDepBuilds: true
 
+# Security fixes for transitive dependencies, each within the same major version.
+#   mysql2: GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3 (pulled in by the prisma CLI; MySQL is unused)
+#   js-yaml 5: GHSA-r3ph-w7gj-g6xm (via @nestjs/swagger)
+overrides:
+  'mysql2@3': '^3.23.1'
+  'js-yaml@5': '^5.4.1'
+
+# Advisories accepted after review. CI fails on every other high or critical finding.
+#   GHSA-ggr8-5vv4-36mx (deepmerge-ts): only the prisma CLI uses it, to merge our own config file.
+#     The fix is a new major the CLI does not support yet. Revisit with the next prisma update.
+#   GHSA-vfj7-8cjw-p6xm (braces): only lint tooling uses it, and no fixed version exists.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-ggr8-5vv4-36mx
+    - GHSA-vfj7-8cjw-p6xm
+
 # Reviewed install scripts. Allowed: native binaries and engines the build needs.
 # Skipped: transitive scripts from testcontainers and the spike tooling. ssh2 and cpu-features
 # only add optional native speed-ups, protobufjs needs no build at install time, @parcel/watcher
