@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-import { buildContentSecurityPolicy, createNonce } from './security/content-security-policy';
+import { buildContentSecurityPolicy, createNonce, storageOrigins } from './security/content-security-policy';
 
 // Sets the Content Security Policy with a fresh nonce for every page request. Next.js reads the
 // policy from the request headers and adds the nonce to its scripts during rendering.
@@ -29,7 +29,11 @@ export function proxy(request: NextRequest): NextResponse {
   }
 
   const nonce = createNonce();
-  const policy = buildContentSecurityPolicy(nonce, process.env.NODE_ENV === 'development');
+  const policy = buildContentSecurityPolicy(
+    nonce,
+    process.env.NODE_ENV === 'development',
+    storageOrigins(process.env),
+  );
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);

@@ -5,7 +5,8 @@
 // Styles allow 'unsafe-inline': Next.js renders style attributes (for example on its built-in
 // error pages), and attributes cannot carry a nonce. Injected CSS cannot run code.
 //
-// Phase 3 (media) adds the object storage origin to img-src and connect-src.
+// The object storage is the only other origin: the browser uploads straight into it and shows
+// thumbnails from it, both through presigned URLs (guide step 3.6).
 
 /** 128 bits from the platform CSPRNG, base64 encoded. */
 export function createNonce(): string {
@@ -13,7 +14,35 @@ export function createNonce(): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-export function buildContentSecurityPolicy(nonce: string, isDevelopment: boolean): string {
+/**
+ * The origins of the object storage as the browser reaches it: S3_PUBLIC_ENDPOINT, or
+ * S3_ENDPOINT when the services and the browser share the address. With virtual-hosted URLs
+ * (S3_FORCE_PATH_STYLE=false) the bucket is a subdomain, so its subdomains are allowed too.
+ */
+export function storageOrigins(env: Readonly<Record<string, string | undefined>>): string[] {
+  const endpoint = env['S3_PUBLIC_ENDPOINT'] || env['S3_ENDPOINT'];
+  if (!endpoint) {
+    return [];
+  }
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return [];
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    return [];
+  }
+  return env['S3_FORCE_PATH_STYLE'] === 'false'
+    ? [url.origin, `${url.protocol}//*.${url.host}`]
+    : [url.origin];
+}
+
+export function buildContentSecurityPolicy(
+  nonce: string,
+  isDevelopment: boolean,
+  storage: readonly string[] = [],
+): string {
   const directives: Record<string, string[]> = {
     'default-src': ["'self'"],
     // React needs eval in development for its debugging features, never in production.
@@ -24,9 +53,9 @@ export function buildContentSecurityPolicy(nonce: string, isDevelopment: boolean
       ...(isDevelopment ? ["'unsafe-eval'"] : []),
     ],
     'style-src': ["'self'", "'unsafe-inline'"],
-    'img-src': ["'self'", 'blob:', 'data:'],
+    'img-src': ["'self'", 'blob:', 'data:', ...storage],
     'font-src': ["'self'"],
-    'connect-src': ["'self'"],
+    'connect-src': ["'self'", ...storage],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
     'form-action': ["'self'"],

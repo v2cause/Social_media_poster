@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildContentSecurityPolicy, createNonce, SECURITY_HEADERS } from './content-security-policy';
+import {
+  buildContentSecurityPolicy,
+  createNonce,
+  SECURITY_HEADERS,
+  storageOrigins,
+} from './content-security-policy';
 
 const directive = (policy: string, name: string): string | undefined =>
   policy
@@ -33,6 +38,34 @@ describe('buildContentSecurityPolicy', () => {
     expect(directive(policy, 'object-src')).toBe("'none'");
     expect(directive(policy, 'form-action')).toBe("'self'");
     expect(directive(policy, 'base-uri')).toBe("'self'");
+  });
+});
+
+describe('storage origins', () => {
+  it('allows images and uploads from the object storage only', () => {
+    const policy = buildContentSecurityPolicy(
+      'n',
+      false,
+      storageOrigins({ S3_ENDPOINT: 'http://127.0.0.1:8333' }),
+    );
+    expect(directive(policy, 'img-src')).toBe("'self' blob: data: http://127.0.0.1:8333");
+    expect(directive(policy, 'connect-src')).toBe("'self' http://127.0.0.1:8333");
+    expect(directive(policy, 'script-src')).not.toContain('8333');
+  });
+
+  it('prefers the public endpoint and allows bucket subdomains without path-style URLs', () => {
+    expect(
+      storageOrigins({ S3_ENDPOINT: 'http://s3:8333', S3_PUBLIC_ENDPOINT: 'https://media.example.com/' }),
+    ).toEqual(['https://media.example.com']);
+    expect(
+      storageOrigins({ S3_ENDPOINT: 'https://s3.eu-central-1.amazonaws.com', S3_FORCE_PATH_STYLE: 'false' }),
+    ).toEqual(['https://s3.eu-central-1.amazonaws.com', 'https://*.s3.eu-central-1.amazonaws.com']);
+  });
+
+  it('adds nothing for a missing or broken address', () => {
+    expect(storageOrigins({})).toEqual([]);
+    expect(storageOrigins({ S3_ENDPOINT: 'not a url' })).toEqual([]);
+    expect(storageOrigins({ S3_ENDPOINT: 'javascript:alert(1)' })).toEqual([]);
   });
 });
 

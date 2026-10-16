@@ -199,6 +199,9 @@ services:
       # Server-side calls from Next.js to the API inside the compose network. The browser goes
       # through the proxy.
       API_INTERNAL_URL: http://api:3001
+      # The storage address the browser uploads to and loads thumbnails from (Content Security
+      # Policy); the same as the API signs its URLs for.
+      S3_PUBLIC_ENDPOINT: http://127.0.0.1:8333
     ports:
       - '127.0.0.1:3000:3000'
     depends_on:
