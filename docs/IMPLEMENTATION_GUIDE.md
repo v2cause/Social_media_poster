@@ -645,6 +645,11 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - **Brand-Voice-Editor**: Name, Beschreibung, Ton (Tags), Do/Don't-Listen, verbotene Wörter, Emoji-Politik (keine, sparsam, normal), Hashtag-Politik, 3 bis 5 Beispielposts, Sprache. Der Button "Stimme testen" erzeugt einen Beispielpost. Eine Versionshistorie ist einsehbar.
   - **Eigene Stile**: Name und Anweisungen, aktiv/inaktiv, Sortierung per Drag & Drop.
   - **Ideen**: Karten-Grid mit Titel, Blickwinkel, Säulen-Badge, "Warum jetzt", Plattform-Icons und den Aktionen "Speichern", "Verwerfen" und "Post erstellen" (füllt den Composer vor). Filter nach Status.
+- **Umgesetzt**:
+  - Brand Voices und eigene Stile unter `/w/:ws/brand-voices`, der Editor unter `/w/:ws/brand-voices/new` und `/w/:ws/brand-voices/:id`. Do- und Don't-Listen sind Textfelder mit einem Punkt pro Zeile, Ton, Vokabular und verbotene Wörter Chips. "Stimme testen" nutzt die gespeicherte Version und ist bei ungespeicherten Änderungen gesperrt. Archivieren und Wiederherstellen sitzen im Editor; ohne `brand_voice.manage` ist alles nur lesbar.
+  - Stile werden per Drag & Drop oder mit Pfeil-Buttons (für die Tastatur) sortiert; gespeichert wird die neue Position jedes verschobenen Stils als `sortOrder`. Inaktive Stile erscheinen nicht im Composer.
+  - Ideen unter `/w/:ws/ideas` mit den Filtern Offen (Neu und Gespeichert), Gespeichert, Verwendet, Verworfen und Alle. "Post erstellen" öffnet `/w/:ws/compose?idea=:id`: Briefing aus Titel, Blickwinkel und "Warum jetzt", Plattformen und Stil aus dem Vorschlag, dazu die Standard-Stimme. Der Beitrag entsteht beim ersten Speichern oder Generieren und markiert die Idee als verwendet. Plattformen erscheinen als Text-Badges, weil die Icon-Bibliothek keine Marken-Logos mehr enthält.
+  - E2E-Test: `apps/web/e2e/brand-and-ideas.spec.ts`.
 - **Fertig, wenn**: Eine Idee per Klick einen vorausgefüllten Composer öffnet.
 
 #### 2.10 Eval-Suite
