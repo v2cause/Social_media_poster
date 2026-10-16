@@ -188,7 +188,8 @@ interface SocialPlatformAdapter {
   fetchAccountMetrics(range: DateRange, ctx: AdapterContext): Promise<AccountMetricsResult>;
 }
 // AdapterContext: Account, CredentialsAccessor (entschlüsselt erst bei Bedarf, nur im Speicher),
-// HTTP-Client (Timeouts, OTel, Rate-Limiter), ApiCostRecorder (X), Logger, AbortSignal, dryRun
+// HTTP-Client (Timeouts, OTel, Rate-Limiter), ApiCostRecorder (X), Logger, AbortSignal, dryRun,
+// keepAlive (verlängert den Lease des Publish-Jobs vor langen Schritten, ADR 0024)
 // OAuthConnector: authorizationUrl, exchangeCode, listConnectableAccounts, revoke
 ```
 
@@ -366,13 +367,13 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
    - **Sweeper**: findet Varianten, die seit mehr als 2 min auf `QUEUED` stehen und keinen laufenden Job haben, sowie Varianten auf `PUBLISHING` mit abgelaufenem Lease (z.B. nach einem Worker-Absturz), und stößt den Job erneut an. Das ist dank derselben jobId und der Statusprüfung im Job gefahrlos; nach abgelaufenem Lease beginnt der Job immer mit dem Reconcile (Schritt 4).
 3. **Publish-Job**:
    1. Passt der Status oder die `scheduleVersion` nicht, ist der Job veraltet und endet ohne Aktion.
-   2. Lease per Compare-and-Swap: `PUBLISHING` mit `leaseUntil = now()+5min`. Dauert ein Schritt länger (z.B. das Warten auf einen Instagram-Container), wird der Lease vorher verlängert.
+   2. Lease per Compare-and-Swap: `PUBLISHING` mit `leaseUntil = now()+5min`. Dauert ein Schritt länger (z.B. das Warten auf einen Instagram-Container), wird der Lease vorher verlängert. Inhaber ist das Lock-Token des Laufs in BullMQ; ein Job, der auf den lebenden Lease eines anderen Laufs trifft, wartet bis zu dessen Ende.
    3. `PublishAttempt(STARTED)` anlegen.
-   4. Gibt es einen offenen oder unklaren früheren Versuch, wird zuerst `adapter.reconcile()` aufgerufen. Es sucht über `contentHash` und Text nach einem bereits erschienenen Post. So entsteht nie ein doppelter Post.
+   4. Gibt es einen offenen oder unklaren früheren Versuch, wird zuerst `adapter.reconcile()` aufgerufen. Es sucht über `contentHash` und Text nach einem bereits erschienenen Post. So entsteht nie ein doppelter Post. Das Token wird dafür vorher erneuert (Schritt 5). Findet der Reconcile nichts, wird nur gesendet, wenn der offene Versuch noch nichts gesendet hatte (`STARTED`) oder zu einer früheren `scheduleVersion` gehört, auf die der Nutzer schon geantwortet hat; sonst `NEEDS_ATTENTION` ([ADR 0024](adr/0024-publish-job-schreibmarke-und-lease.md)).
    5. Token erneuern, falls nötig: unter dem Redis-Lock `lock:conn:{id}` und mit erneutem Lesen nach dem Lock. Das ist wichtig für die rotierenden, nur einmal gültigen Refresh Tokens von X.
    6. Erneut validieren und signierte Medien-URLs (1 h) erzeugen.
-   7. Im Dry-Run wird statt des Sendens nur der Payload-Snapshot gespeichert und die Variante mit Dry-Run-Kennzeichnung als veröffentlicht markiert.
-   8. `adapter.publish()` aufrufen. Bei Erfolg schreibt eine Transaktion `PUBLISHED`, `externalPostId`, `metricsNextAt`, die Kostensätze und ein `OutboxEvent`.
+   7. Im Dry-Run wird statt des Sendens nur der Payload-Snapshot gespeichert und die Variante mit Dry-Run-Kennzeichnung als veröffentlicht markiert. Ein Reconcile entfällt, das Token wird wie sonst erneuert.
+   8. Lease verlängern, den Versuch auf `UNKNOWN` setzen (Schreibmarke: ein Absturz ab hier gilt als "vielleicht gesendet") und `adapter.publish()` aufrufen. Bei Erfolg schreibt eine Transaktion `PUBLISHED`, `externalPostId`, `metricsNextAt`, die Kostensätze und ein `OutboxEvent`.
    9. Für den X-Browser-Adapter: `xb.publish` einreihen; die Variante bleibt mit verlängertem Lease auf `PUBLISHING`, bis `xb-results` sie abschließt.
 
 ### 7.1 Fehlerbehandlung
@@ -419,6 +420,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 |---|---|---|---|
 | `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (täglich, gestaffelt), `tick.maintenance` (nachts) | Job-Scheduler-ID | `scheduler` |
 | `publish` | `publish.variant { workspaceId, variantId, scheduleVersion, trigger, traceparent }` | `pub.{variantId}.{scheduleVersion}` | `publisher` |
+| `publish-dead` | `publish.dead` (Kopie eines endgültig gescheiterten Publish-Jobs, nur zum Ansehen in Bull Board) | `dead.pub.{variantId}.{scheduleVersion}` | - |
 | `xb-commands` / `xb-results` | `xb.publish`, `xb.metrics`, `xb.verify-session`, `xb.delete`, `xb.login.start`, `xb.canary` / `xb.result` | `xb.{op}.{id}.{v}` | browser-worker / `publisher` |
 | `media` | `media.process`, `media.render` | `media.{assetId}`, `rend.{assetId}.{profile}.{cropHash}` | `media` |
 | `analytics` | `metrics.post` (gebatcht pro Account), `metrics.account`, `metrics.rollup` | `mp.{accountId}.{bucket}` | `analytics` |
