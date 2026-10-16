@@ -18,8 +18,11 @@ export interface EmailMessages {
     linkFallback: string;
     footer: string;
   };
+  roles: Record<'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER', string>;
   verifyEmail: ActionEmailMessages;
   resetPassword: ActionEmailMessages;
+  /** Placeholders: {organization}, {inviter}, {role}. */
+  invitation: ActionEmailMessages;
 }
 
 export const messages: Record<Locale, EmailMessages> = {
@@ -30,6 +33,7 @@ export const messages: Record<Locale, EmailMessages> = {
       linkFallback: 'Falls der Button nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:',
       footer: 'Diese E-Mail wurde von Social Media Poster automatisch versendet.',
     },
+    roles: { OWNER: 'Inhaber', ADMIN: 'Administrator', EDITOR: 'Redakteur', VIEWER: 'Betrachter' },
     verifyEmail: {
       subject: 'Bestätigen Sie Ihre E-Mail-Adresse',
       preview: 'Ein Klick, dann ist Ihr Konto aktiv.',
@@ -47,6 +51,15 @@ export const messages: Record<Locale, EmailMessages> = {
       ignore:
         'Wenn Sie das nicht angefordert haben, ignorieren Sie diese E-Mail. Ihr Passwort bleibt unverändert.',
     },
+    invitation: {
+      subject: 'Einladung zu {organization}',
+      preview: '{inviter} lädt Sie zu Social Media Poster ein.',
+      intro:
+        '{inviter} hat Sie eingeladen, der Organisation {organization} auf Social Media Poster beizutreten. Ihre Rolle: {role}.',
+      action: 'Einladung annehmen',
+      expiry: 'Die Einladung ist sieben Tage gültig und funktioniert nur einmal.',
+      ignore: 'Wenn Sie niemanden bei {organization} kennen, können Sie diese E-Mail ignorieren.',
+    },
   },
   en: {
     common: {
@@ -55,6 +68,7 @@ export const messages: Record<Locale, EmailMessages> = {
       linkFallback: 'If the button does not work, copy this link into your browser:',
       footer: 'This email was sent automatically by Social Media Poster.',
     },
+    roles: { OWNER: 'Owner', ADMIN: 'Admin', EDITOR: 'Editor', VIEWER: 'Viewer' },
     verifyEmail: {
       subject: 'Confirm your email address',
       preview: 'One click and your account is active.',
@@ -70,6 +84,15 @@ export const messages: Record<Locale, EmailMessages> = {
       action: 'Choose a new password',
       expiry: 'The link is valid for one hour and works only once.',
       ignore: 'If you did not ask for this, ignore this email. Your password stays the same.',
+    },
+    invitation: {
+      subject: 'Invitation to {organization}',
+      preview: '{inviter} invites you to Social Media Poster.',
+      intro:
+        '{inviter} invited you to join the organization {organization} on Social Media Poster. Your role: {role}.',
+      action: 'Accept invitation',
+      expiry: 'The invitation is valid for seven days and works only once.',
+      ignore: 'If you do not know anyone at {organization}, you can ignore this email.',
     },
   },
 };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { renderEmail } from './render';
+import { deliverEmail, renderEmail } from './render';
 
 const url = 'http://localhost:3000/api/auth/verify-email?token=abc&callbackURL=%2Fonboarding';
 
@@ -40,5 +40,38 @@ describe('renderEmail', () => {
     await expect(
       renderEmail({ template: 'verify-email', locale: 'de', name: 'Ada', url: 'javascript:alert(1)' }),
     ).rejects.toThrow();
+  });
+
+  it('renders the invitation in both languages with organization, inviter and role', async () => {
+    const invitation = {
+      template: 'invitation' as const,
+      url: 'http://localhost:3000/invite/abc',
+      organizationName: 'Acme GmbH',
+      inviterName: 'Olivia',
+      role: 'EDITOR' as const,
+    };
+    const de = await renderEmail({ ...invitation, locale: 'de' });
+    const en = await renderEmail({ ...invitation, locale: 'en' });
+
+    expect(de.subject).toBe('Einladung zu Acme GmbH');
+    expect(de.text).toContain('Olivia hat Sie eingeladen, der Organisation Acme GmbH');
+    expect(de.text).toContain('Ihre Rolle: Redakteur.');
+    expect(de.text).toContain('http://localhost:3000/invite/abc');
+    expect(en.subject).toBe('Invitation to Acme GmbH');
+    expect(en.text).toContain('Your role: Editor.');
+    expect(en.html).toContain('lang="en"');
+  });
+
+  it('delivers the rendered email to the mail port', async () => {
+    const sent: unknown[] = [];
+    await deliverEmail({ send: (message) => Promise.resolve(void sent.push(message)) }, 'ada@example.test', {
+      template: 'verify-email',
+      locale: 'en',
+      name: 'Ada',
+      url,
+    });
+    expect(sent).toEqual([
+      expect.objectContaining({ to: 'ada@example.test', subject: 'Confirm your email address' }),
+    ]);
   });
 });
