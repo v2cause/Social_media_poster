@@ -16,7 +16,9 @@ KI-gestützte Plattform zum Erstellen, Planen und Auswerten von Social-Media-Pos
 
 Die Planung ist abgeschlossen. Phase 0 (Fundament) ist weitgehend umgesetzt: die Schritte 0.1 bis 0.14 sind gebaut, vier der fünf Spikes sind bestanden. Offen sind der Spike zur KI-Anbindung (0.14a, braucht einen API-Schlüssel) und das Größenziel der Images (siehe [ADR 0001](docs/adr/0001-monorepo-und-stack.md)).
 
-Phase 1 (Identity und Mandanten) ist umgesetzt: Registrierung mit E-Mail-Verifizierung, Passwort-Reset und 2FA über Better Auth, Organisationen, Workspaces, Mitglieder und Einladungen per E-Mail, Rechte-Matrix mit Guards, RLS auf allen Mandantentabellen, Audit-Log, die Web-Oberfläche mit Onboarding, App-Shell, Team- und Sicherheitsseite auf Deutsch und Englisch sowie ein Playwright-E2E über den ganzen Ablauf. Als Nächstes folgt Phase 2 (Composer, KI und Stile). Architekturentscheidungen stehen in [docs/adr/](docs/adr/).
+Phase 1 (Identity und Mandanten) ist umgesetzt: Registrierung mit E-Mail-Verifizierung, Passwort-Reset und 2FA über Better Auth, Organisationen, Workspaces, Mitglieder und Einladungen per E-Mail, Rechte-Matrix mit Guards, RLS auf allen Mandantentabellen, Audit-Log, die Web-Oberfläche mit Onboarding, App-Shell, Team- und Sicherheitsseite auf Deutsch und Englisch sowie ein Playwright-E2E über den ganzen Ablauf. Architekturentscheidungen stehen in [docs/adr/](docs/adr/).
+
+Phase 2 (Composer, KI und Stile) ist umgesetzt: Beiträge mit Varianten pro Plattform, Brand Voices mit Versionen und Stimmtest, Stil-Vorlagen und eigene Stile, die KI-Anbindung über Claude (mit Mock für Entwicklung und Tests), Generierung und Verfeinerung als Stream, Themenvorschläge, Quoten und Kostenerfassung über das PriceBook, der Composer mit Auto-Speichern und Vorschau sowie die Eval-Suite (`pnpm eval:ai`). Offen ist die gemessene Baseline der Eval-Suite mit der Claude API, weil dafür ein API-Schlüssel nötig ist ([ADR 0018](docs/adr/0018-ki-eval-suite-und-baseline.md)). Als Nächstes folgt Phase 3 (Medien).
 
 ## Entwicklung
 
