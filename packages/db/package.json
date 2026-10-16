@@ -13,12 +13,13 @@
     }
   },
   "scripts": {
-    "build": "prisma generate && tsup",
+    "generate": "prisma generate",
+    "build": "tsup",
     "dev": "prisma generate && tsup --watch",
-    "lint": "prisma generate && eslint .",
-    "typecheck": "prisma generate && tsc --noEmit",
-    "test": "prisma generate && vitest run",
-    "test:integration": "prisma generate && vitest run --config vitest.integration.config.mts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.mts",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "prisma db seed"
