@@ -113,11 +113,19 @@ export function MediaCard(props: {
                 ? `${t('dimensions', { width: asset.width, height: asset.height })}, `
                 : ''}
               {asset.sizeBytes !== null
-                ? format.number(asset.sizeBytes / (1024 * 1024), { maximumFractionDigits: 1 }) + ' MB'
+                ? asset.sizeBytes < 1024 * 1024
+                  ? format.number(Math.ceil(asset.sizeBytes / 1024), { style: 'unit', unit: 'kilobyte' })
+                  : format.number(asset.sizeBytes / (1024 * 1024), {
+                      style: 'unit',
+                      unit: 'megabyte',
+                      maximumFractionDigits: 1,
+                    })
                 : ''}
             </p>
           </div>
-          <Badge variant={STATUS_BADGE[asset.status]}>{t(`status.${asset.status}`)}</Badge>
+          <Badge variant={STATUS_BADGE[asset.status]} className="shrink-0 whitespace-nowrap">
+            {t(`status.${asset.status}`)}
+          </Badge>
         </div>
         {asset.status === 'READY' ? (
           <>

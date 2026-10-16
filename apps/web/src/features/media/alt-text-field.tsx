@@ -83,7 +83,7 @@ export function AltTextField(props: {
         >
           <span className="text-xs font-medium text-muted-foreground">{t('suggestion')}</span>
           <p>{suggestion}</p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               size="sm"
