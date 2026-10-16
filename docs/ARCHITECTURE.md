@@ -297,7 +297,7 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
 - **Identity und Tenancy**:
   - `User` (E-Mail, Sprache, Zeitzone; Tabelle `users`) sowie die Tabellen von Better Auth (`Session`, `Account` als Tabelle `auth_account`, `Verification`, `TwoFactor`).
   - `Organization` (Mandant, Billing).
-  - `Workspace` (Marke oder Kunde innerhalb einer Organisation, z.B. für Agenturen; mit Zeitzone, Content-Sprache, Branche, Zielgruppe, Zielen, Content-Säulen).
+  - `Workspace` (Marke oder Kunde innerhalb einer Organisation, z.B. für Agenturen; mit Zeitzone, Content-Sprache, Branche, Zielgruppe, Zielen, Content-Säulen). Der Slug ist global eindeutig, weil die Routen `/w/:ws` den Workspace allein darüber adressieren (ADR 0010).
   - `Membership` (Rolle OWNER, ADMIN, EDITOR oder VIEWER, optional über `MembershipWorkspace` auf bestimmte Workspaces beschränkt) und `Invitation` (Token nur als Hash gespeichert).
 - **Channels**:
   - `SocialConnection`: ein OAuth-Grant oder eine Browser-Session (verschlüsselte Tokens oder Session, Ablaufzeiten, Scopes, Status ACTIVE, EXPIRING, NEEDS_REAUTH, PAUSED oder REVOKED).

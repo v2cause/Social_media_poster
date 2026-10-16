@@ -334,7 +334,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Eigene Modelle: `Organization`, `Workspace`, `WorkspaceSettings`, `Membership`, `MembershipWorkspace`, `Invitation`, `AuditLog`, `Notification`, `NotificationPreference`, `FeatureFlag`.
 - **So sieht es aus**: Felder wie in Teil A, Abschnitt 6.2. Dazu:
   - `User.email` als `citext`, eindeutig.
-  - Unique-Constraints: `Membership(organizationId, userId)`, `Workspace(organizationId, slug)`, `Invitation.tokenHash`.
+  - Unique-Constraints: `Membership(organizationId, userId)`, `Workspace.slug` (global, weil die Routen den Workspace allein über den Slug adressieren; [ADR 0010](adr/0010-workspace-slug-global-eindeutig.md)), `Invitation.tokenHash`.
 - **Darauf achten**:
   - Zusätzliche User-Felder (`locale`, `timezone`, `isPlatformAdmin`) über `additionalFields` von Better Auth deklarieren; `isPlatformAdmin` bekommt `input: false`, damit der Nutzer es nicht selbst setzen kann.
   - `User` wird auf die Tabelle `users` gemappt, weil `user` in PostgreSQL ein reserviertes Wort ist; Raw-SQL und Prüfskripte bräuchten sonst überall Anführungszeichen.
