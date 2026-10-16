@@ -165,7 +165,9 @@ describe('authentication with Better Auth', () => {
 
     expect(unknown.status).toBe(known.status);
     expect(unknown.body).toEqual(known.body);
-    const message = await started().mailpit.waitForMessage('ada@example.test');
+    const message = await started().mailpit.waitForMessage('ada@example.test', {
+      subject: 'Passwort zurücksetzen',
+    });
     expect(message.Subject).toBe('Passwort zurücksetzen');
   });
 

@@ -38,8 +38,11 @@ export interface StartedMailpit {
   container: StartedTestContainer;
   smtpUrl: string;
   apiUrl: string;
-  /** Waits until a message to the address arrives and returns the newest one. */
-  waitForMessage: (to: string, timeoutMs?: number) => Promise<MailpitMessage>;
+  /**
+   * The newest email to the address, optionally the newest with this subject. Emails go out
+   * through the queue, so an earlier email to the same address may still be the newest one.
+   */
+  waitForMessage: (to: string, options?: { subject?: string; timeoutMs?: number }) => Promise<MailpitMessage>;
   stop: () => Promise<void>;
 }
 
@@ -51,19 +54,25 @@ export async function startMailpit(): Promise<StartedMailpit> {
   const host = container.getHost();
   const apiUrl = `http://${host}:${String(container.getMappedPort(8025))}`;
 
-  const waitForMessage = async (to: string, timeoutMs = 10_000): Promise<MailpitMessage> => {
+  const waitForMessage: StartedMailpit['waitForMessage'] = async (
+    to,
+    { subject, timeoutMs = 10_000 } = {},
+  ) => {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       const response = await fetch(`${apiUrl}/api/v1/search?query=${encodeURIComponent(`to:"${to}"`)}`);
       const { messages } = messageList.parse(await response.json());
-      const newest = messages[0];
+      // Mailpit lists the newest message first.
+      const newest = messages.find((message) => subject === undefined || message.Subject === subject);
       if (newest) {
         const detail = await fetch(`${apiUrl}/api/v1/message/${newest.ID}`);
         return messageDetail.parse(await detail.json());
       }
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
-    throw new Error(`No email to ${to} within ${String(timeoutMs)} ms`);
+    throw new Error(
+      `No email to ${to}${subject === undefined ? '' : ` with subject "${subject}"`} within ${String(timeoutMs)} ms`,
+    );
   };
 
   return {
