@@ -2,17 +2,33 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
-onlyBuiltDependencies:
-  - sharp
-  - prisma
-  - '@prisma/engines'
-  - esbuild
-  - '@swc/core'
-  - unrs-resolver
+# Supply chain. Versions younger than one day are not installed: most malicious releases are
+# found and pulled within hours. A package whose publishing trust drops (for example from a
+# trusted publisher to no provenance) fails the install, transitive dependencies may only come
+# from the registry, and every dependency with an install script must be reviewed below.
+minimumReleaseAge: 1440
+trustPolicy: no-downgrade
+# Reviewed exceptions, each for one exact version. prisma 7.5.0 to 7.9.1 were published through
+# GitHub Actions with provenance, 7.10.0 by the prismabot account without it. It matches the
+# signed GitHub release 7.10.0 of prisma/prisma (2026-08-25), so it is accepted. Any later version
+# without provenance fails again and needs its own review.
+trustPolicyExclude:
+  - 'prisma@7.10.0'
+blockExoticSubdeps: true
+strictDepBuilds: true
 
-# Transitive build scripts we deliberately skip (installed by testcontainers). ssh2 and
-# cpu-features only add optional native speed-ups; protobufjs needs no build at install time.
+# Reviewed install scripts. Allowed: native binaries and engines the build needs.
+# Skipped: transitive scripts from testcontainers and the spike tooling. ssh2 and cpu-features
+# only add optional native speed-ups, protobufjs needs no build at install time, @parcel/watcher
+# serves Orval's watch mode only, @scarf/scarf is telemetry, msgpackr-extract is an optional
+# native speed-up.
 allowBuilds:
+  sharp: true
+  prisma: true
+  '@prisma/engines': true
+  esbuild: true
+  '@swc/core': true
+  unrs-resolver: true
   cpu-features: false
   protobufjs: false
   ssh2: false
