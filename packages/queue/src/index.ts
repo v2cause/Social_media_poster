@@ -1,5 +1,116 @@
-// Queue names, zod-validated job payloads and typed producers.
+// Queue names, zod-validated job payloads, typed producers and job ids (architecture 7.4).
 
+export {
+  gdprJobId,
+  jobIdOf,
+  notifyJobId,
+  postMetricsJobId,
+  publishJobId,
+  stripeJobId,
+  tokenRefreshJobId,
+  xbJobId,
+} from './job-id';
+export {
+  isTick,
+  SCHEDULER_QUEUE,
+  TICK_JOB_OPTIONS,
+  TICK_SCHEDULES,
+  TICKS,
+  type Tick,
+  type TickSchedule,
+} from './scheduler';
+export {
+  parsePublishVariant,
+  PUBLISH_BACKOFF,
+  PUBLISH_JOB_OPTIONS,
+  PUBLISH_MAX_ATTEMPTS,
+  PUBLISH_QUEUE,
+  PUBLISH_TRIGGERS,
+  PUBLISH_VARIANT,
+  PublishProducer,
+  publishVariantSchema,
+  type PublishTrigger,
+  type PublishVariant,
+} from './publish';
+export {
+  parseTokenRefresh,
+  TOKEN_JOB_OPTIONS,
+  TOKEN_REFRESH,
+  TokenProducer,
+  tokenRefreshSchema,
+  TOKENS_QUEUE,
+  type TokenRefresh,
+} from './tokens';
+export {
+  ANALYTICS_JOB_OPTIONS,
+  ANALYTICS_QUEUE,
+  AnalyticsProducer,
+  METRICS_ACCOUNT,
+  METRICS_POST,
+  METRICS_ROLLUP,
+  metricsAccountSchema,
+  metricsPostSchema,
+  metricsRollupSchema,
+  parseMetricsAccount,
+  parseMetricsPost,
+  parseMetricsRollup,
+  type MetricsAccount,
+  type MetricsPost,
+  type MetricsRollup,
+} from './analytics';
+export {
+  parseXbCommand,
+  parseXbResult,
+  XB_COMMANDS_QUEUE,
+  XB_JOB_OPTIONS,
+  XB_OPERATIONS,
+  XB_RESULT,
+  XB_RESULTS_QUEUE,
+  xbCommandName,
+  XbCommandProducer,
+  xbCommandSchemas,
+  XbResultProducer,
+  xbResultSchema,
+  type XbCommand,
+  type XbOperation,
+  type XbResult,
+} from './xb';
+export {
+  AI_ALT_TEXT,
+  AI_JOB_OPTIONS,
+  AI_QUEUE,
+  AI_TOPIC_IDEAS,
+  aiAltTextSchema,
+  AiJobProducer,
+  aiTopicIdeasSchema,
+  parseAiAltText,
+  parseAiTopicIdeas,
+  type AiAltText,
+  type AiTopicIdeas,
+} from './ai';
+export {
+  BILLING_JOB_OPTIONS,
+  BILLING_QUEUE,
+  BillingProducer,
+  parseStripeWebhook,
+  parseUsageReport,
+  STRIPE_WEBHOOK,
+  stripeWebhookSchema,
+  USAGE_REPORT,
+  usageReportSchema,
+  type StripeWebhook,
+  type UsageReport,
+} from './billing';
+export {
+  GDPR_ERASE,
+  GDPR_EXPORT,
+  GDPR_JOB_OPTIONS,
+  GDPR_QUEUE,
+  GdprProducer,
+  gdprRequestSchema,
+  parseGdprRequest,
+  type GdprRequest,
+} from './gdpr';
 export {
   NOTIFICATIONS_QUEUE,
   NOTIFY_DISPATCH,
