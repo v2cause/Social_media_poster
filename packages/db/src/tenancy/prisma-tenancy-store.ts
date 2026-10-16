@@ -1,14 +1,11 @@
-import { assertSafeAuditMetadata, type AuditEntry, type TenancyScope, type TenancyStore } from '@smp/core';
+import type { TenancyScope, TenancyStore } from '@smp/core';
 
+import { prismaAuditTrail, type RequestOrigin } from '../audit/prisma-audit-trail';
 import { Prisma } from '../generated/prisma/client';
 import type { TenantTransaction } from '../tenant-context';
 import { toInvitation, toMembership, toSettings, toWorkspace } from './mappers';
 
-/** Where a change came from, for the audit log. Filled from the request context (step 1.7). */
-export interface RequestOrigin {
-  ipAddress?: string;
-  userAgent?: string;
-}
+export type { RequestOrigin } from '../audit/prisma-audit-trail';
 
 const withWorkspaces = { workspaces: { select: { workspaceId: true } } } as const;
 
@@ -199,23 +196,6 @@ export function createPrismaTenancyStore(
       },
     },
 
-    audit: {
-      async record(entry: AuditEntry) {
-        assertSafeAuditMetadata(entry.metadata);
-        await tx.auditLog.create({
-          data: {
-            organizationId: entry.organizationId,
-            workspaceId: entry.workspaceId ?? null,
-            actorUserId: scope.userId,
-            action: entry.action,
-            targetType: entry.targetType,
-            targetId: entry.targetId ?? null,
-            metadata: entry.metadata ?? Prisma.DbNull,
-            ipAddress: origin.ipAddress ?? null,
-            userAgent: origin.userAgent ?? null,
-          },
-        });
-      },
-    },
+    audit: prismaAuditTrail(tx, scope.userId, origin),
   };
 }
