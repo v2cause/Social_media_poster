@@ -844,6 +844,12 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Darauf achten**:
   - Erst nach dem Commit einreihen. Bei 2 parallelen Workern darf es kein doppeltes Einreihen geben (`SKIP LOCKED` plus Job-ID).
   - Der Sweeper prüft den vorhandenen Job: Fehlt er, wird er neu eingereiht. Liegt er unter derselben Job-ID noch als fehlgeschlagen vor, ignoriert BullMQ ein erneutes `add`; dann wird er per `job.retry()` neu gestartet.
+- **Umgesetzt**:
+  - `PrismaPublishScheduler` (System-Client) arbeitet in einer Transaktion mit `FOR UPDATE SKIP LOCKED`: Pläne, die mehr als 6 h überfällig sind, gehen auf `FAILED` mit `MISSED_WINDOW` (außer bei `missed_window_behavior = POST_ANYWAY`), fällige (bis 30 s im Voraus) auf `QUEUED`. Jede Änderung schreibt ihr Outbox-Ereignis `variant.status`.
+  - `tick.publish` reiht nach dem Commit für jede Variante `publish.variant` mit der Job-ID `pub.{variantId}.{scheduleVersion}` und einer Verzögerung bis zur geplanten Zeit ein, in bis zu zehn Paketen zu 500 pro Tick. Ein Job, der sich nicht einreihen lässt, bleibt dem Sweeper.
+  - `tick.sweep-queued` (60 s) prüft Varianten, die seit mehr als 2 min auf `QUEUED` stehen, `PUBLISHING` mit abgelaufenem Lease und zusätzlich `RETRYING` seit mehr als 3 h (länger als der längste Backoff). Fehlt der Job, wird er neu eingereiht (Trigger `sweep`); liegt er als fehlgeschlagen oder erledigt vor, startet ihn `job.retry()` neu; läuft er noch, bleibt er unberührt.
+  - Die Benachrichtigung zum verpassten Zeitfenster folgt mit Schritt 4.9.
+  - Tests: `apps/worker/test/scheduler.integration.test.ts` (zwei Worker gleichzeitig: 1000 fällige Varianten ergeben genau 1000 Jobs; verpasstes Zeitfenster mit beiden Einstellungen; Sweeper mit verlorenem, fehlgeschlagenem, abgestürztem und noch wartendem Job) und Unit-Tests für Tick und Sweeper.
 - **Fertig, wenn**: Ein Integrationstest mit 2 Workern und 1.000 fälligen Varianten genau 1.000 Jobs ergibt.
 
 #### 4.8 Publish-Prozessor

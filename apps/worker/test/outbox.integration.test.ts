@@ -181,6 +181,8 @@ describe('outbox relay of the worker', () => {
     expect(schedulers.map((scheduler) => scheduler.key).sort()).toEqual([
       'tick.maintenance',
       'tick.outbox-relay',
+      'tick.publish',
+      'tick.sweep-queued',
     ]);
     const [row] = await query<{ processed: boolean }>(
       'SELECT processed_at IS NOT NULL AS processed FROM outbox_event WHERE id = $1',
