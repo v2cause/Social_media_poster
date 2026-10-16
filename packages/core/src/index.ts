@@ -1,7 +1,13 @@
 // Domain core: entities, use cases and ports. Framework-free by rule.
 
 // Shared kernel
-export { DomainError, isDomainError, NotPermittedError, type DomainErrorKind } from './shared/domain/errors';
+export {
+  DomainError,
+  isDomainError,
+  NotPermittedError,
+  type DomainErrorKind,
+  type DomainErrorParams,
+} from './shared/domain/errors';
 export { systemClock, uuidV7Ids } from './shared/adapters/system';
 export type { Clock } from './shared/ports/clock';
 export type { IdGenerator } from './shared/ports/ids';
@@ -431,3 +437,20 @@ export {
   type SetVariantMediaInput,
   type VariantMediaItem,
 } from './media/application/set-variant-media';
+
+// Publishing (architecture 7, guide steps 4.6 ff.)
+export { canTransition, VARIANT_TRANSITIONS } from './publishing/domain/variant-state-machine';
+export {
+  formatLocalTime,
+  isKnownTimeZone,
+  resolveLocalTime,
+  type LocalTimeResolution,
+} from './publishing/domain/local-time';
+export * from './publishing/domain/errors';
+export {
+  canPublish,
+  isConnectionUsable,
+  MISSED_WINDOW_MS,
+  SCHEDULE_WARNINGS,
+  type ScheduleWarning,
+} from './publishing/domain/rules';

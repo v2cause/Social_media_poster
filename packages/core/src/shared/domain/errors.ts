@@ -10,10 +10,15 @@ export type DomainErrorKind =
 // test runner loads it once transformed and once through require().
 const DOMAIN_ERROR = Symbol.for('smp.domain-error');
 
+/** Values the UI puts into the translated message, for example a suggested time. */
+export type DomainErrorParams = Readonly<Record<string, string | number | readonly string[]>>;
+
 /** A broken business rule with a stable code (guide B.1). Never carries secrets or PII. */
 export abstract class DomainError extends Error {
   abstract readonly code: string;
   abstract readonly kind: DomainErrorKind;
+  /** Further details for the message, passed on to the client. */
+  readonly params?: DomainErrorParams;
   readonly [DOMAIN_ERROR] = true;
 
   constructor(message: string) {
