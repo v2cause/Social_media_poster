@@ -43,6 +43,13 @@ export {
   type WorkspaceRef,
 } from './content/content-read-model';
 export { PrismaAiGenerationLog } from './ai/prisma-ai-generation-log';
+export { PrismaMediaUnitOfWork } from './media/prisma-media-unit-of-work';
+export {
+  MediaReadModel,
+  type MediaAssetView,
+  type MediaListFilter,
+  type MediaThumbnailView,
+} from './media/media-read-model';
 export { PrismaQuotaStore } from './usage/prisma-quota-store';
 export { PrismaPriceCatalog } from './usage/prisma-price-catalog';
 export { DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData, type DemoSeedResult } from './seed/demo';
