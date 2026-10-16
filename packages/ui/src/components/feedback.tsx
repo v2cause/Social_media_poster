@@ -50,6 +50,7 @@ const badgeVariants = cva('inline-flex items-center rounded-full border px-2 py-
       default: 'border-transparent bg-primary/10 text-primary',
       muted: 'border-border bg-muted text-muted-foreground',
       warning: 'border-transparent bg-warning/15 text-foreground',
+      destructive: 'border-transparent bg-destructive/15 text-destructive',
     },
   },
   defaultVariants: { variant: 'default' },

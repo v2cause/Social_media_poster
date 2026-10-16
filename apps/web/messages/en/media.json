@@ -1,0 +1,111 @@
+{
+  "title": "Media",
+  "description": "Images for your posts. Every file is checked and prepared to suit each platform.",
+  "upload": {
+    "button": "Upload images",
+    "dropzone": "Drop images here or choose them",
+    "hint": "JPEG, PNG, WebP or still GIF, at most 20 MB per file",
+    "listLabel": "Uploads",
+    "queued": "Waiting",
+    "uploading": "Uploading, {percent} %",
+    "processing": "Being checked",
+    "done": "Uploaded",
+    "failed": "Failed",
+    "storageFailed": "The file could not be uploaded to the storage.",
+    "dismiss": "Dismiss"
+  },
+  "filters": {
+    "label": "Filter",
+    "all": "All",
+    "used": "Used",
+    "unused": "Unused",
+    "rejected": "Rejected"
+  },
+  "status": {
+    "PENDING_UPLOAD": "Upload pending",
+    "PROCESSING": "Being checked",
+    "READY": "Ready",
+    "REJECTED": "Rejected"
+  },
+  "rejectReasons": {
+    "SIZE_MISMATCH": "The file has another size than announced.",
+    "TYPE_MISMATCH": "The file has another type than announced.",
+    "NOT_AN_IMAGE": "The file is no image.",
+    "UNSUPPORTED_FORMAT": "This image format is not supported.",
+    "HEIC_NOT_SUPPORTED": "HEIC images are not supported. Please export the image as JPEG.",
+    "ANIMATED_NOT_SUPPORTED": "Animated images are not supported.",
+    "DIMENSIONS_TOO_LARGE": "The image has too many pixels, at most 50 megapixels.",
+    "CORRUPT_IMAGE": "The image is damaged or incomplete."
+  },
+  "usage": "{count, plural, =0 {Not used} one {Used in # variant} other {Used in # variants}}",
+  "dimensions": "{width} x {height} px",
+  "empty": {
+    "title": "No media yet",
+    "description": "Upload images to attach them to posts."
+  },
+  "emptyFilter": "There are no media for this filter.",
+  "loading": "Loading media",
+  "loadMore": "Load more",
+  "altText": {
+    "label": "Alt text",
+    "hint": "Describes the image for people who cannot see it.",
+    "placeholder": "What does the image show?",
+    "suggest": "Suggest",
+    "suggesting": "Creating a suggestion",
+    "suggestion": "Suggestion of the AI",
+    "accept": "Accept",
+    "discard": "Discard",
+    "save": "Save alt text",
+    "saved": "Alt text saved.",
+    "fromLibrary": "Left empty, the alt text from the library applies."
+  },
+  "delete": {
+    "button": "Delete",
+    "title": "Delete the file?",
+    "description": "“{name}” is removed from the library.",
+    "confirm": "Delete",
+    "done": "File deleted."
+  },
+  "strip": {
+    "title": "Media",
+    "add": "Add media",
+    "empty": "No media are attached to this variant yet.",
+    "saveFirst": "Media can be attached once the post is saved.",
+    "remove": "Remove",
+    "crop": "Crop",
+    "cropped": "Cropped",
+    "letterbox": "With bars",
+    "moveBack": "Move back",
+    "moveForward": "Move forward",
+    "position": "Image {position} of {count}",
+    "dragHint": "Drag to sort, or move with the space bar and the arrow keys."
+  },
+  "picker": {
+    "title": "Add media",
+    "description": "Choose images from the library or upload new ones.",
+    "add": "{count, plural, =0 {Add} one {Add # image} other {Add # images}}",
+    "attached": "Already attached",
+    "notReady": "Not ready yet",
+    "select": "Select {name}"
+  },
+  "crop": {
+    "title": "Crop for {platform}",
+    "description": "Move and zoom the section. It applies to this platform only.",
+    "ratio": "Aspect ratio",
+    "presets": {
+      "portrait": "Portrait 4:5",
+      "square": "Square 1:1",
+      "landscape": "Landscape 1.91:1",
+      "wide": "Widescreen 16:9",
+      "original": "Original"
+    },
+    "zoom": "Zoom",
+    "letterbox": "Whole image with white bars",
+    "letterboxHint": "Instead of cropping, the version for the platform adds white bars up to the allowed aspect ratio.",
+    "whole": "Use the whole image",
+    "apply": "Apply"
+  },
+  "preview": {
+    "image": "Image {position}"
+  }
+}

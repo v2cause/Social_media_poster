@@ -6,7 +6,6 @@ import { getTranslations } from 'next-intl/server';
 // which takes precedence over this placeholder.
 const UPCOMING = {
   calendar: 'calendar',
-  media: 'media',
   analytics: 'analytics',
   accounts: 'accounts',
   settings: 'settings',

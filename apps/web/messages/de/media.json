@@ -1,0 +1,111 @@
+{
+  "title": "Medien",
+  "description": "Bilder für Ihre Beiträge. Jede Datei wird geprüft und für jede Plattform passend aufbereitet.",
+  "upload": {
+    "button": "Bilder hochladen",
+    "dropzone": "Bilder hierher ziehen oder auswählen",
+    "hint": "JPEG, PNG, WebP oder unbewegtes GIF, höchstens 20 MB pro Datei",
+    "listLabel": "Uploads",
+    "queued": "Wartet",
+    "uploading": "Wird hochgeladen, {percent} %",
+    "processing": "Wird geprüft",
+    "done": "Hochgeladen",
+    "failed": "Fehlgeschlagen",
+    "storageFailed": "Die Datei konnte nicht in den Speicher hochgeladen werden.",
+    "dismiss": "Ausblenden"
+  },
+  "filters": {
+    "label": "Filter",
+    "all": "Alle",
+    "used": "Verwendet",
+    "unused": "Unbenutzt",
+    "rejected": "Abgelehnt"
+  },
+  "status": {
+    "PENDING_UPLOAD": "Upload ausstehend",
+    "PROCESSING": "Wird geprüft",
+    "READY": "Bereit",
+    "REJECTED": "Abgelehnt"
+  },
+  "rejectReasons": {
+    "SIZE_MISMATCH": "Die Datei hat eine andere Größe als angekündigt.",
+    "TYPE_MISMATCH": "Die Datei hat einen anderen Typ als angekündigt.",
+    "NOT_AN_IMAGE": "Die Datei ist kein Bild.",
+    "UNSUPPORTED_FORMAT": "Dieses Bildformat wird nicht unterstützt.",
+    "HEIC_NOT_SUPPORTED": "HEIC-Bilder werden nicht unterstützt. Bitte exportieren Sie das Bild als JPEG.",
+    "ANIMATED_NOT_SUPPORTED": "Animierte Bilder werden nicht unterstützt.",
+    "DIMENSIONS_TOO_LARGE": "Das Bild hat zu viele Pixel, höchstens 50 Megapixel.",
+    "CORRUPT_IMAGE": "Das Bild ist beschädigt oder unvollständig."
+  },
+  "usage": "{count, plural, =0 {Nicht verwendet} one {In # Variante verwendet} other {In # Varianten verwendet}}",
+  "dimensions": "{width} x {height} px",
+  "empty": {
+    "title": "Noch keine Medien",
+    "description": "Laden Sie Bilder hoch, um sie an Beiträge anzuhängen."
+  },
+  "emptyFilter": "Für diesen Filter gibt es keine Medien.",
+  "loading": "Medien werden geladen",
+  "loadMore": "Mehr laden",
+  "altText": {
+    "label": "Alt-Text",
+    "hint": "Beschreibt das Bild für Menschen, die es nicht sehen können.",
+    "placeholder": "Was ist auf dem Bild zu sehen?",
+    "suggest": "Vorschlagen",
+    "suggesting": "Vorschlag wird erstellt",
+    "suggestion": "Vorschlag der KI",
+    "accept": "Übernehmen",
+    "discard": "Verwerfen",
+    "save": "Alt-Text speichern",
+    "saved": "Alt-Text gespeichert.",
+    "fromLibrary": "Leer gelassen, gilt der Alt-Text aus der Bibliothek."
+  },
+  "delete": {
+    "button": "Löschen",
+    "title": "Datei löschen?",
+    "description": "„{name}“ wird aus der Bibliothek entfernt.",
+    "confirm": "Löschen",
+    "done": "Datei gelöscht."
+  },
+  "strip": {
+    "title": "Medien",
+    "add": "Medien hinzufügen",
+    "empty": "An dieser Variante hängen noch keine Medien.",
+    "saveFirst": "Medien lassen sich anhängen, sobald der Beitrag gespeichert ist.",
+    "remove": "Entfernen",
+    "crop": "Zuschneiden",
+    "cropped": "Zugeschnitten",
+    "letterbox": "Mit Rändern",
+    "moveBack": "Nach vorne",
+    "moveForward": "Nach hinten",
+    "position": "Bild {position} von {count}",
+    "dragHint": "Zum Sortieren ziehen oder mit Leertaste und Pfeiltasten verschieben."
+  },
+  "picker": {
+    "title": "Medien hinzufügen",
+    "description": "Wählen Sie Bilder aus der Bibliothek oder laden Sie neue hoch.",
+    "add": "{count, plural, =0 {Hinzufügen} one {# Bild hinzufügen} other {# Bilder hinzufügen}}",
+    "attached": "Bereits angehängt",
+    "notReady": "Noch nicht bereit",
+    "select": "{name} auswählen"
+  },
+  "crop": {
+    "title": "Zuschneiden für {platform}",
+    "description": "Verschieben und zoomen Sie den Ausschnitt. Er gilt nur für diese Plattform.",
+    "ratio": "Seitenverhältnis",
+    "presets": {
+      "portrait": "Hochformat 4:5",
+      "square": "Quadrat 1:1",
+      "landscape": "Querformat 1.91:1",
+      "wide": "Breitbild 16:9",
+      "original": "Original"
+    },
+    "zoom": "Zoom",
+    "letterbox": "Ganzes Bild mit weißen Rändern",
+    "letterboxHint": "Statt zuzuschneiden, ergänzt die Version für die Plattform weiße Ränder bis zum erlaubten Seitenverhältnis.",
+    "whole": "Ganzes Bild verwenden",
+    "apply": "Übernehmen"
+  },
+  "preview": {
+    "image": "Bild {position}"
+  }
+}
