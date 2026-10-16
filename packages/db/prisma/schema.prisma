@@ -300,6 +300,8 @@ model Notification {
   userId         String    @map("user_id") @db.Uuid
   organizationId String?   @map("organization_id") @db.Uuid
   workspaceId    String?   @map("workspace_id") @db.Uuid
+  // The outbox event the notification came from (guide step 4.9); one per user and event.
+  eventId        String?   @map("event_id") @db.Uuid
   type           String
   payload        Json      @default("{}")
   readAt         DateTime? @map("read_at") @db.Timestamptz(3)
@@ -307,6 +309,7 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, eventId])
   @@index([userId, createdAt(sort: Desc)])
   @@map("notification")
 }
