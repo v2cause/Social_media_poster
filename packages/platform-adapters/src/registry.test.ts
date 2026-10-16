@@ -33,6 +33,17 @@ describe('AdapterRegistry', () => {
     ]);
   });
 
+  it('hands out the OAuth connectors for the flow of guide step 4.5', () => {
+    const x = mock('X');
+    const registry = new AdapterRegistry([x]);
+
+    expect(registry.methodFor('X')).toBe('MOCK');
+    expect(registry.methodFor('LINKEDIN')).toBeNull();
+    expect(registry.connector('X', 'MOCK')).toBe(x.connector);
+    expect(registry.connector('X', 'API')).toBeNull();
+    expect(registry.connector('X', 'BROWSER')).toBeNull();
+  });
+
   it('refuses two adapters for the same platform and method', () => {
     expect(() => new AdapterRegistry([mock('X'), mock('X')])).toThrow(/Two adapters/);
   });

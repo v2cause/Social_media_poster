@@ -1,4 +1,4 @@
-import type { ConnectionMethod, SocialPlatformAdapter } from '@smp/core';
+import type { ChannelConnectors, ConnectionMethod, OAuthConnector, SocialPlatformAdapter } from '@smp/core';
 import type { Platform } from '@smp/platform-rules';
 
 // Chooses the adapter of an account by platform and connection method (architecture 4.1). There
@@ -18,7 +18,7 @@ export type BrowserGate = (workspaceId: string) => Promise<boolean>;
 
 const DENY_BROWSER: BrowserGate = () => Promise.resolve(false);
 
-export class AdapterRegistry {
+export class AdapterRegistry implements ChannelConnectors {
   private readonly adapters = new Map<string, SocialPlatformAdapter>();
 
   constructor(
@@ -54,6 +54,16 @@ export class AdapterRegistry {
       throw new AdapterNotAvailableError(platform, method);
     }
     return adapter;
+  }
+
+  /** The method new connections of the platform use; null when it cannot be connected. */
+  methodFor(platform: Platform): ConnectionMethod | null {
+    return this.methods().find((entry) => entry.platform === platform)?.method ?? null;
+  }
+
+  /** The OAuth connector of a platform and method; the browser method has none. */
+  connector(platform: Platform, method: ConnectionMethod): OAuthConnector | null {
+    return method === 'BROWSER' ? null : (this.adapters.get(`${platform}:${method}`)?.connector ?? null);
   }
 
   /** The platforms that can be connected, with the method each one uses. */
