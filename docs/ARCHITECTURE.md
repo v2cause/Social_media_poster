@@ -570,7 +570,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   - Entwürfe werden automatisch gespeichert.
 - **Kalender**: FullCalendar mit Varianten in Plattformfarben und Status-Icon. Umplanen per Drag & Drop mit optimistischem Update und Rollback. Vergangene Zeitpunkte sind gesperrt. Für Tastaturnutzer gibt es einen Umplanen-Dialog.
 - **Bibliotheken**: TanStack Query (Orval-Hooks), react-hook-form + zodResolver (dieselben Schemas wie die API), nuqs für den URL-State, kleine Zustand-Stores nur für lokalen Composer-State, shadcn/ui + Tailwind 4, lucide, sonner, TanStack Table, Recharts, date-fns v4.
-- **i18n**: next-intl mit ICU-Nachrichten. API-Fehlercodes werden im Client übersetzt.
+- **i18n**: next-intl mit ICU-Nachrichten, eine Datei pro Namespace und Sprache (`apps/web/messages/{de,en}/<namespace>.json`), typisierte Keys. Deutsch ist die Referenz; `pnpm check:i18n` prüft in der CI, dass jede Sprache dieselben Keys mit denselben Argumenten hat und jede Nachricht gültiges ICU ist. Plural über ICU (`{count, plural, one {...} other {...}}`), Datum und Zahlen über `useFormatter`. API-Fehlercodes werden im Client unter `errors.codes.<CODE>` übersetzt.
 - **Live-Updates**: SSE `/api/w/:ws/events` invalidiert Query-Keys; als Fallback wird alle 30 s gepollt.
 - **Ziel**: WCAG 2.2 AA.
 

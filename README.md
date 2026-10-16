@@ -55,6 +55,7 @@ Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis au
 | `pnpm check:deps`       | Architekturregeln mit dependency-cruiser prüfen                             | Schritt 0.13 |
 | `pnpm check:emoji`      | Emoji in verfolgten Dateien suchen; mit `--commits A..B` in Commit-Messages | Schritt 0.13 |
 | `pnpm check:format`     | Prettier-Prüfung über das Repo                                              | Schritt 0.13 |
+| `pnpm check:i18n`       | Übersetzungen prüfen: gleiche Keys und Argumente in de und en, gültiges ICU | Schritt 1.10 |
 | `pnpm check:rls`        | RLS und Policies aller Mandantentabellen in der lokalen Datenbank prüfen    | Schritt 1.2  |
 
 E2E-Tests: `pnpm test:e2e` läuft gegen den gestarteten Stack, wie im CI-Job "End-to-end tests". Vorher die Infrastruktur starten (`docker compose up -d --wait`), migrieren und bauen, dann in drei Terminals API und Worker (`node --env-file=../../.env --require @smp/observability/register dist/main.js` in `apps/api` und `apps/worker`) sowie das Web (`pnpm --filter @smp/web start`). Der Test liest die Verifizierungs- und Einladungs-Mails über die Mailpit-API. Ohne heruntergeladene Playwright-Browser zeigt `PLAYWRIGHT_CHROMIUM_EXECUTABLE` auf ein installiertes Chrome oder Chromium.

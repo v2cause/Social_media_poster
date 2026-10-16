@@ -1,4 +1,4 @@
-// Stable error codes of the API (guide B.1). The UI translates them under errors.<code>.
+// Stable error codes of the API (guide B.1). The UI translates them under errors.codes.<code>.
 
 export const ERROR_CODES = [
   'VALIDATION_FAILED',

@@ -38,6 +38,7 @@ jobs:
       - run: pnpm check:deps
       - run: pnpm check:emoji
       - run: pnpm check:format
+      - run: pnpm check:i18n
 
   commits:
     name: Commit messages
