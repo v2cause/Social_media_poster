@@ -570,9 +570,17 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Fertig, wenn**: Ein Integrationstest mit msw (das SDK nutzt fetch) alle Pfade abdeckt: ok, refusal, Fallback mitten im Stream, max_tokens, ungültiges JSON, 429, 529, Verbindungsfehler, Abbruch durch den Client.
 
 #### 2.5 `MockAiProvider`
-- **Erstellen**: `packages/ai/src/mock/mock-ai-provider.ts` und `fixtures/*.json`.
-- **So sieht es aus**: Deterministische Antworten pro Stil und Plattform, Streaming in Häppchen mit kleinen Verzögerungen. Spezielle Briefings wie `[mock:refusal]`, `[mock:truncated]` oder `[mock:slow]` lösen die Fehlerpfade aus.
-- **Darauf achten**: In Produktion ist der Mock nicht aktivierbar (Startup-Check).
+- **Erstellen**: `packages/ai/src/mock/mock-ai-provider.ts` und `src/mock/fixtures/{de,en}.json`; dazu `aiEnvSchema`, `checkAiEnv` und `createAiProvider` in `@smp/ai`.
+- **So sieht es aus**: Deterministische Antworten pro Stil und Plattform, Streaming in Häppchen mit kleinen Verzögerungen. Marker im Briefing (bei Refine im Text oder in der Anweisung) lösen die anderen Pfade aus:
+  - `[mock:refusal]`: Teilausgabe, dann `REFUSED`
+  - `[mock:truncated]`: Teilausgabe, `variant.reset`, Teilausgabe, dann `TRUNCATED`
+  - `[mock:retry]`: Teilausgabe, `variant.reset`, dann die vollständige Antwort
+  - `[mock:invalid]`: vollständige Antwort, dann `INVALID_OUTPUT`
+  - `[mock:error]`: `PROVIDER_ERROR` wie bei 529, wiederholbar
+  - `[mock:fallback]`: Antwort vom Fallback-Modell, Bericht mit beiden Versuchen
+  - `[mock:slow]`: längere Pausen zwischen den Häppchen
+  - `[mock:too-long]`: Varianten über dem Textlimit der Plattform
+- **Darauf achten**: In Produktion ist der Mock nicht aktivierbar (Startup-Check): `checkAiEnv` meldet `AI_PROVIDER=mock` bei `NODE_ENV=production` als Konfigurationsfehler, `createAiProvider` wirft zusätzlich.
 - **Fertig, wenn**: Alle E2E-Tests mit dem Mock deterministisch laufen.
 
 #### 2.6 Quoten und Kosten

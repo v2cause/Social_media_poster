@@ -1,0 +1,183 @@
+{
+  "fallbackTopic": "Unser Thema der Woche",
+  "styles": {
+    "professional": {
+      "hook": "{topic}: Worauf es jetzt ankommt.",
+      "paragraphs": [
+        "Wir haben genau hingesehen, was in der Praxis funktioniert. Drei Dinge machen den Unterschied: ein klares Ziel, ein sauberer Ablauf und ehrliche Kennzahlen.",
+        "Das klingt einfach, verlangt aber Disziplin im Alltag. Genau dort entscheidet sich, ob aus einem guten Vorhaben ein gutes Ergebnis wird."
+      ],
+      "callToAction": "Wie gehen Sie das Thema an? Wir freuen uns auf Ihre Sicht.",
+      "hashtags": ["Strategie", "Praxis", "Führung", "Qualität", "Zusammenarbeit"]
+    },
+    "storytelling": {
+      "hook": "Letzte Woche stand unser Team vor einer Frage, die alles verändert hat: {topic}.",
+      "paragraphs": [
+        "Wir hätten den bequemen Weg nehmen können. Stattdessen haben wir zugehört, ausprobiert und dabei mehr gelernt als in jedem Workshop.",
+        "Am Ende stand keine große Geste, sondern ein klarer Gedanke: Gute Arbeit entsteht dort, wo Menschen sich Zeit für die richtigen Fragen nehmen."
+      ],
+      "callToAction": "Kennen Sie solche Momente? Erzählen Sie uns davon.",
+      "hashtags": ["Geschichten", "Teamarbeit", "Lernen", "Erfahrung", "Wachstum"]
+    },
+    "casual": {
+      "hook": "Mal ehrlich: {topic}, und genau darüber reden wir heute.",
+      "paragraphs": [
+        "Kein großes Tamtam, nur das, was wirklich zählt. Wir probieren Dinge aus, behalten, was funktioniert, und lassen den Rest weg.",
+        "Klingt simpel? Ist es meistens auch, wenn man sich traut."
+      ],
+      "callToAction": "Was meint ihr dazu? Schreibt es in die Kommentare.",
+      "hashtags": ["Einblicke", "Team", "Alltag", "Ehrlich", "Machen"]
+    },
+    "educational": {
+      "hook": "{topic}: In drei Schritten erklärt.",
+      "paragraphs": [
+        "Erstens: das Ziel festlegen. Zweitens: den Ablauf in kleine Schritte zerlegen. Drittens: nach jedem Schritt prüfen, was sich verändert hat.",
+        "Der wichtigste Begriff dabei ist die Feedbackschleife: Sie zeigt früh, ob Sie auf dem richtigen Weg sind, und spart später viel Aufwand."
+      ],
+      "callToAction": "Speichern Sie sich den Beitrag für Ihr nächstes Projekt.",
+      "hashtags": ["Wissen", "Tipps", "Anleitung", "Weiterbildung", "Praxiswissen"]
+    },
+    "thought_leadership": {
+      "hook": "{topic}: Warum wir das anders sehen als die meisten.",
+      "paragraphs": [
+        "Oft heißt es, Tempo sei alles. Unsere Erfahrung zeigt etwas anderes: Wer zu schnell entscheidet, entscheidet häufig zweimal.",
+        "Wir setzen deshalb auf klare Prinzipien statt auf kurzlebige Trends. Das ist unbequemer, trägt aber auf Dauer."
+      ],
+      "callToAction": "Sehen Sie das ähnlich oder ganz anders? Wir sind gespannt auf die Diskussion.",
+      "hashtags": ["Zukunft", "Haltung", "Innovation", "Wandel", "Perspektive"]
+    },
+    "promotional": {
+      "hook": "{topic}: Jetzt ist der richtige Moment.",
+      "paragraphs": [
+        "Wir haben unser Angebot genau auf das ausgerichtet, was unsere Kunden im Alltag brauchen: weniger Aufwand, mehr Klarheit und verlässliche Ergebnisse.",
+        "Alle Details finden Sie auf unserer Website, und unser Team beantwortet gern jede Frage."
+      ],
+      "callToAction": "Vereinbaren Sie jetzt ein unverbindliches Gespräch: [LINK]",
+      "hashtags": ["Angebot", "Neuheit", "Service", "Kunden", "Lösung"]
+    }
+  },
+  "customStyle": {
+    "hook": "{topic}: Unsere Sicht in wenigen Sätzen.",
+    "paragraphs": [
+      "Wir schreiben so, wie wir auch im Gespräch klingen: direkt, freundlich und konkret.",
+      "Dieser Text folgt Ihrem eigenen Stil und zeigt, wie ein Beitrag damit aussehen kann."
+    ],
+    "callToAction": "Was denken Sie? Wir freuen uns auf Ihre Rückmeldung.",
+    "hashtags": ["Einblicke", "Unternehmen", "Team", "Austausch", "Praxis"]
+  },
+  "refine": {
+    "leads": {
+      "more_formal": "Kurz eingeordnet: ",
+      "more_casual": "Mal ehrlich: ",
+      "stronger_hook": "Das unterschätzen die meisten: "
+    },
+    "longer": [
+      "Ein Gedanke zum Schluss: Fortschritt entsteht selten durch einen großen Wurf, sondern durch viele kleine, gut gemachte Schritte.",
+      "Und noch etwas: Wer Erfolge teilt, sollte auch über die Umwege sprechen. Genau dort steckt oft das meiste Wissen."
+    ],
+    "addCallToAction": "Was ist Ihre Erfahrung? Schreiben Sie uns, wir antworten gern.",
+    "custom": "Überarbeitet nach Ihrer Anweisung: {instruction}"
+  },
+  "firstCommentLabel": "Mehr dazu:",
+  "numberWarning": "Zahlen aus dem Briefing brauchen eine Quelle.",
+  "altText": {
+    "withContext": "Eine ruhige, klar aufgebaute Szene zum Thema {context}.",
+    "withoutContext": "Eine ruhige, klar aufgebaute Szene mit einem gut erkennbaren Motiv in der Mitte."
+  },
+  "ideas": {
+    "labels": {
+      "pillar": "Content-Säule",
+      "profile": "Firmenprofil"
+    },
+    "date": {
+      "title": "{label}: Unser Beitrag zum Anlass",
+      "angle": "Den Anlass mit einem echten Bezug zum Unternehmen verbinden.",
+      "whyNow": "Am {date} ist {label}.",
+      "format": "Textbeitrag",
+      "styleKey": "professional",
+      "platforms": ["LINKEDIN", "INSTAGRAM", "FACEBOOK"]
+    },
+    "items": [
+      {
+        "title": "Drei Fragen, die uns Kunden am häufigsten stellen",
+        "angle": "Die häufigsten Kundenfragen offen und konkret beantworten.",
+        "whyNow": "Wiederkehrende Fragen zeigen, was die Zielgruppe gerade beschäftigt.",
+        "format": "Textbeitrag",
+        "styleKey": "educational",
+        "platforms": ["LINKEDIN", "FACEBOOK"]
+      },
+      {
+        "title": "Ein Blick hinter die Kulissen",
+        "angle": "Zeigen, wie ein typischer Arbeitstag im Team aussieht.",
+        "whyNow": "Persönliche Einblicke schaffen Vertrauen, gerade bei neuen Kontakten.",
+        "format": "Bildbeitrag",
+        "styleKey": "storytelling",
+        "platforms": ["INSTAGRAM", "FACEBOOK"]
+      },
+      {
+        "title": "Der häufigste Irrtum in unserer Branche",
+        "angle": "Einen verbreiteten Irrtum erklären und eine bessere Alternative zeigen.",
+        "whyNow": "Viele planen gerade ihre nächsten Schritte und können so Fehler vermeiden.",
+        "format": "Textbeitrag",
+        "styleKey": "educational",
+        "platforms": ["LINKEDIN", "X"]
+      },
+      {
+        "title": "Was wir aus einem Rückschlag gelernt haben",
+        "angle": "Offen über ein Projekt sprechen, das anders lief als geplant, und die Lehren daraus teilen.",
+        "whyNow": "Ehrliche Geschichten heben sich von polierten Erfolgsmeldungen ab.",
+        "format": "Textbeitrag",
+        "styleKey": "storytelling",
+        "platforms": ["LINKEDIN"]
+      },
+      {
+        "title": "Fünf Begriffe, die jeder kennen sollte",
+        "angle": "Fachbegriffe der Branche kurz und verständlich erklären.",
+        "whyNow": "Neue Kunden stolpern oft über dieselben Begriffe.",
+        "format": "Karussell",
+        "styleKey": "educational",
+        "platforms": ["INSTAGRAM", "LINKEDIN"]
+      },
+      {
+        "title": "Unsere Einschätzung für die nächsten zwölf Monate",
+        "angle": "Eine begründete Position zur Entwicklung der Branche beziehen.",
+        "whyNow": "Wer jetzt plant, sucht Orientierung für das kommende Jahr.",
+        "format": "Textbeitrag",
+        "styleKey": "thought_leadership",
+        "platforms": ["LINKEDIN", "X"]
+      },
+      {
+        "title": "Ein Projekt im Vorher-nachher-Vergleich",
+        "angle": "Den Weg von der Ausgangslage zum Ergebnis zeigen, mit echten Daten statt Versprechen.",
+        "whyNow": "Konkrete Ergebnisse überzeugen mehr als allgemeine Aussagen.",
+        "format": "Bildbeitrag",
+        "styleKey": "professional",
+        "platforms": ["LINKEDIN", "INSTAGRAM"]
+      },
+      {
+        "title": "Die eine Gewohnheit, die unsere Arbeit verändert hat",
+        "angle": "Eine kleine Routine mit großer Wirkung vorstellen.",
+        "whyNow": "Kleine, sofort umsetzbare Tipps werden gern gespeichert und geteilt.",
+        "format": "Textbeitrag",
+        "styleKey": "casual",
+        "platforms": ["INSTAGRAM", "X"]
+      },
+      {
+        "title": "Mythos oder Wahrheit? Ein Faktencheck",
+        "angle": "Eine verbreitete Annahme prüfen und sachlich einordnen.",
+        "whyNow": "Das Thema wird gerade viel diskutiert.",
+        "format": "Umfrage",
+        "styleKey": "thought_leadership",
+        "platforms": ["LINKEDIN", "X", "FACEBOOK"]
+      },
+      {
+        "title": "Unser Angebot in einem Satz",
+        "angle": "Klar sagen, welches Problem wir für wen lösen.",
+        "whyNow": "Ein klares Profil hilft, im Feed wiedererkannt zu werden.",
+        "format": "Kurzvideo",
+        "styleKey": "promotional",
+        "platforms": ["INSTAGRAM", "FACEBOOK"]
+      }
+    ]
+  }
+}

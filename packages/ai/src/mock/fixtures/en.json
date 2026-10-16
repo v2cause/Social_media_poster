@@ -1,0 +1,183 @@
+{
+  "fallbackTopic": "Our topic of the week",
+  "styles": {
+    "professional": {
+      "hook": "{topic}: what matters now.",
+      "paragraphs": [
+        "We took a close look at what works in practice. Three things make the difference: a clear goal, a clean process and honest numbers.",
+        "It sounds simple, but it takes discipline every day. That is where a good plan turns into a good result."
+      ],
+      "callToAction": "How do you approach this? We would love to hear your view.",
+      "hashtags": ["Strategy", "Execution", "Leadership", "Quality", "Collaboration"]
+    },
+    "storytelling": {
+      "hook": "Last week our team faced a question that changed everything: {topic}.",
+      "paragraphs": [
+        "We could have taken the easy route. Instead we listened, tried things out and learned more than in any workshop.",
+        "In the end there was no grand gesture, just a clear thought: good work happens where people take time for the right questions."
+      ],
+      "callToAction": "Do you know moments like this? Tell us about yours.",
+      "hashtags": ["Stories", "Teamwork", "Learning", "Experience", "Growth"]
+    },
+    "casual": {
+      "hook": "Let's be honest: {topic}, and that is what we are talking about today.",
+      "paragraphs": [
+        "No big fuss, just what really counts. We try things, keep what works and drop the rest.",
+        "Sounds simple? Most of the time it is, once you dare to start."
+      ],
+      "callToAction": "What do you think? Let us know in the comments.",
+      "hashtags": ["Insights", "Team", "Everyday", "RealTalk", "Progress"]
+    },
+    "educational": {
+      "hook": "{topic}: explained in three steps.",
+      "paragraphs": [
+        "First: set the goal. Second: break the process into small steps. Third: after each step, check what has changed.",
+        "The key term here is the feedback loop: it shows early whether you are on the right track and saves a lot of effort later."
+      ],
+      "callToAction": "Save this post for your next project.",
+      "hashtags": ["Knowledge", "Tips", "HowTo", "Learning", "Skills"]
+    },
+    "thought_leadership": {
+      "hook": "{topic}: why we see it differently than most.",
+      "paragraphs": [
+        "People often say speed is everything. Our experience shows something else: those who decide too fast often decide twice.",
+        "That is why we rely on clear principles instead of short-lived trends. It is less comfortable, but it lasts."
+      ],
+      "callToAction": "Do you see it the same way or completely differently? We look forward to the discussion.",
+      "hashtags": ["Future", "Mindset", "Innovation", "Change", "Perspective"]
+    },
+    "promotional": {
+      "hook": "{topic}: now is the right moment.",
+      "paragraphs": [
+        "We built our offer around what our customers need every day: less effort, more clarity and reliable results.",
+        "You will find all details on our website, and our team is happy to answer any question."
+      ],
+      "callToAction": "Book a free consultation now: [LINK]",
+      "hashtags": ["Offer", "New", "Service", "Customers", "Solutions"]
+    }
+  },
+  "customStyle": {
+    "hook": "{topic}: our view in a few sentences.",
+    "paragraphs": [
+      "We write the way we sound in conversation: direct, friendly and specific.",
+      "This text follows your own style and shows what a post with it can look like."
+    ],
+    "callToAction": "What do you think? We look forward to your feedback.",
+    "hashtags": ["Insights", "Business", "Team", "Dialogue", "Practice"]
+  },
+  "refine": {
+    "leads": {
+      "more_formal": "In brief: ",
+      "more_casual": "Let's be honest: ",
+      "stronger_hook": "Most people underestimate this: "
+    },
+    "longer": [
+      "One last thought: progress rarely comes from one big leap, but from many small steps done well.",
+      "And one more thing: whoever shares successes should also talk about the detours. That is often where most of the knowledge is."
+    ],
+    "addCallToAction": "What is your experience? Write to us, we are happy to reply.",
+    "custom": "Revised as requested: {instruction}"
+  },
+  "firstCommentLabel": "Read more:",
+  "numberWarning": "Numbers from the brief need a source.",
+  "altText": {
+    "withContext": "A calm, clearly composed scene about {context}.",
+    "withoutContext": "A calm, clearly composed scene with one recognizable subject in the center."
+  },
+  "ideas": {
+    "labels": {
+      "pillar": "content pillar",
+      "profile": "company profile"
+    },
+    "date": {
+      "title": "{label}: our take on the occasion",
+      "angle": "Connect the occasion with a real link to the company.",
+      "whyNow": "{label} is on {date}.",
+      "format": "text post",
+      "styleKey": "professional",
+      "platforms": ["LINKEDIN", "INSTAGRAM", "FACEBOOK"]
+    },
+    "items": [
+      {
+        "title": "Three questions customers ask us most",
+        "angle": "Answer the most common customer questions openly and specifically.",
+        "whyNow": "Recurring questions show what the audience cares about right now.",
+        "format": "text post",
+        "styleKey": "educational",
+        "platforms": ["LINKEDIN", "FACEBOOK"]
+      },
+      {
+        "title": "A look behind the scenes",
+        "angle": "Show what a typical working day in the team looks like.",
+        "whyNow": "Personal insights build trust, especially with new contacts.",
+        "format": "image post",
+        "styleKey": "storytelling",
+        "platforms": ["INSTAGRAM", "FACEBOOK"]
+      },
+      {
+        "title": "The most common misconception in our industry",
+        "angle": "Explain a widespread misconception and show a better alternative.",
+        "whyNow": "Many are planning their next steps right now and can avoid mistakes this way.",
+        "format": "text post",
+        "styleKey": "educational",
+        "platforms": ["LINKEDIN", "X"]
+      },
+      {
+        "title": "What we learned from a setback",
+        "angle": "Talk openly about a project that went differently than planned and share the lessons.",
+        "whyNow": "Honest stories stand out from polished success announcements.",
+        "format": "text post",
+        "styleKey": "storytelling",
+        "platforms": ["LINKEDIN"]
+      },
+      {
+        "title": "Five terms everyone should know",
+        "angle": "Explain the jargon of the industry briefly and clearly.",
+        "whyNow": "New customers often stumble over the same terms.",
+        "format": "carousel",
+        "styleKey": "educational",
+        "platforms": ["INSTAGRAM", "LINKEDIN"]
+      },
+      {
+        "title": "Our outlook for the next twelve months",
+        "angle": "Take a reasoned position on where the industry is heading.",
+        "whyNow": "Whoever plans now is looking for orientation for the coming year.",
+        "format": "text post",
+        "styleKey": "thought_leadership",
+        "platforms": ["LINKEDIN", "X"]
+      },
+      {
+        "title": "A project before and after",
+        "angle": "Show the way from the starting point to the result, with real data instead of promises.",
+        "whyNow": "Concrete results convince more than general statements.",
+        "format": "image post",
+        "styleKey": "professional",
+        "platforms": ["LINKEDIN", "INSTAGRAM"]
+      },
+      {
+        "title": "The one habit that changed how we work",
+        "angle": "Present a small routine with a big effect.",
+        "whyNow": "Small tips that work right away get saved and shared.",
+        "format": "text post",
+        "styleKey": "casual",
+        "platforms": ["INSTAGRAM", "X"]
+      },
+      {
+        "title": "Myth or truth? A fact check",
+        "angle": "Check a common assumption and put it into perspective.",
+        "whyNow": "The topic is being discussed a lot right now.",
+        "format": "poll",
+        "styleKey": "thought_leadership",
+        "platforms": ["LINKEDIN", "X", "FACEBOOK"]
+      },
+      {
+        "title": "Our offer in one sentence",
+        "angle": "Say clearly which problem we solve and for whom.",
+        "whyNow": "A clear profile helps to be recognized in the feed.",
+        "format": "short video",
+        "styleKey": "promotional",
+        "platforms": ["INSTAGRAM", "FACEBOOK"]
+      }
+    ]
+  }
+}

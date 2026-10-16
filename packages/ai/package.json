@@ -2,7 +2,7 @@
   "name": "@smp/ai",
   "version": "0.0.0",
   "private": true,
-  "description": "AI provider port with the Anthropic adapter, prompts and output schemas.",
+  "description": "The AI providers (Claude API and mock), prompts, output schemas and AI settings.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

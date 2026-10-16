@@ -66,6 +66,8 @@ Container-Betrieb: `docker compose --profile app up -d --build --wait` startet A
 
 Sicherheit: Die Baseline seit Phase 0 (CSP mit Nonce, Datenminimierung in Logs und Fehlerberichten, Gates gegen kompromittierte Pakete, Sicherheits-Scans in der CI, gehärtete Container und Datenbank-Rollen) steht in [ADR 0009](docs/adr/0009-sicherheits-baseline.md). `pnpm install` bricht ab, wenn ein Paket jünger als ein Tag ist, einen schwächeren Herkunftsnachweis hat als frühere Versionen oder ein nicht freigegebenes Install-Skript mitbringt.
 
+KI lokal: Ohne `ANTHROPIC_API_KEY` läuft der deterministische `MockAiProvider` (`AI_PROVIDER=mock`, Standard in `.env.example`). Marker im Briefing wie `[mock:refusal]`, `[mock:truncated]` oder `[mock:slow]` lösen die Fehlerpfade aus; die vollständige Liste steht im [Leitfaden, Schritt 2.5](docs/IMPLEMENTATION_GUIDE.md#25-mockaiprovider). In Produktion startet die App mit dem Mock nicht.
+
 Spikes liegen unter `tools/spikes/` und laufen mit geladener `.env`, zum Beispiel `pnpm exec tsx tools/spikes/rls-overhead.ts`.
 
 Solange ein Paket noch nicht existiert, meldet Turbo "No tasks were executed" und endet mit Exit-Code 0.

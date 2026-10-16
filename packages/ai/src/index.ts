@@ -1,4 +1,4 @@
-// AI provider port with the Anthropic adapter, prompts and output schemas.
+// The AI providers (Claude API and mock), prompts, output schemas and AI settings.
 
 export { PROMPT_VERSION } from './prompts/version';
 export { STYLE_PRESETS, type StylePreset } from './prompts/style-presets';
@@ -28,3 +28,7 @@ export {
   type AiLogger,
   type AnthropicAiProviderConfig,
 } from './anthropic/anthropic-ai-provider';
+export { MockAiProvider, type MockAiProviderConfig } from './mock/mock-ai-provider';
+export { MOCK_TRIGGERS, type MockTrigger } from './mock/text';
+export { AI_PROVIDERS, aiEfforts, aiEnvSchema, checkAiEnv, type AiEnv, type AiProviderName } from './env';
+export { createAiProvider, type AiRuntime } from './create-ai-provider';

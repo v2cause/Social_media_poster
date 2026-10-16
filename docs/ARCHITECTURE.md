@@ -236,7 +236,7 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
   - `suggestTopics()`,
   - `suggestAltText()`: Vision, beschreibt hochgeladene Bilder; keine Bildgenerierung.
 
-  Die Implementierungen sind `AnthropicAiProvider` und `MockAiProvider` (deterministisch, simuliertes Streaming), Auswahl per `AI_PROVIDER=anthropic|mock`.
+  Die Implementierungen sind `AnthropicAiProvider` und `MockAiProvider` (deterministisch, simuliertes Streaming), Auswahl per `AI_PROVIDER=anthropic|mock`. Der Mock streamt das JSON seiner Antwort in Häppchen wie die Claude API und erreicht die Fehlerpfade über Marker im Briefing (`[mock:refusal]`, `[mock:truncated]`, `[mock:retry]`, `[mock:invalid]`, `[mock:error]`, `[mock:fallback]`, `[mock:slow]`, `[mock:too-long]`). Seine Berichte nennen das konfigurierte Modell mit geschätzten Tokens, damit Quote und Kosten wie in Produktion laufen. In Produktion verweigern die Env-Prüfung und die Factory den Mock.
 - **Modell**: `claude-opus-5-5`, über `AI_MODEL` konfigurierbar.
   - Effort ist pro Anwendungsfall fest (Generieren `medium`, Refine `low`, Ideen `medium`, Alt-Text `low`) und per Env überschreibbar. Ein fester Wert pro Route schützt den Prompt-Cache.
   - Thinking ist adaptiv und bei diesem Modell nicht abschaltbar. `temperature` und Assistant-Prefill werden vom Modell abgelehnt; Abwechslung beim Neu-Generieren entsteht über den Prompt.
