@@ -153,7 +153,11 @@ export function ComposerPage(props: ComposerPageProps) {
     setConfirmReplace(false);
     // The server generates from the saved brief, so the latest changes go first.
     const saved = await saver.flush();
-    if (!saved?.postId) {
+    if (saved === null) {
+      toast.error(t('composer.save.failed'));
+      return;
+    }
+    if (saved.postId === null) {
       return;
     }
     dispatch({ type: 'generation-started', variantIds: saved.variants.map((variant) => variant.id) });

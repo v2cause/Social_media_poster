@@ -27,7 +27,9 @@ export default async function ComposePage({
   ]);
 
   return (
+    // A new mount per idea: moving from one prefilled composer to the next starts fresh.
     <ComposerPage
+      key={idea?.id ?? 'new'}
       ws={ws}
       workspaceName={context.workspace.name}
       contentLanguage={toLocale(context.workspace.contentLanguage)}
