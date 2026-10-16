@@ -1,6 +1,6 @@
-import type { OutboxEventPayloads, OutboxEventType } from '@smp/core';
+import { VARIANT_STATUSES, type OutboxEventPayloads, type OutboxEventType } from '@smp/core';
 import type { PendingOutboxEvent } from '@smp/db';
-import type { PublishProducer } from '@smp/queue';
+import type { LiveEventPublisher, PublishProducer } from '@smp/queue';
 import { z } from 'zod';
 
 // Routes the events of the outbox to their jobs (guide step 4.3). A route validates the payload
@@ -12,7 +12,13 @@ const payloadSchemas = {
   'publish.requested': z.object({
     variantId: z.uuid(),
     scheduleVersion: z.number().int().nonnegative(),
-    trigger: z.enum(['now', 'retry']),
+    trigger: z.enum(['now', 'retry', 'recheck']),
+  }),
+  'variant.status': z.object({
+    variantId: z.uuid(),
+    postId: z.uuid(),
+    status: z.enum(VARIANT_STATUSES),
+    scheduleVersion: z.number().int().nonnegative(),
   }),
 } as const satisfies { [T in OutboxEventType]: z.ZodType<OutboxEventPayloads[T]> };
 
@@ -24,7 +30,7 @@ export class UnknownOutboxEventError extends Error {
 }
 
 export class OutboxDispatcher {
-  constructor(private readonly producers: { publish: PublishProducer }) {}
+  constructor(private readonly producers: { publish: PublishProducer; live: LiveEventPublisher }) {}
 
   async dispatch(event: PendingOutboxEvent): Promise<void> {
     switch (event.type) {
@@ -35,6 +41,12 @@ export class OutboxDispatcher {
           workspaceId: event.workspaceId,
           ...payload,
         });
+        return;
+      }
+      case 'variant.status': {
+        // Live only: a browser that misses it polls (guide step 4.10).
+        const payload = payloadSchemas['variant.status'].parse(event.payload);
+        await this.producers.live.publish(event.workspaceId, { type: 'variant.status', ...payload });
         return;
       }
       default:

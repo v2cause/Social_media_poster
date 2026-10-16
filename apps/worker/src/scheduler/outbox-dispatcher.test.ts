@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { PendingOutboxEvent } from '@smp/db';
-import type { PublishProducer, PublishVariant } from '@smp/queue';
+import type { LiveEvent, LiveEventPublisher, PublishProducer, PublishVariant } from '@smp/queue';
 import { describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
 
@@ -27,6 +27,17 @@ const recordingProducer = (jobs: PublishVariant[]): PublishProducer =>
     },
   }) as unknown as PublishProducer;
 
+const recordingLive = (events: [string, LiveEvent][]): LiveEventPublisher =>
+  ({
+    publish: (workspaceId: string, live: LiveEvent) => {
+      events.push([workspaceId, live]);
+      return Promise.resolve();
+    },
+  }) as unknown as LiveEventPublisher;
+
+const dispatcherOf = (jobs: PublishVariant[] = [], live: [string, LiveEvent][] = []): OutboxDispatcher =>
+  new OutboxDispatcher({ publish: recordingProducer(jobs), live: recordingLive(live) });
+
 describe('OutboxDispatcher', () => {
   it('adds the publish job of a requested schedule version', async () => {
     const jobs: PublishVariant[] = [];
@@ -36,7 +47,7 @@ describe('OutboxDispatcher', () => {
       trigger: 'now',
     });
 
-    await new OutboxDispatcher({ publish: recordingProducer(jobs) }).dispatch(requested);
+    await dispatcherOf(jobs).dispatch(requested);
 
     expect(jobs).toEqual([
       {
@@ -47,8 +58,22 @@ describe('OutboxDispatcher', () => {
     ]);
   });
 
+  it('passes a status change on to the live events of its workspace', async () => {
+    const live: [string, LiveEvent][] = [];
+    const changed = event('variant.status', {
+      variantId: randomUUID(),
+      postId: randomUUID(),
+      status: 'QUEUED',
+      scheduleVersion: 2,
+    });
+
+    await dispatcherOf([], live).dispatch(changed);
+
+    expect(live).toEqual([[changed.workspaceId, { type: 'variant.status', ...(changed.payload as object) }]]);
+  });
+
   it('fails on a broken payload or an unknown type, so the event stays in the outbox', async () => {
-    const dispatcher = new OutboxDispatcher({ publish: recordingProducer([]) });
+    const dispatcher = dispatcherOf();
 
     await expect(dispatcher.dispatch(event('publish.requested', { variantId: 'x' }))).rejects.toBeInstanceOf(
       ZodError,

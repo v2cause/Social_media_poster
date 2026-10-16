@@ -8,7 +8,13 @@ import { NestFactory } from '@nestjs/core';
 // eslint-disable-next-line no-restricted-imports -- two relays on their own system clients, wired like src/infrastructure does
 import { createSystemPrismaClient } from '@smp/db';
 import { PrismaOutboxRelay, type SystemPrismaClient } from '@smp/db';
-import { publishJobId, PUBLISH_QUEUE, PublishProducer, SCHEDULER_QUEUE } from '@smp/queue';
+import {
+  LiveEventPublisher,
+  publishJobId,
+  PUBLISH_QUEUE,
+  PublishProducer,
+  SCHEDULER_QUEUE,
+} from '@smp/queue';
 import { startRedis, startTestDatabase, type StartedRedis, type TestDatabase } from '@smp/testing';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
@@ -96,7 +102,11 @@ describe('outbox relay of the worker', () => {
       opened.push({ close: () => system.$disconnect() });
       return {
         relay: new PrismaOutboxRelay(system, { batchSize: 7 }),
-        dispatcher: new OutboxDispatcher({ publish: new PublishProducer(publishQueue()) }),
+        // The events here are publish requests only; live events have a test of their own.
+        dispatcher: new OutboxDispatcher({
+          publish: new PublishProducer(publishQueue()),
+          live: new LiveEventPublisher(new Redis(started().redis.url, { lazyConnect: true })),
+        }),
       };
     });
     const drain = async ({ relay, dispatcher }: (typeof relays)[number]): Promise<number> => {

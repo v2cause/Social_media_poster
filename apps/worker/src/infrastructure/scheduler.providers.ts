@@ -7,7 +7,7 @@ import {
   PrismaSealedSecretStore,
   type SystemPrismaClient,
 } from '@smp/db';
-import { PUBLISH_QUEUE, PublishProducer } from '@smp/queue';
+import { LiveEventPublisher, PUBLISH_QUEUE, PublishProducer } from '@smp/queue';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
@@ -26,6 +26,7 @@ const SCHEDULER_CLIENTS = Symbol('SCHEDULER_CLIENTS');
 interface SchedulerClients {
   system: SystemPrismaClient;
   publishQueue: Queue;
+  live: Redis;
 }
 
 @Injectable()
@@ -34,6 +35,7 @@ class SchedulerClientsLifecycle implements OnApplicationShutdown {
 
   async onApplicationShutdown(): Promise<void> {
     await this.clients.publishQueue.close();
+    this.clients.live.disconnect();
     await this.clients.system.$disconnect();
   }
 }
@@ -51,8 +53,13 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
   const publishQueue = new Queue(PUBLISH_QUEUE, {
     connection: new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false }),
   });
+  // Live events go out on a plain connection that fails fast as well.
+  const live = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1, enableOfflineQueue: false });
   const outbox = new PrismaOutboxRelay(system);
-  const dispatcher = new OutboxDispatcher({ publish: new PublishProducer(publishQueue) });
+  const dispatcher = new OutboxDispatcher({
+    publish: new PublishProducer(publishQueue),
+    live: new LiveEventPublisher(live),
+  });
   const maintenance = new Maintenance({
     rewrapSecrets: new RewrapSecrets({ store: new PrismaSealedSecretStore(system), rewrappers: sealers }),
     outbox,
@@ -65,7 +72,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
     },
   };
   return [
-    { provide: SCHEDULER_CLIENTS, useValue: { system, publishQueue } satisfies SchedulerClients },
+    { provide: SCHEDULER_CLIENTS, useValue: { system, publishQueue, live } satisfies SchedulerClients },
     SchedulerClientsLifecycle,
     { provide: TICK_HANDLERS, useValue: handlers },
   ];
