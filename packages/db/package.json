@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@smp/config": "workspace:*",
+    "@smp/crypto": "workspace:*",
     "@smp/testing": "workspace:*",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
@@ -44,6 +45,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "@smp/core": "workspace:*",
     "zod": "^4.6.7"
   }
 }

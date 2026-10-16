@@ -2,7 +2,7 @@
   "name": "@smp/crypto",
   "version": "0.0.0",
   "private": true,
-  "description": "Envelope encryption and key management (local keyring, KMS adapters).",
+  "description": "Envelope encryption and key management (local keyring, KMS adapters) and link tokens.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -18,6 +18,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@smp/core": "workspace:*"
   },
   "devDependencies": {
     "@smp/config": "workspace:*",

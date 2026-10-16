@@ -6,9 +6,12 @@ import type { Prisma, PrismaClient } from './generated/prisma/client';
  * invitations to the user's address.
  */
 export interface TenantContext {
-  userId: string;
+  /** Missing only for the public invitation preview, which reads by token hash alone. */
+  userId?: string;
   organizationId?: string;
   workspaceId?: string;
+  /** Opens the one invitation with this hash (policy token_holder). */
+  invitationTokenHash?: string;
 }
 
 /** Returns the context of the current request or job, for example from AsyncLocalStorage. */
@@ -32,9 +35,10 @@ export const setTenantContext = (
   client: PrismaClient | TenantTransaction,
   context: TenantContext,
 ): Prisma.PrismaPromise<number> =>
-  client.$executeRaw`SELECT set_config('app.user_id', ${context.userId}, true),
+  client.$executeRaw`SELECT set_config('app.user_id', ${context.userId ?? ''}, true),
                             set_config('app.organization_id', ${context.organizationId ?? ''}, true),
-                            set_config('app.workspace_id', ${context.workspaceId ?? ''}, true)`;
+                            set_config('app.workspace_id', ${context.workspaceId ?? ''}, true),
+                            set_config('app.invitation_token_hash', ${context.invitationTokenHash ?? ''}, true)`;
 
 /**
  * Runs fn in one interactive transaction with the context set once at the start. Use it for

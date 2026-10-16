@@ -1,3 +1,3 @@
-// Envelope encryption and key management (local keyring, KMS adapters).
+// Envelope encryption and key management (local keyring, KMS adapters), and link tokens.
 
-export {};
+export { secretTokens, sha256Hex } from './secret-tokens';

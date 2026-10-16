@@ -31,6 +31,7 @@ describe('database roles and migrations', () => {
         '0000_init',
         '0001_identity_tenancy',
         '0002_rls_tenancy',
+        '0003_invitation_preview',
       ]);
       expect(rows.every((row) => row.finished_at instanceof Date)).toBe(true);
     } finally {

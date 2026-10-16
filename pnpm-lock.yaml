@@ -479,6 +479,10 @@ importers:
         version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(@vitest/coverage-v8@5.0.4)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/crypto:
+    dependencies:
+      '@smp/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@smp/config':
         specifier: workspace:*
@@ -507,6 +511,9 @@ importers:
       '@prisma/client':
         specifier: ^7.10.0
         version: 7.10.0(prisma@7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@5.9.3))(typescript@5.9.3)
+      '@smp/core':
+        specifier: workspace:*
+        version: link:../core
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -514,6 +521,9 @@ importers:
       '@smp/config':
         specifier: workspace:*
         version: link:../config
+      '@smp/crypto':
+        specifier: workspace:*
+        version: link:../crypto
       '@smp/testing':
         specifier: workspace:*
         version: link:../testing

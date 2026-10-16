@@ -103,3 +103,11 @@ export class WorkspaceNotFoundError extends DomainError {
     super('The workspace does not exist.');
   }
 }
+
+export class OrganizationNotFoundError extends DomainError {
+  readonly code = 'ORGANIZATION_NOT_FOUND';
+  readonly kind = 'not_found';
+  constructor() {
+    super('The organization does not exist.');
+  }
+}
