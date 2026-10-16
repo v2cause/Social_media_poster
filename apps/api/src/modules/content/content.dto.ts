@@ -1,4 +1,5 @@
 import {
+  altTextSuggestionSchema,
   brandVoiceListSchema,
   brandVoiceSchema,
   brandVoiceTestResponseSchema,
@@ -19,6 +20,7 @@ import {
   setVariantMediaSchema,
   styleListSchema,
   styleSchema,
+  suggestAltTextSchema,
   testBrandVoiceSchema,
   updateBrandVoiceSchema,
   updateIdeaSchema,
@@ -67,3 +69,5 @@ export class UpdateIdeaDto extends createZodDto(updateIdeaSchema) {}
 
 export class GenerateVariantsDto extends createZodDto(generateVariantsSchema) {}
 export class RefineVariantDto extends createZodDto(refineVariantSchema) {}
+export class SuggestAltTextDto extends createZodDto(suggestAltTextSchema) {}
+export class AltTextSuggestionDto extends createZodDto(altTextSuggestionSchema) {}

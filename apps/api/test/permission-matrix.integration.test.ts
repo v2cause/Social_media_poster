@@ -291,6 +291,13 @@ const ENDPOINTS: Endpoint[] = [
     permission: 'media.write',
     path: (i) => `/api/w/${i.slug}/media/${unknownId}`,
   },
+  {
+    method: 'post',
+    route: '/api/w/:ws/ai/alt-texts',
+    permission: 'ai.use',
+    path: (i) => `/api/w/${i.slug}/ai/alt-texts`,
+    body: () => ({ assetId: unknownId }),
+  },
   // Destructive for everyone who may leave: last.
   {
     method: 'post',

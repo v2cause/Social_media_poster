@@ -1475,6 +1475,47 @@
         ]
       }
     },
+    "/api/w/{ws}/ai/alt-texts": {
+      "post": {
+        "operationId": "aiAltText",
+        "parameters": [
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestAltTextDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AltTextSuggestionDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/w/{ws}/ai/generations": {
       "post": {
         "operationId": "aiGenerate",
@@ -5213,6 +5254,42 @@
           "source",
           "version",
           "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "SuggestAltTextDto": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "de",
+              "en"
+            ]
+          },
+          "context": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "assetId"
+        ]
+      },
+      "AltTextSuggestionDto_Output": {
+        "type": "object",
+        "properties": {
+          "altText": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "altText"
         ],
         "additionalProperties": false
       },

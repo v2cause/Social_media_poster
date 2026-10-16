@@ -55,6 +55,18 @@ export const refineVariantSchema = z
   });
 export type RefineVariantRequest = z.input<typeof refineVariantSchema>;
 
+/** A suggested alt text for an image of the library (guide step 3.5); nothing is saved. */
+export const suggestAltTextSchema = z.object({
+  assetId: z.uuid(),
+  /** The language of the post; the content language of the workspace when missing. */
+  language: localeSchema.optional(),
+  /** What the post is about, to focus the description. */
+  context: z.string().trim().max(1000).optional(),
+});
+export type SuggestAltTextRequest = z.input<typeof suggestAltTextSchema>;
+export const altTextSuggestionSchema = z.object({ altText: z.string() });
+export type AltTextSuggestionDto = z.infer<typeof altTextSuggestionSchema>;
+
 export const testBrandVoiceSchema = z.object({
   /** What the sample post is about; a general topic when missing. */
   brief: z.string().trim().max(BRIEF_MAX_LENGTH).optional(),

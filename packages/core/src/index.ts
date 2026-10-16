@@ -72,6 +72,11 @@ export {
   type GenerateIdeasResult,
 } from './ai/application/generate-ideas';
 export {
+  ALT_TEXT_SUGGESTION_MAX,
+  SuggestAltText,
+  type SuggestAltTextCommand,
+} from './ai/application/suggest-alt-text';
+export {
   SAMPLE_BRIEFS,
   TestBrandVoice,
   type TestBrandVoiceCommand,

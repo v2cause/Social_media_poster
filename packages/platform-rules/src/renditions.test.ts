@@ -118,6 +118,13 @@ describe('rendition profiles', () => {
     expect(sizeOf('thumb_640', { width: 300, height: 200 })).toEqual([300, 200]);
   });
 
+  it('ai_vision: JPEG of at most 3 MB, at most 1568 on the longest side', () => {
+    expect(RENDITION_PROFILES.ai_vision).toMatchObject({ format: 'jpeg', maxBytes: 3 * MB });
+    expect(sizeOf('ai_vision', { width: 4000, height: 3000 })).toEqual([1568, 1176]);
+    expect(sizeOf('ai_vision', { width: 3000, height: 4000 })).toEqual([1176, 1568]);
+    expect(sizeOf('ai_vision', { width: 1000, height: 700 })).toEqual([1000, 700]);
+  });
+
   it('cuts out crops inside the image only', () => {
     const image = { width: 1000, height: 800 };
     const crop = { x: 100, y: 50, width: 600, height: 600 };

@@ -1,5 +1,12 @@
 import { HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import type { MediaAssetDto, MediaPageDto, PostDto, UploadTicketDto, VariantDto } from '@smp/contracts';
+import type {
+  AltTextSuggestionDto,
+  MediaAssetDto,
+  MediaPageDto,
+  PostDto,
+  UploadTicketDto,
+  VariantDto,
+} from '@smp/contracts';
 import { createPrismaClient, DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from '@smp/db';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -389,5 +396,62 @@ describe('media API', () => {
     expect(used.assets.map(({ id }) => id).sort()).toEqual([cropped.id, whole.id].sort());
     await as(editor).put(path).send({ version: current, items: [] }).expect(200);
     await as(editor).delete(`${ws}/media/${cropped.id}`).expect(204);
+  });
+
+  it('suggests an alt text with the AI, metered and without saving it', async () => {
+    const ticket = await upload(await photo(), { fileName: 'buero.jpg' });
+    await complete(ticket.asset.id);
+    const asset = await settled(ticket.asset.id);
+
+    const suggestion = (
+      await as(editor)
+        .post(`${ws}/ai/alt-texts`)
+        .send({ assetId: asset.id, context: 'Eröffnung des neuen Büros' })
+        .expect(200)
+    ).body as AltTextSuggestionDto;
+    const english = (
+      await as(editor).post(`${ws}/ai/alt-texts`).send({ assetId: asset.id, language: 'en' }).expect(200)
+    ).body as AltTextSuggestionDto;
+
+    // The mock provider answers deterministically in the language asked for.
+    expect(suggestion.altText).toContain('Eröffnung des neuen Büros');
+    expect(english.altText).toMatch(/^[A-Z]/);
+    expect(english.altText).not.toBe(suggestion.altText);
+    expect((await as(editor).get(`${ws}/media/${asset.id}`).expect(200)).body).toMatchObject({
+      altText: null,
+    });
+
+    const system = await api?.database.connectAs('app_system');
+    try {
+      const generations = (
+        await system?.query(
+          `SELECT task, outcome, input FROM ai_generation WHERE task = 'ALT_TEXT' ORDER BY created_at`,
+        )
+      )?.rows as { task: string; outcome: string; input: { assetId: string } }[];
+      expect(generations.map((row) => [row.task, row.outcome, row.input.assetId])).toEqual([
+        ['ALT_TEXT', 'OK', asset.id],
+        ['ALT_TEXT', 'OK', asset.id],
+      ]);
+      const renditions = (
+        await system?.query(
+          `SELECT width, height FROM media_rendition WHERE asset_id = $1 AND profile = 'ai_vision'`,
+          [asset.id],
+        )
+      )?.rows;
+      // 1600 x 1200 fits into 1568 on the longest side.
+      expect(renditions).toEqual([{ width: 1568, height: 1176 }]);
+    } finally {
+      await system?.end();
+    }
+
+    await as(viewer).post(`${ws}/ai/alt-texts`).send({ assetId: asset.id }).expect(403);
+    expect(
+      (
+        await as(editor)
+          .post(`${ws}/ai/alt-texts`)
+          .send({ assetId: '0199f0a0-0000-7000-8000-000000000999' })
+          .expect(404)
+      ).body,
+    ).toMatchObject({ code: 'MEDIA_NOT_FOUND' });
   });
 });

@@ -12,6 +12,7 @@ import {
   QuotaService,
   RefineVariant,
   SetVariantMedia,
+  SuggestAltText,
   systemClock,
   TestBrandVoice,
   UpdateBrandVoice,
@@ -23,6 +24,7 @@ import {
   type AiDependencies,
   type AiProvider,
   type ContentDependencies,
+  type StoragePort,
 } from '@smp/core';
 import {
   ContentReadModel,
@@ -33,12 +35,13 @@ import {
   PrismaQuotaStore,
   type PrismaClient,
 } from '@smp/db';
+import { SharpImageProcessor } from '@smp/media';
 import { MediaProducer } from '@smp/queue';
 
 import { RequestOriginService } from '../../common/cls/tenant-context';
 import type { ApiEnv } from '../../config/api-env';
 import { API_ENV } from '../../config/config.module';
-import { DATABASE_CLIENT } from '../../infrastructure/clients.module';
+import { DATABASE_CLIENT, MEDIA_STORAGE } from '../../infrastructure/clients.module';
 import { AI_RATE_LIMITS, AiRateLimiter, DEFAULT_AI_RATE_LIMITS } from './ai-rate-limiter';
 
 export const CONTENT_DEPENDENCIES = Symbol('CONTENT_DEPENDENCIES');
@@ -137,6 +140,23 @@ export const contentProviders: Provider[] = [
       new SetVariantMedia({
         unitOfWork: new PrismaMediaUnitOfWork(base, () => origin.get()),
         jobs,
+        ids: uuidV7Ids,
+      }),
+  },
+  {
+    // Renders the image for the AI once per asset in the API process; the rate limits bound it.
+    provide: SuggestAltText,
+    inject: [AI_DEPENDENCIES, DATABASE_CLIENT, RequestOriginService, MEDIA_STORAGE],
+    useFactory: (
+      ai: AiDependencies,
+      base: PrismaClient,
+      origin: RequestOriginService,
+      storage: StoragePort,
+    ) =>
+      new SuggestAltText(ai, {
+        unitOfWork: new PrismaMediaUnitOfWork(base, () => origin.get()),
+        storage,
+        processor: new SharpImageProcessor({ threads: 1 }),
         ids: uuidV7Ids,
       }),
   },

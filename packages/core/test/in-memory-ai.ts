@@ -194,9 +194,12 @@ export class ScriptedProvider implements AiProvider {
     return this.topics(input);
   }
 
+  altText: (input: SuggestAltTextInput) => Promise<AiResult<string>> = () =>
+    Promise.resolve({ ok: true, value: 'Ein Bild.', report: reportOf() });
+
   suggestAltText(input: SuggestAltTextInput, options: { effort: string }): Promise<AiResult<string>> {
     this.calls.push({ method: 'suggestAltText', input, effort: options.effort });
-    return Promise.resolve({ ok: true, value: 'Ein Bild.', report: reportOf() });
+    return this.altText(input);
   }
 }
 

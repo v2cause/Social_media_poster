@@ -12,6 +12,7 @@ export const RENDITION_PROFILE_KEYS = [
   'x_image',
   'thumb_320',
   'thumb_640',
+  'ai_vision',
 ] as const;
 export type RenditionProfileKey = (typeof RENDITION_PROFILE_KEYS)[number];
 
@@ -95,6 +96,16 @@ export const RENDITION_PROFILES: Readonly<Record<RenditionProfileKey, RenditionP
     maxWidth: 640,
     maxHeight: 2560,
     maxBytes: 2 * MB,
+  },
+  // What the alt text suggestion sends to Claude (guide step 3.5): the longest side at 1568 px,
+  // the size the model reads without scaling it down. Well below the 5 MB per image of the API.
+  ai_vision: {
+    key: 'ai_vision',
+    format: 'jpeg',
+    quality: 85,
+    maxWidth: 1568,
+    maxHeight: 1568,
+    maxBytes: 3 * MB,
   },
 };
 
