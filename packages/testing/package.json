@@ -20,6 +20,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@smp/core": "workspace:*",
     "@testcontainers/postgresql": "^12.2.1",
     "pg": "^8.23.1",
     "testcontainers": "^12.2.1",
@@ -32,6 +33,9 @@
     "eslint": "^10.12.0",
     "tsup": "^9.0.0",
     "typescript": "^5.9.3",
+    "vitest": "^5.0.4"
+  },
+  "peerDependencies": {
     "vitest": "^5.0.4"
   }
 }

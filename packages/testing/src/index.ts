@@ -11,3 +11,4 @@ export {
 } from './containers';
 export { PASSWORDS, startTestDatabase, type DatabaseRole, type TestDatabase } from './postgres';
 export { totpCode } from './totp';
+export { describeAdapterContract, type AdapterContractFixtures, type TestRunner } from './adapter-contract';

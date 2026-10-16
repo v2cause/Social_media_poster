@@ -939,6 +939,9 @@ importers:
 
   packages/testing:
     dependencies:
+      '@smp/core':
+        specifier: workspace:*
+        version: link:../core
       '@testcontainers/postgresql':
         specifier: ^12.2.1
         version: 12.2.1
