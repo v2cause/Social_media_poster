@@ -7,7 +7,7 @@ const FALLBACK = 'workspace';
 export function slugify(name: string): string {
   const slug = name
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/ß/g, 'ss')
     .replace(/[^a-z0-9]+/g, '-')

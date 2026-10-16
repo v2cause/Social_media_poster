@@ -41,24 +41,24 @@ pnpm build
 
 Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis auf die Pflichtwerte. Die lokale Infrastruktur (Postgres, Redis, S3-kompatibler Speicher, Mailpit) startet über `compose.yaml`. `.env.test` enthält nur Testwerte und wird committet; Integrationstests starten ihre Datenbanken selbst über Testcontainers.
 
-| Befehl                  | Zweck                                                                       | Verfügbar ab |
-| ----------------------- | --------------------------------------------------------------------------- | ------------ |
-| `pnpm dev`              | startet die Apps im Watch-Modus                                             | Schritt 0.7  |
-| `pnpm build`            | baut alle Packages und Apps (Turbo, mit Cache)                              | Schritt 0.1  |
-| `pnpm lint`             | ESLint über alle Packages                                                   | Schritt 0.2  |
-| `pnpm typecheck`        | TypeScript-Prüfung ohne Ausgabe                                             | Schritt 0.2  |
-| `pnpm test`             | Unit-Tests (Vitest)                                                         | Schritt 0.2  |
-| `pnpm test:integration` | Integrationstests mit Testcontainers (braucht Docker)                       | Schritt 0.5  |
-| `pnpm test:e2e`         | End-to-End-Tests (Playwright)                                               | Schritt 1.9  |
-| `pnpm format`           | Prettier über das Repo schreiben                                            | Schritt 0.2  |
-| `pnpm db:migrate`       | Prisma-Migrationen als `app_migrator` anwenden                              | Schritt 0.5  |
-| `pnpm db:seed`          | Demo-Daten laden                                                            | Schritt 1.1  |
-| `pnpm gen:keys`         | 32-Byte-Schlüssel für Token und Sessions erzeugen                           | Schritt 0.4  |
-| `pnpm check:deps`       | Architekturregeln mit dependency-cruiser prüfen                             | Schritt 0.13 |
-| `pnpm check:emoji`      | Emoji in verfolgten Dateien suchen; mit `--commits A..B` in Commit-Messages | Schritt 0.13 |
-| `pnpm check:format`     | Prettier-Prüfung über das Repo                                              | Schritt 0.13 |
-| `pnpm check:i18n`       | Übersetzungen prüfen: gleiche Keys und Argumente in de und en, gültiges ICU | Schritt 1.10 |
-| `pnpm check:rls`        | RLS und Policies aller Mandantentabellen in der lokalen Datenbank prüfen    | Schritt 1.2  |
+| Befehl                  | Zweck                                                                                               | Verfügbar ab |
+| ----------------------- | --------------------------------------------------------------------------------------------------- | ------------ |
+| `pnpm dev`              | startet die Apps im Watch-Modus                                                                     | Schritt 0.7  |
+| `pnpm build`            | baut alle Packages und Apps (Turbo, mit Cache)                                                      | Schritt 0.1  |
+| `pnpm lint`             | ESLint über alle Packages                                                                           | Schritt 0.2  |
+| `pnpm typecheck`        | TypeScript-Prüfung ohne Ausgabe                                                                     | Schritt 0.2  |
+| `pnpm test`             | Unit-Tests (Vitest)                                                                                 | Schritt 0.2  |
+| `pnpm test:integration` | Integrationstests mit Testcontainers (braucht Docker)                                               | Schritt 0.5  |
+| `pnpm test:e2e`         | End-to-End-Tests (Playwright)                                                                       | Schritt 1.9  |
+| `pnpm format`           | Prettier über das Repo schreiben                                                                    | Schritt 0.2  |
+| `pnpm db:migrate`       | Prisma-Migrationen als `app_migrator` anwenden                                                      | Schritt 0.5  |
+| `pnpm db:seed`          | Demo-Daten laden                                                                                    | Schritt 1.1  |
+| `pnpm gen:keys`         | 32-Byte-Schlüssel für Token und Sessions erzeugen                                                   | Schritt 0.4  |
+| `pnpm check:deps`       | Architekturregeln mit dependency-cruiser prüfen                                                     | Schritt 0.13 |
+| `pnpm check:emoji`      | Emoji und unsichtbare Zeichen in verfolgten Dateien suchen; mit `--commits A..B` in Commit-Messages | Schritt 0.13 |
+| `pnpm check:format`     | Prettier-Prüfung über das Repo                                                                      | Schritt 0.13 |
+| `pnpm check:i18n`       | Übersetzungen prüfen: gleiche Keys und Argumente in de und en, gültiges ICU                         | Schritt 1.10 |
+| `pnpm check:rls`        | RLS und Policies aller Mandantentabellen in der lokalen Datenbank prüfen                            | Schritt 1.2  |
 
 E2E-Tests: `pnpm test:e2e` läuft gegen den gestarteten Stack, wie im CI-Job "End-to-end tests". Vorher die Infrastruktur starten (`docker compose up -d --wait`), migrieren und bauen, dann in drei Terminals API und Worker (`node --env-file=../../.env --require @smp/observability/register dist/main.js` in `apps/api` und `apps/worker`) sowie das Web (`pnpm --filter @smp/web start`). Der Test liest die Verifizierungs- und Einladungs-Mails über die Mailpit-API. Ohne heruntergeladene Playwright-Browser zeigt `PLAYWRIGHT_CHROMIUM_EXECUTABLE` auf ein installiertes Chrome oder Chromium.
 

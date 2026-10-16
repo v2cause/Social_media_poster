@@ -15,7 +15,7 @@ const FAMILY = '\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}\u{200D}\u{1F466}';
 const WAVE_SKIN_TONE = '\u{1F44B}\u{1F3FD}';
 const FLAG_DE = '\u{1F1E9}\u{1F1EA}';
 const E_ACUTE_COMPOSED = 'é';
-const E_ACUTE_DECOMPOSED = 'é';
+const E_ACUTE_DECOMPOSED = 'e\u0301';
 const NI_HAO = '你好';
 
 describe('countGraphemes', () => {

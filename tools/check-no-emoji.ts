@@ -12,10 +12,14 @@ import { promisify } from 'node:util';
 //   tsx tools/check-no-emoji.ts                    every text file that Git tracks
 //   tsx tools/check-no-emoji.ts --commits A..B     the messages of the commits in a range
 //
+// Invisible characters count too: format characters (zero-width joiners, bidirectional controls
+// that can make code read differently than it runs, byte order marks, soft hyphens) and variation
+// selectors. Text that needs them writes them as escape sequences ('\u200D').
+//
 // Only tracked files are scanned, so generated and ignored output (node_modules, dist, the Prisma
 // client) is never part of the check. Every tracked text file counts, whatever its extension
 // (compose.yaml, .sql, .prisma, Dockerfiles, ...). Files containing a NUL byte are binary and skipped.
-const PICTOGRAPHIC = /\p{Extended_Pictographic}/gu;
+const PICTOGRAPHIC = /\p{Extended_Pictographic}|\p{Cf}|[\u{FE00}-\u{FE0F}]/gu;
 
 // Extended_Pictographic also matches these three signs. They are allowed for legal texts.
 const ALLOWED = new Set(['©', '®', '™']);
@@ -94,7 +98,9 @@ async function main(): Promise<void> {
   }
 
   if (findings.length > 0) {
-    process.stdout.write(`Emoji found in ${String(findings.length)} location(s):\n${findings.join('\n')}\n`);
+    process.stdout.write(
+      `Emoji or invisible characters found in ${String(findings.length)} location(s):\n${findings.join('\n')}\n`,
+    );
     process.exitCode = 1;
     return;
   }
