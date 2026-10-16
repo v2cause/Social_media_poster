@@ -16,6 +16,7 @@
     "test:e2e": "turbo run test:e2e",
     "db:migrate": "pnpm --filter @smp/db migrate:dev",
     "db:seed": "pnpm --filter @smp/db seed",
+    "eval:ai": "turbo run build --filter=@smp/ai && pnpm --filter @smp/ai eval",
     "format": "prettier --write .",
     "gen:keys": "tsx tools/gen-keys.ts",
     "check:deps": "depcruise --config .dependency-cruiser.cjs apps packages",

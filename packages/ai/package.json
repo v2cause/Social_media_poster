@@ -17,10 +17,12 @@
     "dev": "tsup --watch",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval": "node --env-file-if-exists=../../.env dist/eval/run-eval.js"
   },
   "devDependencies": {
     "@smp/config": "workspace:*",
+    "@smp/db": "workspace:*",
     "@types/node": "^24.19.2",
     "eslint": "^10.12.0",
     "msw": "^3.0.3",

@@ -1,0 +1,4 @@
+# Runs against the mock provider only check the pipeline; baselines of the Claude API are
+# committed for the comparison of the next run.
+*-mock.json
+*-mock.md

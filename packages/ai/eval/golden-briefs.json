@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "platforms": ["LINKEDIN", "INSTAGRAM", "FACEBOOK", "X"],
+  "brands": {
+    "de": {
+      "profile": {
+        "name": "Nordlicht Haustechnik GmbH",
+        "industry": "Heizung, Sanitär und Haustechnik",
+        "targetAudience": "Hausbesitzer und Hausverwaltungen in Norddeutschland",
+        "goals": "Vertrauen aufbauen und Wartungsverträge gewinnen",
+        "contentPillars": ["Service", "Team", "Energiespartipps"]
+      },
+      "voice": {
+        "name": "Nordlicht, klar und nahbar",
+        "description": "Ein Handwerksbetrieb, der Technik verständlich erklärt und auf Augenhöhe spricht.",
+        "tone": ["freundlich", "kompetent", "bodenständig"],
+        "dos": [
+          "Konkrete Beispiele aus dem Arbeitsalltag nennen",
+          "Leserinnen und Leser direkt ansprechen",
+          "Fachbegriffe kurz erklären"
+        ],
+        "donts": [
+          "Übertreibungen und Superlative",
+          "Fachjargon ohne Erklärung",
+          "Druck oder künstliche Verknappung"
+        ],
+        "vocabulary": ["Wartung", "Heizung", "Team", "zuverlässig"],
+        "forbiddenWords": ["billig", "revolutionär", "Schnäppchen", "unschlagbar"],
+        "emojiPolicy": "sparse",
+        "hashtagPolicy": "few",
+        "examplePosts": [
+          "Montagmorgen, 7 Uhr: Unser Notdienst hat am Wochenende 14 Heizungen wieder zum Laufen gebracht. Danke an alle, die dafür ihr Wochenende geopfert haben.",
+          "Warum gluckert die Heizung? Meist ist Luft im System. Entlüften dauert fünf Minuten, und wir zeigen Ihnen, wie es geht."
+        ],
+        "language": "de"
+      }
+    },
+    "en": {
+      "profile": {
+        "name": "Northern Light Home Services Ltd",
+        "industry": "Heating, plumbing and home services",
+        "targetAudience": "Homeowners and property managers in Scotland",
+        "goals": "Build trust and win maintenance contracts",
+        "contentPillars": ["Service", "Team", "Energy saving tips"]
+      },
+      "voice": {
+        "name": "Northern Light, clear and approachable",
+        "description": "A trade business that explains technology plainly and talks at eye level.",
+        "tone": ["friendly", "competent", "down to earth"],
+        "dos": [
+          "Give concrete examples from daily work",
+          "Address readers directly",
+          "Explain technical terms briefly"
+        ],
+        "donts": [
+          "Exaggeration and superlatives",
+          "Jargon without explanation",
+          "Pressure or artificial scarcity"
+        ],
+        "vocabulary": ["maintenance", "boiler", "team", "reliable"],
+        "forbiddenWords": ["cheap", "revolutionary", "bargain", "unbeatable"],
+        "emojiPolicy": "sparse",
+        "hashtagPolicy": "few",
+        "examplePosts": [
+          "Monday, 7 am: our emergency team got 14 boilers running again over the weekend. Thanks to everyone who gave up their weekend for it.",
+          "Why does the radiator gurgle? Usually there is air in the system. Bleeding it takes five minutes, and we show you how."
+        ],
+        "language": "en"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "de-professional",
+      "language": "de",
+      "styleKey": "professional",
+      "brief": "Wir haben die Bearbeitungszeit für Serviceanfragen von 48 auf 24 Stunden halbiert. Grund ist ein neues Ticketsystem, das jede Anfrage automatisch dem passenden Team zuordnet. Zielgruppe sind Bestandskunden mit Wartungsvertrag."
+    },
+    {
+      "id": "de-storytelling",
+      "language": "de",
+      "styleKey": "storytelling",
+      "brief": "Unser Azubi Jonas hat im ersten Lehrjahr bemerkt, dass Werkzeuge an zwei Orten gelagert wurden. Seine Idee, alles in einem Werkstattwagen pro Team zu sammeln, spart uns jede Woche rund drei Stunden Suchzeit."
+    },
+    {
+      "id": "de-casual",
+      "language": "de",
+      "styleKey": "casual",
+      "brief": "Freitag ist bei uns Frühstückstag: Jede Woche bringt ein anderes Team Brötchen mit. Diese Woche gab es zum ersten Mal vegane Aufstriche, und die waren zuerst weg."
+    },
+    {
+      "id": "de-educational",
+      "language": "de",
+      "styleKey": "educational",
+      "brief": "Drei Dinge, die Hausbesitzer vor dem Winter an ihrer Heizung prüfen sollten: den Wasserdruck, die Heizkörper auf Luft und das Thermostat auf die richtige Zeitsteuerung. Wer unsicher ist, kann einen Termin vereinbaren."
+    },
+    {
+      "id": "de-thought-leadership",
+      "language": "de",
+      "styleKey": "thought_leadership",
+      "brief": "Unsere Haltung zur Wärmepumpe im Altbau: Sie ist nicht in jedem Haus die beste Lösung, aber in deutlich mehr Häusern möglich als oft behauptet. Entscheidend sind Heizkörper, Dämmung und eine ehrliche Beratung vor Ort."
+    },
+    {
+      "id": "de-promotional",
+      "language": "de",
+      "styleKey": "promotional",
+      "brief": "Ab dem 1. November gibt es unser Wartungspaket für Gasheizungen auch als Monatsabo für 19 Euro. Enthalten sind die jährliche Inspektion und bevorzugte Termine bei einer Störung. Mehr unter https://example.com/wartung"
+    },
+    {
+      "id": "en-professional",
+      "language": "en",
+      "styleKey": "professional",
+      "brief": "We cut the response time for service requests from 48 to 24 hours. The reason is a new ticket system that routes every request to the right team automatically. The audience is existing customers with a maintenance contract."
+    },
+    {
+      "id": "en-storytelling",
+      "language": "en",
+      "styleKey": "storytelling",
+      "brief": "In his first year, our apprentice Callum noticed that tools were stored in two places. His idea to keep everything in one workshop trolley per team now saves us about three hours of searching every week."
+    },
+    {
+      "id": "en-casual",
+      "language": "en",
+      "styleKey": "casual",
+      "brief": "Friday is breakfast day at our place: every week a different team brings the rolls. This week there were vegan spreads for the first time, and they were the first to go."
+    },
+    {
+      "id": "en-educational",
+      "language": "en",
+      "styleKey": "educational",
+      "brief": "Three things homeowners should check on their heating before winter: the water pressure, air in the radiators and the timer settings of the thermostat. Anyone unsure can book an appointment."
+    },
+    {
+      "id": "en-thought-leadership",
+      "language": "en",
+      "styleKey": "thought_leadership",
+      "brief": "Our view on heat pumps in older homes: they are not the best option for every house, but they work in far more houses than people often claim. What matters are the radiators, the insulation and honest advice on site."
+    },
+    {
+      "id": "en-promotional",
+      "language": "en",
+      "styleKey": "promotional",
+      "brief": "From 1 November our maintenance package for gas boilers is also available as a monthly plan for 15 pounds. It includes the annual service and priority appointments when something breaks down. More at https://example.com/maintenance"
+    }
+  ]
+}

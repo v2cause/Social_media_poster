@@ -12,6 +12,6 @@ export default mergeConfig(baseVitestConfig, {
     },
   ],
   test: {
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'eval/**/*.test.ts'],
   },
 });

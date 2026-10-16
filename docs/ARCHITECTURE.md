@@ -285,7 +285,7 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md` (`PROM
   - Vor dem Aufruf wird eine Quote reserviert und danach abgerechnet. Ohne Guthaben antwortet die API mit 402.
   - Die Reservierung ist ein bedingtes `UPDATE` auf dem Monatszähler der Organisation (UTC-Kalendermonat bis zur Abrechnung in Phase 7), parallel sicher. `finalize` bucht danach im `finally` den tatsächlichen Betrag: einen Ledger-Eintrag pro Quelle und die Differenz zur Reservierung am Zähler, nie unter null. Bricht ein Prozess dazwischen ab, bleibt die Reservierung stehen, bis ein Abgleich mit dem Ledger sie korrigiert.
   - Fehlt im PriceBook der Preis eines Modells, gilt der Preis des angefragten Modells, sonst der höchste bekannte Preis je Token-Art; ein fehlender Preis macht einen Aufruf nie billiger.
-  - Grobe Schätzung: wenige US-Cent pro Generierung mit 4 Varianten; wird in Phase 2 gemessen.
+  - Grobe Schätzung: wenige US-Cent pro Generierung mit 4 Varianten. Die Eval-Suite (`pnpm eval:ai`, ADR 0018) misst die echten Kosten; ihre obere Schätzung aus dem PriceBook liegt bei 0,17 USD pro Generierung, die gemessene Baseline steht noch aus.
 
 ---
 

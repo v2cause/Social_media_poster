@@ -659,6 +659,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Geprüft werden: Schema gültig, Länge eingehalten, keine verbotenen Wörter, richtige Sprache, Refusal-Quote, Kosten pro Generierung.
   - Ausgabe als Bericht mit Vergleich zur vorherigen Version.
 - **Darauf achten**: Die Suite läuft nur mit Budget-Limit (`EVAL_BUDGET_MICROS`), nie in jedem CI-Lauf, sondern nachts oder manuell.
+- **Umgesetzt**: 12 Generierungen mit je vier Zielen (48 Varianten), Prüfungen mit den Funktionen des Servers, Budgetprüfung vor jedem Aufruf, `--dry-run` und `--only`, Berichte in `packages/ai/eval/reports/` mit Vergleich zum letzten Lauf derselben Fälle. Der Workflow `.github/workflows/eval.yml` läuft von Hand oder nachts, wenn `EVAL_NIGHTLY` gesetzt ist ([ADR 0018](adr/0018-ki-eval-suite-und-baseline.md)). Die Pipeline ist mit dem Mock geprüft; die gemessene Baseline mit der Claude API steht aus, bis ein API-Key vorliegt.
 - **Fertig, wenn**: Eine Baseline mit gemessenen Kosten in einem ADR dokumentiert ist.
 
 ---
