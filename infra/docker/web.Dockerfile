@@ -7,7 +7,7 @@
 # proxy in front of it routes /api to the API (locally: the "proxy" service in compose.yaml).
 # API_INTERNAL_URL is set at runtime for server-side calls only.
 
-ARG NODE_IMAGE=node:24-slim
+ARG NODE_IMAGE=node:24.21.0-slim
 
 FROM ${NODE_IMAGE} AS base
 ENV PNPM_HOME=/pnpm

@@ -5,7 +5,7 @@
 # Runtime stage: the official Playwright image, which ships Chromium and its system libraries.
 # Its tag must match the exact Playwright version pinned in apps/browser-worker/package.json.
 
-FROM node:24-slim AS build
+FROM node:24.21.0-slim AS build
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable

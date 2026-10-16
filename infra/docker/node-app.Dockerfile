@@ -6,7 +6,7 @@
 #
 # Stages: prune (turbo) -> deps (pnpm, frozen lockfile) -> build (turbo) -> runtime (production deps only).
 
-ARG NODE_IMAGE=node:24-slim
+ARG NODE_IMAGE=node:24.21.0-slim
 ARG APP=api
 ARG HEALTH_URL=http://127.0.0.1:3001/api/health/live
 
