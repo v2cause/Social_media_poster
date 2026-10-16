@@ -501,11 +501,12 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
   - TOTP-2FA mit Backup-Codes, für Owner erzwingbar. Passkeys später.
   - Cookie mit `httpOnly; Secure; SameSite=Lax`. Alles läuft same-origin, also kein CORS.
   - Rate-Limits pro Client-Adresse aus `X-Real-IP`, das der Reverse Proxy setzt. Details und Spike-Ergebnis in ADR 0006.
-- **Request-Pipeline**:
+- **Request-Pipeline** (globale Guards in dieser Reihenfolge, registriert im `AccessModule`):
   1. `AuthGuard`: prüft die Session.
-  2. `WorkspaceGuard`: löst den Workspace-Slug zu Mitgliedschaft und Rolle auf (60 s in Redis gecacht, bei Änderung invalidiert).
-  3. `PermissionGuard`: z.B. `@RequirePermission('post.schedule')`.
+  2. `WorkspaceGuard`: löst den Workspace-Slug (`@WorkspaceScope()`, Routen `/api/w/:ws`) bzw. die Organisation (`@OrgScope()`, Routen `/api/org/:org`) zu Mitgliedschaft und Rolle auf (60 s in Redis gecacht, bei Rollenwechsel, Entfernen und Austritt sofort invalidiert; gecacht wird nur gewährter Zugriff). Fremde und unbekannte Mandanten liefern 404.
+  3. `PermissionGuard`: z.B. `@RequirePermission('post.schedule')`; fehlt das Recht, kommt 403 `NOT_PERMITTED`.
   4. Der CLS-Kontext wird gesetzt, die Prisma-Extension nutzt ihn.
+- **Deny by default**: Jede Route trägt genau eine Regel: `@Public()`, `@UserScope()` (Session genügt, z.B. Onboarding) oder `@RequirePermission()` (nur mit Mandanten-Scope). Ein Startup-Check bricht sonst den Start ab. Der Organisations-Kontext in einer Transaktion ist eine Berechtigung: Ihn setzt nur der Guard nach gefundener Mitgliedschaft, die Datenbank prüft die Mitgliedschaft nicht erneut.
 - **Rechte-Matrix** (liegt in `packages/contracts`, damit die UI Aktionen ausblenden kann):
 
 | Rechte | Owner | Admin | Editor | Viewer |

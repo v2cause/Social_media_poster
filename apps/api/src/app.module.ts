@@ -11,7 +11,9 @@ import type { ApiEnv } from './config/api-env';
 import { ConfigModule } from './config/config.module';
 import { ClientsModule } from './infrastructure/clients.module';
 import { HealthModule } from './modules/health/health.module';
+import { AccessModule } from './common/guards/access.module';
 import { IdentityModule } from './modules/identity/identity.module';
+import { TenancyModule } from './modules/tenancy/tenancy.module';
 
 @Module({})
 export class AppModule {
@@ -38,6 +40,8 @@ export class AppModule {
         ClientsModule,
         HealthModule,
         IdentityModule,
+        AccessModule,
+        TenancyModule,
       ],
       providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }],
     };

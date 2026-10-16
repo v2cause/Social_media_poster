@@ -2,11 +2,13 @@ import { Controller, Get } from '@nestjs/common';
 import { meSchema, toLocale, type Me } from '@smp/contracts';
 import { createZodDto, ZodSerializerDto } from 'nestjs-zod';
 
+import { UserScope } from '../../common/decorators/access.decorators';
 import type { AuthSession } from './auth';
 import { CurrentUser } from './current-user.decorator';
 
 class MeDto extends createZodDto(meSchema) {}
 
+@UserScope()
 @Controller('me')
 export class MeController {
   /** The signed-in user. Organizations and workspaces follow with the tenancy API. */

@@ -2,6 +2,7 @@ import { STATUS_CODES } from 'node:http';
 
 import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, Logger } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
+import { DomainError, type DomainErrorKind } from '@smp/core';
 import type { Request, Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
 
@@ -13,6 +14,14 @@ export interface ProblemDetails {
   detail: string;
   traceId: string;
 }
+
+/** HTTP status per kind of domain error (guide B.1). */
+const STATUS_BY_KIND: Record<DomainErrorKind, number> = {
+  invalid: 422,
+  forbidden: 403,
+  not_found: 404,
+  conflict: 409,
+};
 
 const UNEXPECTED_ERROR: Pick<ProblemDetails, 'status' | 'code' | 'detail'> = {
   status: 500,
@@ -57,6 +66,18 @@ export class ProblemDetailsFilter implements ExceptionFilter {
         status: 400,
         code: 'VALIDATION_FAILED',
         detail: 'The request does not match the expected schema.',
+        traceId,
+      };
+    }
+
+    if (exception instanceof DomainError) {
+      const status = STATUS_BY_KIND[exception.kind];
+      return {
+        type: 'about:blank',
+        title: STATUS_CODES[status] ?? 'Error',
+        status,
+        code: exception.code,
+        detail: exception.message,
         traceId,
       };
     }

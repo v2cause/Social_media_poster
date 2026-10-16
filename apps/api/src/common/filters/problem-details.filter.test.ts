@@ -3,6 +3,7 @@ import { Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ZodValidationException } from 'nestjs-zod';
+import { LastOwnerError, NotPermittedError, WorkspaceNotFoundError } from '@smp/core';
 
 import { ProblemDetailsFilter } from './problem-details.filter';
 
@@ -39,6 +40,15 @@ describe('ProblemDetailsFilter', () => {
       code: 'HTTP_404',
       detail: 'Workspace not found',
       traceId: 'req-1',
+    });
+  });
+
+  it('renders domain errors with their code and the status of their kind', () => {
+    expect(renderWith(new LastOwnerError()).body).toMatchObject({ status: 409, code: 'LAST_OWNER' });
+    expect(renderWith(new NotPermittedError()).body).toMatchObject({ status: 403, code: 'NOT_PERMITTED' });
+    expect(renderWith(new WorkspaceNotFoundError()).body).toMatchObject({
+      status: 404,
+      code: 'WORKSPACE_NOT_FOUND',
     });
   });
 

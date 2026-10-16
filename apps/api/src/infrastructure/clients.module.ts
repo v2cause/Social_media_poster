@@ -1,11 +1,18 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { Global, Inject, Module, type OnApplicationShutdown } from '@nestjs/common';
 import type { MailPort } from '@smp/core';
-import { createPrismaClient, createTenantClient, type PrismaClient, type TenantPrismaClient } from '@smp/db';
+import {
+  createPrismaClient,
+  createTenantClient,
+  PrismaTenancyUnitOfWork,
+  TenancyReadModel,
+  type PrismaClient,
+  type TenantPrismaClient,
+} from '@smp/db';
 import { createSmtpMailer } from '@smp/emails';
 import Redis from 'ioredis';
 
-import { TenantContextService } from '../common/cls/tenant-context';
+import { RequestOriginService, TenantContextService } from '../common/cls/tenant-context';
 import type { ApiEnv } from '../config/api-env';
 import { API_ENV } from '../config/config.module';
 
@@ -16,6 +23,8 @@ export const TENANT_DATABASE_CLIENT = Symbol('TENANT_DATABASE_CLIENT');
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 export const S3_CLIENT = Symbol('S3_CLIENT');
 export const MAIL_PORT = Symbol('MAIL_PORT');
+export const TENANCY_UNIT_OF_WORK = Symbol('TENANCY_UNIT_OF_WORK');
+export const TENANCY_READ_MODEL = Symbol('TENANCY_READ_MODEL');
 
 type ClosableMailPort = MailPort & { close(): void };
 
@@ -76,6 +85,17 @@ class ClientLifecycle implements OnApplicationShutdown {
         }),
     },
     {
+      provide: TENANCY_UNIT_OF_WORK,
+      inject: [DATABASE_CLIENT, RequestOriginService],
+      useFactory: (base: PrismaClient, origin: RequestOriginService) =>
+        new PrismaTenancyUnitOfWork(base, () => origin.get()),
+    },
+    {
+      provide: TENANCY_READ_MODEL,
+      inject: [DATABASE_CLIENT],
+      useFactory: (base: PrismaClient) => new TenancyReadModel(base),
+    },
+    {
       provide: MAIL_PORT,
       inject: [API_ENV],
       useFactory: (env: ApiEnv): ClosableMailPort =>
@@ -83,6 +103,14 @@ class ClientLifecycle implements OnApplicationShutdown {
     },
     ClientLifecycle,
   ],
-  exports: [DATABASE_CLIENT, TENANT_DATABASE_CLIENT, REDIS_CLIENT, S3_CLIENT, MAIL_PORT],
+  exports: [
+    DATABASE_CLIENT,
+    TENANT_DATABASE_CLIENT,
+    REDIS_CLIENT,
+    S3_CLIENT,
+    MAIL_PORT,
+    TENANCY_UNIT_OF_WORK,
+    TENANCY_READ_MODEL,
+  ],
 })
 export class ClientsModule {}

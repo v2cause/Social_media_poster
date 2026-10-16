@@ -2,12 +2,11 @@ import { totpCode } from '@smp/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { APP_ORIGIN, startApiTestApp, type ApiTestApp } from './support/api-app';
+import { startApiTestApp, type ApiTestApp } from './support/api-app';
+import { browser as openBrowser, PASSWORD } from './support/browser';
 
 // Spike 0.14(d) and guide step 1.4: sign-up, email verification through Mailpit, sign-in,
 // getSession in the AuthGuard, sign-out and two-factor authentication against the real API.
-
-const PASSWORD = 'correct horse battery staple';
 
 describe('authentication with Better Auth', () => {
   let api: ApiTestApp | undefined;
@@ -18,14 +17,7 @@ describe('authentication with Better Auth', () => {
     }
     return api;
   };
-  /**
-   * A cookie-keeping client that behaves like the browser on the app origin. Each one gets its own
-   * client address (X-Real-IP, set by the reverse proxy in production), so the rate limits of one
-   * test do not spill into the next.
-   */
-  let nextAddress = 10;
-  const browser = (address = `192.0.2.${String((nextAddress += 1))}`) =>
-    request.agent(started().server).set('Origin', APP_ORIGIN).set('X-Real-IP', address);
+  const browser = (address?: string) => openBrowser(started().server, address);
 
   const signUp = (agent: ReturnType<typeof browser>, email: string, extra: object = {}) =>
     agent

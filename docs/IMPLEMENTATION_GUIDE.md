@@ -432,7 +432,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Fertig, wenn**: Alle Regeln als Unit-Tests abgedeckt sind, inklusive der Fehlerfälle.
 
 #### 1.6 Rechte-Matrix und Guards
-- **Erstellen**: `packages/contracts/src/permissions.ts`, `apps/api/src/common/guards/{workspace.guard.ts, permission.guard.ts}`, Decorators `@RequirePermission()`, `@Public()`, `@OrgScope()`.
+- **Erstellen**: `packages/contracts/src/permissions.ts`, `apps/api/src/common/guards/{workspace.guard.ts, permission.guard.ts}`, Decorators `@RequirePermission()`, `@Public()`, `@OrgScope()`, dazu `@WorkspaceScope()` und `@UserScope()` für Routen, die nur eine Session brauchen (Onboarding, Einladung annehmen).
 - **So sieht es aus**:
   ```ts
   export const PERMISSIONS = ['post.read', 'post.write', 'post.schedule', 'post.publish', 'media.write',
@@ -442,7 +442,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   ```
   Die Routen folgen dem Schema `/api/w/:ws/...` (Workspace) und `/api/org/:org/...` (Organisation).
 - **Darauf achten**:
-  - Standardmäßig wird verweigert. Ein Startup-Check listet alle Routen auf und bricht ab, wenn eine Route weder `@RequirePermission` noch `@Public` trägt.
+  - Standardmäßig wird verweigert. Ein Startup-Check listet alle Routen auf und bricht ab, wenn eine Route weder `@RequirePermission`, `@UserScope` noch `@Public` trägt.
   - Ressourcen fremder Mandanten liefern 404, nicht 403, damit nichts über ihre Existenz verraten wird.
   - Der Membership-Cache wird bei Rollenänderungen sofort invalidiert.
 - **Fertig, wenn**: Der aus `ROLE_PERMISSIONS` generierte Matrix-Test (Rolle x Endpunkt) grün ist.

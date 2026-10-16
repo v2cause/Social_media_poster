@@ -1,7 +1,8 @@
 import 'reflect-metadata';
 
-import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { Test } from '@nestjs/testing';
+import type { InvitationMessage, InvitationNotifier } from '@smp/core';
 import {
   startMailpit,
   startRedis,
@@ -15,6 +16,7 @@ import type { Server } from 'node:http';
 import { AppModule } from '../../src/app.module';
 import { configureApp } from '../../src/bootstrap';
 import { loadApiEnv, type ApiEnv } from '../../src/config/api-env';
+import { INVITATION_NOTIFIER } from '../../src/modules/tenancy/invitation-notifier';
 
 export const APP_ORIGIN = 'http://localhost:3000';
 
@@ -24,6 +26,8 @@ export interface ApiTestApp {
   env: ApiEnv;
   database: TestDatabase;
   mailpit: StartedMailpit;
+  /** Invitations "sent" so far, with their tokens. */
+  invitations: InvitationMessage[];
   close: () => Promise<void>;
 }
 
@@ -53,7 +57,18 @@ export async function startApiTestApp(): Promise<ApiTestApp> {
     MAIL_FROM: 'noreply@smp.test',
   });
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule.register(env), {
+  const invitations: InvitationMessage[] = [];
+  const notifier: InvitationNotifier = {
+    invitationCreated: (message) => {
+      invitations.push(message);
+      return Promise.resolve();
+    },
+  };
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule.register(env)] })
+    .overrideProvider(INVITATION_NOTIFIER)
+    .useValue(notifier)
+    .compile();
+  const app = moduleRef.createNestApplication<NestExpressApplication>({
     bodyParser: false,
     logger: ['error', 'warn'],
   });
@@ -66,6 +81,7 @@ export async function startApiTestApp(): Promise<ApiTestApp> {
     env,
     database,
     mailpit,
+    invitations,
     close: async () => {
       await app.close();
       await Promise.all([database.stop(), redis.stop(), mailpit.stop()]);

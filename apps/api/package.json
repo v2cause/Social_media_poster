@@ -23,6 +23,7 @@
     "@opentelemetry/api": "^1.9.1",
     "@smp/contracts": "workspace:*",
     "@smp/core": "workspace:*",
+    "@smp/crypto": "workspace:*",
     "@smp/db": "workspace:*",
     "@smp/emails": "workspace:*",
     "@smp/observability": "workspace:*",
