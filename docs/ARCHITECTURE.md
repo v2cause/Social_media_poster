@@ -422,7 +422,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | `media` | `media.process`, `media.render` | `media.{assetId}`, `rend.{assetId}.{profile}.{cropHash}` | `media` |
 | `analytics` | `metrics.post` (gebatcht pro Account), `metrics.account`, `metrics.rollup` | `mp.{accountId}.{bucket}` | `analytics` |
 | `tokens` | `token.refresh` | `tok.{connectionId}` | `publisher` |
-| `ai` | `ai.topic-ideas`, `ai.alt-text` | - | `ai` |
+| `ai` | `ai.topic-ideas`, `ai.alt-text` (für Vorschläge im Hintergrund; auf Knopfdruck laufen beide synchron, ADR 0016 und 0021) | - | `ai` |
 | `notifications` | `notify.dispatch` (in der App und per E-Mail) | `ntf.{outboxId}` | `notify` |
 | `billing` | `stripe.webhook`, `usage.report` | `stripe.{eventId}` | `billing` |
 | `gdpr` | `gdpr.export`, `gdpr.erase` | `gdpr.{requestId}` | `gdpr` |

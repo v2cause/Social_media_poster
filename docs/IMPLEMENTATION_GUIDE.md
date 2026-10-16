@@ -709,6 +709,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Erstellen**: `suggestAltText` im Provider, Job `ai.alt-text`, Button "Vorschlagen" in der UI.
 - **So sieht es aus**: Gesendet wird die verkleinerte Rendition (längste Seite 1568 px) als Image-Block mit der Bitte um einen sachlichen Alt-Text in der Content-Sprache (max. 250 Zeichen).
 - **Darauf achten**: Das zählt gegen die KI-Quote. Der Nutzer muss den Vorschlag bestätigen; es wird nichts automatisch übernommen.
+- **Umgesetzt**: als synchrone KI-Route `POST /api/w/:ws/ai/alt-texts` statt als Job, weil der Nutzer auf den Vorschlag wartet ([ADR 0021](adr/0021-alt-text-vorschlag-synchron.md)). Use Case `SuggestAltText` mit der Rendition `ai_vision` (1568 px), Quote, Rate-Limits und `AiGeneration` (`ALT_TEXT`); die Antwort wird nicht gespeichert. Der Button "Vorschlagen" sitzt im Alt-Text-Feld (Schritt 3.6). Tests: `packages/core/test/ai/suggest-alt-text.test.ts`, `apps/api/test/media.integration.test.ts`.
 
 #### 3.6 Web: Medien
 - **Erstellen**: Seite `media` (Bibliothek), `MediaDropzone`, `UploadProgressList`, `CropDialog` (react-easy-crop mit Plattform-Presets), `AltTextField`, `VariantMediaStrip` (Reihenfolge per Drag & Drop mit dnd-kit).
