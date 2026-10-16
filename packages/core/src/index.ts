@@ -5,6 +5,12 @@ export { DomainError, isDomainError, NotPermittedError, type DomainErrorKind } f
 export { systemClock, uuidV7Ids } from './shared/adapters/system';
 export type { Clock } from './shared/ports/clock';
 export type { IdGenerator } from './shared/ports/ids';
+export {
+  OUTBOX_EVENT_TYPES,
+  type OutboxEventInput,
+  type OutboxEventPayloads,
+  type OutboxEventType,
+} from './shared/domain/outbox';
 
 // AI (architecture 5)
 export {
