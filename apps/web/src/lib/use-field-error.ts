@@ -15,13 +15,15 @@ const KNOWN = new Set([
   'invalid_value',
   'invalid_timezone',
   'passwords_differ',
+  'too_many_items',
+  'item_too_long',
 ]);
 
 export function useFieldError() {
   const t = useTranslations('errors.validation');
   return (
     error: FieldError | undefined,
-    limits: { minimum?: number; maximum?: number } = {},
+    limits: { minimum?: number; maximum?: number; length?: number } = {},
   ): string | undefined => {
     if (!error) {
       return undefined;
@@ -34,6 +36,10 @@ export function useFieldError() {
         return limits.minimum === undefined ? t('required') : t('too_small', { minimum: limits.minimum });
       case 'too_big':
         return t('too_big', { maximum: limits.maximum ?? 0 });
+      case 'too_many_items':
+        return t('too_many_items', { maximum: limits.maximum ?? 0 });
+      case 'item_too_long':
+        return t('item_too_long', { length: limits.length ?? 0 });
       case 'required':
       case 'invalid_format':
       case 'email':

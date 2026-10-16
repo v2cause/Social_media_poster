@@ -112,6 +112,19 @@ export async function getComposerOptions(
   return { styles: styles.data?.styles ?? [], voices: voices.data?.brandVoices ?? [] };
 }
 
+/** A brand voice of the workspace, archived ones included; unknown voices render the 404 page. */
+export async function getBrandVoice(slug: string, voiceId: string): Promise<BrandVoiceDto> {
+  const result = await serverFetch(
+    `/api/w/${encodeURIComponent(slug)}/brand-voices?archived=true`,
+    brandVoiceListSchema,
+  );
+  const voice = result.data?.brandVoices.find((candidate) => candidate.id === voiceId);
+  if (!voice) {
+    notFound();
+  }
+  return voice;
+}
+
 /** An idea of the workspace for a new post, or null when it does not exist. */
 export async function getIdea(slug: string, ideaId: string): Promise<IdeaDto | null> {
   const result = await serverFetch(`/api/w/${encodeURIComponent(slug)}/ideas`, ideaListSchema);

@@ -9,7 +9,6 @@ const UPCOMING = {
   media: 'media',
   analytics: 'analytics',
   accounts: 'accounts',
-  'brand-voices': 'brandVoices',
   settings: 'settings',
 } as const;
 

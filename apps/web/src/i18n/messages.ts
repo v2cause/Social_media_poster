@@ -1,5 +1,6 @@
 import deAccount from '../../messages/de/account.json';
 import deAuth from '../../messages/de/auth.json';
+import deBrand from '../../messages/de/brand.json';
 import deCommon from '../../messages/de/common.json';
 import deComposer from '../../messages/de/composer.json';
 import deErrors from '../../messages/de/errors.json';
@@ -9,6 +10,7 @@ import dePosts from '../../messages/de/posts.json';
 import deTeam from '../../messages/de/team.json';
 import enAccount from '../../messages/en/account.json';
 import enAuth from '../../messages/en/auth.json';
+import enBrand from '../../messages/en/brand.json';
 import enCommon from '../../messages/en/common.json';
 import enComposer from '../../messages/en/composer.json';
 import enErrors from '../../messages/en/errors.json';
@@ -30,6 +32,7 @@ const MESSAGES = {
     composer: deComposer,
     posts: dePosts,
     ideas: deIdeas,
+    brand: deBrand,
     errors: deErrors,
   },
   en: {
@@ -41,6 +44,7 @@ const MESSAGES = {
     composer: enComposer,
     posts: enPosts,
     ideas: enIdeas,
+    brand: enBrand,
     errors: enErrors,
   },
 } as const;
