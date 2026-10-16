@@ -123,6 +123,30 @@ describe('MockPlatformAdapter', () => {
     expect(again?.metrics).toEqual(later?.metrics);
   });
 
+  it('books the paid calls of X: posts, posts with a link and the posts a reconcile reads', async () => {
+    const { adapter, ctx, request } = setup();
+    const booked: { operation: string; units?: number }[] = [];
+    const paying: AdapterContext = {
+      ...ctx,
+      costs: {
+        record: (entry) => {
+          booked.push(entry);
+          return Promise.resolve();
+        },
+      },
+    };
+
+    await adapter.publish(request, paying);
+    await adapter.publish({ ...request, linkUrl: 'https://example.com/jobs' }, paying);
+    await adapter.reconcile({ text: request.text, since: new Date(0), contentHash: 'h1' }, paying);
+
+    expect(booked).toEqual([
+      { operation: 'x.post_create' },
+      { operation: 'x.post_create_with_url' },
+      { operation: 'x.post_read', units: 2 },
+    ]);
+  });
+
   it('exchanges a code of the fake page only with the matching PKCE verifier', async () => {
     const { adapter } = setup();
     const verifier = 'verifier-'.padEnd(50, 'x');

@@ -55,6 +55,8 @@ export type MockAccountSettings = z.infer<typeof mockAccountSettingsSchema>;
 /** Bumped when the mapping of the mock metrics changes. */
 const METRICS_MAPPING_VERSION = 1;
 const SLOW_MS = 10_000;
+/** Reads cost money on X, so its reconcile looks at the latest posts only (guide step 4.14). */
+const X_RECONCILE_POSTS = 5;
 
 /** Settings that do not parse count as none: a typo must not break publishing in development. */
 const settingsOf = (ctx: AdapterContext): MockAccountSettings => {
@@ -160,6 +162,12 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
     };
     await this.options.store.save(post);
     await this.options.store.countCall('created', ctx.account.id);
+    // X charges per post, a post with a link more (architecture "Faktenlage").
+    if (this.platform === 'X') {
+      await ctx.costs.record({
+        operation: request.linkUrl === null ? 'x.post_create' : 'x.post_create_with_url',
+      });
+    }
     if (settings.failMode === 'slow') {
       await sleep(SLOW_MS, undefined, { signal: ctx.signal });
     }
@@ -171,7 +179,16 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
     ctx: AdapterContext,
   ): Promise<PublishResult | null> {
     await this.call('reconcile', ctx);
-    const post = (await this.options.store.postsOf(ctx.account.id)).find(
+    let posts = await this.options.store.postsOf(ctx.account.id);
+    if (this.platform === 'X') {
+      posts = posts
+        .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+        .slice(0, X_RECONCILE_POSTS);
+      if (posts.length > 0) {
+        await ctx.costs.record({ operation: 'x.post_read', units: posts.length });
+      }
+    }
+    const post = posts.find(
       (candidate) =>
         candidate.deletedAt === null &&
         candidate.contentHash === query.contentHash &&

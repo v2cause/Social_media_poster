@@ -4,7 +4,7 @@
 
 export const PLATFORM_OPERATION_PRICES_MICROS: Readonly<Record<string, number>> = {
   'x.post_create': 15_000,
-  'x.post_create_with_link': 200_000,
+  'x.post_create_with_url': 200_000,
   'x.post_read': 5_000,
 };
 
