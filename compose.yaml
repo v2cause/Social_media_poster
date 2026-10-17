@@ -52,8 +52,30 @@ services:
   redis:
     image: redis:7.4.11-alpine
     restart: unless-stopped
-    # BullMQ needs noeviction, otherwise Redis may delete job data under memory pressure.
-    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    # BullMQ needs noeviction, otherwise Redis may delete job data under memory pressure. The
+    # default user stays as it is; the user "browser-worker" reaches only the keys and queues of the
+    # X browser (XB_REDIS_ACL in packages/x-browser, checked by the tests of the browser worker).
+    command:
+      - redis-server
+      - --appendonly
+      - 'yes'
+      - --maxmemory-policy
+      - noeviction
+      - --user
+      - browser-worker
+      - 'on'
+      - '>${XB_REDIS_PASSWORD:?set XB_REDIS_PASSWORD in .env}'
+      - resetkeys
+      - '%R~xb:kill'
+      - '~xb:lock:*'
+      - '~xb:spacing:*'
+      - '~xb:login:*'
+      - '~bull:xb-commands:*'
+      - '~bull:xb-results:*'
+      - resetchannels
+      - '+@all'
+      - '-@dangerous'
+      - '+info'
     ports:
       - '127.0.0.1:6379:6379'
     volumes:
@@ -249,7 +271,7 @@ services:
         condition: service_healthy
     # No env_file: the container gets only what it needs, never database or storage credentials.
     environment:
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://browser-worker:${XB_REDIS_PASSWORD:?set XB_REDIS_PASSWORD in .env}@redis:6379
       NODE_ENV: production
       LOG_LEVEL: info
       FEATURE_X_BROWSER_GLOBAL: 'true'

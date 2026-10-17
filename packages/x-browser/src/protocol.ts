@@ -267,3 +267,22 @@ export const XB_KEYS = {
   /** The sealed codes of the two-factor login, pushed by the API, popped by the browser worker. */
   loginInput: (loginSessionId: string): string => `xb:login:${loginSessionId}:input`,
 } as const;
+
+/**
+ * The Redis ACL of the user "browser-worker" (compose.yaml): the keys above, the kill switch only
+ * to read, the two xb queues of BullMQ (prefix "bull"), no channels and no dangerous commands
+ * apart from INFO, which BullMQ asks on connect.
+ */
+export const XB_REDIS_ACL: readonly string[] = [
+  'resetkeys',
+  '%R~xb:kill',
+  '~xb:lock:*',
+  '~xb:spacing:*',
+  '~xb:login:*',
+  `~bull:${XB_COMMANDS_QUEUE}:*`,
+  `~bull:${XB_RESULTS_QUEUE}:*`,
+  'resetchannels',
+  '+@all',
+  '-@dangerous',
+  '+info',
+];
