@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   accountMetricsJobId,
   gdprJobId,
+  gdprSweepJobId,
   jobIdOf,
   mediaProcessJobId,
   mediaRenderJobId,
@@ -38,6 +39,7 @@ describe('job ids', () => {
       stripeJobId('evt_1Abc'),
       usageReportJobId(id, '2026-10-17'),
       gdprJobId(id),
+      gdprSweepJobId(),
       mediaProcessJobId(id),
       mediaRenderJobId({ assetId: id, profile: 'instagram_feed', cropHash: 'x0y120w1080h1350-lb' }),
       ...['publish', 'metrics', 'login.start'].map((operation) => xbJobId(operation, id, id)),

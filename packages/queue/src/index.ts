@@ -4,6 +4,7 @@
 export {
   accountMetricsJobId,
   gdprJobId,
+  gdprSweepJobId,
   jobIdOf,
   notifyEmailJobId,
   notifyJobId,
@@ -100,10 +101,14 @@ export {
   GDPR_EXPORT,
   GDPR_JOB_OPTIONS,
   GDPR_QUEUE,
+  GDPR_SWEEP,
+  GDPR_SWEEP_JOB_OPTIONS,
   GdprProducer,
-  gdprRequestSchema,
-  parseGdprRequest,
-  type GdprRequest,
+  gdprJobSchema,
+  gdprSweepSchema,
+  parseGdprJob,
+  parseGdprSweep,
+  type GdprJob,
 } from './gdpr';
 export {
   notificationRequestSchema,

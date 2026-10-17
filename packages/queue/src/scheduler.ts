@@ -18,6 +18,7 @@ export const TICKS = [
   'tick.xb-canary',
   'tick.usage-report',
   'tick.read-only',
+  'tick.gdpr',
 ] as const;
 export type Tick = (typeof TICKS)[number];
 
@@ -40,6 +41,8 @@ export const TICK_SCHEDULES: Readonly<Record<Tick, TickSchedule>> = {
   'tick.usage-report': { pattern: '7 0 * * *', tz: 'UTC' },
   // The owners of the organizations that became read-only meanwhile (guide step 7.4).
   'tick.read-only': { every: 15 * 60_000 },
+  // Hourly: the role "gdpr" deletes the archives of expired exports (guide step 8.1).
+  'tick.gdpr': { pattern: '29 * * * *', tz: 'UTC' },
 };
 
 const DAY_SECONDS = 24 * 60 * 60;
