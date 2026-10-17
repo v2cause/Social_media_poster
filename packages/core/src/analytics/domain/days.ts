@@ -28,3 +28,20 @@ export const localDayRange = (day: string, timeZone: string): { from: Date; to: 
   from: startOfLocalDay(day, timeZone),
   to: startOfLocalDay(nextDay(day), timeZone),
 });
+
+/** The local day of an instant in the zone. */
+export function localDayOf(instant: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(instant);
+  const part = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((candidate) => candidate.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+/** The day a number of days before, by the calendar. */
+export const daysBefore = (day: string, days: number): string =>
+  new Date(Date.parse(`${day}T00:00:00Z`) - days * DAY_MS).toISOString().slice(0, 10);

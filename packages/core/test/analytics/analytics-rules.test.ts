@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   cadenceHours,
+  daysBefore,
   engagementsOf,
+  localDayOf,
   localDayRange,
   metricsDueAt,
   nextDay,
@@ -76,5 +78,8 @@ describe('analytics rules', () => {
     // October 25 has 25 hours in Berlin.
     const { from, to } = localDayRange('2026-10-25', 'Europe/Berlin');
     expect(to.getTime() - from.getTime()).toBe(25 * HOUR);
+    expect(localDayOf(new Date('2026-10-15T22:30:00Z'), 'Europe/Berlin')).toBe('2026-10-16');
+    expect(localDayOf(new Date('2026-10-16T02:30:00Z'), 'America/New_York')).toBe('2026-10-15');
+    expect(daysBefore('2026-03-01', 35)).toBe('2026-01-25');
   });
 });

@@ -56,6 +56,8 @@ export interface LatestRow {
 }
 
 interface State {
+  /** The rollups the store ran: workspace and days. */
+  rolledUp: { workspaceId: string; from: string; to: string }[];
   variants: Map<string, MetricsVariantRow>;
   snapshots: SnapshotRow[];
   latest: Map<string, LatestRow>;
@@ -75,6 +77,7 @@ const isDue = (variant: MetricsVariantRow, accountId: string, now: Date): boolea
 
 export class InMemoryAnalytics implements AnalyticsUnitOfWork {
   state: State = {
+    rolledUp: [],
     variants: new Map(),
     snapshots: [],
     latest: new Map(),
@@ -246,6 +249,13 @@ export class InMemoryAnalytics implements AnalyticsUnitOfWork {
             metrics,
           ];
           return Promise.resolve();
+        },
+      },
+      rollups: {
+        rollUp(workspaceId, from, to) {
+          assertScope(workspaceId);
+          state().rolledUp.push({ workspaceId, from, to });
+          return Promise.resolve(1);
         },
       },
       costs: {

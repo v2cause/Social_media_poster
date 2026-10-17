@@ -605,7 +605,7 @@ export { PublishVariant } from './publishing/application/publish-variant';
 
 // Analytics (phase 5).
 export { cadenceHours, METRICS_BATCH_SIZE, metricsDueAt, nextPollAfter } from './analytics/domain/cadence';
-export { localDayRange, nextDay, startOfLocalDay } from './analytics/domain/days';
+export { daysBefore, localDayOf, localDayRange, nextDay, startOfLocalDay } from './analytics/domain/days';
 export { engagementsOf, type Interactions } from './analytics/domain/metrics';
 export {
   POLL_RETRY_MS,
@@ -622,9 +622,15 @@ export {
   type CollectAccountMetricsInput,
   type CollectAccountMetricsResult,
 } from './analytics/application/collect-account-metrics';
+export {
+  NIGHTLY_ROLLUP_DAYS,
+  RollUpAnalytics,
+  type RollUpAnalyticsInput,
+} from './analytics/application/roll-up-analytics';
 export type {
   AccountDailyMetrics,
   AccountMetricsRepository,
+  AnalyticsRollupRepository,
   AnalyticsScope,
   AnalyticsStore,
   AnalyticsUnitOfWork,

@@ -91,6 +91,15 @@ export interface AccountMetricsRepository {
   saveDaily(metrics: AccountDailyMetrics): Promise<void>;
 }
 
+export interface AnalyticsRollupRepository {
+  /**
+   * Fills the rollup of the workspace for the local days from `from` to `to` (YYYY-MM-DD, both
+   * included) from the snapshots, the published posts and the daily numbers of the accounts;
+   * rows of these days without data go. Returns the rows written.
+   */
+  rollUp(workspaceId: string, from: string, to: string): Promise<number>;
+}
+
 /** The repositories of one transaction of an analytics job. */
 export interface AnalyticsStore {
   targets: PublishJobTargetRepository;
@@ -101,6 +110,7 @@ export interface AnalyticsStore {
   };
   postMetrics: PostMetricsRepository;
   accountMetrics: AccountMetricsRepository;
+  rollups: AnalyticsRollupRepository;
   costs: ApiCostRepository;
 }
 

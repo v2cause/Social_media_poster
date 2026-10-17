@@ -1,6 +1,6 @@
 import type { AnalyticsStore, DueVariant } from '@smp/core';
 
-import type { Prisma } from '../generated/prisma/client';
+import { Prisma } from '../generated/prisma/client';
 import { createPrismaPublishJobStore } from '../publishing/prisma-publish-job-store';
 import type { TenantTransaction } from '../tenant-context';
 
@@ -17,6 +17,10 @@ const counter = (value: number | null): number | null => (value === null ? null 
 /** A plain JSON copy: drops undefined values and fails on what JSON cannot hold. */
 const json = (value: unknown): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value ?? null)) as Prisma.InputJsonValue;
+
+/** The sum of a column of the rollup, capped at INT_MAX; null stays null, unlike with LEAST. */
+const cappedSum = (column: string): Prisma.Sql =>
+  Prisma.sql`CASE WHEN sum(${Prisma.raw(column)}) > ${INT_MAX} THEN ${INT_MAX} ELSE sum(${Prisma.raw(column)}) END`;
 
 /** A date column from YYYY-MM-DD. */
 const dateOf = (day: string): Date => new Date(`${day}T00:00:00.000Z`);
@@ -165,6 +169,116 @@ export function createPrismaAnalyticsStore(tx: TenantTransaction): AnalyticsStor
                    metrics_next_at = ${poll.next?.at ?? null}::timestamptz
              WHERE workspace_id = ${workspaceId}::uuid AND id = ${poll.variantId}::uuid`;
         }
+      },
+    },
+
+    rollups: {
+      async rollUp(workspaceId, from, to) {
+        // One rollup per workspace at a time: the collector and the nightly run may meet.
+        await tx.$executeRaw`
+          SELECT pg_advisory_xact_lock(hashtextextended('analytics_rollup:' || ${workspaceId}, 0))`;
+        const written = await tx.$executeRaw`
+          WITH zone AS (
+            SELECT timezone FROM workspace WHERE id = ${workspaceId}::uuid
+          ),
+          bounds AS (
+            SELECT (${from}::date::timestamp AT TIME ZONE zone.timezone) AS start_at,
+                   ((${to}::date + 1)::timestamp AT TIME ZONE zone.timezone) AS end_at,
+                   zone.timezone
+              FROM zone
+          ),
+          -- The variants with a snapshot in the period; their whole history gives the deltas.
+          touched AS (
+            SELECT DISTINCT s.variant_id
+              FROM metric_snapshot s, bounds b
+             WHERE s.workspace_id = ${workspaceId}::uuid
+               AND s.captured_at >= b.start_at AND s.captured_at < b.end_at
+          ),
+          snapshots AS (
+            SELECT s.id, s.variant_id, s.social_account_id, s.platform, s.captured_at,
+                   s.impressions, s.reach, s.views, s.likes, s.comments, s.shares, s.clicks, s.saves,
+                   CASE WHEN num_nonnulls(s.likes, s.comments, s.shares, s.saves, s.clicks) = 0 THEN NULL
+                        ELSE COALESCE(s.likes, 0) + COALESCE(s.comments, 0) + COALESCE(s.shares, 0)
+                           + COALESCE(s.saves, 0) + COALESCE(s.clicks, 0)
+                   END AS engagements
+              FROM metric_snapshot s
+              JOIN touched t ON t.variant_id = s.variant_id
+             WHERE s.workspace_id = ${workspaceId}::uuid
+          ),
+          -- What a counter grew since the snapshot before; null stays null, a first value counts whole.
+          deltas AS (
+            SELECT s.social_account_id, s.platform,
+                   (s.captured_at AT TIME ZONE b.timezone)::date AS day,
+                   s.impressions - COALESCE(lag(s.impressions) OVER w, 0) AS impressions,
+                   s.reach - COALESCE(lag(s.reach) OVER w, 0) AS post_reach,
+                   s.views - COALESCE(lag(s.views) OVER w, 0) AS views,
+                   s.likes - COALESCE(lag(s.likes) OVER w, 0) AS likes,
+                   s.comments - COALESCE(lag(s.comments) OVER w, 0) AS comments,
+                   s.shares - COALESCE(lag(s.shares) OVER w, 0) AS shares,
+                   s.clicks - COALESCE(lag(s.clicks) OVER w, 0) AS clicks,
+                   s.saves - COALESCE(lag(s.saves) OVER w, 0) AS saves,
+                   s.engagements - COALESCE(lag(s.engagements) OVER w, 0) AS engagements
+              FROM snapshots s, bounds b
+            WINDOW w AS (PARTITION BY s.variant_id ORDER BY s.captured_at, s.id)
+          ),
+          rows AS (
+            SELECT social_account_id, platform, day,
+                   impressions, post_reach, views, likes, comments, shares, clicks, saves, engagements,
+                   0 AS posts, NULL::int AS followers, NULL::int AS account_reach, NULL::int AS profile_views
+              FROM deltas
+             WHERE day BETWEEN ${from}::date AND ${to}::date
+            UNION ALL
+            SELECT v.social_account_id, v.platform, (v.published_at AT TIME ZONE b.timezone)::date,
+                   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                   1, NULL, NULL, NULL
+              FROM post_variant v, bounds b
+             WHERE v.workspace_id = ${workspaceId}::uuid
+               AND v.status = 'PUBLISHED'
+               AND NOT v.is_dry_run
+               AND v.social_account_id IS NOT NULL
+               AND v.published_at >= b.start_at AND v.published_at < b.end_at
+            UNION ALL
+            SELECT a.social_account_id, a.platform, a.day,
+                   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                   0, a.followers, a.reach, a.profile_views
+              FROM account_metric_snapshot a
+             WHERE a.workspace_id = ${workspaceId}::uuid
+               AND a.day BETWEEN ${from}::date AND ${to}::date
+          )
+          INSERT INTO analytics_daily
+            (workspace_id, social_account_id, platform, day, impressions, post_reach, views, likes,
+             comments, shares, clicks, saves, engagements, posts_published, followers, account_reach,
+             profile_views, updated_at)
+          SELECT ${workspaceId}::uuid, social_account_id, platform, day,
+                 ${cappedSum('impressions')}, ${cappedSum('post_reach')}, ${cappedSum('views')},
+                 ${cappedSum('likes')}, ${cappedSum('comments')}, ${cappedSum('shares')},
+                 ${cappedSum('clicks')}, ${cappedSum('saves')}, ${cappedSum('engagements')},
+                 sum(posts), max(followers), max(account_reach), max(profile_views), now()::timestamptz(3)
+            FROM rows
+           GROUP BY social_account_id, platform, day
+          ON CONFLICT (social_account_id, day) DO UPDATE SET
+            impressions = EXCLUDED.impressions,
+            post_reach = EXCLUDED.post_reach,
+            views = EXCLUDED.views,
+            likes = EXCLUDED.likes,
+            comments = EXCLUDED.comments,
+            shares = EXCLUDED.shares,
+            clicks = EXCLUDED.clicks,
+            saves = EXCLUDED.saves,
+            engagements = EXCLUDED.engagements,
+            posts_published = EXCLUDED.posts_published,
+            followers = EXCLUDED.followers,
+            account_reach = EXCLUDED.account_reach,
+            profile_views = EXCLUDED.profile_views,
+            updated_at = EXCLUDED.updated_at`;
+        // Days of the period this run did not write have no data any more. The column keeps
+        // milliseconds, so the stamp of this transaction is compared at the same precision.
+        await tx.$executeRaw`
+          DELETE FROM analytics_daily
+           WHERE workspace_id = ${workspaceId}::uuid
+             AND day BETWEEN ${from}::date AND ${to}::date
+             AND updated_at <> now()::timestamptz(3)`;
+        return written;
       },
     },
 
