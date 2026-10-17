@@ -107,6 +107,12 @@ describe('billing adapters on PostgreSQL', () => {
     const sync = new PrismaSubscriptionSync(clients().system);
     const local = await sync.byCustomer('cus_first');
     expect(local).toMatchObject({ organizationId: org, plan: { key: 'trial' } });
+    expect((await sync.plans()).map((plan) => [plan.key, plan.priceLookupKey])).toEqual([
+      ['trial', null],
+      ['starter', 'smp_starter_monthly'],
+      ['pro', 'smp_pro_monthly'],
+      ['agency', 'smp_agency_monthly'],
+    ]);
     const state = {
       planKey: 'pro' as const,
       status: 'PAST_DUE' as const,
@@ -146,7 +152,15 @@ describe('billing adapters on PostgreSQL', () => {
 
     await expect(directory.owners(org)).resolves.toEqual({
       organizationName: 'Acme',
-      owners: [{ email: 'owner@acme.test', name: 'Olga Owner', locale: 'en' }],
+      owners: [
+        {
+          userId: owner,
+          email: 'owner@acme.test',
+          name: 'Olga Owner',
+          locale: 'en',
+          timezone: 'Europe/Berlin',
+        },
+      ],
     });
     await expect(directory.owners(randomUUID())).resolves.toBeNull();
   });

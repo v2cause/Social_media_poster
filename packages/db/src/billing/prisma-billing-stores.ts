@@ -1,8 +1,10 @@
 import type {
   BillingCustomers,
   BillingState,
+  Plan,
   StoredWebhook,
   Subscription,
+  SubscriptionReader,
   SubscriptionSync,
   WebhookInbox,
 } from '@smp/core';
@@ -11,7 +13,7 @@ import { z } from 'zod';
 import type { PrismaClient } from '../generated/prisma/client';
 import { runInSystemScope, type SystemPrismaClient } from '../system-client';
 import { withTenantTx } from '../tenant-context';
-import { toSubscription } from './prisma-subscriptions';
+import { toPlan, toSubscription } from './prisma-subscriptions';
 
 // The stores of billing besides the reader (guide step 7.2, ADR 0034). The checkout stores the
 // Stripe customer as app_user, which may change nothing else of a subscription. The API records a
@@ -89,8 +91,14 @@ export class PrismaWebhookInbox implements Pick<WebhookInbox, 'find' | 'markProc
 }
 
 /** The subscription as the role "billing" takes it over from Stripe (app_system). */
-export class PrismaSubscriptionSync implements SubscriptionSync {
+export class PrismaSubscriptionSync implements SubscriptionSync, Pick<SubscriptionReader, 'plans'> {
   constructor(private readonly system: SystemPrismaClient) {}
+
+  /** The price list, to find the plan of the prices Stripe names. */
+  async plans(): Promise<Plan[]> {
+    const rows = await runInSystemScope(() => this.system.plan.findMany({ orderBy: { position: 'asc' } }));
+    return rows.map(toPlan);
+  }
 
   async byCustomer(customerId: string): Promise<Subscription | null> {
     const row = await runInSystemScope(() =>
@@ -125,9 +133,11 @@ export class PrismaSubscriptionSync implements SubscriptionSync {
 }
 
 export interface BillingContact {
+  userId: string;
   email: string;
   name: string;
   locale: string;
+  timezone: string;
 }
 
 /** Who hears about the billing of an organization: its owners with a verified address (app_system). */
@@ -144,14 +154,19 @@ export class PrismaBillingDirectory {
           name: true,
           memberships: {
             where: { role: 'OWNER', user: { emailVerified: true } },
-            select: { user: { select: { email: true, name: true, locale: true } } },
+            select: {
+              user: { select: { id: true, email: true, name: true, locale: true, timezone: true } },
+            },
             orderBy: { createdAt: 'asc' },
           },
         },
       }),
     );
     return organization
-      ? { organizationName: organization.name, owners: organization.memberships.map((entry) => entry.user) }
+      ? {
+          organizationName: organization.name,
+          owners: organization.memberships.map(({ user: { id, ...user } }) => ({ userId: id, ...user })),
+        }
       : null;
   }
 }
