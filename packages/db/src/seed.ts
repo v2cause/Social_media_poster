@@ -2,6 +2,7 @@
 // The root .env is loaded by prisma.config.ts before this file runs.
 import { createPrismaClient } from './client';
 import { DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from './seed/demo';
+import { DEMO_ANALYTICS_DAYS, seedDemoAnalytics } from './seed/demo-analytics';
 
 async function main(): Promise<void> {
   if (process.env['NODE_ENV'] === 'production') {
@@ -19,9 +20,15 @@ async function main(): Promise<void> {
   // app_system bypasses row-level security, which the seed needs to write several tenants.
   const prisma = createPrismaClient(systemUrl);
   try {
-    await seedDemoData(prisma, password);
+    const demo = await seedDemoData(prisma, password);
     const emails = DEMO_USERS.map((user) => user.email).join(', ');
     process.stdout.write(`Seeded workspace "${DEMO_WORKSPACE_SLUG}" with ${emails}.\n`);
+    const analytics = await seedDemoAnalytics(prisma, demo, new Date());
+    process.stdout.write(
+      analytics.created
+        ? `Seeded ${String(analytics.published)} published variants on ${String(analytics.accounts)} mock accounts over ${String(DEMO_ANALYTICS_DAYS)} days.\n`
+        : 'The demo analytics were there already; rolled them up again.\n',
+    );
   } finally {
     await prisma.$disconnect();
   }

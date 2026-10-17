@@ -41,7 +41,7 @@ cp .env.example .env
 docker compose up -d
 pnpm -s gen:keys   # gibt Schlüssel aus; die Zeilen in .env eintragen
 pnpm db:migrate
-pnpm db:seed       # optional: Demo-Organisation mit vier Rollen
+pnpm db:seed       # optional: Demo-Organisation mit vier Rollen, Mock-Accounts und 90 Tagen Analytics
 pnpm build
 ```
 
