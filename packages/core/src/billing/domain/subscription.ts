@@ -74,3 +74,22 @@ export function readOnlyAtOf(state: AccessState, previousReadOnlyAt: Date | null
 /** Whether an organization is read-only at a moment. */
 export const isReadOnlyAt = (readOnlyAt: Date | null, now: Date): boolean =>
   readOnlyAt !== null && readOnlyAt.getTime() <= now.getTime();
+
+/** Why an organization is read-only: its trial ended, a payment stayed out, or its subscription ended. */
+export type ReadOnlyReason = 'trial' | 'payment' | 'ended';
+
+export function readOnlyReasonOf(status: SubscriptionStatus): ReadOnlyReason {
+  switch (status) {
+    case 'TRIALING':
+      return 'trial';
+    case 'PAST_DUE':
+    case 'UNPAID':
+    case 'INCOMPLETE':
+    case 'INCOMPLETE_EXPIRED':
+      return 'payment';
+    case 'ACTIVE':
+    case 'CANCELED':
+    case 'PAUSED':
+      return 'ended';
+  }
+}

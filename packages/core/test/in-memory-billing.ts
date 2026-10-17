@@ -11,6 +11,7 @@ import type {
   PlanPrice,
   PortalRequest,
   ProviderSubscription,
+  ReadOnlyReason,
   StoredWebhook,
   Subscription,
   SubscriptionReader,
@@ -291,6 +292,17 @@ export class MemoryBillingStores implements BillingCustomers, WebhookInbox, Bill
 
 export class RecordingBillingNotifier implements BillingNotifier {
   readonly paymentsFailed: { eventId: string; organizationId: string; graceEndsAt: Date }[] = [];
+  readonly readOnlyNotices: { organizationId: string; readOnlyAt: Date; reason: ReadOnlyReason }[] = [];
+  /** The organizations whose notice fails, as a queue that is away would. */
+  readonly failingFor = new Set<string>();
+
+  readOnly(notice: { organizationId: string; readOnlyAt: Date; reason: ReadOnlyReason }): Promise<void> {
+    if (this.failingFor.has(notice.organizationId)) {
+      return Promise.reject(new Error('queue away'));
+    }
+    this.readOnlyNotices.push(notice);
+    return Promise.resolve();
+  }
   /** Fails the next notice, as a queue that is away would. */
   failNext = false;
 

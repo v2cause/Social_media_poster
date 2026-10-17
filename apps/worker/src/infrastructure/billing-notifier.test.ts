@@ -4,48 +4,53 @@ import { describe, expect, it } from 'vitest';
 import { EmailBillingNotifier } from './billing-notifier';
 
 // Guide step 7.4: every owner hears of a failed payment in their language and time zone, with a
-// link to the billing page; the Stripe event keys each email.
+// link to the billing page; the Stripe event keys each email. The notice of read-only access is
+// keyed by its moment.
 
 const ORG = '0192f000-0000-7000-8000-000000000001';
+
+function notifierWithOwners(sent: [string, string, string, EmailTemplateInput][]) {
+  return new EmailBillingNotifier({
+    directory: {
+      owners: (organizationId) =>
+        Promise.resolve(
+          organizationId === ORG
+            ? {
+                organizationName: 'Acme GmbH',
+                owners: [
+                  {
+                    userId: 'user-1',
+                    email: 'olga@acme.test',
+                    name: 'Olga',
+                    locale: 'en',
+                    timezone: 'America/New_York',
+                  },
+                  {
+                    userId: 'user-2',
+                    email: 'otto@acme.test',
+                    name: 'Otto',
+                    locale: 'fr',
+                    timezone: 'Europe/Berlin',
+                  },
+                ],
+              }
+            : null,
+        ),
+    },
+    notifications: {
+      dispatchEventEmail: (eventId, userId, to, email) => {
+        sent.push([eventId, userId, to, email]);
+        return Promise.resolve();
+      },
+    },
+    appUrl: 'http://localhost:3000',
+  });
+}
 
 describe('EmailBillingNotifier', () => {
   it('emails every owner once per event, with the end of the grace period', async () => {
     const sent: [string, string, string, EmailTemplateInput][] = [];
-    const notifier = new EmailBillingNotifier({
-      directory: {
-        owners: (organizationId) =>
-          Promise.resolve(
-            organizationId === ORG
-              ? {
-                  organizationName: 'Acme GmbH',
-                  owners: [
-                    {
-                      userId: 'user-1',
-                      email: 'olga@acme.test',
-                      name: 'Olga',
-                      locale: 'en',
-                      timezone: 'America/New_York',
-                    },
-                    {
-                      userId: 'user-2',
-                      email: 'otto@acme.test',
-                      name: 'Otto',
-                      locale: 'fr',
-                      timezone: 'Europe/Berlin',
-                    },
-                  ],
-                }
-              : null,
-          ),
-      },
-      notifications: {
-        dispatchEventEmail: (eventId, userId, to, email) => {
-          sent.push([eventId, userId, to, email]);
-          return Promise.resolve();
-        },
-      },
-      appUrl: 'http://localhost:3000',
-    });
+    const notifier = notifierWithOwners(sent);
 
     const graceEndsAt = new Date('2026-10-24T12:00:00Z');
     await notifier.paymentFailed({ eventId: 'evt_1', organizationId: ORG, graceEndsAt });
@@ -68,6 +73,33 @@ describe('EmailBillingNotifier', () => {
       organizationName: 'Acme GmbH',
       graceEndsAt: '2026-10-24T12:00:00.000Z',
       timeZone: 'America/New_York',
+    });
+  });
+
+  it('tells every owner once per moment that the organization is read-only', async () => {
+    const sent: [string, string, string, EmailTemplateInput][] = [];
+    const notifier = notifierWithOwners(sent);
+
+    const readOnlyAt = new Date('2026-10-31T12:00:00Z');
+    await notifier.readOnly({ organizationId: ORG, readOnlyAt, reason: 'payment' });
+    await notifier.readOnly({
+      organizationId: '0192f000-0000-7000-8000-000000000002',
+      readOnlyAt,
+      reason: 'trial',
+    });
+
+    const key = `read-only.${ORG}.${String(readOnlyAt.getTime())}`;
+    expect(sent.map(([eventId, userId, to]) => [eventId, userId, to])).toEqual([
+      [key, 'user-1', 'olga@acme.test'],
+      [key, 'user-2', 'otto@acme.test'],
+    ]);
+    expect(sent[1]?.[3]).toEqual({
+      template: 'billing-read-only',
+      locale: 'de',
+      name: 'Otto',
+      url: `http://localhost:3000/org/${ORG}/billing`,
+      organizationName: 'Acme GmbH',
+      reason: 'payment',
     });
   });
 });

@@ -1,3 +1,4 @@
+import type { ReadOnlyReason, SubscriptionStatus } from '../domain/subscription';
 import type { BillingState } from '../domain/sync';
 import type { Subscription } from './subscription-store';
 
@@ -50,4 +51,16 @@ export interface BillingNotifier {
    * per event and owner, however often the event runs.
    */
   paymentFailed(notice: { eventId: string; organizationId: string; graceEndsAt: Date }): Promise<void>;
+  /** The organization is read-only from this moment on. Once per organization and moment. */
+  readOnly(notice: { organizationId: string; readOnlyAt: Date; reason: ReadOnlyReason }): Promise<void>;
+}
+
+/** The organizations that became read-only and whose owners have not heard of it yet. */
+export interface ReadOnlyNotices {
+  due(
+    now: Date,
+    limit: number,
+  ): Promise<{ organizationId: string; status: SubscriptionStatus; readOnlyAt: Date }[]>;
+  /** Marks the notice of this moment as sent; a later moment is announced again. */
+  markSent(organizationId: string, readOnlyAt: Date, at: Date): Promise<void>;
 }

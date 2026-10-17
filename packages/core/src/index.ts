@@ -788,10 +788,12 @@ export {
   graceEndOf,
   isReadOnlyAt,
   readOnlyAtOf,
+  readOnlyReasonOf,
   SUBSCRIPTION_STATUSES,
   TRIAL_DAYS,
   trialFrom,
   type AccessState,
+  type ReadOnlyReason,
   type SubscriptionStatus,
 } from './billing/domain/subscription';
 export {
@@ -822,10 +824,12 @@ export type {
   BillingJobs,
   BillingLock,
   BillingNotifier,
+  ReadOnlyNotices,
   StoredWebhook,
   SubscriptionSync,
   WebhookInbox,
 } from './billing/ports/billing-store';
+export { AnnounceReadOnly } from './billing/application/read-only-notices';
 export {
   EntitlementsService,
   type Entitlements,
