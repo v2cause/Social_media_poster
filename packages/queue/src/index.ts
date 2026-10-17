@@ -133,6 +133,7 @@ export {
 } from './media';
 export { LockNotAcquiredError, withLock, type HeldLock, type LockOptions } from './lock';
 export {
+  LiveBrowserLoginEvents,
   liveEventChannel,
   LiveEventPublisher,
   liveEventSchema,

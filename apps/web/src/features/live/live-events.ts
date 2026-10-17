@@ -1,4 +1,5 @@
 import {
+  getAccountsListQueryKey,
   getNotificationsListQueryKey,
   getPostsGetQueryKey,
   getPostsListQueryKey,
@@ -32,6 +33,9 @@ export function queryKeysOf(event: LiveEventDto, slug: string): QueryKey[] {
       ];
     case 'notification.created':
       return [getNotificationsListQueryKey()];
+    case 'xb.login':
+      // A login of X that succeeded connected an account (guide step 6.4).
+      return event.status === 'SUCCEEDED' ? [getAccountsListQueryKey(slug)] : [];
   }
 }
 

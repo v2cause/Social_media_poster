@@ -11,7 +11,7 @@ import { LiveEventHub } from './live-event-hub';
 
 const EVENT_STREAM = {
   description:
-    'Server-sent events: variant.status and notification.created (schema liveEventDtoSchema in @smp/contracts).',
+    'Server-sent events: variant.status, notification.created and xb.login (schema liveEventDtoSchema in @smp/contracts).',
   content: { 'text/event-stream': { schema: { type: 'string' } } },
 } as const;
 
@@ -22,6 +22,14 @@ const RETRY_MS = 5_000;
 export function toLiveEventDto(event: LiveEvent, userId: string): LiveEventDto | null {
   if (event.type === 'notification.created') {
     return event.userId === userId ? { type: 'notification.created', id: event.id } : null;
+  }
+  if (event.type === 'xb.login') {
+    const parsed = liveEventDtoSchema.safeParse({
+      type: 'xb.login',
+      loginSessionId: event.loginSessionId,
+      status: event.status,
+    });
+    return event.userId === userId && parsed.success ? parsed.data : null;
   }
   const parsed = liveEventDtoSchema.safeParse(event);
   return parsed.success ? parsed.data : null;

@@ -1,3 +1,4 @@
+import type { BrowserLogin, BrowserLoginEvents } from '@smp/core';
 import type Redis from 'ioredis';
 import { z } from 'zod';
 
@@ -23,6 +24,13 @@ export const liveEventSchema = z.discriminatedUnion('type', [
     id: z.uuid(),
     userId: z.uuid(),
   }),
+  z.object({
+    type: z.literal('xb.login'),
+    /** A step of an X login; it reaches the browsers of the user who started it only. */
+    loginSessionId: z.uuid(),
+    status: z.string().min(1).max(40),
+    userId: z.uuid(),
+  }),
 ]);
 export type LiveEvent = z.infer<typeof liveEventSchema>;
 
@@ -33,5 +41,19 @@ export class LiveEventPublisher {
 
   async publish(workspaceId: string, event: LiveEvent): Promise<void> {
     await this.redis.publish(liveEventChannel(workspaceId), JSON.stringify(liveEventSchema.parse(event)));
+  }
+}
+
+/** Each step of an X login, for the browsers of the user who started it (guide step 6.4). */
+export class LiveBrowserLoginEvents implements BrowserLoginEvents {
+  constructor(private readonly live: LiveEventPublisher) {}
+
+  changed(login: BrowserLogin): Promise<void> {
+    return this.live.publish(login.workspaceId, {
+      type: 'xb.login',
+      loginSessionId: login.id,
+      status: login.status,
+      userId: login.userId,
+    });
   }
 }

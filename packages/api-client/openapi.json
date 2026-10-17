@@ -3275,7 +3275,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Server-sent events: variant.status and notification.created (schema liveEventDtoSchema in @smp/contracts).",
+            "description": "Server-sent events: variant.status, notification.created and xb.login (schema liveEventDtoSchema in @smp/contracts).",
             "content": {
               "text/event-stream": {
                 "schema": {
