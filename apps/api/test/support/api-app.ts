@@ -33,7 +33,6 @@ import {
   type TestDatabase,
 } from '@smp/testing';
 import { Worker } from 'bullmq';
-import Redis from 'ioredis';
 import type { Server } from 'node:http';
 
 import { AppModule } from '../../src/app.module';
@@ -148,9 +147,12 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
         await deliverEmail(mailer, payload.to, payload.email);
       }
     },
-    { connection: new Redis(redis.url, { maxRetriesPerRequest: null }) },
+    { connection: { url: redis.url, maxRetriesPerRequest: null } },
   );
+  // A worker closed while it still starts leaves an unhandled rejection in BullMQ; the tests
+  // close quickly, so the consumers are ready before the first test.
   const media = objectStorage ? startMediaConsumer(env, redis) : null;
+  await Promise.all([notifications.waitUntilReady(), media?.worker.waitUntilReady()]);
 
   const invitations: InvitationMessage[] = [];
   const notifier: InvitationNotifier = {
@@ -193,7 +195,10 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
 }
 
 /** Processes the media jobs like the worker role "media", with the real image pipeline. */
-function startMediaConsumer(env: ApiEnv, redis: StartedRedis): { close: () => Promise<void> } {
+function startMediaConsumer(
+  env: ApiEnv,
+  redis: StartedRedis,
+): { worker: Worker; close: () => Promise<void> } {
   const base = createPrismaClient(env.DATABASE_URL);
   const storage = new S3Storage(storageConfigOf(env));
   const deps = {
@@ -212,9 +217,10 @@ function startMediaConsumer(env: ApiEnv, redis: StartedRedis): { close: () => Pr
         ? process.execute(parseMediaProcess(job.data))
         : render.execute(parseMediaRender(job.data)));
     },
-    { connection: new Redis(redis.url, { maxRetriesPerRequest: null }) },
+    { connection: { url: redis.url, maxRetriesPerRequest: null } },
   );
   return {
+    worker,
     close: async () => {
       await worker.close();
       storage.destroy();

@@ -1,5 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
-import { Global, Inject, Module, type OnApplicationShutdown } from '@nestjs/common';
+import { Global, Inject, Logger, Module, type OnApplicationShutdown } from '@nestjs/common';
 import {
   AuditLogReadModel,
   createPrismaClient,
@@ -34,6 +34,24 @@ export const AUDIT_LOG_READ_MODEL = Symbol('AUDIT_LOG_READ_MODEL');
 
 // Short timeouts keep a dead dependency from stalling the readiness probe.
 const REDIS_TIMEOUT_MS = 2_000;
+
+const queueLogger = new Logger('Queues');
+
+/**
+ * The producer side of a queue (guide steps 1.8 and 3.3). BullMQ owns the connection, so closing
+ * the queue closes it too, also while it is still starting. Without the offline queue an
+ * unreachable Redis fails the request at once instead of hanging it. Errors of the connection go
+ * to the log instead of becoming unhandled.
+ */
+function producerQueue(name: string, env: ApiEnv): Queue {
+  const queue = new Queue(name, {
+    connection: { url: env.REDIS_URL, maxRetriesPerRequest: null, enableOfflineQueue: false },
+  });
+  queue.on('error', (error) => {
+    queueLogger.warn({ err: error, queue: name }, 'queue.connection_error');
+  });
+  return queue;
+}
 
 /** Closes the connections when the application shuts down. */
 class ClientLifecycle implements OnApplicationShutdown {
@@ -112,14 +130,9 @@ class ClientLifecycle implements OnApplicationShutdown {
       useFactory: (base: PrismaClient) => new AuditLogReadModel(base),
     },
     {
-      // Producer side of the queue "notifications" (guide step 1.8). Without the offline queue an
-      // unreachable Redis fails the request at once instead of hanging it.
       provide: NOTIFICATIONS,
       inject: [API_ENV],
-      useFactory: (env: ApiEnv): Queue =>
-        new Queue(NOTIFICATIONS_QUEUE, {
-          connection: new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false }),
-        }),
+      useFactory: (env: ApiEnv): Queue => producerQueue(NOTIFICATIONS_QUEUE, env),
     },
     {
       provide: NotificationProducer,
@@ -132,13 +145,9 @@ class ClientLifecycle implements OnApplicationShutdown {
       useFactory: (env: ApiEnv): S3Storage => new S3Storage(storageConfigOf(env)),
     },
     {
-      // Producer side of the queue "media" (guide step 3.3), like the notifications above.
       provide: MEDIA_JOBS_QUEUE,
       inject: [API_ENV],
-      useFactory: (env: ApiEnv): Queue =>
-        new Queue(MEDIA_QUEUE, {
-          connection: new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false }),
-        }),
+      useFactory: (env: ApiEnv): Queue => producerQueue(MEDIA_QUEUE, env),
     },
     {
       provide: MediaProducer,
