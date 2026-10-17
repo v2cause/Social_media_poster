@@ -2,7 +2,10 @@ import type {
   AuditEntry,
   NewRiskAcknowledgement,
   RiskAcknowledgement,
+  SelectorDrift,
+  SelectorDriftCounter,
   XBrowserAdminStore,
+  XBrowserAlerts,
   XBrowserFlags,
   XBrowserKillSignal,
   XBrowserOrganization,
@@ -146,6 +149,13 @@ export class InMemoryXBrowser implements XBrowserUnitOfWork {
         this.state.global = { enabled, updatedAt: now() };
         return Promise.resolve();
       },
+      closeGlobalFlag: () => {
+        if (this.state.global?.enabled === false) {
+          return Promise.resolve(false);
+        }
+        this.state.global = { enabled: false, updatedAt: now() };
+        return Promise.resolve(true);
+      },
       allowedOrganizations: () =>
         Promise.resolve(
           [...this.state.organizations.entries()]
@@ -173,6 +183,40 @@ export class RecordingKillSignal implements XBrowserKillSignal {
 
   set(active: boolean): Promise<void> {
     this.signals.push(active);
+    return Promise.resolve();
+  }
+}
+
+/** The drifts in a sliding window, like the sorted set in Redis. */
+export class MemoryDriftCounter implements SelectorDriftCounter {
+  readonly times: number[] = [];
+
+  constructor(private readonly windowMs = 60 * 60_000) {}
+
+  record(at: Date): Promise<number> {
+    this.times.push(at.getTime());
+    const since = at.getTime() - this.windowMs;
+    this.times.splice(0, this.times.length, ...this.times.filter((time) => time > since));
+    return Promise.resolve(this.times.length);
+  }
+
+  reset(): Promise<void> {
+    this.times.splice(0);
+    return Promise.resolve();
+  }
+}
+
+export class RecordingAlerts implements XBrowserAlerts {
+  readonly breakers: (SelectorDrift & { drifts: number; at: Date })[] = [];
+  readonly canaries: { missing: readonly string[]; selectorsVersion: string; at: Date }[] = [];
+
+  breakerOpened(alert: SelectorDrift & { drifts: number; at: Date }): Promise<void> {
+    this.breakers.push(alert);
+    return Promise.resolve();
+  }
+
+  canaryFailed(alert: { missing: readonly string[]; selectorsVersion: string; at: Date }): Promise<void> {
+    this.canaries.push(alert);
     return Promise.resolve();
   }
 }

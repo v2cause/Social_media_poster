@@ -396,7 +396,10 @@ export {
 export type {
   NewRiskAcknowledgement,
   RiskAcknowledgement,
+  SelectorDrift,
+  SelectorDriftCounter,
   XBrowserAdminStore,
+  XBrowserAlerts,
   XBrowserKillSignal,
   XBrowserOrganization,
   XBrowserScope,
@@ -417,6 +420,14 @@ export {
   StoreBrowserSession,
   type StoreBrowserSessionInput,
 } from './channels/application/store-browser-session';
+export {
+  BREAKER_DRIFTS,
+  BREAKER_WINDOW_MS,
+  XBrowserBreaker,
+  type BreakerOutcome,
+  type CanaryReport,
+  type XBrowserBreakerDependencies,
+} from './channels/application/x-browser-breaker';
 export {
   GetXBrowserAdmin,
   SetXBrowserKillSwitch,

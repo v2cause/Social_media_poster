@@ -133,6 +133,19 @@ describe('X browser adapters', () => {
     await expect(store.allowedOrganizations()).resolves.toEqual([]);
   });
 
+  it('lets the circuit breaker switch the global flag off once, also when two drifts come at once', async () => {
+    const store = admin();
+    await store.setGlobalFlag(true);
+    const closed = await Promise.all([store.closeGlobalFlag(), store.closeGlobalFlag()]);
+    expect(closed.sort()).toEqual([false, true]);
+    await expect(store.globalFlag()).resolves.toMatchObject({ enabled: false });
+    expect(await flagRows(null, null)).toBe(1);
+
+    await store.setGlobalFlag(true);
+    await expect(store.closeGlobalFlag()).resolves.toBe(true);
+    await store.setGlobalFlag(true);
+  });
+
   it('refuses a flag of another workspace', async () => {
     await expect(
       unitOfWork().run(scopeA, (store) => store.setWorkspaceFlag(orgB, wsB, true)),

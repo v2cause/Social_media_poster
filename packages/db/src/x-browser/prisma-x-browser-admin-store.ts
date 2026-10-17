@@ -1,7 +1,9 @@
 import { X_BROWSER_FLAG, type XBrowserAdminStore, type XBrowserOrganization } from '@smp/core';
 
 import { runInSystemScope, type SystemPrismaClient } from '../system-client';
-import { setFlag } from './feature-flags';
+import { lockFlag, setFlag } from './feature-flags';
+
+const GLOBAL = { organizationId: null, workspaceId: null } as const;
 
 // The switches of the platform admins and of the circuit breaker (guide steps 6.1 and 6.5): the
 // global row of the flag is the kill switch, a row of an organization its gate until the plans
@@ -28,9 +30,25 @@ export class PrismaXBrowserAdminStore implements XBrowserAdminStore {
 
   async setGlobalFlag(enabled: boolean): Promise<void> {
     await runInSystemScope(() =>
-      this.system.$transaction((tx) =>
-        setFlag(tx, X_BROWSER_FLAG, { organizationId: null, workspaceId: null }, enabled),
-      ),
+      this.system.$transaction((tx) => setFlag(tx, X_BROWSER_FLAG, GLOBAL, enabled)),
+    );
+  }
+
+  async closeGlobalFlag(): Promise<boolean> {
+    return runInSystemScope(() =>
+      this.system.$transaction(async (tx) => {
+        // Under the lock of the flag a second breaker sees what the first one wrote.
+        await lockFlag(tx, X_BROWSER_FLAG, GLOBAL);
+        const row = await tx.featureFlag.findFirst({
+          where: { key: X_BROWSER_FLAG, ...GLOBAL },
+          select: { enabled: true },
+        });
+        if (row?.enabled === false) {
+          return false;
+        }
+        await setFlag(tx, X_BROWSER_FLAG, GLOBAL, false);
+        return true;
+      }),
     );
   }
 

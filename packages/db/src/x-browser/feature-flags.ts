@@ -16,10 +16,16 @@ interface RawWriter {
   $executeRaw(query: TemplateStringsArray | Prisma.Sql, ...values: unknown[]): PromiseLike<number>;
 }
 
+/** Waits for the writers of the key and scope before; held until the transaction ends. */
+export async function lockFlag(tx: RawWriter, key: string, scope: FlagScope): Promise<void> {
+  const lockKey = `feature_flag:${key}:${scope.organizationId ?? '-'}:${scope.workspaceId ?? '-'}`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+}
+
 export async function setFlag(tx: RawWriter, key: string, scope: FlagScope, enabled: boolean): Promise<void> {
   const { organizationId, workspaceId } = scope;
-  const lockKey = `feature_flag:${key}:${organizationId ?? '-'}:${workspaceId ?? '-'}`;
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+  // The lock is held per transaction, so taking it again after lockFlag does not wait.
+  await lockFlag(tx, key, scope);
   const updated = await tx.$executeRaw`
     UPDATE feature_flag SET enabled = ${enabled}, updated_at = now()
      WHERE key = ${key}

@@ -72,6 +72,8 @@ export interface XBrowserOrganization {
 export interface XBrowserAdminStore {
   globalFlag(): Promise<{ enabled: boolean; updatedAt: Date } | null>;
   setGlobalFlag(enabled: boolean): Promise<void>;
+  /** Switches the global flag off unless it is off; true when this call switched it (guide step 6.5). */
+  closeGlobalFlag(): Promise<boolean>;
   /** The organizations whose flag allows the X browser. */
   allowedOrganizations(): Promise<(XBrowserOrganization & { updatedAt: Date })[]>;
   /** The organization of a workspace; organizations have no slug of their own. */
@@ -83,4 +85,25 @@ export interface XBrowserAdminStore {
 /** The kill switch for the browser worker, which has no database: a key in Redis. */
 export interface XBrowserKillSignal {
   set(active: boolean): Promise<void>;
+}
+
+/** An entry of the selector map that no longer matched X, as a browser worker reports it. */
+export interface SelectorDrift {
+  flow: string;
+  selector: string;
+  selectorsVersion: string;
+}
+
+/** The drifts of the last hour across all browser workers (guide step 6.5), in Redis. */
+export interface SelectorDriftCounter {
+  /** Counts a drift at the time given; returns the drifts of the hour up to it, this one included. */
+  record(at: Date): Promise<number>;
+  /** Forgets the drifts counted so far, once the breaker opened. */
+  reset(): Promise<void>;
+}
+
+/** What the platform admins hear of the X browser, by email (guide step 6.5). */
+export interface XBrowserAlerts {
+  breakerOpened(alert: SelectorDrift & { drifts: number; at: Date }): Promise<void>;
+  canaryFailed(alert: { missing: readonly string[]; selectorsVersion: string; at: Date }): Promise<void>;
 }
