@@ -926,6 +926,14 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Tastaturnutzer bekommen einen Dialog "Umplanen".
   - Der Status-Badge aktualisiert sich live.
 - **Fertig, wenn**: Ein E2E-Test mit Mock den Ablauf Planen (+1 min), veröffentlicht, Badge aktualisiert und Umplanen per Drag & Drop grün durchläuft.
+- **Umgesetzt** ([ADR 0026](adr/0026-planen-im-web.md)):
+  - Daten: `GET /api/w/:ws/variants` (`post.read`) liefert die Varianten für Kalender, Tabelle und Dashboard, mit Filtern nach Status, Plattform, Account und geplantem Zeitraum, nach Plan oder letzter Änderung sortiert und mit Cursor. Migration 0012 legt den Index `(workspace_id, scheduled_at)` an. Die Accounts tragen die bisherigen Kosten von X (`costMicros`).
+  - Accounts: Karten pro Plattform für Owner und Admins, bei X die Methode (Browser gesperrt bis Phase 6). Die Liste zeigt Initialen als Avatar, Typ, Status, das Ende des Zugangs (die letzten 14 Tage als Countdown), fehlende Berechtigungen und die Kosten von X. Fehler des Callbacks erscheinen als Hinweis; die Auswahlseite hakt beim Neu verbinden die verbundenen Accounts vor.
+  - Posts: eine Zeile pro Variante mit Vorschau, Account, Status samt Fehlergrund, Termin in seiner Zone, Veröffentlichung mit Link zum Original und einem Menü pro Zeile. Die Filter stehen im Query-String; Massenaktionen brechen Planungen ab oder löschen die Beiträge nach einer Bestätigung.
+  - Planen-Leiste: gemeinsames Datum und Uhrzeit in der Zone des Workspace, Account und eigener Zeitpunkt pro Variante, "Jetzt posten" mit Bestätigung, Abbrechen, erneut versuchen und die Entscheidung zu einem unklaren Ausgang. Planungen laufen nach den offenen Speicherungen; der Status folgt den Live-Events, eine Variante im Versand ist gesperrt.
+  - Kalender: Monat, Woche und Liste in der Zone des Workspace oder des Browsers, Ansicht und Tag im Query-String. Drag & Drop auf einen anderen Tag ist optimistisch und rollt zurück; vergangene Tage nehmen nichts an. Der Dialog "Umplanen" setzt Tag und Uhrzeit, auch per Tastatur.
+  - Dashboard: die nächsten fünf geplanten Posts mit Countdown (in der letzten Stunde Minuten und Sekunden) und die Accounts mit Status.
+  - Tests: `packages/db/test/variant-list-read-model.integration.test.ts`, `apps/api/test/publishing.integration.test.ts` und die Rechte-Matrix, Unit-Tests der Modelle unter `apps/web/src/features/*` (Zeitzonen, Filter, Kalender, Planen, Countdown, Abgleich im Composer) und `apps/web/e2e/planning.spec.ts`: Mock-LinkedIn verbinden, einen Post für die nächsten Minuten planen, "Veröffentlicht" ohne Neuladen sehen, einen zweiten per Drag & Drop verschieben.
 
 #### 4.12 LinkedIn-Adapter (4a)
 - **Erstellen**: `packages/platform-adapters/src/linkedin/*` mit Connector, Adapter, Image-Upload, Text-Escaping und Fixtures.

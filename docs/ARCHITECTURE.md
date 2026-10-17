@@ -419,7 +419,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 - Die Server laufen in UTC. Die API nimmt `{ localDateTime, timeZone }` entgegen; der Core rechnet mit `Intl` um (`resolveLocalTime`, [ADR 0023](adr/0023-planen-zeitzonen-und-zustandsautomat.md)). Gespeichert werden der UTC-Zeitpunkt und die IANA-Zone.
 - Zeiten in einer Zeitumstellungslücke ergeben einen 422-Fehler mit Vorschlag (die erste gültige Minute nach der Lücke, im Problem-Dokument unter `params`). Bei doppelten Zeiten wird der frühere Offset verwendet.
-- Der Kalender zeigt standardmäßig die Workspace-Zeitzone und lässt sich auf die eigene Zeitzone umschalten.
+- Der Kalender zeigt standardmäßig die Workspace-Zeitzone und lässt sich auf die eigene Zeitzone umschalten. Ein verschobener Termin geht in der Zone an die API, in der die Variante geplant ist; die Ansicht ändert die Zone einer Variante nicht ([ADR 0026](adr/0026-planen-im-web.md)).
 
 ### 7.4 Queues (`packages/queue`, Payloads beim Einreihen und Verarbeiten per zod validiert)
 
@@ -565,12 +565,14 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 onboarding/                      Organisation, Workspace, Profil (Branche, Zielgruppe, Sprache, Zeitzone), erster Account
 (app)/w/[ws]/dashboard           KPI-Kacheln, Charts, Top-Posts, nächste geplante Posts, Account-Status
 (app)/w/[ws]/compose             neuer Post; /posts/[postId] zum Bearbeiten
-(app)/w/[ws]/calendar            Monat/Woche/Liste, Filter über URL-Parameter
-(app)/w/[ws]/posts               Tabelle mit Filtern nach Status, Plattform, Account, Datum; Massenaktionen
+(app)/w/[ws]/calendar            Monat/Woche/Liste; Ansicht, Tag und Zeitzone über URL-Parameter
+(app)/w/[ws]/posts               eine Zeile pro Variante, Filter nach Status, Plattform, Account, Zeitraum
+                                 (URL-Parameter); Massenaktionen Planung abbrechen und Löschen
 (app)/w/[ws]/analytics           Übersicht; Post- und Account-Details; CSV-Export
 (app)/w/[ws]/ideas               KI-Themenvorschläge, eigene Ideen, "Post erstellen"
 (app)/w/[ws]/media               Medienbibliothek
-(app)/w/[ws]/accounts            verbinden/trennen, Status (z.B. "Token läuft in 5 Tagen ab"), X-Methode und Kosten
+(app)/w/[ws]/accounts            verbinden/trennen, Status (z.B. "Token läuft in 5 Tagen ab"), X-Methode und Kosten;
+                                 /accounts/connect/select: Auswahl der Accounts nach der Zustimmung
 (app)/w/[ws]/brand-voices        Brand Voices (versioniert) und eigene Stile, "Stimme testen"
 (app)/w/[ws]/settings            Profil, Zeitzone, Sprache, Publishing-Defaults, Dry-Run, X-Browser (Risikobestätigung)
 (app)/org/[org]/members | workspaces | billing | audit-log | settings
@@ -583,10 +585,10 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   - KI-Panel: streamt die Varianten als Tabs pro Ziel. Jede Variante ist editierbar, mit Live-Zeichenzähler aus `platform-rules`, Hashtag-Chips, erstem Kommentar und Refine-Schnellaktionen mit Diff.
   - Medien: Drag & Drop (mit Schaltflächen als Alternative zum Ziehen), Zuschnitt pro Plattform, Alt-Text mit KI-Vorschlag. Die Vorschau zeigt den Zuschnitt auf dem Thumbnail, die Datei für die Plattform rendert der Worker nach dem Speichern ([ADR 0022](adr/0022-medien-im-web.md)).
   - Vorschau: Mockups für LinkedIn, Instagram, Facebook und X, inklusive "...mehr"-Kürzung.
-  - Planen: Datum und Uhrzeit in der Workspace-Zeitzone, "Jetzt posten", Zeitpunkt pro Variante überschreibbar, Kostenhinweis bei X.
+  - Planen: Datum und Uhrzeit in der Workspace-Zeitzone, Account und Zeitpunkt pro Variante überschreibbar, "Jetzt posten", Kostenhinweis bei X, Hinweis auf ablaufende Zugänge. Planungen laufen in der Warteschlange des Auto-Speicherns nach den offenen Speicherungen; der Status folgt den Live-Events, und eine Variante, die veröffentlicht wird oder wurde, ist gesperrt ([ADR 0026](adr/0026-planen-im-web.md)).
   - Entwürfe werden automatisch gespeichert: 800 ms nach der letzten Änderung, nacheinander und mit Optimistic Locking; ein neuer Beitrag entsteht, sobald Briefing und eine Plattform da sind ([ADR 0017](adr/0017-composer-zustand-und-auto-speichern.md)).
-- **Kalender**: FullCalendar mit Varianten in Plattformfarben und Status-Icon. Umplanen per Drag & Drop mit optimistischem Update und Rollback. Vergangene Zeitpunkte sind gesperrt. Für Tastaturnutzer gibt es einen Umplanen-Dialog.
-- **Bibliotheken**: TanStack Query (Orval-Hooks), react-hook-form + zodResolver (dieselben Schemas wie die API), nuqs für den URL-State, der Composer-State als getesteter Reducer unter `useReducer` (Zustand-Stores nur für State, den mehrere Seiten teilen; ADR 0017), shadcn/ui + Tailwind 4, lucide, sonner, TanStack Table, Recharts, date-fns v4.
+- **Kalender**: eigener Kalender (CSS-Grid, `dnd-kit`) mit Varianten als Plattform-Kürzel, Uhrzeit, Textanfang und Status-Icon. Umplanen per Drag & Drop auf einen anderen Tag mit optimistischem Update und Rollback; vergangene Tage nehmen nichts an. Für Tastaturnutzer und neue Uhrzeiten gibt es einen Umplanen-Dialog ([ADR 0026](adr/0026-planen-im-web.md)).
+- **Bibliotheken**: TanStack Query (Orval-Hooks), react-hook-form + zodResolver (dieselben Schemas wie die API), der URL-State über einen kleinen Hook mit zod-Schema, der Composer-State als getesteter Reducer unter `useReducer` (Zustand-Stores nur für State, den mehrere Seiten teilen; ADR 0017), shadcn/ui + Tailwind 4, lucide, sonner, `dnd-kit`, Datum und Zeitzonen über `Intl` (ADR 0026); für Analytics später TanStack Table und Recharts.
 - **i18n**: next-intl mit ICU-Nachrichten, eine Datei pro Namespace und Sprache (`apps/web/messages/{de,en}/<namespace>.json`), typisierte Keys. Deutsch ist die Referenz; `pnpm check:i18n` prüft in der CI, dass jede Sprache dieselben Keys mit denselben Argumenten hat und jede Nachricht gültiges ICU ist. Plural über ICU (`{count, plural, one {...} other {...}}`), Datum und Zahlen über `useFormatter`. API-Fehlercodes werden im Client unter `errors.codes.<CODE>` übersetzt.
 - **Live-Updates**: SSE `/api/w/:ws/events` invalidiert Query-Keys; als Fallback wird alle 30 s gepollt. Jeder Tab öffnet höchstens einen Stream, für den offenen Workspace. Die API hört pro Prozess mit einer Redis-Verbindung auf die Kanäle der Workspaces mit offenen Streams. Eine neue Benachrichtigung (`notification.created`) erreicht nur die Streams ihres Nutzers. Nach einem verlorenen Stream gelten alle Abfragen, die ein Ereignis ändern könnte, als veraltet.
 - **Ziel**: WCAG 2.2 AA.
