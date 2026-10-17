@@ -32,3 +32,22 @@ export class InvalidAccountSelectionError extends DomainError {
     super('The selection names an account the consent does not reach.');
   }
 }
+
+/** The deployment, the kill switch or the plan keeps the X browser closed (guide step 6.1). */
+export class XBrowserUnavailableError extends DomainError {
+  readonly code = 'X_BROWSER_UNAVAILABLE';
+  // Not "forbidden": the role may switch it on, the state of the platform does not allow it.
+  readonly kind = 'conflict';
+  constructor() {
+    super('The X browser is not available for this workspace.');
+  }
+}
+
+/** The user read another version of the risk text than the current one. */
+export class RiskTextOutdatedError extends DomainError {
+  readonly code = 'RISK_TEXT_OUTDATED';
+  readonly kind = 'conflict';
+  constructor() {
+    super('The risk text has a newer version.');
+  }
+}

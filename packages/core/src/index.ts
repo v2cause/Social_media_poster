@@ -382,6 +382,43 @@ export {
   type RefreshConnectionInput,
   type RefreshConnectionOutcome,
 } from './channels/application/refresh-connection';
+export {
+  OUTSIDE_BLOCKS,
+  X_BROWSER_BLOCKS,
+  X_BROWSER_FLAG,
+  X_BROWSER_RISK_SUBJECT,
+  xBrowserBlocks,
+  type XBrowserBlock,
+  type XBrowserConditions,
+  type XBrowserFlags,
+} from './channels/domain/x-browser';
+export type {
+  NewRiskAcknowledgement,
+  RiskAcknowledgement,
+  XBrowserAdminStore,
+  XBrowserKillSignal,
+  XBrowserOrganization,
+  XBrowserScope,
+  XBrowserStore,
+  XBrowserUnitOfWork,
+} from './channels/ports/x-browser';
+export {
+  DisableXBrowser,
+  EnableXBrowser,
+  GetXBrowserStatus,
+  XBrowserGate,
+  type EnableXBrowserInput,
+  type RiskText,
+  type XBrowserAccessDependencies,
+  type XBrowserStatus,
+} from './channels/application/x-browser-access';
+export {
+  GetXBrowserAdmin,
+  SetXBrowserKillSwitch,
+  SetXBrowserOrganization,
+  type XBrowserAdminDependencies,
+  type XBrowserAdminView,
+} from './channels/application/x-browser-admin';
 
 // Tenancy
 export * from './tenancy/domain/errors';
