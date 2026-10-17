@@ -1,0 +1,18 @@
+{
+  "data": {
+    "viewer": {
+      "user_results": {
+        "result": {
+          "__typename": "User",
+          "rest_id": "1234567890",
+          "legacy": {
+            "screen_name": "smp_demo",
+            "name": "SMP Demo",
+            "followers_count": 1520,
+            "profile_image_url_https": "https://pbs.twimg.com/profile_images/1/avatar_normal.jpg"
+          }
+        }
+      }
+    }
+  }
+}

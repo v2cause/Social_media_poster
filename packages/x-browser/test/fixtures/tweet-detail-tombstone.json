@@ -1,0 +1,21 @@
+{
+  "data": {
+    "threaded_conversation_with_injections_v2": {
+      "instructions": [
+        {
+          "type": "TimelineAddEntries",
+          "entries": [
+            {
+              "entryId": "tweet-1846000000000000002",
+              "content": {
+                "itemContent": {
+                  "tweet_results": { "result": { "__typename": "TweetTombstone", "tombstone": {} } }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

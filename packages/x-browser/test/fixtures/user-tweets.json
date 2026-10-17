@@ -1,0 +1,51 @@
+{
+  "data": {
+    "user": {
+      "result": {
+        "timeline_v2": {
+          "timeline": {
+            "instructions": [
+              {
+                "type": "TimelineAddEntries",
+                "entries": [
+                  {
+                    "entryId": "tweet-1846000000000000003",
+                    "content": {
+                      "itemContent": {
+                        "tweet_results": {
+                          "result": {
+                            "rest_id": "1846000000000000003",
+                            "legacy": {
+                              "created_at": "Sat Oct 17 07:58:40 +0000 2026",
+                              "full_text": "The launch is today https://t.co/abc123"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "entryId": "tweet-1845000000000000009",
+                    "content": {
+                      "itemContent": {
+                        "tweet_results": {
+                          "result": {
+                            "rest_id": "1845000000000000009",
+                            "legacy": {
+                              "created_at": "Fri Oct 16 10:00:00 +0000 2026",
+                              "full_text": "An older post"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "message": "Status is a duplicate. (187)",
+      "code": 187,
+      "kind": "Permissions",
+      "name": "AuthorizationError"
+    }
+  ],
+  "data": {}
+}

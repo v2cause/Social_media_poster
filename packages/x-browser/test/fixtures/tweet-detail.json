@@ -1,0 +1,46 @@
+{
+  "data": {
+    "threaded_conversation_with_injections_v2": {
+      "instructions": [
+        {
+          "type": "TimelineAddEntries",
+          "entries": [
+            {
+              "entryId": "tweet-1846000000000000001",
+              "content": {
+                "itemContent": {
+                  "tweet_results": {
+                    "result": {
+                      "__typename": "TweetWithVisibilityResults",
+                      "tweet": {
+                        "rest_id": "1846000000000000001",
+                        "core": {
+                          "user_results": {
+                            "result": {
+                              "rest_id": "1234567890",
+                              "legacy": { "screen_name": "smp_demo", "name": "SMP Demo" }
+                            }
+                          }
+                        },
+                        "views": { "count": "4210", "state": "EnabledWithCount" },
+                        "legacy": {
+                          "created_at": "Sat Oct 17 08:00:05 +0000 2026",
+                          "full_text": "Hello from the fixtures",
+                          "favorite_count": 87,
+                          "reply_count": 6,
+                          "retweet_count": 11,
+                          "quote_count": 2,
+                          "bookmark_count": 9
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "data": {
+    "create_tweet": {
+      "tweet_results": {
+        "result": {
+          "__typename": "Tweet",
+          "rest_id": "1846000000000000001",
+          "core": {
+            "user_results": {
+              "result": {
+                "__typename": "User",
+                "rest_id": "1234567890",
+                "legacy": { "screen_name": "smp_demo", "name": "SMP Demo" }
+              }
+            }
+          },
+          "legacy": {
+            "created_at": "Sat Oct 17 08:00:05 +0000 2026",
+            "full_text": "",
+            "favorite_count": 0,
+            "reply_count": 0,
+            "retweet_count": 0,
+            "quote_count": 0,
+            "bookmark_count": 0
+          }
+        }
+      }
+    }
+  }
+}
