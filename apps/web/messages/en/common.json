@@ -27,7 +27,8 @@
     "signOut": "Sign out",
     "backToWorkspace": "Back to the workspace",
     "organizationArea": "Organization {name}",
-    "accountArea": "Your account"
+    "accountArea": "Your account",
+    "billing": "Billing"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -42,7 +43,8 @@
     "settings": "Settings",
     "members": "Members",
     "security": "Security",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "billing": "Billing"
   },
   "languages": {
     "de": "Deutsch",

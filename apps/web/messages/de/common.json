@@ -27,7 +27,8 @@
     "signOut": "Abmelden",
     "backToWorkspace": "Zurück zum Workspace",
     "organizationArea": "Organisation {name}",
-    "accountArea": "Ihr Konto"
+    "accountArea": "Ihr Konto",
+    "billing": "Abrechnung"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -42,7 +43,8 @@
     "settings": "Einstellungen",
     "members": "Mitglieder",
     "security": "Sicherheit",
-    "notifications": "Benachrichtigungen"
+    "notifications": "Benachrichtigungen",
+    "billing": "Abrechnung"
   },
   "languages": {
     "de": "Deutsch",

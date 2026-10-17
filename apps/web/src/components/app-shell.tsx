@@ -23,6 +23,7 @@ import {
   BookUser,
   CalendarDays,
   ChevronsUpDown,
+  CreditCard,
   FileText,
   Image as ImageIcon,
   LayoutDashboard,
@@ -42,6 +43,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 
+import type { BillingNotice } from '@/features/billing/billing-model';
+import { BillingNoticeBar } from '@/features/billing/billing-notice';
 import { LiveEventsProvider } from '@/features/live/live-events-provider';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { authClient } from '@/lib/auth-client';
@@ -61,6 +64,7 @@ type NavKey =
   | 'brandVoices'
   | 'settings'
   | 'members'
+  | 'billing'
   | 'security'
   | 'notifications';
 
@@ -73,8 +77,22 @@ interface NavItem {
 }
 
 export type ShellArea =
-  | { kind: 'workspace'; slug: string; workspaceName: string; organizationId: string; role: Role }
-  | { kind: 'organization'; organizationId: string; organizationName: string; role: Role }
+  | {
+      kind: 'workspace';
+      slug: string;
+      workspaceName: string;
+      organizationId: string;
+      role: Role;
+      /** What the subscription needs, shown above every page (guide step 7.4). */
+      billingNotice: BillingNotice | null;
+    }
+  | {
+      kind: 'organization';
+      organizationId: string;
+      organizationName: string;
+      role: Role;
+      billingNotice: BillingNotice | null;
+    }
   | { kind: 'account' };
 
 const WORKSPACE_SECTIONS: { key: NavKey; path: string; icon: LucideIcon; permission?: Permission }[] = [
@@ -100,7 +118,15 @@ function navItems(area: ShellArea): NavItem[] {
         permission: section.permission,
       }));
     case 'organization':
-      return [{ key: 'members', href: `/org/${area.organizationId}/members`, icon: Users }];
+      return [
+        { key: 'members', href: `/org/${area.organizationId}/members`, icon: Users },
+        {
+          key: 'billing',
+          href: `/org/${area.organizationId}/billing`,
+          icon: CreditCard,
+          permission: 'billing.manage',
+        },
+      ];
     case 'account':
       return [
         { key: 'security', href: '/account/security', icon: ShieldCheck },
@@ -240,6 +266,16 @@ export function AppShell(props: {
               <UserMenu user={props.user} area={props.area} memberships={props.memberships} />
             </div>
           </header>
+          {props.area.kind !== 'account' &&
+          props.area.billingNotice &&
+          // The billing page explains it in detail itself.
+          !pathname.startsWith(`/org/${props.area.organizationId}/billing`) ? (
+            <BillingNoticeBar
+              notice={props.area.billingNotice}
+              organizationId={props.area.organizationId}
+              canManage={can(props.area.role, 'billing.manage')}
+            />
+          ) : null}
           <main className="min-w-0 flex-1 p-6 max-md:p-4">{props.children}</main>
         </div>
       </div>
@@ -344,6 +380,14 @@ function UserMenu({
             <Link href={`/org/${organizationId}/members`}>
               <Users aria-hidden="true" />
               {t('team')}
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
+        {area.kind !== 'account' && can(area.role, 'billing.manage') ? (
+          <DropdownMenuItem asChild>
+            <Link href={`/org/${area.organizationId}/billing`}>
+              <CreditCard aria-hidden="true" />
+              {t('billing')}
             </Link>
           </DropdownMenuItem>
         ) : null}

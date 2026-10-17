@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { AppShell } from '@/components/app-shell';
+import { noticeOf } from '@/features/billing/billing-model';
 import { getMemberships, getWorkspaceContext, requireSession } from '@/lib/server/api';
 
 /**
@@ -28,6 +29,7 @@ export default async function WorkspaceLayout({
         workspaceName: context.workspace.name,
         organizationId: context.organization.id,
         role: context.role,
+        billingNotice: noticeOf(context.billing, new Date()),
       }}
     >
       {children}

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { AppShell } from '@/components/app-shell';
+import { noticeOf } from '@/features/billing/billing-model';
 import { getMemberships, getOrganizationContext, requireSession } from '@/lib/server/api';
 
 /** The shell of the organization pages; non-members see the 404 page. */
@@ -24,6 +25,7 @@ export default async function OrganizationLayout({
         organizationId: context.organization.id,
         organizationName: context.organization.name,
         role: context.role,
+        billingNotice: noticeOf(context.billing, new Date()),
       }}
     >
       {children}
