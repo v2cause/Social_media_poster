@@ -131,22 +131,22 @@ export function describeAdapterContract(
       const published = await adapter.publish(fixtures.validRequest(), ctx);
 
       const [result] = await adapter.fetchPostMetrics([published], ctx);
-      expect(result?.externalPostId).toBe(published.externalPostId);
-      expect(result?.mappingVersion).toBeGreaterThanOrEqual(1);
-      const metrics = result?.metrics;
-      const values = metrics
-        ? [
-            metrics.impressions,
-            metrics.reach,
-            metrics.likes,
-            metrics.comments,
-            metrics.shares,
-            metrics.clicks,
-            metrics.saves,
-            metrics.videoViews,
-          ]
-        : [];
-      expect(values).toHaveLength(8);
+      if (result?.kind !== 'metrics') {
+        throw new Error('expected the metrics of the post');
+      }
+      expect(result.externalPostId).toBe(published.externalPostId);
+      expect(result.mappingVersion).toBeGreaterThanOrEqual(1);
+      const { metrics } = result;
+      const values = [
+        metrics.impressions,
+        metrics.reach,
+        metrics.views,
+        metrics.likes,
+        metrics.comments,
+        metrics.shares,
+        metrics.clicks,
+        metrics.saves,
+      ];
       for (const value of values) {
         expect(isCount(value)).toBe(true);
       }
@@ -156,6 +156,20 @@ export function describeAdapterContract(
       );
       expect(isCount(account.followers)).toBe(true);
       expect(account.mappingVersion).toBeGreaterThanOrEqual(1);
+    });
+
+    it('reports a post deleted on the platform as deleted instead of failing the batch', async () => {
+      const adapter = makeAdapter();
+      const ctx = await fixtures.context();
+      const kept = await adapter.publish(fixtures.validRequest(), ctx);
+      const removed = await adapter.publish({ ...fixtures.validRequest(), text: 'removed later' }, ctx);
+      await adapter.deletePost(removed, ctx);
+
+      const results = await adapter.fetchPostMetrics([kept, removed], ctx);
+      expect(results.map((result) => [result.externalPostId, result.kind])).toEqual([
+        [kept.externalPostId, 'metrics'],
+        [removed.externalPostId, 'deleted'],
+      ]);
     });
   });
 }

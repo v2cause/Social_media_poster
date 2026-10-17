@@ -24,6 +24,7 @@ import {
 import { z } from 'zod';
 
 import { platformErrorOf } from '../http/errors';
+import { MAP_VERSION, normalizeMockAccountMetrics, normalizeMockPostMetrics } from './metrics-map';
 import { MockOAuthConnector } from './mock-oauth-connector';
 import type { MockPlatformStore, MockPost } from './mock-platform-store';
 
@@ -52,8 +53,6 @@ export const mockAccountSettingsSchema = z.object({
 });
 export type MockAccountSettings = z.infer<typeof mockAccountSettingsSchema>;
 
-/** Bumped when the mapping of the mock metrics changes. */
-const METRICS_MAPPING_VERSION = 1;
 const SLOW_MS = 10_000;
 /** Reads cost money on X, so its reconcile looks at the latest posts only (guide step 4.14). */
 const X_RECONCILE_POSTS = 5;
@@ -210,23 +209,37 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
     await this.options.store.save({ ...post, deletedAt: this.options.clock.now() });
   }
 
+  /**
+   * One call for all posts, like the batch reads of the real platforms. A post the platform does
+   * not know, or that was deleted, comes back as deleted; on X every post read costs, as with
+   * the real API.
+   */
   async fetchPostMetrics(
     refs: readonly ExternalPostRef[],
     ctx: AdapterContext,
   ): Promise<PostMetricsResult[]> {
     await this.call('metrics', ctx);
-    return Promise.all(
-      refs.map(async (ref) => {
-        const post = await this.ownPost(ref.externalPostId, ctx);
-        const metrics = this.metricsOf(post);
+    const results = await Promise.all(
+      refs.map(async (ref): Promise<PostMetricsResult> => {
+        const post = await this.options.store.find(ref.externalPostId);
+        if (!post || post.accountId !== ctx.account.id || post.deletedAt !== null) {
+          return { kind: 'deleted', externalPostId: ref.externalPostId };
+        }
+        const raw = { mock: this.countersOf(post) };
         return {
+          kind: 'metrics',
           externalPostId: post.externalPostId,
-          metrics,
-          raw: { mock: metrics },
-          mappingVersion: METRICS_MAPPING_VERSION,
+          metrics: normalizeMockPostMetrics(raw),
+          raw,
+          mappingVersion: MAP_VERSION,
         };
       }),
     );
+    const read = results.filter((result) => result.kind === 'metrics').length;
+    if (this.platform === 'X' && read > 0) {
+      await ctx.costs.record({ operation: 'x.post_read', units: read });
+    }
+    return results;
   }
 
   async fetchAccountMetrics(
@@ -236,13 +249,10 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
     await this.call('account-metrics', ctx);
     const posts = (await this.options.store.postsOf(ctx.account.id)).length;
     const followers = 500 + seedOf(ctx.account.id) + posts * 3;
-    return {
-      followers,
-      reach: followers * 4,
-      profileViews: Math.round(followers / 5),
-      raw: { mock: { followers, posts } },
-      mappingVersion: METRICS_MAPPING_VERSION,
+    const raw = {
+      mock: { followers, reach: followers * 4, profileViews: Math.round(followers / 5) },
     };
+    return { ...normalizeMockAccountMetrics(raw), raw, mappingVersion: MAP_VERSION };
   }
 
   /** Counts the call, waits the latency and fails with failStatus where one is set. */
@@ -291,7 +301,7 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
   }
 
   /** Grows quickly in the first day and slowly after, the same for every call at the same time. */
-  private metricsOf(post: MockPost): NormalizedPostMetrics {
+  private countersOf(post: MockPost): NormalizedPostMetrics {
     const hours = Math.max(0, (this.options.clock.now().getTime() - post.publishedAt.getTime()) / 3_600_000);
     const impressions = Math.round(
       (200 + seedOf(post.externalPostId)) * (1 - Math.exp(-hours / 12)) * (1 + hours / 240),
@@ -305,7 +315,7 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
       shares: share(0.005),
       clicks: this.platform === 'INSTAGRAM' ? null : share(0.02),
       saves: this.platform === 'INSTAGRAM' ? share(0.01) : null,
-      videoViews: null,
+      views: null,
     };
   }
 }

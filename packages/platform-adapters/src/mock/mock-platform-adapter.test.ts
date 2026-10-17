@@ -138,16 +138,19 @@ describe('MockPlatformAdapter', () => {
     await expect(adapter.publish(request, { ...ctx, dryRun: true })).rejects.toThrow(/dry run/);
 
     const published = await adapter.publish(request, ctx);
+    const impressionsNow = async (): Promise<number | null> => {
+      const [result] = await adapter.fetchPostMetrics([published], ctx);
+      return result?.kind === 'metrics' ? result.metrics.impressions : null;
+    };
     now = new Date(now.getTime() + 2 * 3_600_000);
-    const [early] = await adapter.fetchPostMetrics([published], ctx);
+    const early = await impressionsNow();
     now = new Date(now.getTime() + 48 * 3_600_000);
-    const [later] = await adapter.fetchPostMetrics([published], ctx);
-    expect(later?.metrics.impressions ?? 0).toBeGreaterThan(early?.metrics.impressions ?? 0);
-    const [again] = await adapter.fetchPostMetrics([published], ctx);
-    expect(again?.metrics).toEqual(later?.metrics);
+    const later = await impressionsNow();
+    expect(later ?? 0).toBeGreaterThan(early ?? 0);
+    await expect(impressionsNow()).resolves.toBe(later);
   });
 
-  it('books the paid calls of X: posts, posts with a link and the posts a reconcile reads', async () => {
+  it('books the paid calls of X: posts, posts with a link and the posts a reconcile or a metrics poll reads', async () => {
     const { adapter, ctx, request } = setup();
     const booked: { operation: string; units?: number }[] = [];
     const paying: AdapterContext = {
@@ -160,14 +163,18 @@ describe('MockPlatformAdapter', () => {
       },
     };
 
-    await adapter.publish(request, paying);
-    await adapter.publish({ ...request, linkUrl: 'https://example.com/jobs' }, paying);
+    const first = await adapter.publish(request, paying);
+    const second = await adapter.publish({ ...request, linkUrl: 'https://example.com/jobs' }, paying);
     await adapter.reconcile({ text: request.text, since: new Date(0), contentHash: 'h1' }, paying);
+    await adapter.deletePost(second, paying);
+    await adapter.fetchPostMetrics([first, second], paying);
 
     expect(booked).toEqual([
       { operation: 'x.post_create' },
       { operation: 'x.post_create_with_url' },
       { operation: 'x.post_read', units: 2 },
+      // The deleted post returns nothing to pay for.
+      { operation: 'x.post_read', units: 1 },
     ]);
   });
 

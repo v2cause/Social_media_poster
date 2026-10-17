@@ -133,26 +133,34 @@ export interface PublishResult extends ExternalPostRef {
   meta?: Readonly<Record<string, unknown>>;
 }
 
-/** Cumulative counters, normalized across platforms; null where a platform has no such metric. */
+/**
+ * Cumulative counters, normalized across platforms (architecture 8); null where a platform has no
+ * such metric, never 0.
+ */
 export interface NormalizedPostMetrics {
   impressions: number | null;
   reach: number | null;
+  /** The views Meta reports in place of impressions. */
+  views: number | null;
   likes: number | null;
   comments: number | null;
   shares: number | null;
   clicks: number | null;
   saves: number | null;
-  videoViews: number | null;
 }
 
-export interface PostMetricsResult {
-  externalPostId: string;
-  metrics: NormalizedPostMetrics;
-  /** The answer of the platform, kept with the snapshot. */
-  raw: unknown;
-  /** Raised whenever the mapping from raw to normalized changes. */
-  mappingVersion: number;
-}
+/** The metrics of a post, or the answer that the platform no longer knows it (404). */
+export type PostMetricsResult =
+  | {
+      kind: 'metrics';
+      externalPostId: string;
+      metrics: NormalizedPostMetrics;
+      /** The answer of the platform, kept with the snapshot. */
+      raw: unknown;
+      /** The MAP_VERSION of the mapping from raw to normalized, raised whenever it changes. */
+      mappingVersion: number;
+    }
+  | { kind: 'deleted'; externalPostId: string };
 
 export interface AccountMetricsResult {
   followers: number | null;
@@ -189,7 +197,10 @@ export interface SocialPlatformAdapter {
     ctx: AdapterContext,
   ): Promise<PublishResult | null>;
   deletePost(ref: ExternalPostRef, ctx: AdapterContext): Promise<void>;
-  /** Batched: one call for many posts of the account where the platform allows it. */
+  /**
+   * Batched: one call for many posts of the account where the platform allows it. A post without
+   * a result got no answer this time and is asked for again later.
+   */
   fetchPostMetrics(refs: readonly ExternalPostRef[], ctx: AdapterContext): Promise<PostMetricsResult[]>;
   fetchAccountMetrics(range: DateRange, ctx: AdapterContext): Promise<AccountMetricsResult>;
 }
