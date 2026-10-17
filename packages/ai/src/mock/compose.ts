@@ -326,6 +326,20 @@ export function composeIdeas(input: SuggestTopicsInput): TopicIdea[] {
       format: date.format,
     };
   });
+  // A follow-up of each of the two best posts names its post by its ref (guide step 5.6).
+  const fromTopPosts = input.topPosts.slice(0, 2).map((post): TopicIdea => {
+    const { topPost } = fixture.ideas;
+    return {
+      title: fill(topPost.title, { topic: topicOf(post.text, fixture.fallbackTopic) }),
+      angle: topPost.angle,
+      pillar: null,
+      whyNow: fill(topPost.whyNow, { date: post.publishedOn }),
+      basedOn: [post.ref],
+      suggestedPlatforms: [post.platform],
+      suggestedStyleKey: topPost.styleKey,
+      format: topPost.format,
+    };
+  });
   const fromFixture = fixture.ideas.items.map((item, index): TopicIdea => {
     const pillar = pillars.length > 0 ? (pillars[index % pillars.length] ?? null) : null;
     return {
@@ -339,7 +353,7 @@ export function composeIdeas(input: SuggestTopicsInput): TopicIdea[] {
       format: item.format,
     };
   });
-  return [...fromDates, ...fromFixture]
+  return [...fromDates, ...fromTopPosts, ...fromFixture]
     .filter((idea) => !discarded.has(idea.title.toLowerCase()))
     .slice(0, Math.max(0, input.count));
 }

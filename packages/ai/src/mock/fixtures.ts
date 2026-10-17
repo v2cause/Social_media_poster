@@ -53,6 +53,11 @@ const fixtureSchema = z
     ideas: z.strictObject({
       labels: z.strictObject({ pillar: z.string().min(1), profile: z.string().min(1) }),
       date: ideaSchema,
+      /** A follow-up of a top post (guide step 5.6). */
+      topPost: ideaSchema.extend({
+        title: z.string().includes(TOPIC),
+        whyNow: z.string().includes('{date}'),
+      }),
       items: z.array(ideaSchema).length(10),
     }),
   })

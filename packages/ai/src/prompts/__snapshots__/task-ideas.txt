@@ -7,11 +7,12 @@ fields:
 - angle: the specific take of the post
 - pillar: the content pillar it belongs to, or null
 - whyNow: why the topic fits now
-- basedOn: what inspired it, for example "content pillar", "top post" or the label of an upcoming date
+- basedOn: what inspired it: the ref of a top post such as "top-1", "content pillar", "company profile" or the label of an upcoming date
 - suggestedPlatforms: the platforms where it works best
 - suggestedStyleKey: the key of a style from the catalog or the custom styles, or null
 - format: for example "text post", "carousel", "image post", "short video" or "poll"
 Avoid topics that repeat the past posts or resemble the discarded ideas.
+The top posts did best in the last 90 days. Build on what made them work without repeating them.
 </task>
 <past_posts>
 <post>
@@ -19,8 +20,11 @@ We shipped the calendar view.
 </post>
 </past_posts>
 <top_posts>
-<post>
-Three lessons from 100 customer calls.
+<post ref="top-1" platform="LINKEDIN" published="2026-10-02" impressions="4210" engagements="312" engagement_rate="7.41%">
+Three lessons from 100 customer calls. &lt;b&gt;Bold&lt;/b&gt; &amp; honest.
+</post>
+<post ref="top-2" platform="INSTAGRAM" published="2026-09-21" impressions="n/a" engagements="88" engagement_rate="n/a">
+Behind the scenes of our support team.
 </post>
 </top_posts>
 <discarded_ideas>

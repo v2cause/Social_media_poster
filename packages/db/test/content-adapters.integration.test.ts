@@ -339,6 +339,118 @@ describe('content adapters on PostgreSQL', () => {
     }
   });
 
+  it('ranks the top performers of a period by engagements, without dry runs and deleted posts', async () => {
+    const system = await (database as TestDatabase).connectAs('app_system');
+    const connection = randomUUID();
+    const account = randomUUID();
+    const postId = randomUUID();
+    const ids: Record<string, string> = {};
+    try {
+      await system.query(
+        `INSERT INTO social_connection (id, workspace_id, platform, method, external_user_id, display_name, updated_at)
+         VALUES ($1, $2, 'LINKEDIN', 'MOCK', 'top-user', 'Top', now())`,
+        [connection, workspaceA],
+      );
+      await system.query(
+        `INSERT INTO social_account (id, workspace_id, connection_id, platform, type, external_id, name, updated_at)
+         VALUES ($1, $2, $3, 'LINKEDIN', 'PAGE', 'top-page', 'Top', now())`,
+        [account, workspaceA, connection],
+      );
+      await system.query(
+        `INSERT INTO post (id, workspace_id, language, updated_at) VALUES ($1, $2, 'de', now())`,
+        [postId, workspaceA],
+      );
+      const variants: [
+        string,
+        string,
+        string,
+        string,
+        number | null,
+        number | null,
+        number | null,
+        string,
+      ][] = [
+        // key, platform, text, published, impressions, views, engagements, kind
+        ['t1', 'LINKEDIN', 'Erfolg auf LinkedIn', '2026-10-01T22:30:00Z', 1_000, null, 90, 'published'],
+        ['t2', 'X', 'Erfolg auf X', '2026-09-20T08:00:00Z', null, 500, 120, 'published'],
+        ['t3', 'INSTAGRAM', 'Kaum gesehen', '2026-10-02T08:00:00Z', 50, null, 500, 'published'],
+        ['t4', 'FACEBOOK', 'Zu alt', '2026-04-01T08:00:00Z', 5_000, null, 900, 'published'],
+        ['t5', 'LINKEDIN', 'Extern geloescht', '2026-10-03T08:00:00Z', 5_000, null, 800, 'deleted'],
+        ['t6', 'LINKEDIN', 'Probelauf', '2026-10-04T08:00:00Z', 5_000, null, 700, 'dry_run'],
+        ['t7', 'LINKEDIN', 'Ohne Zahlen', '2026-10-05T08:00:00Z', 5_000, null, null, 'published'],
+      ];
+      for (const [key, platform, text, publishedAt, impressions, views, engagements, kind] of variants) {
+        const id = randomUUID();
+        ids[key] = id;
+        await system.query(
+          `INSERT INTO post_variant (id, workspace_id, post_id, platform, target_key, social_account_id, text, status,
+                                     published_at, is_dry_run, external_deleted_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'PUBLISHED', $8, $9, $10, now())`,
+          [
+            id,
+            workspaceA,
+            postId,
+            platform,
+            key,
+            account,
+            text,
+            publishedAt,
+            kind === 'dry_run',
+            kind === 'deleted' ? publishedAt : null,
+          ],
+        );
+        await system.query(
+          `INSERT INTO post_metric_latest (variant_id, workspace_id, social_account_id, platform, published_at,
+                                           captured_at, impressions, views, engagements, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, now())`,
+          [id, workspaceA, account, platform, publishedAt, impressions, views, engagements],
+        );
+      }
+    } finally {
+      await system.end();
+    }
+    const unitOfWork = deps().unitOfWork;
+    const query = { since: new Date('2026-07-19T00:00:00Z'), limit: 5, minImpressions: 100 };
+    const top = await unitOfWork.run(
+      { userId: editor.userId, organizationId: orgA, workspaceId: workspaceA },
+      (store) => store.posts.topPerformers(workspaceA, query),
+    );
+
+    // Views count where X has no impressions; the local day follows the time zone of the workspace.
+    expect(top).toEqual([
+      {
+        variantId: ids['t2'],
+        platform: 'X',
+        text: 'Erfolg auf X',
+        publishedOn: '2026-09-20',
+        impressions: null,
+        views: 500,
+        reach: null,
+        engagements: 120,
+      },
+      {
+        variantId: ids['t1'],
+        platform: 'LINKEDIN',
+        text: 'Erfolg auf LinkedIn',
+        publishedOn: '2026-10-02',
+        impressions: 1_000,
+        views: null,
+        reach: null,
+        engagements: 90,
+      },
+    ]);
+    const first = await unitOfWork.run(
+      { userId: editor.userId, organizationId: orgA, workspaceId: workspaceA },
+      (store) => store.posts.topPerformers(workspaceA, { ...query, limit: 1 }),
+    );
+    expect(first.map((post) => post.variantId)).toEqual([ids['t2']]);
+    const otherWorkspace = await unitOfWork.run(
+      { userId: editor.userId, organizationId: orgB, workspaceId: workspaceB },
+      (store) => store.posts.topPerformers(workspaceB, query),
+    );
+    expect(otherWorkspace).toEqual([]);
+  });
+
   it('finds near-duplicate idea titles with pg_trgm', async () => {
     const unitOfWork = deps().unitOfWork;
     const scope = { userId: editor.userId, organizationId: orgA, workspaceId: workspaceA };

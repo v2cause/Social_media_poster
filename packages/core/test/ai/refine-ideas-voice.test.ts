@@ -157,6 +157,78 @@ describe('GenerateIdeas', () => {
     expect(testbed.generations[0]).toMatchObject({ task: 'IDEAS', outcome: 'OK', costMicros: 24_000n });
   });
 
+  it('builds on the top performers of 90 days and points the ideas at their posts', async () => {
+    const first = '0190a6a2-6c5e-7d3f-8a1b-2c3d4e5f6a7b';
+    const second = '0190a6a2-6c5e-7d3f-8a1b-2c3d4e5f6a7c';
+    const testbed = createAiTestbed();
+    testbed.unitOfWork.state.topPerformers.set('ws-1', [
+      {
+        variantId: first,
+        platform: 'LINKEDIN',
+        text: 'Drei Fehler, die Reichweite kosten',
+        publishedOn: '2026-10-01',
+        impressions: 2_000,
+        views: null,
+        reach: 1_500,
+        engagements: 120,
+      },
+      {
+        variantId: second,
+        platform: 'INSTAGRAM',
+        text: 'Ein Blick hinter die Kulissen',
+        publishedOn: '2026-09-20',
+        impressions: null,
+        views: 800,
+        reach: null,
+        engagements: 64,
+      },
+    ]);
+    const idea = {
+      angle: 'Ein Blickwinkel',
+      pillar: null,
+      whyNow: 'Jetzt',
+      suggestedPlatforms: ['LINKEDIN' as const],
+      suggestedStyleKey: null,
+      format: 'Textbeitrag',
+    };
+    testbed.provider.topics = () =>
+      Promise.resolve({
+        ok: true,
+        value: [
+          { ...idea, title: 'Noch mehr Fehler', basedOn: ['top-1', 'Content-Säule'] },
+          { ...idea, title: 'Mehr Einblicke', basedOn: ['Top 2', 'top-1', 'top-9', ' '] },
+        ],
+        report: reportOf(),
+      });
+
+    const result = await new GenerateIdeas(testbed.deps).execute({ actor: editor, count: 2 });
+
+    // The last 90 days before now, the five best seen at least 100 times.
+    expect(testbed.unitOfWork.topPerformerQueries).toEqual([
+      { since: new Date('2026-07-18T12:00:00Z'), limit: 5, minImpressions: 100 },
+    ]);
+    expect(testbed.provider.calls[0]?.input).toMatchObject({
+      topPosts: [
+        {
+          ref: 'top-1',
+          platform: 'LINKEDIN',
+          text: 'Drei Fehler, die Reichweite kosten',
+          publishedOn: '2026-10-01',
+          impressions: 2_000,
+          engagements: 120,
+          engagementRate: 0.06,
+        },
+        { ref: 'top-2', platform: 'INSTAGRAM', impressions: null, engagements: 64, engagementRate: 0.08 },
+      ],
+    });
+    // A ref becomes its post, a ref without a post goes, everything else stays.
+    expect(result.ideaIds.map((id) => testbed.unitOfWork.state.ideas.get(id)?.basedOn)).toEqual([
+      [`variant:${first}`, 'Content-Säule'],
+      [`variant:${second}`, `variant:${first}`],
+    ]);
+    expect(testbed.generations[0]?.input).toMatchObject({ topPosts: [first, second] });
+  });
+
   it('answers a refusal with a domain error and books the attempt', async () => {
     const testbed = createAiTestbed();
     testbed.provider.topics = () =>

@@ -15,6 +15,7 @@ import type {
   Post,
   PostStyle,
   PostVariant,
+  TopPerformer,
 } from '../src';
 
 // An in-memory unit of work for the content use cases. Like row-level security, it hides rows of
@@ -30,6 +31,8 @@ interface State {
   profiles: Map<string, BrandProfile>;
   efforts: Map<string, Record<string, string>>;
   languages: Map<string, 'de' | 'en'>;
+  /** The best posts per workspace, as the adapter would rank them. */
+  topPerformers: Map<string, TopPerformer[]>;
   audit: AuditEntry[];
 }
 
@@ -45,6 +48,7 @@ const emptyState = (): State => ({
   profiles: new Map(),
   efforts: new Map(),
   languages: new Map(),
+  topPerformers: new Map(),
   audit: [],
 });
 
@@ -65,6 +69,8 @@ const similar = (a: string, b: string): boolean => a.trim().toLowerCase() === b.
 export class InMemoryContent implements ContentUnitOfWork {
   state: State = emptyState();
   readonly scopes: ContentScope[] = [];
+  /** The queries for top performers, for the tests to check the period and the threshold. */
+  readonly topPerformerQueries: { since: Date; limit: number; minImpressions: number }[] = [];
 
   constructor() {
     this.state.styles.set(PRESET_STYLE.id, PRESET_STYLE);
@@ -141,6 +147,11 @@ export class InMemoryContent implements ContentUnitOfWork {
               .filter((text): text is string => text !== undefined)
               .slice(0, limit),
           );
+        },
+        topPerformers: (workspaceId, query) => {
+          assertScope(workspaceId);
+          this.topPerformerQueries.push(query);
+          return Promise.resolve((state().topPerformers.get(workspaceId) ?? []).slice(0, query.limit));
         },
         delete: (workspaceId, postId) => {
           assertScope(workspaceId);

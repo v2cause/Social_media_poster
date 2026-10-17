@@ -97,6 +97,14 @@
       "styleKey": "professional",
       "platforms": ["LINKEDIN", "INSTAGRAM", "FACEBOOK"]
     },
+    "topPost": {
+      "title": "Follow-up: {topic}",
+      "angle": "Pick up the approach of the successful post and show a new aspect.",
+      "whyNow": "The post of {date} is among your best of the last 90 days.",
+      "format": "text post",
+      "styleKey": "storytelling",
+      "platforms": ["LINKEDIN"]
+    },
     "items": [
       {
         "title": "Three questions customers ask us most",

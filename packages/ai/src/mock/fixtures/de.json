@@ -97,6 +97,14 @@
       "styleKey": "professional",
       "platforms": ["LINKEDIN", "INSTAGRAM", "FACEBOOK"]
     },
+    "topPost": {
+      "title": "Fortsetzung: {topic}",
+      "angle": "Den Ansatz des erfolgreichen Beitrags aufgreifen und einen neuen Aspekt zeigen.",
+      "whyNow": "Der Beitrag vom {date} gehört zu Ihren besten der letzten 90 Tage.",
+      "format": "Textbeitrag",
+      "styleKey": "storytelling",
+      "platforms": ["LINKEDIN"]
+    },
     "items": [
       {
         "title": "Drei Fragen, die uns Kunden am häufigsten stellen",

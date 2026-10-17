@@ -105,6 +105,7 @@ export type {
   RefineVariantInput,
   SuggestAltTextInput,
   SuggestTopicsInput,
+  TopPostContext,
   VariantStreamEvent,
 } from './ai/ports/ai-provider';
 
@@ -114,6 +115,12 @@ export type { AuditEntry, AuditTrail } from './audit/ports/audit-trail';
 
 // Content (architecture 6.2)
 export * from './content/domain/errors';
+export {
+  postSourceOf,
+  resolveIdeaSources,
+  topPostRefOf,
+  variantIdOfSource,
+} from './content/domain/idea-sources';
 export {
   canManageBrand,
   canonicalJson,
@@ -151,6 +158,7 @@ export type {
   StyleRepository,
   VariantPatch,
   VariantRepository,
+  TopPerformer,
   WorkspaceProfileReader,
 } from './content/ports/content-store';
 export type { ContentDependencies } from './content/application/dependencies';

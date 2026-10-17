@@ -1,3 +1,5 @@
+import type { Platform } from '@smp/platform-rules';
+
 import type { AuditTrail } from '../../audit/ports/audit-trail';
 import type { BrandProfile, ContentLanguage } from '../../ai/domain/types';
 import type {
@@ -33,6 +35,28 @@ export interface PostRepository {
   delete(workspaceId: string, postId: string): Promise<void>;
   /** The texts of the latest posts (their first non-empty variant), newest first. */
   recentTexts(workspaceId: string, limit: number): Promise<string[]>;
+  /**
+   * The published variants since a moment with the most engagements and at least minImpressions
+   * impressions (views or reach where a platform has none), best first (guide step 5.6). Posts the
+   * platform deleted stay out.
+   */
+  topPerformers(
+    workspaceId: string,
+    query: { since: Date; limit: number; minImpressions: number },
+  ): Promise<TopPerformer[]>;
+}
+
+/** A published variant with its latest numbers, among the best of a period. */
+export interface TopPerformer {
+  variantId: string;
+  platform: Platform;
+  text: string;
+  /** The local day of its publication in the time zone of the workspace, YYYY-MM-DD. */
+  publishedOn: string;
+  impressions: number | null;
+  views: number | null;
+  reach: number | null;
+  engagements: number | null;
 }
 
 export interface VariantRepository {

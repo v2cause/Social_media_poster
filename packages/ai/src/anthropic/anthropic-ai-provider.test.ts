@@ -221,7 +221,7 @@ describe('AnthropicAiProvider', () => {
     expect(completed.variants.map((item) => item.targetKey)).toEqual(['t1', 't2']);
     expect(completed.report).toMatchObject({
       provider: 'anthropic',
-      promptVersion: 'gen-v1',
+      promptVersion: 'gen-v2',
       modelRequested: MODEL,
       modelServed: MODEL,
       effort: 'medium',

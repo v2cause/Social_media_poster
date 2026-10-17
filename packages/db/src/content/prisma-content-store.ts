@@ -10,6 +10,7 @@ import {
 import { z } from 'zod';
 
 import { prismaAuditTrail, type RequestOrigin } from '../audit/prisma-audit-trail';
+import type { Platform } from '../generated/prisma/enums';
 import type { TenantTransaction } from '../tenant-context';
 import { toBrandVoice, toBrandVoiceVersion, toIdea, toLanguage, toPost, toStyle, toVariant } from './mappers';
 
@@ -22,6 +23,16 @@ import { toBrandVoice, toBrandVoiceVersion, toIdea, toLanguage, toPost, toStyle,
 const IDEA_SIMILARITY = 0.6;
 
 const effortOverridesSchema = z.record(z.string(), z.string()).nullable();
+interface TopPerformerRow {
+  variant_id: string;
+  platform: Platform;
+  text: string;
+  published_on: string;
+  impressions: number | null;
+  views: number | null;
+  reach: number | null;
+  engagements: number | null;
+}
 
 const contentHash = (version: BrandVoiceVersion): string =>
   createHash('sha256').update(canonicalJson(version.content)).digest('hex');
@@ -85,6 +96,37 @@ export function createPrismaContentStore(
           },
         });
         return posts.flatMap((post) => post.variants.map((variant) => variant.text));
+      },
+      async topPerformers(workspaceId, query) {
+        // Like the top posts of the analytics (guide step 5.4): by engagements, seen at least
+        // minImpressions times, with views or reach where a platform has no impressions.
+        const rows = await tx.$queryRaw<TopPerformerRow[]>`
+          SELECT v.id AS variant_id, v.platform, v.text,
+                 to_char((l.published_at AT TIME ZONE w.timezone)::date, 'YYYY-MM-DD') AS published_on,
+                 l.impressions, l.views, l.reach, l.engagements
+            FROM post_metric_latest l
+            JOIN post_variant v ON v.id = l.variant_id
+            JOIN workspace w ON w.id = l.workspace_id
+           WHERE l.workspace_id = ${workspaceId}::uuid
+             AND l.published_at >= ${query.since}::timestamptz
+             AND v.status = 'PUBLISHED'
+             AND NOT v.is_dry_run
+             AND v.external_deleted_at IS NULL
+             AND v.text <> ''
+             AND l.engagements IS NOT NULL
+             AND COALESCE(l.impressions, l.views, l.reach, 0) >= ${query.minImpressions}
+           ORDER BY l.engagements DESC, l.published_at DESC, v.id
+           LIMIT ${query.limit}`;
+        return rows.map((row) => ({
+          variantId: row.variant_id,
+          platform: row.platform,
+          text: row.text,
+          publishedOn: row.published_on,
+          impressions: row.impressions,
+          views: row.views,
+          reach: row.reach,
+          engagements: row.engagements,
+        }));
       },
     },
 

@@ -122,7 +122,7 @@ describe('MockAiProvider.generateVariants', () => {
     }
     expect(report).toMatchObject({
       provider: 'mock',
-      promptVersion: 'gen-v1',
+      promptVersion: 'gen-v2',
       modelRequested: 'claude-opus-5-5',
       modelServed: 'claude-opus-5-5',
       effort: 'medium',
@@ -532,6 +532,38 @@ describe('MockAiProvider.suggestTopics', () => {
       }),
       expect.objectContaining({ title: 'The most common misconception in our industry' }),
     ]);
+  });
+
+  it('follows up the two best posts and names them by their refs', async () => {
+    const topPost = {
+      platform: 'INSTAGRAM' as const,
+      publishedOn: '2026-10-03',
+      impressions: 3_555,
+      engagements: 326,
+      engagementRate: 0.0917,
+    };
+    const result = await mock().suggestTopics(
+      topicsInput({
+        count: 3,
+        topPosts: [
+          { ...topPost, ref: 'top-1', text: 'Ein Kunde plant seine Posts jetzt in einer Stunde pro Woche.' },
+          { ...topPost, ref: 'top-2', text: 'Unser Support-Team antwortet innerhalb eines Werktags.' },
+          { ...topPost, ref: 'top-3', text: 'Drei Fehler, die Reichweite kosten.' },
+        ],
+      }),
+      { effort: 'medium' },
+    );
+
+    expect(result.ok && result.value.slice(0, 2)).toEqual([
+      expect.objectContaining({
+        title: 'Fortsetzung: Ein Kunde plant seine Posts jetzt in einer Stunde pro Woche',
+        whyNow: 'Der Beitrag vom 2026-10-03 gehört zu Ihren besten der letzten 90 Tage.',
+        basedOn: ['top-1'],
+        suggestedPlatforms: ['INSTAGRAM'],
+      }),
+      expect.objectContaining({ basedOn: ['top-2'] }),
+    ]);
+    expect(result.ok && result.value[2]?.basedOn).toEqual(['Content-Säule']);
   });
 
   it('cancels when the client aborts', async () => {

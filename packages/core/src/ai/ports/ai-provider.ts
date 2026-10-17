@@ -1,3 +1,5 @@
+import type { Platform } from '@smp/platform-rules';
+
 import type {
   AiCallReport,
   AiEffort,
@@ -34,12 +36,25 @@ export interface RefineVariantInput {
   variant: { text: string; hashtags: string[]; firstComment: string | null };
 }
 
+/** A top performer of the last 90 days in the context of the topic ideas (guide step 5.6). */
+export interface TopPostContext {
+  /** How an idea names the post in basedOn, for example top-1. */
+  ref: string;
+  platform: Platform;
+  text: string;
+  /** The local day of its publication in the time zone of the workspace, YYYY-MM-DD. */
+  publishedOn: string;
+  impressions: number | null;
+  engagements: number | null;
+  engagementRate: number | null;
+}
+
 export interface SuggestTopicsInput {
   brand: BrandContext;
   language: ContentLanguage;
   count: number;
   recentPosts: string[];
-  topPosts: string[];
+  topPosts: TopPostContext[];
   discardedIdeas: string[];
   upcomingDates: { date: string; label: string }[];
 }

@@ -69,9 +69,27 @@ export function renderRefineTask(input: RefineVariantInput): string {
   ]);
 }
 
+/** A number of a top post, or n/a where the platform reports none. */
+const countText = (value: number | null): string => (value === null ? 'n/a' : String(value));
+const rateText = (value: number | null): string => (value === null ? 'n/a' : `${(value * 100).toFixed(2)}%`);
+
 export function renderTopicsTask(input: SuggestTopicsInput): string {
   const posts = (tag: string, item: string, values: readonly string[]): string[] =>
     values.length > 0 ? [`<${tag}>`, ...values.flatMap((value) => block(item, value)), `</${tag}>`] : [];
+  // The top performers of 90 days with their numbers (guide step 5.6). The attributes come from
+  // the server, never from user text; the text of the post is escaped like every other.
+  const topPosts =
+    input.topPosts.length > 0
+      ? [
+          '<top_posts>',
+          ...input.topPosts.flatMap((post) => [
+            `<post ref="${post.ref}" platform="${post.platform}" published="${post.publishedOn}" impressions="${countText(post.impressions)}" engagements="${countText(post.engagements)}" engagement_rate="${rateText(post.engagementRate)}">`,
+            dataText(post.text),
+            '</post>',
+          ]),
+          '</top_posts>',
+        ]
+      : [];
   return join([
     '<task>',
     'type: suggest_ideas',
@@ -82,14 +100,17 @@ export function renderTopicsTask(input: SuggestTopicsInput): string {
     '- angle: the specific take of the post',
     '- pillar: the content pillar it belongs to, or null',
     '- whyNow: why the topic fits now',
-    '- basedOn: what inspired it, for example "content pillar", "top post" or the label of an upcoming date',
+    '- basedOn: what inspired it: the ref of a top post such as "top-1", "content pillar", "company profile" or the label of an upcoming date',
     '- suggestedPlatforms: the platforms where it works best',
     '- suggestedStyleKey: the key of a style from the catalog or the custom styles, or null',
     '- format: for example "text post", "carousel", "image post", "short video" or "poll"',
     'Avoid topics that repeat the past posts or resemble the discarded ideas.',
+    ...(input.topPosts.length > 0
+      ? ['The top posts did best in the last 90 days. Build on what made them work without repeating them.']
+      : []),
     '</task>',
     ...posts('past_posts', 'post', input.recentPosts),
-    ...posts('top_posts', 'post', input.topPosts),
+    ...topPosts,
     ...posts('discarded_ideas', 'idea', input.discardedIdeas),
     ...(input.upcomingDates.length > 0
       ? [
