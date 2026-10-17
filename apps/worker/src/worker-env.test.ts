@@ -46,4 +46,24 @@ describe('loadWorkerEnv', () => {
     expect(() => loadWorkerEnv(brokenSystemUrl)).toThrow(/DATABASE_SYSTEM_URL/);
     expect(() => loadWorkerEnv(brokenSystemUrl)).not.toThrow(/secret-system/);
   });
+
+  it('takes the Stripe API base of the fake with test keys only, and never in production', () => {
+    const fake = {
+      ...validEnv,
+      STRIPE_SECRET_KEY: 'sk_test_worker',
+      STRIPE_API_BASE: 'http://127.0.0.1:12111',
+    };
+
+    expect(loadWorkerEnv(fake)).toMatchObject({ STRIPE_API_BASE: 'http://127.0.0.1:12111' });
+    expect(() => loadWorkerEnv({ ...fake, STRIPE_SECRET_KEY: 'sk_live_worker' })).toThrow(
+      /STRIPE_SECRET_KEY: STRIPE_API_BASE takes test keys only/,
+    );
+    expect(() => loadWorkerEnv({ ...fake, NODE_ENV: 'production' })).toThrow(/STRIPE_API_BASE/);
+    expect(() => loadWorkerEnv({ ...validEnv, STRIPE_SECRET_KEY: 'pk_test_public' })).toThrow(
+      /STRIPE_SECRET_KEY/,
+    );
+    expect(() => loadWorkerEnv({ ...validEnv, STRIPE_SECRET_KEY: 'pk_test_public' })).not.toThrow(
+      /pk_test_public/,
+    );
+  });
 });

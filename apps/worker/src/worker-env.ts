@@ -1,3 +1,4 @@
+import { billingEnvSchema, checkBillingEnv } from '@smp/billing';
 import { dbEnvSchema } from '@smp/db';
 import { storageEnvSchema } from '@smp/media';
 import { observabilityEnvSchema } from '@smp/observability';
@@ -40,13 +41,17 @@ export const workerEnvSchema = z
     XB_CANARY_ACCOUNT_ID: z.preprocess(unsetIfEmpty, z.uuid().optional()),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true }).shape)
-  // Needed by the role "scheduler" for its scans across workspaces (app_system).
+  // Needed by the roles "scheduler" (scans across workspaces) and "billing" (app_system).
   .extend(dbEnvSchema.pick({ DATABASE_SYSTEM_URL: true }).partial().shape)
+  // Needed by the role "billing" (guide step 7.2), which reads the subscriptions from Stripe; it
+  // never checks the signature of a webhook, the API did.
+  .extend(billingEnvSchema.pick({ STRIPE_SECRET_KEY: true, STRIPE_API_BASE: true }).shape)
   // Needed by the roles "media" and "publisher"; WorkerModule checks them when one is active.
   .extend(storageEnvSchema.partial().shape)
   // Mock or live per platform and PUBLISH_DRY_RUN, for the roles "publisher" and "analytics".
   .extend(platformEnvSchema.shape)
-  .extend(observabilityEnvSchema.shape);
+  .extend(observabilityEnvSchema.shape)
+  .superRefine(checkBillingEnv);
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;
 
