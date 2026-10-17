@@ -1,5 +1,5 @@
 import type { Provider } from '@nestjs/common';
-import { X_BROWSER_RISK, type Locale } from '@smp/contracts';
+import { riskTextOf, X_BROWSER_RISK } from '@smp/contracts';
 import {
   DisableXBrowser,
   EnableXBrowser,
@@ -9,7 +9,6 @@ import {
   SetXBrowserOrganization,
   systemClock,
   uuidV7Ids,
-  type RiskText,
   type XBrowserAccessDependencies,
   type XBrowserAdminDependencies,
 } from '@smp/core';
@@ -33,11 +32,6 @@ import { DATABASE_CLIENT, REDIS_CLIENT, SYSTEM_DATABASE_CLIENT } from '../../inf
 
 export const X_BROWSER_ACCESS = Symbol('X_BROWSER_ACCESS');
 export const X_BROWSER_ADMIN = Symbol('X_BROWSER_ADMIN');
-
-export const riskTextOf = (text: typeof X_BROWSER_RISK): RiskText => ({
-  version: text.version,
-  hashOf: (locale) => (locale === 'de' || locale === 'en' ? text.hashes[locale satisfies Locale] : null),
-});
 
 export const xBrowserProviders: Provider[] = [
   {

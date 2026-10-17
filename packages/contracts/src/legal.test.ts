@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { X_BROWSER_RISK } from './legal';
+import { riskTextOf, X_BROWSER_RISK } from './legal';
 import { LOCALES } from './locale';
 
 describe('X_BROWSER_RISK', () => {
@@ -19,5 +19,12 @@ describe('X_BROWSER_RISK', () => {
     const points = (text: string): number => text.split('\n').filter((line) => line.startsWith('- ')).length;
     expect(points(X_BROWSER_RISK.texts.de)).toBe(7);
     expect(points(X_BROWSER_RISK.texts.en)).toBe(points(X_BROWSER_RISK.texts.de));
+  });
+
+  it('gives the use cases the version and the hash of a language, none for another language', () => {
+    const text = riskTextOf(X_BROWSER_RISK);
+    expect(text.version).toBe(X_BROWSER_RISK.version);
+    expect(text.hashOf('de')).toBe(X_BROWSER_RISK.hashes.de);
+    expect(text.hashOf('fr')).toBeNull();
   });
 });

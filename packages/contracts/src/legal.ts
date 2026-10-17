@@ -14,6 +14,12 @@ export interface LegalText {
   hashes: Readonly<Record<Locale, string>>;
 }
 
+/** The version of a legal text and the hash per language, as the use cases of the acknowledgement read them. */
+export const riskTextOf = (text: LegalText): { version: string; hashOf(locale: string): string | null } => ({
+  version: text.version,
+  hashOf: (locale) => (locale === 'de' || locale === 'en' ? text.hashes[locale] : null),
+});
+
 export const X_BROWSER_RISK: LegalText = {
   version: '2026-10-17',
   texts: { de, en },
