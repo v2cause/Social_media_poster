@@ -1,7 +1,16 @@
+import { readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
 
 import { createPrismaClient, type PrismaClient } from '../src';
+
+/** Every migration of the package, in the order Prisma applies them. */
+const MIGRATIONS = readdirSync(resolve(__dirname, '../prisma/migrations'), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+  .sort();
 
 describe('database roles and migrations', () => {
   let database: TestDatabase | undefined;
@@ -27,25 +36,8 @@ describe('database roles and migrations', () => {
       const { rows } = await owner.query<{ migration_name: string; finished_at: Date | null }>(
         'SELECT migration_name, finished_at FROM _prisma_migrations ORDER BY migration_name',
       );
-      expect(rows.map((row) => row.migration_name)).toEqual([
-        '0000_init',
-        '0001_identity_tenancy',
-        '0002_rls_tenancy',
-        '0003_invitation_preview',
-        '0004_content_ai',
-        '0005_rls_content_ai',
-        '0006_reference_data',
-        '0007_media',
-        '0008_rls_media',
-        '0009_channels_publishing',
-        '0010_rls_channels_publishing',
-        '0011_notification_events',
-        '0012_variant_schedule_index',
-        '0013_analytics',
-        '0014_rls_analytics',
-        '0015_x_browser',
-        '0016_rls_x_browser',
-      ]);
+      expect(MIGRATIONS.slice(0, 2)).toEqual(['0000_init', '0001_identity_tenancy']);
+      expect(rows.map((row) => row.migration_name)).toEqual(MIGRATIONS);
       expect(rows.every((row) => row.finished_at instanceof Date)).toBe(true);
     } finally {
       await owner.end();
