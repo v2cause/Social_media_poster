@@ -101,6 +101,8 @@ export const xbCommandSchemas = {
     workspaceId: z.uuid(),
     loginSessionId: z.uuid(),
     locale: xbLocaleSchema,
+    /** The login ends at this time at the latest, waiting for a code included. */
+    expiresAt: z.iso.datetime(),
     credentials: sealedSchema,
   }),
   canary: command.extend({ target }),

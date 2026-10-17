@@ -62,6 +62,7 @@ describe('X browser protocol', () => {
       workspaceId: target.workspaceId,
       loginSessionId: randomUUID(),
       locale: 'en',
+      expiresAt: '2026-10-17T08:05:00.000Z',
       credentials: Buffer.from('sealed credentials').toString('base64'),
     };
     expect(parseXbCommand('login.start', login)).toEqual(login);

@@ -90,6 +90,7 @@ describe('processCommand', () => {
       workspaceId: target.workspaceId,
       loginSessionId: randomUUID(),
       locale: 'en',
+      expiresAt: '2026-10-17T08:08:00.000Z',
       credentials: Buffer.from('sealed').toString('base64'),
     };
     const run = () => Promise.reject(new Error('not expected'));
