@@ -608,6 +608,42 @@ export { cadenceHours, METRICS_BATCH_SIZE, metricsDueAt, nextPollAfter } from '.
 export { daysBefore, localDayOf, localDayRange, nextDay, startOfLocalDay } from './analytics/domain/days';
 export { engagementsOf, type Interactions } from './analytics/domain/metrics';
 export {
+  bucketOf,
+  dailyEngagementRateOf,
+  daysBetween,
+  engagementRateOf,
+  followerGrowthOf,
+  followersByDay,
+  impressionsOf,
+  metricOf,
+  reachOf,
+  seriesOf,
+  sumOf,
+  type DailyMetrics,
+  type Granularity,
+  type ReachBasis,
+  type TimeseriesMetric,
+} from './analytics/domain/kpis';
+export {
+  analyticsPeriodOf,
+  DEFAULT_PERIOD_DAYS,
+  periodLength,
+  type AnalyticsPeriod,
+} from './analytics/domain/period';
+export { AnalyticsHistoryExceededError } from './analytics/domain/errors';
+export {
+  breakdownOf,
+  isoWeekdayOf,
+  type BreakdownBy,
+  type BreakdownGroup,
+  type BreakdownPost,
+} from './analytics/domain/breakdown';
+export {
+  fixedAnalyticsHistory,
+  resolveAnalyticsPeriod,
+  type AnalyticsHistory,
+} from './analytics/application/analytics-period';
+export {
   POLL_RETRY_MS,
   type AnalyticsJobDependencies,
   type AnalyticsJobInput,
