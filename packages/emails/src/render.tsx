@@ -72,7 +72,15 @@ export const emailTemplateSchema = z.discriminatedUnion('template', [
     missing: z.array(z.string().trim().min(1).max(100)).max(20),
     selectorsVersion: z.string().trim().min(1).max(20),
   }),
-  // To the owners of an organization (guide step 7.4); the link leads to its billing page.
+  // To the owners of an organization (guide step 7.4); the links lead to its billing page.
+  z.object({
+    template: z.literal('billing-read-only'),
+    locale: localeSchema,
+    name,
+    url: httpUrl,
+    organizationName: z.string().trim().min(1).max(200),
+    reason: z.enum(['trial', 'payment', 'ended']),
+  }),
   z.object({
     template: z.literal('billing-payment-failed'),
     locale: localeSchema,
@@ -230,6 +238,19 @@ function compose(email: EmailTemplate): ActionEmailText {
         intro: [format(email.missing.length > 0 ? text.intro : text.introWithout, values)],
         action: text.action,
         notes: [text.next],
+      };
+    }
+    case 'billing-read-only': {
+      const values = { organization: email.organizationName };
+      const text = locale.billingReadOnly;
+      return {
+        ...base,
+        subject: format(text.subject[email.reason], values),
+        preview: text.preview,
+        greeting,
+        intro: [format(text.intro[email.reason], values), text.effects],
+        action: text.action,
+        notes: [text.kept],
       };
     }
     case 'billing-payment-failed': {

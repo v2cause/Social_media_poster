@@ -240,6 +240,26 @@ describe('the billing emails of guide step 7.4', () => {
     expect(en.text).toContain('Open billing');
   });
 
+  it('tells the owners why the organization is read-only now and what stays', async () => {
+    const readOnly = {
+      template: 'billing-read-only' as const,
+      url: failed.url,
+      organizationName: 'Acme GmbH',
+    };
+    const trial = await renderEmail({ ...readOnly, locale: 'de', name: 'Olga', reason: 'trial' });
+    const payment = await renderEmail({ ...readOnly, locale: 'de', reason: 'payment' });
+    const ended = await renderEmail({ ...readOnly, locale: 'en', reason: 'ended' });
+
+    expect(trial.subject).toBe('Die Testphase von Acme GmbH ist beendet');
+    expect(trial.text).toContain('Geplante Posts werden pausiert');
+    expect(trial.text).toContain('Ihre Inhalte bleiben erhalten.');
+    expect(payment.subject).toBe('Acme GmbH kann nur noch lesen');
+    expect(payment.text).toContain('auch nach der Kulanzfrist nicht eingegangen');
+    expect(ended.subject).toBe('The subscription of Acme GmbH has ended');
+    expect(ended.text).toContain('Choose a plan');
+    await expect(renderEmail({ ...readOnly, locale: 'de', reason: 'later' as 'trial' })).rejects.toThrow();
+  });
+
   it('rejects an unknown time zone', async () => {
     await expect(renderEmail({ ...failed, locale: 'de', timeZone: 'Mars/Olympus' })).rejects.toThrow();
   });

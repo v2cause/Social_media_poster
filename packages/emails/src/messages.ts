@@ -68,7 +68,19 @@ export interface EmailMessages {
   };
   /** To the owners of an organization (guide step 7.4). Placeholders: {organization}, {date}. */
   billingPaymentFailed: { subject: string; preview: string; intro: string; grace: string; action: string };
+  /** To the owners once it is read-only, per reason. Placeholder: {organization}. */
+  billingReadOnly: {
+    subject: Record<ReadOnlyReason, string>;
+    intro: Record<ReadOnlyReason, string>;
+    preview: string;
+    effects: string;
+    kept: string;
+    action: string;
+  };
 }
+
+/** Why an organization became read-only: its trial ended, a payment stayed out, or its subscription ended. */
+export type ReadOnlyReason = 'trial' | 'payment' | 'ended';
 
 export const messages: Record<Locale, EmailMessages> = {
   de: {
@@ -187,6 +199,23 @@ export const messages: Record<Locale, EmailMessages> = {
         'Bis {date} können Sie wie gewohnt weiterarbeiten. Geht die Zahlung bis dahin nicht ein, kann {organization} nur noch lesen: Geplante Posts werden pausiert, und Neues lässt sich nicht mehr anlegen.',
       action: 'Abrechnung öffnen',
     },
+    billingReadOnly: {
+      subject: {
+        trial: 'Die Testphase von {organization} ist beendet',
+        payment: '{organization} kann nur noch lesen',
+        ended: 'Das Abo von {organization} ist beendet',
+      },
+      intro: {
+        trial: 'die Testphase von {organization} ist beendet.',
+        payment: 'die Zahlung für {organization} ist auch nach der Kulanzfrist nicht eingegangen.',
+        ended: 'das Abo von {organization} ist beendet.',
+      },
+      preview: 'Ihre Organisation kann nur noch lesen.',
+      effects:
+        'Ihre Organisation kann jetzt nur noch lesen: Geplante Posts werden pausiert, und Neues lässt sich nicht anlegen.',
+      kept: 'Ihre Inhalte bleiben erhalten. Sobald wieder ein Tarif aktiv ist, arbeiten Sie wie gewohnt weiter.',
+      action: 'Tarif wählen',
+    },
   },
   en: {
     common: {
@@ -299,6 +328,23 @@ export const messages: Record<Locale, EmailMessages> = {
       grace:
         'Until {date} you can keep working as usual. If the payment has not arrived by then, {organization} becomes read-only: scheduled posts are paused, and nothing new can be created.',
       action: 'Open billing',
+    },
+    billingReadOnly: {
+      subject: {
+        trial: 'The trial of {organization} has ended',
+        payment: '{organization} is read-only now',
+        ended: 'The subscription of {organization} has ended',
+      },
+      intro: {
+        trial: 'the trial of {organization} has ended.',
+        payment: 'the payment for {organization} did not arrive within the grace period.',
+        ended: 'the subscription of {organization} has ended.',
+      },
+      preview: 'Your organization is read-only now.',
+      effects:
+        'Your organization is read-only now: scheduled posts are paused, and nothing new can be created.',
+      kept: 'Your content is kept. As soon as a plan is active again, you can work as usual.',
+      action: 'Choose a plan',
     },
   },
 };
