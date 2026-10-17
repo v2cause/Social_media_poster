@@ -45,10 +45,10 @@ const gatewayOf = (deps: BillingDependencies): BillingGateway => {
 const billingPage = (deps: BillingDependencies, organizationId: string): string =>
   `${deps.appUrl}/org/${organizationId}/billing`;
 
-/** A paid subscription that still runs; plans change in the customer portal then. */
-const runsPaid = (
-  subscription: Subscription | null,
-): subscription is Subscription & { stripeSubscriptionId: string } =>
+/** A paid subscription that still runs: its plan changes in place then, not with a new checkout. */
+export const runsPaid = <T extends Pick<Subscription, 'stripeSubscriptionId' | 'status'>>(
+  subscription: T | null,
+): subscription is T & { stripeSubscriptionId: string } =>
   subscription?.stripeSubscriptionId != null && RUNNING.includes(subscription.status);
 
 export class StartCheckout {
