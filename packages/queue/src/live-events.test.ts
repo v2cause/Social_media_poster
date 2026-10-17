@@ -27,4 +27,15 @@ describe('live events', () => {
     expect(parseLiveEvent(JSON.parse(sent[0]?.[1] ?? '{}'))).toEqual(event);
     expect(() => parseLiveEvent({ type: 'variant.status', variantId: 'x' })).toThrow();
   });
+
+  it('names the user of a new notification', () => {
+    const created = {
+      type: 'notification.created',
+      id: '0192a0b4-6f1e-7c3a-9d2b-5e8f4a1c2d40',
+      userId: '0192a0b4-6f1e-7c3a-9d2b-5e8f4a1c2d41',
+    };
+
+    expect(parseLiveEvent(created)).toEqual(created);
+    expect(() => parseLiveEvent({ type: 'notification.created', id: created.id })).toThrow();
+  });
 });
