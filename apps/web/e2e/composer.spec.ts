@@ -78,12 +78,14 @@ test('compose a post with the mock AI, refine it and find it again after a reloa
   await expect(text).toHaveValue(new RegExp(`${EDIT}$`));
   await expect(text).not.toHaveValue(new RegExp(MIDDLE.replace('.', '\\.')));
 
-  // The post list leads back to it.
+  // The post list shows a row per variant and leads back to it.
   await page
     .getByRole('navigation', { name: 'Hauptnavigation' })
     .getByRole('link', { name: 'Posts' })
     .click();
   await expect(page.getByRole('heading', { name: 'Beiträge' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Die neue Kaffeemaschine in unserem Büro' })).toBeVisible();
-  await expect(page.getByText('LinkedIn: Entwurf')).toBeVisible();
+  const linkedin = page.getByRole('row').filter({ has: page.getByRole('img', { name: 'LinkedIn' }) });
+  await expect(linkedin.getByText('Entwurf')).toBeVisible();
+  await linkedin.getByRole('link', { name: new RegExp(`^${HOOK}`) }).click();
+  await expect(page).toHaveURL(/\/posts\/[0-9a-f-]{36}$/);
 });

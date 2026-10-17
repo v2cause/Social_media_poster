@@ -1,32 +1,12 @@
 import type { NotificationDto } from '@smp/contracts';
 import { useFormatter, useTranslations } from 'next-intl';
 
+import { useFailureReason } from '@/features/publishing/failure-reason';
+
 import { MESSAGE_KEYS, NAMED_ACCOUNTS } from './notification-link';
 
 // The text of a notification in the bell (guide step 4.9): a title, a line naming the accounts
 // and the platform, and the beginning of the post or the affected plans.
-
-/** The failure codes of the publish job with a text of their own; others read as "other". */
-const REASONS = [
-  'PERMISSION_DENIED',
-  'VALIDATION_REJECTED',
-  'DUPLICATE',
-  'TRANSIENT',
-  'MEDIA_PROCESSING',
-  'RATE_LIMITED',
-  'OUTCOME_UNKNOWN',
-  'CHALLENGE_REQUIRED',
-  'SELECTOR_DRIFT',
-  'REAUTH_REQUIRED',
-  'SPEND_CAP',
-  'MISSED_WINDOW',
-  'SOCIAL_ACCOUNT_DISCONNECTED',
-  'ADAPTER_UNAVAILABLE',
-  'VARIANT_NOT_PUBLISHABLE',
-  'INTERNAL',
-] as const;
-type Reason = (typeof REASONS)[number];
-const isReason = (code: string): code is Reason => (REASONS as readonly string[]).includes(code);
 
 export interface NotificationText {
   title: string;
@@ -39,6 +19,7 @@ export function useNotificationText(): (notification: NotificationDto) => Notifi
   const t = useTranslations('notifications');
   const platforms = useTranslations('platforms');
   const format = useFormatter();
+  const failureReason = useFailureReason();
 
   return ({ content }) => {
     const platform = platforms(content.platform);
@@ -77,9 +58,7 @@ export function useNotificationText(): (notification: NotificationDto) => Notifi
           body: t('item.publishFailed.body', {
             accounts,
             platform,
-            reason: isReason(content.failureCode)
-              ? t(`failureReasons.${content.failureCode}`)
-              : t('failureReasons.other'),
+            reason: failureReason(content.failureCode),
           }),
           detail: content.preview,
         };

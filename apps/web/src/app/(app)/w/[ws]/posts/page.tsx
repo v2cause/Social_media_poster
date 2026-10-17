@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 
-import { PostList } from '@/features/posts/post-list';
+import { PostTable } from '@/features/posts/post-table';
 import { getWorkspaceContext } from '@/lib/server/api';
 
 export async function generateMetadata() {
@@ -10,6 +10,14 @@ export async function generateMetadata() {
 
 export default async function PostsPage({ params }: { params: Promise<{ ws: string }> }) {
   const { ws } = await params;
-  const context = await getWorkspaceContext(ws);
-  return <PostList ws={ws} canWrite={context.permissions.includes('post.write')} />;
+  const { workspace, permissions } = await getWorkspaceContext(ws);
+  return (
+    <PostTable
+      ws={ws}
+      timeZone={workspace.timezone}
+      canWrite={permissions.includes('post.write')}
+      canSchedule={permissions.includes('post.schedule')}
+      canDelete={permissions.includes('post.delete')}
+    />
+  );
 }

@@ -5,7 +5,7 @@ import { parseLiveEvent, queryKeysAfterReconnect, queryKeysOf } from './live-eve
 const postId = '0192f5d4-0000-7000-8000-000000000002';
 
 describe('live events in the browser', () => {
-  it('makes the posts stale on a status change and the bell on a new notification', () => {
+  it('makes the posts and the variant lists stale on a status change and the bell on a new notification', () => {
     const status = parseLiveEvent(
       JSON.stringify({
         type: 'variant.status',
@@ -22,10 +22,12 @@ describe('live events in the browser', () => {
     expect(status && queryKeysOf(status, 'nordlicht')).toEqual([
       ['/api/w/nordlicht/posts'],
       [`/api/w/nordlicht/posts/${postId}`],
+      ['/api/w/nordlicht/variants'],
     ]);
     expect(notification && queryKeysOf(notification, 'nordlicht')).toEqual([['/api/me/notifications']]);
     expect(queryKeysAfterReconnect('nordlicht')).toEqual([
       ['/api/w/nordlicht/posts'],
+      ['/api/w/nordlicht/variants'],
       ['/api/me/notifications'],
     ]);
   });

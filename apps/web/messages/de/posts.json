@@ -1,14 +1,59 @@
 {
   "title": "Beiträge",
-  "description": "Ihre Entwürfe und Beiträge, zuletzt geändert zuerst.",
+  "description": "Alle Varianten Ihrer Beiträge, zuletzt geändert zuerst.",
   "new": "Neuer Beitrag",
   "empty": "Noch keine Beiträge.",
   "emptyHint": "Erstellen Sie den ersten Beitrag mit dem Composer.",
-  "brief": "Briefing",
-  "platforms": "Plattformen",
-  "updated": "Geändert",
-  "noBrief": "Ohne Briefing",
   "more": "Weitere laden",
+  "noText": "Ohne Text",
+  "noAccount": "Kein Account",
+  "dryRun": "Testlauf",
+  "original": "Original ansehen",
+  "selectAll": "Alle geladenen Varianten auswählen",
+  "selectRow": "{preview} auswählen",
+  "columns": {
+    "preview": "Vorschau",
+    "account": "Account",
+    "status": "Status",
+    "scheduledAt": "Geplant für",
+    "publishedAt": "Veröffentlicht",
+    "actions": "Aktionen"
+  },
+  "filters": {
+    "title": "Filter",
+    "status": "Status",
+    "allStatuses": "Alle Status",
+    "platform": "Plattform",
+    "allPlatforms": "Alle Plattformen",
+    "account": "Account",
+    "allAccounts": "Alle Accounts",
+    "from": "Geplant ab",
+    "to": "Geplant bis",
+    "reset": "Filter zurücksetzen",
+    "invertedPeriod": "Das Ende liegt vor dem Anfang.",
+    "noMatch": "Keine Varianten passen zu den Filtern."
+  },
+  "bulk": {
+    "region": "Aktionen für die Auswahl",
+    "selected": "{count, plural, one {# Variante ausgewählt} other {# Varianten ausgewählt}}",
+    "cancel": "{count, plural, =0 {Planung abbrechen} one {# Planung abbrechen} other {# Planungen abbrechen}}",
+    "delete": "{count, plural, one {# Beitrag löschen} other {# Beiträge löschen}}",
+    "clear": "Auswahl aufheben",
+    "canceled": "{count, plural, one {# Planung abgebrochen.} other {# Planungen abgebrochen.}}",
+    "deleted": "{count, plural, one {# Beitrag gelöscht.} other {# Beiträge gelöscht.}}",
+    "failed": "{count, plural, one {# Aktion ist fehlgeschlagen: {reason}} other {# Aktionen sind fehlgeschlagen: {reason}}}"
+  },
+  "delete": {
+    "title": "{count, plural, one {# Beitrag löschen?} other {# Beiträge löschen?}}",
+    "description": "Gelöscht werden die Beiträge mit allen ihren Varianten, auch den nicht ausgewählten. Bereits veröffentlichte Beiträge bleiben auf den Plattformen bestehen.",
+    "confirm": "Löschen"
+  },
+  "rowActions": {
+    "menu": "Aktionen für {preview}",
+    "open": "Im Composer öffnen",
+    "cancel": "Planung abbrechen",
+    "delete": "Beitrag löschen"
+  },
   "status": {
     "DRAFT": "Entwurf",
     "SCHEDULED": "Geplant",

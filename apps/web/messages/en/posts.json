@@ -1,14 +1,59 @@
 {
   "title": "Posts",
-  "description": "Your drafts and posts, most recently changed first.",
+  "description": "All variants of your posts, most recently changed first.",
   "new": "New post",
   "empty": "No posts yet.",
   "emptyHint": "Create the first post with the composer.",
-  "brief": "Brief",
-  "platforms": "Platforms",
-  "updated": "Changed",
-  "noBrief": "No brief",
   "more": "Load more",
+  "noText": "No text",
+  "noAccount": "No account",
+  "dryRun": "Dry run",
+  "original": "View original",
+  "selectAll": "Select all loaded variants",
+  "selectRow": "Select {preview}",
+  "columns": {
+    "preview": "Preview",
+    "account": "Account",
+    "status": "Status",
+    "scheduledAt": "Scheduled for",
+    "publishedAt": "Published",
+    "actions": "Actions"
+  },
+  "filters": {
+    "title": "Filters",
+    "status": "Status",
+    "allStatuses": "All statuses",
+    "platform": "Platform",
+    "allPlatforms": "All platforms",
+    "account": "Account",
+    "allAccounts": "All accounts",
+    "from": "Scheduled from",
+    "to": "Scheduled until",
+    "reset": "Reset filters",
+    "invertedPeriod": "The end lies before the start.",
+    "noMatch": "No variants match the filters."
+  },
+  "bulk": {
+    "region": "Actions for the selection",
+    "selected": "{count, plural, one {# variant selected} other {# variants selected}}",
+    "cancel": "{count, plural, =0 {Cancel plan} one {Cancel # plan} other {Cancel # plans}}",
+    "delete": "{count, plural, one {Delete # post} other {Delete # posts}}",
+    "clear": "Clear selection",
+    "canceled": "{count, plural, one {# plan canceled.} other {# plans canceled.}}",
+    "deleted": "{count, plural, one {# post deleted.} other {# posts deleted.}}",
+    "failed": "{count, plural, one {# action failed: {reason}} other {# actions failed: {reason}}}"
+  },
+  "delete": {
+    "title": "{count, plural, one {Delete # post?} other {Delete # posts?}}",
+    "description": "The posts are deleted with all their variants, including the ones not selected. Posts that were published stay on the platforms.",
+    "confirm": "Delete"
+  },
+  "rowActions": {
+    "menu": "Actions for {preview}",
+    "open": "Open in the composer",
+    "cancel": "Cancel plan",
+    "delete": "Delete post"
+  },
   "status": {
     "DRAFT": "Draft",
     "SCHEDULED": "Scheduled",

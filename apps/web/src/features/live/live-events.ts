@@ -1,4 +1,9 @@
-import { getNotificationsListQueryKey, getPostsGetQueryKey, getPostsListQueryKey } from '@smp/api-client';
+import {
+  getNotificationsListQueryKey,
+  getPostsGetQueryKey,
+  getPostsListQueryKey,
+  getPublishingListQueryKey,
+} from '@smp/api-client';
 import { liveEventDtoSchema, type LiveEventDto } from '@smp/contracts';
 import type { QueryKey } from '@tanstack/react-query';
 
@@ -19,7 +24,12 @@ export function parseLiveEvent(data: string): LiveEventDto | null {
 export function queryKeysOf(event: LiveEventDto, slug: string): QueryKey[] {
   switch (event.type) {
     case 'variant.status':
-      return [getPostsListQueryKey(slug), getPostsGetQueryKey(slug, event.postId)];
+      // The variant list covers the post list, the calendar and the dashboard (guide step 4.11).
+      return [
+        getPostsListQueryKey(slug),
+        getPostsGetQueryKey(slug, event.postId),
+        getPublishingListQueryKey(slug),
+      ];
     case 'notification.created':
       return [getNotificationsListQueryKey()];
   }
@@ -28,5 +38,6 @@ export function queryKeysOf(event: LiveEventDto, slug: string): QueryKey[] {
 /** After a lost connection every query an event could have changed is stale. */
 export const queryKeysAfterReconnect = (slug: string): QueryKey[] => [
   getPostsListQueryKey(slug),
+  getPublishingListQueryKey(slug),
   getNotificationsListQueryKey(),
 ];
