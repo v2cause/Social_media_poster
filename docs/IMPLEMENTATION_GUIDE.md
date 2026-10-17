@@ -954,6 +954,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Ohne Refresh Token gilt der 60-Tage-Ablauf.
   - Im Development-Tier sind die Aufrufe pro Tag begrenzt.
 - **Fertig, wenn**: Die Contract-Suite mit Fixtures grün ist und ein echter Test-Post auf Staging erscheint (zuerst im Dry-Run).
+- **Stand**: offen. Die Doku unter `learn.microsoft.com` ist aus der Entwicklungsumgebung gesperrt (Netzwerkrichtlinie, 403), und für den Abschluss fehlen eine LinkedIn-App, Test-Accounts und Staging. Bis dahin verbindet und veröffentlicht LinkedIn über den Mock-Adapter (`PLATFORM_MODE_LINKEDIN=mock`). Mit der Doku zu prüfen sind auch die Fehlerwerte `user_cancelled_login` und `user_cancelled_authorize` aus Schritt 4.5 und die Bildgrenzen aus [ADR 0020](adr/0020-renditions-und-zuschnitt.md).
 
 #### 4.13 Meta-Adapter (4b)
 - **Erstellen**: `meta/facebook-adapter.ts`, `meta/instagram-adapter.ts`, die Connectors (Facebook Login for Business; Instagram Login), Webhooks `POST /api/webhooks/meta/deauthorize` und `POST /api/webhooks/meta/data-deletion`.
@@ -975,6 +976,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Die Metriknamen ändern sich laufend (z.B. `views` statt `impressions`).
   - Die Graph-API-Version wird gepinnt.
 - **Fertig, wenn**: Auf Staging Facebook- und Instagram-Test-Posts mit Bild erscheinen und das App-Review eingereicht ist.
+- **Stand**: offen. Die Doku unter `developers.facebook.com` ist aus der Entwicklungsumgebung gesperrt, und es fehlen eine Meta-App mit Test-Nutzern in einer App-Rolle, Staging und das App-Review. Bis dahin laufen Facebook und Instagram über den Mock-Adapter (`PLATFORM_MODE_META=mock`). Die Bildgrenzen für Facebook (4 MB, 2048 px) stammen aus Sekundärquellen ([ADR 0020](adr/0020-renditions-und-zuschnitt.md)).
 
 #### 4.14 X-API-Adapter (4c)
 - **Erstellen**: `x/connector.ts` (OAuth 2.0 mit PKCE S256), `x/adapter.ts`, `x/media-upload.ts`, Kosten-Recorder, Ausgabenlimit, Endpunkt `GET /api/w/:ws/x/cost-estimate`.
@@ -987,6 +989,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Doppelter Inhalt führt zu `DUPLICATE`.
   - Reconcile liest nur die letzten 5 eigenen Posts, weil Lesen Geld kostet.
 - **Fertig, wenn**: Auf Staging ein X-Test-Post erscheint und die Kosten pro Workspace korrekt erfasst sind.
+- **Stand**: offen. Die Doku unter `docs.x.com` ist aus der Entwicklungsumgebung gesperrt, und es fehlen ein X-Developer-Zugang mit Guthaben und Staging. Bis dahin läuft X über den Mock-Adapter (`PLATFORM_MODE_X=mock`), der Kosten wie die echte API erfasst. Die Preise in `packages/platform-adapters/src/prices.ts` stammen aus Sekundärquellen und sind mit der Doku zu prüfen.
 
 ---
 
