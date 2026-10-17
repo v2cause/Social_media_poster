@@ -10,6 +10,7 @@ export {
   postMetricsJobId,
   publishDeadLetterId,
   publishJobId,
+  rollupKey,
   stripeJobId,
   tokenRefreshJobId,
   xbJobId,

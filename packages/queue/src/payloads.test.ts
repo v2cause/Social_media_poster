@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   isTick,
+  parseMetricsAccount,
+  parseMetricsPost,
+  parseMetricsRollup,
   parsePublishVariant,
   parseStripeWebhook,
   publishDeadLetterSchema,
@@ -28,6 +31,20 @@ describe('queue payloads', () => {
     expect(() => parsePublishVariant({ ...job, scheduleVersion: -1 })).toThrow();
     expect(() => parsePublishVariant({ ...job, trigger: 'later' })).toThrow();
     expect(() => parsePublishVariant({ ...job, traceparent: 'not-a-trace' })).toThrow();
+  });
+
+  it('accepts the analytics jobs and refuses a bad bucket, day or period', () => {
+    const account = { ...ids, accountId: randomUUID() };
+    expect(parseMetricsPost({ ...account, bucket: '202610161505' })).toEqual({
+      ...account,
+      bucket: '202610161505',
+    });
+    expect(() => parseMetricsPost({ ...account, bucket: 'a:b' })).toThrow();
+    expect(parseMetricsAccount({ ...account, day: '2026-10-15' })).toEqual({ ...account, day: '2026-10-15' });
+    expect(() => parseMetricsAccount({ ...account, day: '15.10.2026' })).toThrow();
+    const rollup = { ...ids, from: '2026-09-11', to: '2026-10-16' };
+    expect(parseMetricsRollup(rollup)).toEqual(rollup);
+    expect(() => parseMetricsRollup({ ...rollup, from: '2026-10-17' })).toThrow(/from must not be after to/);
   });
 
   it('keeps the reason and the time of a dead letter next to the ids of its job', () => {

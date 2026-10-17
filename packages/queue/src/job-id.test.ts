@@ -13,6 +13,7 @@ import {
   postMetricsJobId,
   publishDeadLetterId,
   publishJobId,
+  rollupKey,
   stripeJobId,
   tokenRefreshJobId,
   XB_OPERATIONS,
@@ -31,6 +32,7 @@ describe('job ids', () => {
       tokenRefreshJobId(id),
       postMetricsJobId(id, '202610161500'),
       accountMetricsJobId(id, '2026-10-16'),
+      rollupKey(id, '2026-09-11', '2026-10-16'),
       notifyJobId(id),
       notifyEmailJobId(id, id),
       stripeJobId('evt_1Abc'),
@@ -49,6 +51,7 @@ describe('job ids', () => {
     expect(tokenRefreshJobId(id)).toBe(`tok.${id}`);
     expect(postMetricsJobId(id, 'b1')).toBe(`mp.${id}.b1`);
     expect(accountMetricsJobId(id, '2026-10-16')).toBe(`ma.${id}.2026-10-16`);
+    expect(rollupKey(id, '2026-10-15', '2026-10-16')).toBe(`ru.${id}.2026-10-15.2026-10-16`);
     expect(notifyJobId(id)).toBe(`ntf.${id}`);
     expect(notifyEmailJobId(id, 'u1')).toBe(`ntf.${id}.u1`);
     expect(xbJobId('login.start', id, 1)).toBe(`xb.login.start.${id}.1`);

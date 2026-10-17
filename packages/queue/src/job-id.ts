@@ -31,6 +31,10 @@ export const postMetricsJobId = (accountId: string, bucket: string): string =>
 /** ma.{accountId}.{day}: the daily numbers of an account, once per local day. */
 export const accountMetricsJobId = (accountId: string, day: string): string => jobIdOf('ma', accountId, day);
 
+/** ru.{workspaceId}.{from}.{to}: the deduplication key of a rollup of these days. */
+export const rollupKey = (workspaceId: string, from: string, to: string): string =>
+  jobIdOf('ru', workspaceId, from, to);
+
 /** ntf.{outboxId}: one notification per outbox event. */
 export const notifyJobId = (outboxId: string): string => jobIdOf('ntf', outboxId);
 
