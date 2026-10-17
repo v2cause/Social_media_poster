@@ -22,6 +22,8 @@ interface Endpoint {
   permission: Permission;
   path: (ids: { organizationId: string; slug: string }) => string;
   body?: (role: Role) => object;
+  /** The route answers with a stream that stays open: the test reads the status and closes it. */
+  stream?: true;
 }
 
 const unknownId = randomUUID();
@@ -342,6 +344,14 @@ const ENDPOINTS: Endpoint[] = [
     permission: 'account.manage',
     path: (i) => `/api/w/${i.slug}/accounts/${unknownId}`,
   },
+  // The live events (guide step 4.10).
+  {
+    method: 'get',
+    route: '/api/w/:ws/events',
+    permission: 'workspace.read',
+    path: (i) => `/api/w/${i.slug}/events`,
+    stream: true,
+  },
   // The variants for the calendar and the post list (guide step 4.11).
   {
     method: 'get',
@@ -415,6 +425,9 @@ describe('permission matrix', () => {
 
   beforeAll(async () => {
     api = await startApiTestApp();
+    // A server that already listens stays open between the calls. SuperTest would otherwise
+    // close it after each call and wait for the open event streams.
+    await new Promise<void>((resolve) => api?.server.listen(0, '127.0.0.1', resolve));
     const system = createPrismaClient(api.database.url('app_system'));
     try {
       ids.organizationId = (await seedDemoData(system, SEED_PASSWORD)).organizationId;
@@ -451,7 +464,16 @@ describe('permission matrix', () => {
           throw new Error(`no session for ${role}`);
         }
         const call = agent[endpoint.method](endpoint.path(ids));
-        const response = await (endpoint.body ? call.send(endpoint.body(role)) : call);
+        const response = await (endpoint.body
+          ? call.send(endpoint.body(role))
+          : endpoint.stream
+            ? call.buffer(false)
+            : call);
+        if (endpoint.stream) {
+          // Closing the stream from this side ends its response with an error, which is expected.
+          response.on('error', () => undefined);
+          call.abort();
+        }
 
         if (allowed) {
           expect(response.status, JSON.stringify(response.body)).not.toBe(403);
