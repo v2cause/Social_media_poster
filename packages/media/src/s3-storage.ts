@@ -1,4 +1,7 @@
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
+  CreateMultipartUploadCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
@@ -7,6 +10,7 @@ import {
   PutObjectCommand,
   S3Client,
   S3ServiceException,
+  UploadPartCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { PresignedUpload, StoragePort, StoredObject } from '@smp/core';
@@ -37,6 +41,11 @@ export class StorageObjectTooLargeError extends Error {
 
 // Only prefixes inside one workspace may be deleted at once, so a bug can never empty the bucket.
 const WORKSPACE_PREFIX = /^ws\/[0-9a-f-]{36}\/.+/;
+/**
+ * The parts of a streamed upload. S3 takes at most 10,000 parts, so one stream holds up to about
+ * 156 GiB; every part but the last must have at least 5 MiB.
+ */
+const PART_BYTES = 16 * 1024 * 1024;
 
 const clientFor = (config: S3StorageConfig, endpoint: string): S3Client =>
   new S3Client({
@@ -134,6 +143,70 @@ export class S3Storage implements StoragePort {
         ContentLength: body.byteLength,
       }),
     );
+  }
+
+  /**
+   * Stores a stream of unknown length, such as an archive while it is written, through a
+   * multipart upload with one part in memory at a time. A failure aborts the upload, so no part
+   * is left behind; the object appears only when the stream ended.
+   */
+  async putStream(
+    key: string,
+    body: AsyncIterable<Uint8Array>,
+    options: { contentType: string; partBytes?: number },
+  ): Promise<{ bytes: number }> {
+    const partBytes = Math.max(options.partBytes ?? PART_BYTES, 5 * 1024 * 1024);
+    const target = { Bucket: this.config.bucket, Key: key };
+    const { UploadId } = await this.client.send(
+      new CreateMultipartUploadCommand({ ...target, ContentType: options.contentType }),
+    );
+    if (!UploadId) {
+      throw new Error('The storage started a multipart upload without an id.');
+    }
+    const parts: { ETag: string; PartNumber: number }[] = [];
+    let pending: Uint8Array[] = [];
+    let pendingBytes = 0;
+    let bytes = 0;
+    const uploadPart = async (): Promise<void> => {
+      const part = Buffer.concat(pending, pendingBytes);
+      pending = [];
+      pendingBytes = 0;
+      const PartNumber = parts.length + 1;
+      const { ETag } = await this.client.send(
+        new UploadPartCommand({
+          ...target,
+          UploadId,
+          PartNumber,
+          Body: part,
+          ContentLength: part.byteLength,
+        }),
+      );
+      if (!ETag) {
+        throw new Error(`The storage took part ${String(PartNumber)} without an ETag.`);
+      }
+      parts.push({ ETag, PartNumber });
+    };
+    try {
+      for await (const chunk of body) {
+        pending.push(chunk);
+        pendingBytes += chunk.byteLength;
+        bytes += chunk.byteLength;
+        if (pendingBytes >= partBytes) {
+          await uploadPart();
+        }
+      }
+      // The last part may be small; an empty stream still needs one part.
+      if (pendingBytes > 0 || parts.length === 0) {
+        await uploadPart();
+      }
+      await this.client.send(
+        new CompleteMultipartUploadCommand({ ...target, UploadId, MultipartUpload: { Parts: parts } }),
+      );
+      return { bytes };
+    } catch (error) {
+      await this.client.send(new AbortMultipartUploadCommand({ ...target, UploadId })).catch(() => undefined);
+      throw error;
+    }
   }
 
   async delete(key: string): Promise<void> {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
+import { CreateBucketCommand, ListMultipartUploadsCommand, S3Client } from '@aws-sdk/client-s3';
 import { assetPrefix, originalKey, renditionKey } from '@smp/core';
 import { startObjectStorage, type StartedObjectStorage } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -116,6 +116,49 @@ describe('S3 storage against SeaweedFS', () => {
     expect(response.headers.get('content-disposition')).toBe(
       'attachment; filename="social-media-poster-export-2026-10-17.zip"',
     );
+    await store().delete(key);
+  });
+
+  it('stores a stream of unknown length in parts and keeps nothing of a stream that failed', async () => {
+    const key = `exports/${randomUUID()}/${randomUUID()}.zip`;
+    const MIB = 1024 * 1024;
+    // Eleven chunks of one MiB: two full parts of five MiB and a last one of one MiB.
+    const chunks = Array.from({ length: 11 }, (_, index) => new Uint8Array(MIB).fill(index));
+    async function* stream(failAfter?: number): AsyncGenerator<Uint8Array> {
+      for (const [index, chunk] of chunks.entries()) {
+        if (index === failAfter) {
+          throw new Error('the archive broke');
+        }
+        await Promise.resolve();
+        yield chunk;
+      }
+    }
+
+    await expect(
+      store().putStream(key, stream(), { contentType: 'application/zip', partBytes: 5 * MIB }),
+    ).resolves.toEqual({ bytes: 11 * MIB });
+    const stored = await store().get(key, { maxBytes: 12 * MIB });
+    expect(stored.byteLength).toBe(11 * MIB);
+    expect([stored[0], stored[5 * MIB], stored[11 * MIB - 1]]).toEqual([0, 5, 10]);
+    await expect(store().head(key)).resolves.toMatchObject({ contentType: 'application/zip' });
+
+    const broken = `exports/${randomUUID()}/${randomUUID()}.zip`;
+    await expect(
+      store().putStream(broken, stream(7), { contentType: 'application/zip', partBytes: 5 * MIB }),
+    ).rejects.toThrow('the archive broke');
+    await expect(store().head(broken)).resolves.toBeNull();
+    const admin = new S3Client({
+      endpoint: config().endpoint,
+      region: config().region,
+      forcePathStyle: true,
+      credentials: { accessKeyId: config().accessKeyId, secretAccessKey: config().secretAccessKey },
+    });
+    try {
+      const uploads = await admin.send(new ListMultipartUploadsCommand({ Bucket: BUCKET, Prefix: broken }));
+      expect(uploads.Uploads ?? []).toEqual([]);
+    } finally {
+      admin.destroy();
+    }
     await store().delete(key);
   });
 
