@@ -1,6 +1,6 @@
 # ADR 0005: X-Anbindung als Hybrid und Leitplanken
 
-- **Status**: Akzeptiert (Browser-Adapter: Umsetzung ab Phase 6)
+- **Status**: Akzeptiert (Browser-Adapter umgesetzt in Phase 6: [ADR 0029](0029-x-browser-freischaltung-und-kill-switch.md) bis [ADR 0032](0032-canary-und-circuit-breaker.md))
 - **Datum**: 2026-10-15
 - **Bezug**: Umsetzungsleitfaden, Schritte 0.10 und 6.1 bis 6.6; `docs/ARCHITECTURE.md`, Abschnitte 2 und 4.3
 

@@ -84,8 +84,8 @@ worker (Rollen: scheduler | publisher | analytics | media | ai | notify | billin
    -----------> PostgreSQL, S3, Claude, LinkedIn/Meta/X-APIs, SMTP, Stripe
    --Queue "xb-commands"--> browser-worker --Queue "xb-results"--> worker
 
-browser-worker (Playwright/Chromium, eigener Container, Egress nur X-Web-App + S3)
-   KEINE Datenbank-Zugangsdaten, nur Redis-Zugriff auf die xb-*-Queues
+browser-worker (Playwright/Chromium, eigener Container, Egress nur X-Web-App + S3 über egress-proxy)
+   KEINE Datenbank-Zugangsdaten, nur Redis-Zugriff auf die xb-*-Queues und xb:*-Schlüssel
 
 worker --Redis Pub/Sub--> api --SSE--> Browser (Live-Status, Benachrichtigungen)
 ```
@@ -99,7 +99,7 @@ worker --Redis Pub/Sub--> api --SSE--> Browser (Live-Status, Benachrichtigungen)
   - das ToS-Risiko, das so abtrennbar bleibt (der Container kann einfach nicht deployt werden),
   - ein eigener Release-Takt für Selector-Updates.
 
-  Er ist ein reiner Ausführer: Die Befehle sind in sich geschlossen (Text, signierte Medien-URLs, verschlüsselter Session-State), die Ergebnisse gehen über `xb-results` zurück.
+  Er ist ein reiner Ausführer: Die Befehle sind in sich geschlossen (Text, signierte Medien-URLs, verschlüsselter Session-State). Das Ergebnis eines Befehls ist der Rückgabewert seines Jobs, auf den der Aufrufer wartet; neue Sitzungen, Drifts, der Canary und die Schritte des Logins gehen als Meldungen über `xb-results` zurück ([ADR 0030](adr/0030-browser-worker-isolation-protokoll-und-flows.md)).
 
 ### 2.1 Hexagonale Architektur (Ports & Adapters)
 
@@ -142,6 +142,7 @@ social-media-poster/
                             ai-stream (SSE), webhooks (stripe, meta), admin (Bull Board, Flags)
     worker/                 NestJS Application Context + /health und /metrics; processors/*
     browser-worker/         Playwright-Host, konsumiert nur xb-commands (Image: mcr.microsoft.com/playwright)
+    egress-proxy/           einziger Weg des browser-worker nach draußen: CONNECT nur zu X und dem Medienspeicher
   packages/
     core/                   hexagonaler Kern (siehe 2.1)
     contracts/              zod-DTOs, Enums, Fehlercodes, SSE-Events, Rechte-Matrix
@@ -149,7 +150,7 @@ social-media-poster/
     db/                     schema.prisma, Migrationen (inkl. RLS-SQL), Tenant-Extension, Repositories, Seed
     platform-rules/         Plattform-Capabilities, validatePost, Zeichenzählung (twitter-text); Web + Backend
     platform-adapters/      linkedin/, meta/, x/, mock/, HTTP-Client, Metrik-Mappings
-    x-browser/              versionierte Selector-Maps, Flows (login, publish, metrics), Parser
+    x-browser/              Protokoll der xb-Queues, versionierte Selector-Maps, Flows (login, publish, metrics), Parser
     ai/                     AnthropicAiProvider, MockAiProvider, versionierte Prompts, Output-Schemas, Preise
     media/                  sharp-Pipeline, Rendition-Profile, Dateityp-Prüfung, S3-Adapter
     queue/                  Queue-Namen, zod-Job-Payloads, typisierte Producer, Locks
@@ -218,17 +219,18 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
 
 ### 4.3 X-Browser-Adapter (optional, Feature-Flag)
 
-- **Aktivierung**: nur durch Owner/Admin pro Workspace, nach ausdrücklicher Risikobestätigung (Verstoß gegen die X-Nutzungsbedingungen, mögliche Sperre). Die Bestätigung wird versioniert gespeichert (`RiskAcknowledgement`: Text-Version, Hash, Zeit, IP) und im Audit-Log festgehalten. Zusätzlich gibt es einen Tarif-Gate und einen globalen Kill-Switch.
+- **Aktivierung**: nur durch Owner/Admin pro Workspace, nach ausdrücklicher Risikobestätigung (Verstoß gegen die X-Nutzungsbedingungen, mögliche Sperre). Die Bestätigung wird versioniert gespeichert (`RiskAcknowledgement`: Text-Version, Hash, Zeit, IP) und im Audit-Log festgehalten. Zusätzlich gibt es einen Tarif-Gate und einen globalen Kill-Switch, beide in der Hand der Plattform-Admins ([ADR 0029](adr/0029-x-browser-freischaltung-und-kill-switch.md)).
 - **Keine Passwörter speichern**: Das Login läuft interaktiv.
   1. Der browser-worker füllt die Zugangsdaten aus, die der Nutzer einmalig eingibt.
   2. Fragt X nach einem 2FA-Code, geht der Status auf `AWAITING_2FA`, und die UI reicht den Code über Redis an den browser-worker durch.
   3. Gespeichert wird danach nur der `storageState`, verschlüsselt mit einem eigenen Keyring (`SESSION_KEKS`), getrennt von den Token-Schlüsseln. Die API nutzt ihn nur zum Verschlüsseln der eingegebenen Zugangsdaten, der Worker nur für den Re-Wrap bei der Schlüsselrotation; entschlüsselt wird ausschließlich im browser-worker. Das Web bekommt ihn nie.
+  4. Der Login lebt höchstens fünf Minuten in Redis, nicht in der Datenbank; ein Workspace startet höchstens fünf Logins pro Stunde, und seine Schritte erreichen den Browser des Starters als Live-Ereignis `xb.login` ([ADR 0031](adr/0031-interaktiver-login-von-x.md)).
 - **Keine Umgehung von Schutzmechanismen**: Bei Captcha, verdächtigem Login oder einer Sperrseite bricht der Job ab, der Account geht auf `NEEDS_REAUTH`, und der Nutzer wird benachrichtigt. Kein Stealth- oder Fingerprint-Spoofing, keine Captcha-Löser, keine automatischen Retries.
 - **Robust statt Regex auf HTML**:
   - Playwright-Locators über Rolle, ARIA und `data-testid` aus versionierten Selector-Maps (`selectors/v1.ts`).
   - Post-ID und Metriken werden aus den JSON-Netzwerkantworten der X-Web-App gelesen (`page.on('response')`, z.B. `CreateTweet`), nicht aus geparstem HTML.
   - Ändert X die Oberfläche, wird nur die Selector-Map angepasst.
-- **Überwachung**: Ein täglicher Canary-Job gegen einen internen Test-Account erkennt UI-Änderungen. Bei wiederholtem `SELECTOR_DRIFT` öffnet ein automatischer Circuit Breaker und pausiert alle Browser-Jobs. Bei Fehlern wird ein Screenshot gespeichert (sensible Bereiche geschwärzt, kurze Aufbewahrung).
+- **Überwachung**: Ein täglicher Canary-Job gegen einen internen Test-Account (`XB_CANARY_ACCOUNT_ID`) erkennt UI-Änderungen. Drei `SELECTOR_DRIFT` innerhalb einer Stunde öffnen einen automatischen Circuit Breaker: Er schaltet das globale Flag aus, setzt den Kill-Switch für den browser-worker und alarmiert die Plattform-Admins per E-Mail. Fehler-Screenshots speichert der browser-worker vorerst nicht; die Drift-Meldung nennt Ablauf, Eintrag und Version der Selector-Map ([ADR 0032](adr/0032-canary-und-circuit-breaker.md)).
 - **Niedrige Frequenz**: höchstens ein Task pro Account gleichzeitig (Redis-Lock), Concurrency 1 bis 2 pro Container, Metriken nur bei +24h und +7d.
 
 ---
@@ -380,7 +382,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
    6. Erneut validieren und signierte Medien-URLs (1 h) erzeugen.
    7. Im Dry-Run wird statt des Sendens nur der Payload-Snapshot gespeichert und die Variante mit Dry-Run-Kennzeichnung als veröffentlicht markiert. Ein Reconcile entfällt, das Token wird wie sonst erneuert.
    8. Lease verlängern, den Versuch auf `UNKNOWN` setzen (Schreibmarke: ein Absturz ab hier gilt als "vielleicht gesendet") und `adapter.publish()` aufrufen. Bei Erfolg schreibt eine Transaktion `PUBLISHED`, `externalPostId`, `metricsNextAt`, die Kostensätze und ein `OutboxEvent`.
-   9. Für den X-Browser-Adapter: `xb.publish` einreihen; die Variante bleibt mit verlängertem Lease auf `PUBLISHING`, bis `xb-results` sie abschließt.
+   9. Für den X-Browser-Adapter: `xb.publish` einreihen und auf den Rückgabewert des Jobs warten; die Variante bleibt dabei mit verlängertem Lease auf `PUBLISHING` und wird wie bei jedem Adapter abgeschlossen. Kommt kein Ergebnis, gilt der Post als vielleicht gesendet (`OUTCOME_UNKNOWN`, [ADR 0030](adr/0030-browser-worker-isolation-protokoll-und-flows.md)).
 
 ### 7.1 Fehlerbehandlung
 
@@ -391,7 +393,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
 | `AUTH_EXPIRED` | einmal Refresh; schlägt das fehl: Verbindung `NEEDS_REAUTH`, Variante `FAILED(REAUTH_REQUIRED)`, Benachrichtigung |
 | `VALIDATION_REJECTED`, `PERMISSION_DENIED`, `DUPLICATE` | sofort `FAILED` mit übersetztem Grund |
 | `OUTCOME_UNKNOWN` (Timeout nach dem Senden) | Reconcile; bleibt es unklar: `NEEDS_ATTENTION`, der Nutzer wählt "erneut prüfen", "trotzdem posten" oder "verwerfen" |
-| `CHALLENGE_REQUIRED`, `SELECTOR_DRIFT` (Browser) | Account `NEEDS_REAUTH` bzw. Circuit Breaker; Variante `NEEDS_ATTENTION`; nie automatisch erneut |
+| `CHALLENGE_REQUIRED`, `SELECTOR_DRIFT` (Browser) | Account `NEEDS_REAUTH` bzw. Circuit Breaker (drei Drifts in einer Stunde schalten X ohne API global aus); Variante `NEEDS_ATTENTION`; nie automatisch erneut |
 | `SPEND_CAP_REACHED` (X) | `FAILED(SPEND_CAP)`, der Admin wird benachrichtigt |
 
 Sind alle Versuche erschöpft, geht eine Kopie in die Dead-Letter-Queue (einsehbar in Bull Board) und es wird alarmiert.
@@ -426,10 +428,10 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 | Queue | Jobs | Dedupe (Job-ID) | Verarbeitet von (`WORKER_ROLES`) |
 |---|---|---|---|
-| `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (stündlich; pro Workspace einmal am Tag ab 03:00 Ortszeit, gestaffelt), `tick.maintenance` (nachts) | Job-Scheduler-ID | `scheduler` |
+| `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (stündlich; pro Workspace einmal am Tag ab 03:00 Ortszeit, gestaffelt), `tick.maintenance` (nachts), `tick.xb-canary` (täglich, nur mit Test-Account) | Job-Scheduler-ID | `scheduler` |
 | `publish` | `publish.variant { workspaceId, variantId, scheduleVersion, trigger, traceparent }` | `pub.{variantId}.{scheduleVersion}` | `publisher` |
 | `publish-dead` | `publish.dead` (Kopie eines endgültig gescheiterten Publish-Jobs, nur zum Ansehen in Bull Board) | `dead.pub.{variantId}.{scheduleVersion}` | - |
-| `xb-commands` / `xb-results` | `xb.publish`, `xb.metrics`, `xb.verify-session`, `xb.delete`, `xb.login.start`, `xb.canary` / `xb.result` | `xb.{op}.{id}.{v}` | browser-worker / `publisher` |
+| `xb-commands` / `xb-results` | `xb.publish`, `xb.reconcile`, `xb.metrics`, `xb.account-metrics`, `xb.verify-session`, `xb.delete`, `xb.login.start`, `xb.canary` / `xb.result` (Sitzung, Drift, Canary, Login-Schritte) | `xb.{op}.{commandId}`, `xb.login.start.{loginId}` | browser-worker / `publisher` |
 | `media` | `media.process`, `media.render` | `media.{assetId}`, `rend.{assetId}.{profile}.{cropHash}` | `media` |
 | `analytics` | `metrics.post` (gebatcht pro Account), `metrics.account`, `metrics.rollup` | `mp.{accountId}.{bucket}`, `ma.{accountId}.{day}`; der Rollup dedupliziert über `ru.{workspaceId}.{from}.{to}` | `analytics` |
 | `tokens` | `token.refresh` | `tok.{connectionId}` | `publisher` |

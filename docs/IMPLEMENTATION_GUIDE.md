@@ -1114,6 +1114,15 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Erstellen**: `RiskAcknowledgement`, die Rechtstexte `packages/contracts/src/legal/x-browser-risk.{de,en}.md` (versioniert, mit Hash), die Flags `x_browser_automation` (global als Kill-Switch und pro Workspace), das Tarif-Gate (bis Phase 7 nur per Plattform-Admin).
 - **So sieht es aus**: In den Einstellungen gibt es den Bereich "X ohne API (experimentell)" mit Risikotext, der Checkbox "Ich habe die Risiken verstanden" und einer erneuten Passwortabfrage.
 - **Darauf achten**: Eine neue Textversion erfordert eine neue Bestätigung. Ohne gültige Bestätigung verweigert die Registry den Adapter.
+- **Umgesetzt** ([ADR 0029](adr/0029-x-browser-freischaltung-und-kill-switch.md)):
+  - Risikotext `2026-10-17` in Deutsch und Englisch mit SHA-256; `legal.test.ts` bemerkt jede Änderung.
+  - Flags `x_browser_automation` global (Kill-Switch), pro Organisation (Gate bis Phase 7) und pro Workspace; das Gate der Registry prüft alle vier Bedingungen.
+  - Einstellungen `/w/:ws/settings` mit Risikotext, Checkbox und Passwort; Admin-Seite `/admin` für Kill-Switch und Freischaltung.
+  - Tests:
+    - `packages/core/test/channels/x-browser-access.test.ts`
+    - `packages/db/test/x-browser-adapters.integration.test.ts`
+    - `apps/api/test/x-browser.integration.test.ts` und die Rechte-Matrix
+    - `apps/web/e2e/x-browser.spec.ts`
 
 #### 6.2 Laufzeit des browser-worker
 - **So sieht es aus**:
@@ -1125,6 +1134,14 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Kein DB-Zugriff.
   - Egress nur zu den Domains der X-Web-App und zu S3, durchgesetzt über das Docker-Netz bzw. einen Proxy; intern nur Redis. `x.com` allein reicht nicht, weil die Web-App Skripte und Bilder von weiteren Hosts lädt (z.B. `*.x.com`, `*.twimg.com`). Die Liste wird gegen die Live-UI ermittelt und mit den Selector-Maps versioniert.
   - Höchstens ein Task pro Account (Lock) und mindestens 2 min Abstand zwischen Posts pro Account.
+- **Umgesetzt** ([ADR 0030](adr/0030-browser-worker-isolation-protokoll-und-flows.md)):
+  - `BrowserHost` (ein Chromium, ein Kontext pro Befehl, 1280 x 800, Sprache des Accounts, 30 s), `AccountGuard` (Lock und 2 min Abstand), `CommandRunner` (Kill-Switch, Deadline, Sitzung öffnen und versiegelt zurückmelden).
+  - Isolation: internes Netz `xb`, Egress-Proxy `apps/egress-proxy` mit der Host-Liste der Selector-Map, Redis-Nutzer `browser-worker` mit eigener ACL, gehärteter Container.
+  - Tests:
+    - `apps/browser-worker/src/*.test.ts`
+    - `apps/browser-worker/test/{browser-host,account-guard,redis-acl,command-queue}.integration.test.ts`
+    - `apps/egress-proxy/src/{proxy,env}.test.ts`, `packages/x-browser/src/egress.test.ts`
+- **Stand**: Die Liste der Egress-Hosts ist nicht gegen die Live-UI von X ermittelt (kein Zugang aus dieser Umgebung).
 
 #### 6.3 Selector-Maps und Flows (`packages/x-browser`)
 - **Erstellen**: `selectors/v1.ts` und die Flows `login`, `verifySession`, `publish`, `metrics`, `delete`, `detectChallenge`.
@@ -1139,6 +1156,14 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   ```
   Nach jeder Navigation läuft `detectChallenge`. Wird eine Challenge erkannt, endet der Flow sofort mit `CHALLENGE_REQUIRED`.
 - **Darauf achten**: Die Post-ID und die Metriken kommen aus den JSON-Antworten, nie aus geparstem HTML. Fehlt ein Selector, endet der Flow mit `SELECTOR_DRIFT`; es gibt keine Rate-Versuche.
+- **Umgesetzt** ([ADR 0030](adr/0030-browser-worker-isolation-protokoll-und-flows.md)):
+  - `selectors/v1.ts` und die Flows `login`, `verifySession`, `publish`, `reconcile`, `postMetrics`, `accountMetrics`, `deletePost`, `canary` und `detectChallenge`.
+  - Protokoll der xb-Queues in `protocol.ts`; `XBrowserRemoteAdapter` schickt die Befehle und wartet auf den Rückgabewert des Jobs.
+  - Tests:
+    - `packages/x-browser/test/flows.integration.test.ts` (Chromium gegen ein nachgebautes X)
+    - `packages/platform-adapters/src/x-browser/*.test.ts`, `packages/platform-adapters/test/command-bus.integration.test.ts`
+    - `apps/worker/test/x-browser.integration.test.ts`
+- **Stand**: Selektoren und JSON-Antworten sind nach öffentlichen Beschreibungen nachgebaut und gegen x.com zu prüfen, bevor ein echter Account angebunden wird.
 
 #### 6.4 Interaktiver Login
 - **Erstellen**: `POST /api/w/:ws/x-browser/login-sessions`, `POST .../login-sessions/:id/code`, Status über SSE, Job `xb.login.start`.
@@ -1148,14 +1173,46 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   3. Der Worker meldet `AWAITING_2FA`, die UI fragt den Code ab und reicht ihn über Redis (`xb:login:{id}:input`) weiter.
   4. Bei Erfolg wird der `storageState` gespeichert. Zeitlimit insgesamt 5 min.
 - **Darauf achten**: Zugangsdaten werden nie in der DB gespeichert und nie geloggt. Der Job wird sofort nach Abschluss gelöscht (`removeOnComplete` und `removeOnFail` auf `true`).
+- **Umgesetzt** ([ADR 0031](adr/0031-interaktiver-login-von-x.md)):
+  - `POST /api/w/:ws/x-browser/login-sessions`, `GET .../login-sessions/:id`, `POST .../login-sessions/:id/code`; der Status geht als Live-Ereignis `xb.login` an den Starter.
+  - Zugangsdaten und Codes nur versiegelt (`SESSION_KEKS`) im Job bzw. in `xb:login:{id}:input`; der Login selbst als Hash in Redis, höchstens fünf Minuten, fünf Starts pro Workspace und Stunde.
+  - Bei Erfolg legt die Rolle `publisher` die Browser-Verbindung mit Account an oder erneuert sie; ein anderer X-Nutzer beim Neuverbinden endet mit `ACCOUNT_MISMATCH`.
+  - Dialog auf der Accounts-Seite mit Code-Abfrage, Live-Status und übersetzten Gründen.
+  - Tests:
+    - `packages/core/test/channels/browser-login.test.ts`
+    - `packages/platform-adapters/test/browser-login.integration.test.ts`
+    - `apps/api/test/x-browser.integration.test.ts`: Klartext weder im Job noch sonst in Redis
+    - `apps/browser-worker/src/login-runner.test.ts`, `apps/browser-worker/test/login-queue.integration.test.ts`
+    - `apps/worker/test/x-browser.integration.test.ts`
+    - `apps/web/e2e/x-browser.spec.ts` mit einem Stellvertreter des browser-worker
+- **Stand**: Ein echter Login gegen x.com ist nicht geprüft (kein Zugang und kein Test-Account in dieser Umgebung).
 
 #### 6.5 Canary und Circuit Breaker
 - **Erstellen**: `xb.canary` (täglich, interner Test-Account, prüft nur das Vorhandensein der Selektoren) und den Circuit Breaker.
 - **So sieht es aus**: Drei `SELECTOR_DRIFT` innerhalb einer Stunde setzen das globale Flag auf aus und alarmieren die Admins.
+- **Umgesetzt** ([ADR 0032](adr/0032-canary-und-circuit-breaker.md)):
+  - `XBrowserBreaker` in der Rolle `publisher`: Drifts der letzten Stunde in Redis; die dritte schaltet das globale Flag aus (unter der Sperre des Flags, also nur einmal), setzt `xb:kill` und schickt jedem Plattform-Admin eine E-Mail.
+  - `tick.xb-canary` täglich um 05:23 UTC mit dem Test-Account aus `XB_CANARY_ACCOUNT_ID`; ein gescheiterter Canary alarmiert und zählt als Drift.
+  - Fehler-Screenshots speichert der browser-worker vorerst nicht (Abweichung von Abschnitt 4.3 der Architektur, Begründung in ADR 0032).
+  - Tests:
+    - `packages/core/test/channels/x-browser-breaker.test.ts`
+    - `packages/platform-adapters/test/drift-counter.integration.test.ts`, `packages/db/test/x-browser-adapters.integration.test.ts`
+    - `packages/emails/src/render.test.ts`, `apps/worker/src/infrastructure/x-browser-alerts.test.ts`
+    - `apps/worker/src/scheduler/x-browser-canary.test.ts`, `apps/worker/test/x-browser-canary.integration.test.ts`
+    - `apps/worker/test/x-browser.integration.test.ts`: drei Drifts öffnen den Breaker
+- **Stand**: Es gibt noch keinen internen Test-Account für den Canary.
 
 #### 6.6 Tests
 - **So sieht es aus**: Lokale DOM-Fixtures (über `page.route` ausgeliefert) für Login, Composer, Challenge und Drift, dazu aufgezeichnete JSON-Antworten.
 - **Fertig, wenn**: Challenge zu Pause plus `NEEDS_REAUTH` führt, Drift zu `SELECTOR_DRIFT` plus Breaker, der Kill-Switch geprüft ist und die rechtliche Freigabe vorliegt.
+- **Umgesetzt**:
+  - Fixtures: `packages/x-browser/test/fake-x.ts` liefert DOM und JSON-Antworten über `page.route` für Login, Composer, Challenge und Drift; die JSON-Antworten liegen in `test/fixtures/`.
+  - Challenge: `apps/worker/test/x-browser.integration.test.ts` pausiert die Variante (`NEEDS_ATTENTION`) und setzt die Verbindung auf `NEEDS_REAUTH`, ohne zweiten Versuch.
+  - Drift: derselbe Test lässt drei Posts mit `SELECTOR_DRIFT` enden; der Breaker schaltet das globale Flag aus, setzt `xb:kill` und alarmiert die Plattform-Admins.
+  - Kill-Switch: geprüft im Worker (kein Befehl geht hinaus), im browser-worker (`command-queue.integration.test.ts`), in der API (`x-browser.integration.test.ts`) und im E2E-Test.
+- **Stand**:
+  - Die rechtliche Freigabe des Risikotextes liegt nicht vor; sie ist Aufgabe des Betreibers.
+  - Die JSON-Antworten sind nachgebaut, nicht aufgezeichnet (ADR 0030).
 
 ---
 
