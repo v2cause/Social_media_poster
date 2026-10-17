@@ -121,6 +121,8 @@ jobs:
       - run: docker compose up -d --wait
       - run: pnpm --filter @smp/db migrate:deploy
       - run: pnpm build
+      # The demo workspace with 90 days of analytics, for the analytics test (guide step 5.5).
+      - run: pnpm db:seed
       - name: Start API, worker and web
         run: |
           mkdir -p e2e-logs
