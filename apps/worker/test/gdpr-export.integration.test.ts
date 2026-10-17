@@ -9,19 +9,20 @@ import { createPrismaClient, DEMO_USERS, EXPORT_TABLES, seedDemoData } from '@sm
 import { S3Storage, type S3StorageConfig } from '@smp/media';
 import { GDPR_QUEUE, GdprProducer, NOTIFICATIONS_QUEUE, parseNotifyDispatch } from '@smp/queue';
 import {
+  readZip,
   startObjectStorage,
   startRedis,
   startTestDatabase,
   type StartedObjectStorage,
   type StartedRedis,
   type TestDatabase,
+  type ZipEntry,
 } from '@smp/testing';
 import { Queue, QueueEvents } from 'bullmq';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
-import { readZip, type ZipEntry } from './support/read-zip';
 
 // Guide step 8.1, "Fertig, wenn": the export is complete and readable. The role "gdpr" packs the
 // demo organization into a ZIP in SeaweedFS: a JSON array per table with as many rows as the

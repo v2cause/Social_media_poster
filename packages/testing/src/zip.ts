@@ -2,7 +2,8 @@ import { crc32, inflateRawSync } from 'node:zlib';
 
 // A small reader of ZIP archives for the tests, independent of the library that writes them: it
 // follows the central directory, inflates every entry and checks its size and CRC-32. Archives
-// beyond 4 GiB (ZIP64) are not needed here.
+// beyond 4 GiB (ZIP64) are not needed here. The export of an organization (guide step 8.1) is
+// read back with it in the worker and end-to-end tests.
 
 export interface ZipEntry {
   name: string;

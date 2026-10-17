@@ -22,3 +22,4 @@ export {
   type FakeWebhook,
 } from './stripe/fake-stripe';
 export { STRIPE_SPEC_VERSION } from './stripe/params';
+export { readZip, type ZipEntry } from './zip';
