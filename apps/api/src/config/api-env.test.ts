@@ -109,4 +109,26 @@ describe('loadApiEnv with AI settings', () => {
     expect(env.SESSION_KEKS).toBe(keys);
     expect(loadApiEnv({ ...validEnv, SESSION_KEKS: '' }).SESSION_KEKS).toBeUndefined();
   });
+
+  it('takes the Stripe key only with the secret of the webhooks, and never echoes either', () => {
+    const key = 'sk_test_tests';
+    expect(() => loadApiEnv({ ...validEnv, STRIPE_SECRET_KEY: key })).toThrow(
+      /STRIPE_WEBHOOK_SECRET: STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are set together/,
+    );
+    expect(() => loadApiEnv({ ...validEnv, STRIPE_SECRET_KEY: key })).not.toThrow(new RegExp(key));
+    const env = loadApiEnv({ ...validEnv, STRIPE_SECRET_KEY: key, STRIPE_WEBHOOK_SECRET: 'whsec_tests' });
+    expect(env.STRIPE_SECRET_KEY).toBe(key);
+    expect(
+      loadApiEnv({ ...validEnv, STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '' }).STRIPE_SECRET_KEY,
+    ).toBeUndefined();
+    expect(() =>
+      loadApiEnv({
+        ...validEnv,
+        NODE_ENV: 'production',
+        AI_PROVIDER: 'anthropic',
+        ANTHROPIC_API_KEY: 'sk-ant-x',
+        STRIPE_API_BASE: 'http://127.0.0.1:12111',
+      }),
+    ).toThrow(/STRIPE_API_BASE: STRIPE_API_BASE is for tests only/);
+  });
 });

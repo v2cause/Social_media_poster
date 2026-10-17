@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
+import { createStripeClient, syncCatalog } from '@smp/billing';
 import { can, ROLES, X_BROWSER_RISK, type Permission, type Role } from '@smp/contracts';
 import { createPrismaClient, DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from '@smp/db';
+import { FakeStripe } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { RouteAccessCheck } from '../src/common/guards/route-access.check';
@@ -115,6 +117,33 @@ const ENDPOINTS: Endpoint[] = [
     route: '/api/org/:org/audit-log',
     permission: 'audit.read',
     path: (i) => `/api/org/${i.organizationId}/audit-log`,
+  },
+  // Billing (guide step 7.2): owners only, against the fake Stripe.
+  {
+    method: 'post',
+    route: '/api/org/:org/billing/checkout',
+    permission: 'billing.manage',
+    path: (i) => `/api/org/${i.organizationId}/billing/checkout`,
+    body: () => ({ plan: 'pro' }),
+  },
+  {
+    method: 'post',
+    route: '/api/org/:org/billing/plan',
+    permission: 'billing.manage',
+    path: (i) => `/api/org/${i.organizationId}/billing/plan`,
+    body: () => ({ plan: 'pro' }),
+  },
+  {
+    method: 'post',
+    route: '/api/org/:org/billing/portal',
+    permission: 'billing.manage',
+    path: (i) => `/api/org/${i.organizationId}/billing/portal`,
+  },
+  {
+    method: 'get',
+    route: '/api/org/:org/billing/invoices',
+    permission: 'billing.manage',
+    path: (i) => `/api/org/${i.organizationId}/billing/invoices`,
   },
   // Content and AI (guide step 2.7): unknown ids where possible; the creating calls create.
   {
@@ -502,6 +531,7 @@ const ENDPOINTS: Endpoint[] = [
 
 describe('permission matrix', () => {
   let api: ApiTestApp | undefined;
+  let stripe: FakeStripe | undefined;
   const browsers = new Map<Role, Browser>();
   const ids = { organizationId: '', slug: DEMO_WORKSPACE_SLUG };
 
@@ -513,7 +543,15 @@ describe('permission matrix', () => {
   };
 
   beforeAll(async () => {
-    api = await startApiTestApp();
+    stripe = await FakeStripe.start({ webhookSecret: 'whsec_matrix' });
+    await syncCatalog(createStripeClient({ secretKey: 'sk_test_matrix', apiBase: stripe.url }));
+    api = await startApiTestApp({
+      env: {
+        STRIPE_SECRET_KEY: 'sk_test_matrix',
+        STRIPE_WEBHOOK_SECRET: 'whsec_matrix',
+        STRIPE_API_BASE: stripe.url,
+      },
+    });
     // A server that already listens stays open between the calls. SuperTest would otherwise
     // close it after each call and wait for the open event streams.
     await new Promise<void>((resolve) => api?.server.listen(0, '127.0.0.1', resolve));
@@ -530,6 +568,7 @@ describe('permission matrix', () => {
 
   afterAll(async () => {
     await api?.close();
+    await stripe?.close();
   });
 
   it('covers every route that requires a permission', () => {

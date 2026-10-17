@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import * as analyticsDtos from './modules/analytics/analytics.dto';
 import { AuditLogPageDto, AuditLogQueryDto } from './modules/audit/audit.controller';
+import * as billingDtos from './modules/billing/billing.dto';
 import * as channelDtos from './modules/channels/channels.dto';
 import * as contentDtos from './modules/content/content.dto';
 import { MeDto } from './modules/identity/me.controller';
@@ -30,6 +31,7 @@ export const OPENAPI_DTOS: { name: string; schema: z.ZodType }[] = [
   ...Object.values(analyticsDtos),
   ...Object.values(notificationDtos),
   ...Object.values(xBrowserDtos),
+  ...Object.values(billingDtos),
 ];
 
 const capitalize = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);

@@ -12,7 +12,13 @@ import {
   type TenantPrismaClient,
 } from '@smp/db';
 import { S3Storage, storageConfigOf } from '@smp/media';
-import { MEDIA_QUEUE, MediaProducer, NOTIFICATIONS_QUEUE, NotificationProducer } from '@smp/queue';
+import {
+  BILLING_QUEUE,
+  MEDIA_QUEUE,
+  MediaProducer,
+  NOTIFICATIONS_QUEUE,
+  NotificationProducer,
+} from '@smp/queue';
 import { XB_COMMANDS_QUEUE } from '@smp/x-browser';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
@@ -38,6 +44,7 @@ export const MEDIA_STORAGE = Symbol('MEDIA_STORAGE');
 export const MEDIA_JOBS_QUEUE = Symbol('MEDIA_JOBS_QUEUE');
 /** The commands of the browser worker of X; null where the deployment does not run it. */
 export const XB_COMMANDS_JOBS_QUEUE = Symbol('XB_COMMANDS_JOBS_QUEUE');
+export const BILLING_JOBS_QUEUE = Symbol('BILLING_JOBS_QUEUE');
 export const TENANCY_UNIT_OF_WORK = Symbol('TENANCY_UNIT_OF_WORK');
 export const TENANCY_READ_MODEL = Symbol('TENANCY_READ_MODEL');
 export const AUDIT_LOG_READ_MODEL = Symbol('AUDIT_LOG_READ_MODEL');
@@ -98,6 +105,7 @@ class ClientLifecycle implements OnApplicationShutdown {
     @Inject(MEDIA_STORAGE) private readonly storage: S3Storage,
     @Inject(MEDIA_JOBS_QUEUE) private readonly media: Queue,
     @Inject(XB_COMMANDS_JOBS_QUEUE) private readonly xbCommands: Queue | null,
+    @Inject(BILLING_JOBS_QUEUE) private readonly billing: Queue | null,
   ) {}
 
   async onApplicationShutdown(): Promise<void> {
@@ -110,6 +118,7 @@ class ClientLifecycle implements OnApplicationShutdown {
       closeQueue(this.notifications),
       closeQueue(this.media),
       ...(this.xbCommands ? [closeQueue(this.xbCommands)] : []),
+      ...(this.billing ? [closeQueue(this.billing)] : []),
     ]);
   }
 }
@@ -204,6 +213,13 @@ class ClientLifecycle implements OnApplicationShutdown {
       useFactory: (env: ApiEnv): Queue | null =>
         env.FEATURE_X_BROWSER_GLOBAL ? producerQueue(XB_COMMANDS_QUEUE, env) : null,
     },
+    {
+      // The webhooks of Stripe for the role "billing" (guide step 7.2), only with Stripe set up.
+      provide: BILLING_JOBS_QUEUE,
+      inject: [API_ENV],
+      useFactory: (env: ApiEnv): Queue | null =>
+        env.STRIPE_SECRET_KEY ? producerQueue(BILLING_QUEUE, env) : null,
+    },
     ClientLifecycle,
   ],
   exports: [
@@ -216,6 +232,7 @@ class ClientLifecycle implements OnApplicationShutdown {
     MEDIA_STORAGE,
     MediaProducer,
     XB_COMMANDS_JOBS_QUEUE,
+    BILLING_JOBS_QUEUE,
     TENANCY_UNIT_OF_WORK,
     TENANCY_READ_MODEL,
     AUDIT_LOG_READ_MODEL,

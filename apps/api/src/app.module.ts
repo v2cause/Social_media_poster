@@ -12,6 +12,7 @@ import { ConfigModule } from './config/config.module';
 import { ClientsModule } from './infrastructure/clients.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { AccessModule } from './common/guards/access.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { ContentModule } from './modules/content/content.module';
@@ -61,6 +62,7 @@ export class AppModule {
         NotificationsModule,
         LiveModule,
         XBrowserModule,
+        BillingModule,
         // The fake OAuth page of the mock platforms never exists in production (guide step 4.4).
         ...(env.NODE_ENV === 'production' ? [] : [DevModule]),
       ],

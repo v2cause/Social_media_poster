@@ -5,6 +5,9 @@ import Stripe from 'stripe';
 
 export const STRIPE_API_VERSION = '2026-09-30.endive';
 
+/** The client of the SDK, for the apps that hand it on without depending on the SDK. */
+export type StripeClient = Stripe;
+
 export interface StripeClientConfig {
   secretKey: string;
   /** The fake Stripe of the tests, for example http://127.0.0.1:12111. */
