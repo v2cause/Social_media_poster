@@ -15,6 +15,7 @@ import { permissionsOf } from '@smp/contracts';
 import {
   ChangeMemberRole,
   CreateWorkspace,
+  EntitlementsService,
   InviteMember,
   LeaveOrganization,
   RemoveMember,
@@ -30,6 +31,7 @@ import { AllowWhenReadOnly, OrgScope, RequirePermission } from '../../common/dec
 import { AccessCache } from '../../common/guards/access-cache';
 import { Access, Actor, type RequestAccess } from '../../common/guards/request-access';
 import { TENANCY_READ_MODEL } from '../../infrastructure/clients.module';
+import { toBillingStateDto } from '../billing/billing.mappers';
 import {
   ChangeMemberRoleDto,
   CreateWorkspaceResponseDto,
@@ -59,16 +61,19 @@ export class OrganizationController {
     private readonly resendInvitationUseCase: ResendInvitation,
     private readonly revokeInvitationUseCase: RevokeInvitation,
     private readonly createWorkspace: CreateWorkspace,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
+  /** The organization with the caller's role and permissions and the state of the subscription. */
   @Get()
   @RequirePermission('org.read')
   @ZodResponse({ type: OrganizationContextDto })
-  context(@Access() access: RequestAccess): OrganizationContextDto {
+  async context(@Access() access: RequestAccess): Promise<OrganizationContextDto> {
     return {
       organization: { id: access.organizationId, name: access.organizationName },
       role: access.role,
       permissions: permissionsOf(access.role),
+      billing: toBillingStateDto(await this.entitlements.of(access.organizationId)),
     };
   }
 

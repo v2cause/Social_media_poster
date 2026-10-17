@@ -10,9 +10,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startApiTestApp, type ApiTestApp } from './support/api-app';
 import { signUpVerified, type Browser } from './support/browser';
 
-// Guide step 7.2 through the API against the fake Stripe: the owner opens the checkout of a plan
-// and the customer portal, Stripe reports the payment with signed webhooks, and each event is
-// recorded once and queued for the role "billing". Nothing here changes the plan; the worker does.
+// Guide steps 7.2 and 7.5 through the API against the fake Stripe: the owner sees plan, usage and
+// prices, opens the checkout of a plan and the customer portal, Stripe reports the payment with
+// signed webhooks, and each event is recorded once and queued for the role "billing". Nothing
+// here changes the plan; the worker does.
 
 const WEBHOOK_SECRET = 'whsec_test_billing_api';
 
@@ -70,6 +71,51 @@ describe('billing API', () => {
       'SELECT price_lookup_key FROM plan WHERE price_lookup_key IS NOT NULL ORDER BY position',
     );
     expect(rows.map((row) => row.price_lookup_key)).toEqual(planLookupKeys());
+  });
+
+  it('shows the trial with the usage of every limit and the prices of the plans', async () => {
+    const response = await owner.get(`/api/org/${organizationId}/billing`).expect(200);
+    const today = new Date();
+
+    expect(response.body).toMatchObject({
+      plan: { key: 'trial', limits: { maxWorkspaces: 1, maxMembers: 3 }, price: null },
+      status: 'TRIALING',
+      access: 'full',
+      graceEndsAt: null,
+      readOnlySince: null,
+      cancelAtPeriodEnd: false,
+      billingEnabled: true,
+      hasRunningSubscription: false,
+      hasCustomer: false,
+      periodStart: `${today.toISOString().slice(0, 7)}-01`,
+      usage: {
+        workspaces: { used: 1, limit: 1 },
+        members: { used: 1, limit: 3 },
+        socialAccounts: { used: 0, limit: 3 },
+        scheduledPosts: { used: 0, limit: 30 },
+        storageBytes: { used: 0, limit: 1024 ** 3 },
+        xApiMicros: { used: 0, limit: 1_000_000 },
+        ai: { usedMicros: 0, includedMicros: 2_000_000, overageCapMicros: 0 },
+      },
+    });
+    const body = response.body as {
+      trialEndsAt: string;
+      plans: { key: string; price: { unitAmount: number; currency: string; interval: string } | null }[];
+    };
+    // Fourteen days of trial from the sign-up.
+    expect(Date.parse(body.trialEndsAt) - today.getTime()).toBeGreaterThan(13 * 24 * 60 * 60 * 1000);
+    expect(body.plans.map((plan) => [plan.key, plan.price])).toEqual([
+      ['trial', null],
+      ['starter', { unitAmount: 1_900, currency: 'eur', interval: 'month' }],
+      ['pro', { unitAmount: 4_900, currency: 'eur', interval: 'month' }],
+      ['agency', { unitAmount: 14_900, currency: 'eur', interval: 'month' }],
+    ]);
+
+    // Every member sees the state of the subscription with the organization.
+    const context = await owner.get(`/api/org/${organizationId}`).expect(200);
+    expect(context.body).toMatchObject({
+      billing: { access: 'full', status: 'TRIALING', trialEndsAt: body.trialEndsAt, graceEndsAt: null },
+    });
   });
 
   it('opens the checkout of a plan for a customer made once from the owner', async () => {

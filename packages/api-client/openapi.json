@@ -3626,6 +3626,38 @@
         ]
       }
     },
+    "/api/org/{org}/billing": {
+      "get": {
+        "operationId": "billingOverview",
+        "parameters": [
+          {
+            "name": "org",
+            "required": true,
+            "in": "path",
+            "description": "Organization id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOverviewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "billing"
+        ]
+      }
+    },
     "/api/org/{org}/billing/checkout": {
       "post": {
         "operationId": "billingCheckout",
@@ -4045,12 +4077,57 @@
                 "ownership.transfer"
               ]
             }
+          },
+          "billing": {
+            "type": "object",
+            "properties": {
+              "access": {
+                "type": "string",
+                "enum": [
+                  "full",
+                  "read_only"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "TRIALING",
+                  "ACTIVE",
+                  "PAST_DUE",
+                  "CANCELED",
+                  "UNPAID",
+                  "INCOMPLETE",
+                  "INCOMPLETE_EXPIRED",
+                  "PAUSED"
+                ]
+              },
+              "trialEndsAt": {
+                "nullable": true,
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "graceEndsAt": {
+                "nullable": true,
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "access",
+              "status",
+              "trialEndsAt",
+              "graceEndsAt"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "organization",
           "role",
-          "permissions"
+          "permissions",
+          "billing"
         ],
         "additionalProperties": false
       },
@@ -4518,13 +4595,58 @@
                 "ownership.transfer"
               ]
             }
+          },
+          "billing": {
+            "type": "object",
+            "properties": {
+              "access": {
+                "type": "string",
+                "enum": [
+                  "full",
+                  "read_only"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "TRIALING",
+                  "ACTIVE",
+                  "PAST_DUE",
+                  "CANCELED",
+                  "UNPAID",
+                  "INCOMPLETE",
+                  "INCOMPLETE_EXPIRED",
+                  "PAUSED"
+                ]
+              },
+              "trialEndsAt": {
+                "nullable": true,
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "graceEndsAt": {
+                "nullable": true,
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "access",
+              "status",
+              "trialEndsAt",
+              "graceEndsAt"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "workspace",
           "organization",
           "role",
-          "permissions"
+          "permissions",
+          "billing"
         ],
         "additionalProperties": false
       },
@@ -10708,6 +10830,487 @@
         "required": [
           "id",
           "name"
+        ],
+        "additionalProperties": false
+      },
+      "BillingOverviewDto_Output": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "enum": [
+                  "trial",
+                  "starter",
+                  "pro",
+                  "agency"
+                ]
+              },
+              "limits": {
+                "type": "object",
+                "properties": {
+                  "maxWorkspaces": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000
+                  },
+                  "maxSocialAccounts": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "maxMembers": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  },
+                  "aiCreditsMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "aiOverageCapMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "scheduledPostsPerMonth": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "storageBytes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "analyticsHistoryDays": {
+                    "type": "integer",
+                    "minimum": 7,
+                    "maximum": 3650
+                  },
+                  "xBrowserAllowed": {
+                    "type": "boolean"
+                  },
+                  "xApiSpendCapMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "maxWorkspaces",
+                  "maxSocialAccounts",
+                  "maxMembers",
+                  "aiCreditsMicros",
+                  "aiOverageCapMicros",
+                  "scheduledPostsPerMonth",
+                  "storageBytes",
+                  "analyticsHistoryDays",
+                  "xBrowserAllowed",
+                  "xApiSpendCapMicros"
+                ],
+                "additionalProperties": false
+              },
+              "price": {
+                "nullable": true,
+                "type": "object",
+                "properties": {
+                  "unitAmount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3
+                  },
+                  "interval": {
+                    "type": "string",
+                    "enum": [
+                      "day",
+                      "week",
+                      "month",
+                      "year"
+                    ]
+                  }
+                },
+                "required": [
+                  "unitAmount",
+                  "currency",
+                  "interval"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "key",
+              "limits",
+              "price"
+            ],
+            "additionalProperties": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "TRIALING",
+              "ACTIVE",
+              "PAST_DUE",
+              "CANCELED",
+              "UNPAID",
+              "INCOMPLETE",
+              "INCOMPLETE_EXPIRED",
+              "PAUSED"
+            ]
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "full",
+              "read_only"
+            ]
+          },
+          "trialEndsAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "graceEndsAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "readOnlySince": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "currentPeriodEnd": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "cancelAtPeriodEnd": {
+            "type": "boolean"
+          },
+          "billingEnabled": {
+            "type": "boolean"
+          },
+          "hasRunningSubscription": {
+            "type": "boolean"
+          },
+          "hasCustomer": {
+            "type": "boolean"
+          },
+          "periodStart": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "workspaces": {
+                "type": "object",
+                "properties": {
+                  "used": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "used",
+                  "limit"
+                ],
+                "additionalProperties": false
+              },
+              "socialAccounts": {
+                "type": "object",
+                "properties": {
+                  "used": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "used",
+                  "limit"
+                ],
+                "additionalProperties": false
+              },
+              "members": {
+                "type": "object",
+                "properties": {
+                  "used": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "used",
+                  "limit"
+                ],
+                "additionalProperties": false
+              },
+              "scheduledPosts": {
+                "type": "object",
+                "properties": {
+                  "used": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "used",
+                  "limit"
+                ],
+                "additionalProperties": false
+              },
+              "storageBytes": {
+                "type": "object",
+                "properties": {
+                  "used": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "used",
+                  "limit"
+                ],
+                "additionalProperties": false
+              },
+              "xApiMicros": {
+                "type": "object",
+                "properties": {
+                  "used": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "used",
+                  "limit"
+                ],
+                "additionalProperties": false
+              },
+              "ai": {
+                "type": "object",
+                "properties": {
+                  "usedMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "includedMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "overageCapMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "usedMicros",
+                  "includedMicros",
+                  "overageCapMicros"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "workspaces",
+              "socialAccounts",
+              "members",
+              "scheduledPosts",
+              "storageBytes",
+              "xApiMicros",
+              "ai"
+            ],
+            "additionalProperties": false
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "trial",
+                    "starter",
+                    "pro",
+                    "agency"
+                  ]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "maxWorkspaces": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10000
+                    },
+                    "maxSocialAccounts": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100000
+                    },
+                    "maxMembers": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100000
+                    },
+                    "aiCreditsMicros": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "aiOverageCapMicros": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "scheduledPostsPerMonth": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 10000000
+                    },
+                    "storageBytes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "analyticsHistoryDays": {
+                      "type": "integer",
+                      "minimum": 7,
+                      "maximum": 3650
+                    },
+                    "xBrowserAllowed": {
+                      "type": "boolean"
+                    },
+                    "xApiSpendCapMicros": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "maxWorkspaces",
+                    "maxSocialAccounts",
+                    "maxMembers",
+                    "aiCreditsMicros",
+                    "aiOverageCapMicros",
+                    "scheduledPostsPerMonth",
+                    "storageBytes",
+                    "analyticsHistoryDays",
+                    "xBrowserAllowed",
+                    "xApiSpendCapMicros"
+                  ],
+                  "additionalProperties": false
+                },
+                "price": {
+                  "nullable": true,
+                  "type": "object",
+                  "properties": {
+                    "unitAmount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3
+                    },
+                    "interval": {
+                      "type": "string",
+                      "enum": [
+                        "day",
+                        "week",
+                        "month",
+                        "year"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "unitAmount",
+                    "currency",
+                    "interval"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "key",
+                "limits",
+                "price"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "plan",
+          "status",
+          "access",
+          "trialEndsAt",
+          "graceEndsAt",
+          "readOnlySince",
+          "currentPeriodEnd",
+          "cancelAtPeriodEnd",
+          "billingEnabled",
+          "hasRunningSubscription",
+          "hasCustomer",
+          "periodStart",
+          "usage",
+          "plans"
         ],
         "additionalProperties": false
       },

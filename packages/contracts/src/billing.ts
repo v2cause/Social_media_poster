@@ -72,6 +72,19 @@ export const BILLING_ACCESS = ['full', 'read_only'] as const;
 export const billingAccessSchema = z.enum(BILLING_ACCESS);
 export type BillingAccessDto = z.infer<typeof billingAccessSchema>;
 
+/**
+ * What every member sees of the subscription (guide step 7.4): whether the organization may only
+ * read, and the dates of a running trial and of an overdue payment. The app shell shows a notice.
+ */
+export const billingStateSchema = z.object({
+  access: billingAccessSchema,
+  status: subscriptionStatusSchema,
+  trialEndsAt: timestamp.nullable(),
+  /** While a payment is overdue: from then on the organization is read-only. */
+  graceEndsAt: timestamp.nullable(),
+});
+export type BillingStateDto = z.infer<typeof billingStateSchema>;
+
 const usageSchema = z.object({ used: z.number().int().min(0), limit: z.number().int().min(0) });
 
 export const planPriceSchema = z.object({
@@ -104,7 +117,7 @@ export const billingOverviewSchema = z.object({
   /** Stripe is set up in this deployment; without it there is no checkout and no portal. */
   billingEnabled: z.boolean(),
   /** A paid subscription runs: plans change in place, not with a new checkout. */
-  hasStripeSubscription: z.boolean(),
+  hasRunningSubscription: z.boolean(),
   /** The organization is a Stripe customer, so the customer portal can open. */
   hasCustomer: z.boolean(),
   /** The first day of the calendar month the monthly limits count in (UTC). */

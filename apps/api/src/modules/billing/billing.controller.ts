@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { toLocale } from '@smp/contracts';
 import {
   ChangePlan,
+  GetBillingOverview,
   ListInvoices,
   OpenBillingPortal,
   StartCheckout,
@@ -14,12 +15,20 @@ import { AllowWhenReadOnly, OrgScope, RequirePermission } from '../../common/dec
 import { Access, Actor, type RequestAccess } from '../../common/guards/request-access';
 import type { AuthSession } from '../identity/auth';
 import { CurrentUser } from '../identity/current-user.decorator';
-import { BillingRedirectDto, ChangePlanRequestDto, CheckoutRequestDto, InvoiceListDto } from './billing.dto';
+import {
+  BillingOverviewDto,
+  BillingRedirectDto,
+  ChangePlanRequestDto,
+  CheckoutRequestDto,
+  InvoiceListDto,
+} from './billing.dto';
+import { toBillingOverviewDto } from './billing.mappers';
 
 /**
- * The billing of an organization for its owners (guide steps 7.2 and 7.5): the hosted checkout of
- * a plan, the change of a running plan, the customer portal of Stripe and the invoices. None of
- * them changes the subscription here; the webhooks of Stripe do.
+ * The billing of an organization for its owners (guide steps 7.2 and 7.5): the overview of plan,
+ * usage and prices, the hosted checkout of a plan, the change of a running plan, the customer
+ * portal of Stripe and the invoices. None of them changes the subscription here; the webhooks of
+ * Stripe do.
  */
 @ApiTags('billing')
 @OrgScope()
@@ -28,11 +37,19 @@ import { BillingRedirectDto, ChangePlanRequestDto, CheckoutRequestDto, InvoiceLi
 @Controller('org/:org/billing')
 export class BillingController {
   constructor(
+    private readonly getOverview: GetBillingOverview,
     private readonly startCheckout: StartCheckout,
     private readonly changePlan: ChangePlan,
     private readonly openPortal: OpenBillingPortal,
     private readonly listInvoices: ListInvoices,
   ) {}
+
+  @Get()
+  @RequirePermission('billing.manage')
+  @ZodResponse({ type: BillingOverviewDto })
+  async overview(@Actor() actor: OrganizationActor): Promise<BillingOverviewDto> {
+    return toBillingOverviewDto(await this.getOverview.execute(actor));
+  }
 
   @Post('checkout')
   @RequirePermission('billing.manage')

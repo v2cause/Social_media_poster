@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { billingStateSchema } from './billing';
 import { localeSchema } from './locale';
 import { PERMISSIONS, roleSchema } from './permissions';
 import { timezoneSchema } from './timezone';
@@ -96,6 +97,7 @@ export const workspaceContextSchema = z.object({
   organization: z.object({ id: z.uuid(), name: z.string() }),
   role: roleSchema,
   permissions: z.array(z.enum(PERMISSIONS)),
+  billing: billingStateSchema,
 });
 export type WorkspaceContext = z.infer<typeof workspaceContextSchema>;
 
@@ -103,6 +105,7 @@ export const organizationContextSchema = z.object({
   organization: z.object({ id: z.uuid(), name: z.string() }),
   role: roleSchema,
   permissions: z.array(z.enum(PERMISSIONS)),
+  billing: billingStateSchema,
 });
 export type OrganizationContext = z.infer<typeof organizationContextSchema>;
 

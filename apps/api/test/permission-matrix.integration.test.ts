@@ -118,7 +118,13 @@ const ENDPOINTS: Endpoint[] = [
     permission: 'audit.read',
     path: (i) => `/api/org/${i.organizationId}/audit-log`,
   },
-  // Billing (guide step 7.2): owners only, against the fake Stripe.
+  // Billing (guide steps 7.2 and 7.5): owners only, against the fake Stripe.
+  {
+    method: 'get',
+    route: '/api/org/:org/billing',
+    permission: 'billing.manage',
+    path: (i) => `/api/org/${i.organizationId}/billing`,
+  },
   {
     method: 'post',
     route: '/api/org/:org/billing/checkout',

@@ -1,13 +1,14 @@
 import { Body, Controller, Get, Inject, Patch } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { permissionsOf } from '@smp/contracts';
-import { UpdateWorkspaceSettings, WorkspaceNotFoundError } from '@smp/core';
+import { EntitlementsService, UpdateWorkspaceSettings, WorkspaceNotFoundError } from '@smp/core';
 import type { TenancyReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
 
 import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
 import { TENANCY_READ_MODEL } from '../../infrastructure/clients.module';
+import { toBillingStateDto } from '../billing/billing.mappers';
 import { UpdateWorkspaceSettingsDto, WorkspaceContextDto, WorkspaceSettingsDto } from './tenancy.dto';
 
 type WorkspaceAccess = RequestAccess & { workspaceId: string };
@@ -27,15 +28,22 @@ export class WorkspaceController {
   constructor(
     @Inject(TENANCY_READ_MODEL) private readonly readModel: TenancyReadModel,
     private readonly updateSettingsUseCase: UpdateWorkspaceSettings,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
-  /** The workspace with the caller's role and permissions; the app shell loads it first. */
+  /**
+   * The workspace with the caller's role and permissions and the state of the subscription; the
+   * app shell loads it first.
+   */
   @Get()
   @RequirePermission('workspace.read')
   @ZodResponse({ type: WorkspaceContextDto })
   async context(@Access() access: RequestAccess): Promise<WorkspaceContextDto> {
     const { userId, workspaceId } = workspaceOf(access);
-    const workspaces = await this.readModel.listWorkspaces({ userId, organizationId: access.organizationId });
+    const [workspaces, entitlements] = await Promise.all([
+      this.readModel.listWorkspaces({ userId, organizationId: access.organizationId }),
+      this.entitlements.of(access.organizationId),
+    ]);
     const workspace = workspaces.find((candidate) => candidate.id === workspaceId);
     if (!workspace) {
       throw new WorkspaceNotFoundError();
@@ -45,6 +53,7 @@ export class WorkspaceController {
       organization: { id: access.organizationId, name: access.organizationName },
       role: access.role,
       permissions: permissionsOf(access.role),
+      billing: toBillingStateDto(entitlements),
     };
   }
 
