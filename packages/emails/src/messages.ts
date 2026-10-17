@@ -54,6 +54,18 @@ export interface EmailMessages {
   };
   /** Placeholders: {accounts}, {platform}, {preview}. */
   needsAttention: { subject: string; preview: string; intro: string; post: string; action: string };
+  /** To the platform admins (guide step 6.5). Placeholders: {count}, {selector}, {flow}, {version}. */
+  xBrowserBreaker: { subject: string; preview: string; intro: string; next: string; action: string };
+  /** To the platform admins. Placeholders: {missing}, {version}. */
+  xBrowserCanary: {
+    subject: string;
+    preview: string;
+    intro: string;
+    /** When the canary failed without naming the selectors. */
+    introWithout: string;
+    next: string;
+    action: string;
+  };
 }
 
 export const messages: Record<Locale, EmailMessages> = {
@@ -147,6 +159,23 @@ export const messages: Record<Locale, EmailMessages> = {
       post: 'Post: „{preview}“',
       action: 'Post öffnen',
     },
+    xBrowserBreaker: {
+      subject: 'X ohne API wurde automatisch gestoppt',
+      preview: 'Die Oberfläche von X passt nicht mehr zur Selector-Map.',
+      intro:
+        'der Circuit Breaker hat X ohne API für alle Workspaces abgeschaltet: {count} Abweichungen der Selector-Map innerhalb einer Stunde, zuletzt „{selector}“ im Ablauf „{flow}“ (Selector-Map {version}).',
+      next: 'Bitte passen Sie die Selector-Map an die Oberfläche von X an und heben Sie den Kill-Switch danach in der Plattform-Administration auf.',
+      action: 'Plattform-Administration öffnen',
+    },
+    xBrowserCanary: {
+      subject: 'Der Canary von X ohne API ist fehlgeschlagen',
+      preview: 'Der tägliche Test hat nicht alle Selektoren gefunden.',
+      intro: 'der tägliche Canary hat diese Einträge der Selector-Map {version} nicht gefunden: {missing}.',
+      introWithout:
+        'der tägliche Canary ist fehlgeschlagen, ohne fehlende Einträge der Selector-Map {version} zu nennen.',
+      next: 'X ohne API läuft weiter. Drei Abweichungen innerhalb einer Stunde stoppen es automatisch.',
+      action: 'Plattform-Administration öffnen',
+    },
   },
   en: {
     common: {
@@ -234,6 +263,22 @@ export const messages: Record<Locale, EmailMessages> = {
         'for your post for {accounts} on {platform} it is unclear whether it went out. Please check the platform, then choose “Check again”, “Post anyway” or “Discard”.',
       post: 'Post: “{preview}”',
       action: 'Open post',
+    },
+    xBrowserBreaker: {
+      subject: 'X without the API was stopped automatically',
+      preview: 'The interface of X no longer matches the selector map.',
+      intro:
+        'the circuit breaker switched X without the API off for every workspace: {count} drifts of the selector map within an hour, the last one “{selector}” in the flow “{flow}” (selector map {version}).',
+      next: 'Please adapt the selector map to the interface of X, then lift the kill switch on the platform admin page.',
+      action: 'Open the platform admin page',
+    },
+    xBrowserCanary: {
+      subject: 'The canary of X without the API failed',
+      preview: 'The daily check did not find every selector.',
+      intro: 'the daily canary did not find these entries of the selector map {version}: {missing}.',
+      introWithout: 'the daily canary failed without naming missing entries of the selector map {version}.',
+      next: 'X without the API keeps running. Three drifts within an hour stop it automatically.',
+      action: 'Open the platform admin page',
     },
   },
 };

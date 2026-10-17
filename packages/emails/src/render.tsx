@@ -53,6 +53,25 @@ export const emailTemplateSchema = z.discriminatedUnion('template', [
     failureCode: z.enum(PUBLISH_FAILURE_CODES),
   }),
   z.object({ template: z.literal('needs-attention'), ...notification, preview }),
+  // To the platform admins about the X browser (guide step 6.5); the link leads to the admin page.
+  z.object({
+    template: z.literal('x-browser-breaker'),
+    locale: localeSchema,
+    name,
+    url: httpUrl,
+    drifts: z.number().int().positive(),
+    flow: z.string().trim().min(1).max(40),
+    selector: z.string().trim().min(1).max(100),
+    selectorsVersion: z.string().trim().min(1).max(20),
+  }),
+  z.object({
+    template: z.literal('x-browser-canary'),
+    locale: localeSchema,
+    name,
+    url: httpUrl,
+    missing: z.array(z.string().trim().min(1).max(100)).max(20),
+    selectorsVersion: z.string().trim().min(1).max(20),
+  }),
 ]);
 
 export type EmailTemplateInput = z.input<typeof emailTemplateSchema>;
@@ -170,6 +189,37 @@ function compose(email: EmailTemplate): ActionEmailText {
         intro: [format(text.intro, values), format(text.post, values)],
         action: text.action,
         notes: [common.settingsHint],
+      };
+    }
+    case 'x-browser-breaker': {
+      const values = {
+        count: String(email.drifts),
+        selector: email.selector,
+        flow: email.flow,
+        version: email.selectorsVersion,
+      };
+      const text = locale.xBrowserBreaker;
+      return {
+        ...base,
+        subject: text.subject,
+        preview: text.preview,
+        greeting,
+        intro: [format(text.intro, values)],
+        action: text.action,
+        notes: [text.next],
+      };
+    }
+    case 'x-browser-canary': {
+      const values = { missing: email.missing.join(', '), version: email.selectorsVersion };
+      const text = locale.xBrowserCanary;
+      return {
+        ...base,
+        subject: text.subject,
+        preview: text.preview,
+        greeting,
+        intro: [format(email.missing.length > 0 ? text.intro : text.introWithout, values)],
+        action: text.action,
+        notes: [text.next],
       };
     }
   }

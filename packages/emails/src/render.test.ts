@@ -176,4 +176,44 @@ describe('the notification emails of guide step 4.9', () => {
       }),
     ).rejects.toThrow();
   });
+
+  it('tells the platform admins that the circuit breaker stopped X without the API', async () => {
+    const breaker = {
+      template: 'x-browser-breaker' as const,
+      url: 'http://localhost:3000/admin',
+      drifts: 3,
+      flow: 'publish',
+      selector: 'composer.textbox',
+      selectorsVersion: 'x-v1',
+    };
+    const de = await renderEmail({ ...breaker, locale: 'de', name: 'Ops' });
+    const en = await renderEmail({ ...breaker, locale: 'en' });
+
+    expect(de.subject).toBe('X ohne API wurde automatisch gestoppt');
+    expect(de.text).toContain('Hallo Ops,');
+    expect(de.text).toContain(
+      '3 Abweichungen der Selector-Map innerhalb einer Stunde, zuletzt „composer.textbox“ im Ablauf „publish“ (Selector-Map x-v1).',
+    );
+    expect(de.text).toContain('http://localhost:3000/admin');
+    expect(en.subject).toBe('X without the API was stopped automatically');
+    expect(en.text).toContain('lift the kill switch on the platform admin page');
+  });
+
+  it('names the selectors a failed canary missed, or says it named none', async () => {
+    const canary = {
+      template: 'x-browser-canary' as const,
+      locale: 'de' as const,
+      url: 'http://localhost:3000/admin',
+      selectorsVersion: 'x-v1',
+    };
+    const named = await renderEmail({ ...canary, missing: ['composer.textbox', 'nav.profile'] });
+    const none = await renderEmail({ ...canary, missing: [] });
+
+    expect(named.subject).toBe('Der Canary von X ohne API ist fehlgeschlagen');
+    expect(named.text).toContain('nicht gefunden: composer.textbox, nav.profile.');
+    expect(none.text).toContain('ohne fehlende Einträge der Selector-Map x-v1 zu nennen.');
+    await expect(
+      renderEmail({ ...canary, missing: Array.from({ length: 21 }, () => 'a') }),
+    ).rejects.toThrow();
+  });
 });
