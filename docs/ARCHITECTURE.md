@@ -53,7 +53,7 @@ Einige Details (exakte X-Preise und Endpunkt-Formen, Instagram-Tageslimit, Meta-
 | Bereich | Wahl | Begründung |
 |---|---|---|
 | Monorepo | pnpm Workspaces + Turborepo, Node 24 LTS, TypeScript strict | schnelle Installs, Task-Caching, `turbo prune --docker` für schlanke Images |
-| Web | Next.js 16 (App Router, React 19), Tailwind 4, shadcn/ui, TanStack Query 5, react-hook-form + zod, next-intl, Recharts, FullCalendar | ausgereift und weit verbreitet; FullCalendar inkl. Drag & Drop ist MIT-lizenziert |
+| Web | Next.js 16 (App Router, React 19), Tailwind 4, shadcn/ui, TanStack Query 5, react-hook-form + zod, next-intl, Recharts, FullCalendar | ausgereift und weit verbreitet; FullCalendar inkl. Drag & Drop ist MIT-lizenziert. Umgesetzt sind statt FullCalendar und Recharts ein eigener Kalender und eigene SVG-Diagramme (ADR 0026 und 0028) |
 | API | NestJS 11 (Express-Adapter) mit hexagonalem Kern | breiteste Middleware-Kompatibilität (Auth-Handler, Raw Body für Webhooks) |
 | API-Vertrag | zod-Schemas in `packages/contracts`, nestjs-zod (Validierung und Routen-Metadaten), Component-Schemas des OpenAPI-3.0-Dokuments direkt aus zod, Orval generiert den typisierten Client mit TanStack-Query-Hooks (ADR 0013) | eine Quelle der Wahrheit für Formulare, API und KI-Output; OpenAPI als Basis für eine spätere Public API; die CI schlägt bei Abweichungen fehl |
 | Auth | Better Auth, eingebunden in NestJS (die API ist die einzige Auth-Instanz), DB-Sessions in einem httpOnly-Cookie, same-origin | Auth.js wird seit 2025 vom Better-Auth-Team betreut. Better Auth bringt E-Mail/Passwort, Verifizierung, 2FA (TOTP), Social Login und Passkeys mit, ohne selbstgebauten Security-Code. Mandanten und Rollen bleiben in unserer eigenen Domain. |
@@ -261,7 +261,7 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
 | 2. Workspace und Marke | Firmenprofil, Content-Säulen, Brand Voice (Ton, Do/Don't, Vokabular, verbotene Wörter, Emoji- und Hashtag-Politik, 3 bis 5 Beispielposts), eigene Stile; deterministisch serialisiert | Breakpoint 2 (pro Brand-Voice-Version) |
 | 3. Aufgabe | Aufgabentyp, Stil, Zielaccounts (`t1`, `t2`, ...), Medienbeschreibungen, Sprache, Briefing in `<brief>` | nicht gecacht |
 
-Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md` (`PROMPT_VERSION = 'gen-v1'`). Grenzwerte und Stil-Katalog setzt der Renderer aus `@smp/platform-rules` und den Presets ein, damit Prompt und Validierung übereinstimmen. Nutzerdaten in den Tags werden escaped, sodass sie keinen Tag schließen können. Snapshot-Tests vergleichen alle gerenderten Prompts byte-genau.
+Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md`. `PROMPT_VERSION` steht in jeder `AiGeneration` und ändert sich mit jedem Prompt; seit Schritt 5.6 ist sie `'gen-v2'`, weil die Aufgabe der Themenvorschläge die Top-Posts nennt ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)). Grenzwerte und Stil-Katalog setzt der Renderer aus `@smp/platform-rules` und den Presets ein, damit Prompt und Validierung übereinstimmen. Nutzerdaten in den Tags werden escaped, sodass sie keinen Tag schließen können. Snapshot-Tests vergleichen alle gerenderten Prompts byte-genau.
 
 ### 5.3 Ausgabe und Abläufe
 
@@ -277,6 +277,7 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md` (`PROM
 - **Refine**: Schnellaktionen "kürzer", "länger", "formeller", "lockerer", "stärkerer Hook", "CTA ergänzen", "weniger Emojis", "DE/EN übersetzen", "für Plattform X umschreiben" sowie eigene Anweisungen. Jede Aktion ist ein eigener zustandsloser Aufruf mit demselben gecachten Präfix. Die UI zeigt einen Diff mit Übernehmen und Verwerfen.
 - **Themenvorschläge**:
   - Kontext: Workspace-Profil, Content-Säulen, die letzten 30 Posts, die Top-5-Performer der letzten 90 Tage mit Metriken, verworfene Ideen (als Negativbeispiele) und anstehende Termine (Feiertage, eigene Daten).
+  - Top-Performer: die fünf veröffentlichten Varianten mit den meisten Engagements und mindestens 100 Impressions, ohne Probeläufe und gelöschte Posts. Sie stehen mit Kürzeln (`top-1` bis `top-5`) im Prompt. Nennt eine Idee ein Kürzel in `basedOn`, verweist sie auf die Variante (`variant:<id>`); die API zeigt die Posts als `basedOnPosts` ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)).
   - Es entstehen 10 Ideen, Dubletten gegen bestehende Ideen werden per `pg_trgm` entfernt.
   - Aktionen: speichern, verwerfen, "Post erstellen" (füllt den Composer vor).
   - Optional ein wöchentlicher Auto-Lauf sowie aktuelle Themen über das Claude-Tool `web_search` (eigener Schalter, kostet zusätzlich).
@@ -320,7 +321,7 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md` (`PROM
   - `Idea`, `Post` (Master-Inhalt: Briefing, Stil, Brand Voice) und `PostVariant` (ein Eintrag pro Zielaccount).
 - **Media**: `MediaAsset` (Status PENDING_UPLOAD, PROCESSING, READY oder REJECTED; Maße, sha256, Alt-Text), `MediaRendition` (Profil pro Plattform plus Zuschnitt), `PostMedia` (Reihenfolge, Zuschnitt und Alt-Text pro Variante).
 - **Publishing**: `PublishAttempt` (Protokoll jedes Versuchs inkl. Fehlercode und IG-Container-IDs), `OutboxEvent`, `WebhookEvent` (idempotent).
-- **Analytics**: `MetricSnapshot` (append-only, kumulative Zähler plus Rohdaten und Mapping-Version), `PostMetricLatest` (für schnelle Listen und Top-Posts), `AccountMetricSnapshot` (täglich: Follower, Reichweite, Profilaufrufe), `AnalyticsDaily` (Rollup-Tabelle).
+- **Analytics**: `MetricSnapshot` (append-only, kumulative Zähler plus Rohdaten und Mapping-Version), `PostMetricLatest` (für schnelle Listen und Top-Posts), `AccountMetricSnapshot` (ein Eintrag pro Account und lokalem Tag: Follower, Reichweite, Profilaufrufe), `AnalyticsDaily` (Rollup pro Account und lokalem Tag; Reichweite der Accounts und Summe der Post-Reichweiten getrennt; [ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)).
 - **KI und Kosten**: `AiGeneration`, `UsageRecord` (Ledger, idempotent pro Quelle), `UsageCounter` (atomare Quoten-Zähler), `ApiCostRecord` (X-Kosten pro Operation), `PriceBook`.
 - **Billing**: `Plan` (Limits als zod-validiertes JSON: Workspaces, Accounts, Mitglieder, KI-Guthaben, Posts pro Monat, Speicher, Analytics-Historie, X-Browser erlaubt, X-Ausgabenlimit), `Subscription`.
 - **Querschnitt**: `FeatureFlag` (global, pro Organisation oder pro Workspace, inkl. Kill-Switches), `RiskAcknowledgement`, `AuditLog` (append-only), `Notification` und `NotificationPreference`, `WorkspaceSettings` (Dry-Run, Verhalten bei verpasstem Zeitfenster, Effort-Overrides), `GdprRequest`.
@@ -330,7 +331,7 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md` (`PROM
 - Status und Zeitplan: `status`, `scheduledAt` (UTC), `scheduledTimezone` (IANA).
 - Steuerung: `scheduleVersion` (wird bei jedem Umplanen erhöht und ist Teil der Job-ID), `version` (Optimistic Locking), `queuedAt` (für den Sweeper), `leaseOwner` und `leaseUntil`.
 - Ergebnis: `publishedAt`, `externalPostId`, `externalUrl`, `failureCode`, `lastError`, `isDryRun`.
-- Sonstiges: `contentHash` (für den Abgleich), `metricsNextAt` und `metricsStep`.
+- Sonstiges: `contentHash` (für den Abgleich), `metricsNextAt` und `metricsStep`, `externalDeletedAt` (die Plattform kennt den Post nicht mehr; keine weiteren Abfragen).
 
 Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SCHEDULED'` und auf `metrics_next_at` für `status='PUBLISHED'`.
 
@@ -425,12 +426,12 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 | Queue | Jobs | Dedupe (Job-ID) | Verarbeitet von (`WORKER_ROLES`) |
 |---|---|---|---|
-| `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (täglich, gestaffelt), `tick.maintenance` (nachts) | Job-Scheduler-ID | `scheduler` |
+| `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (stündlich; pro Workspace einmal am Tag ab 03:00 Ortszeit, gestaffelt), `tick.maintenance` (nachts) | Job-Scheduler-ID | `scheduler` |
 | `publish` | `publish.variant { workspaceId, variantId, scheduleVersion, trigger, traceparent }` | `pub.{variantId}.{scheduleVersion}` | `publisher` |
 | `publish-dead` | `publish.dead` (Kopie eines endgültig gescheiterten Publish-Jobs, nur zum Ansehen in Bull Board) | `dead.pub.{variantId}.{scheduleVersion}` | - |
 | `xb-commands` / `xb-results` | `xb.publish`, `xb.metrics`, `xb.verify-session`, `xb.delete`, `xb.login.start`, `xb.canary` / `xb.result` | `xb.{op}.{id}.{v}` | browser-worker / `publisher` |
 | `media` | `media.process`, `media.render` | `media.{assetId}`, `rend.{assetId}.{profile}.{cropHash}` | `media` |
-| `analytics` | `metrics.post` (gebatcht pro Account), `metrics.account`, `metrics.rollup` | `mp.{accountId}.{bucket}` | `analytics` |
+| `analytics` | `metrics.post` (gebatcht pro Account), `metrics.account`, `metrics.rollup` | `mp.{accountId}.{bucket}`, `ma.{accountId}.{day}`; der Rollup dedupliziert über `ru.{workspaceId}.{from}.{to}` | `analytics` |
 | `tokens` | `token.refresh` | `tok.{connectionId}` | `publisher` |
 | `ai` | `ai.topic-ideas`, `ai.alt-text` (für Vorschläge im Hintergrund; auf Knopfdruck laufen beide synchron, ADR 0016 und 0021) | - | `ai` |
 | `notifications` | `notify.dispatch`: ein Outbox-Ereignis (in der App und per E-Mail an seine Empfänger) oder eine E-Mail an eine Adresse | `ntf.{outboxId}` für das Ereignis, `ntf.{outboxId}.{userId}` für seine E-Mails | `notify` |
@@ -457,11 +458,12 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | +7 d | ja | ja | ja | ja |
 | +30 d | ja | ja | optional je Tarif | nein |
 
-- **Nach dem letzten Zeitpunkt**: Schluss. Ein manueller Aktualisieren-Button ist auf einmal pro Stunde begrenzt und zeigt bei X die Kosten an.
-- **Konfiguration**: global, pro Tarif und pro Workspace. Batch-Abrufe wo möglich: X bis 100 IDs, Meta Batch bis 50, LinkedIn Share-Listen.
-- **Account-Metriken**: täglich um ca. 03:00 Workspace-Zeit, gestaffelt (Follower, Reichweite, Profil- bzw. Seitenaufrufe).
+- **Nach dem letzten Zeitpunkt**: Schluss. Ein manueller Aktualisieren-Button ist auf einmal pro Stunde begrenzt und zeigt bei X die Kosten an (noch nicht umgesetzt; der Leitfaden sieht ihn in Phase 5 nicht vor).
+- **Konfiguration**: global, pro Tarif und pro Workspace. Batch-Abrufe wo möglich: X bis 100 IDs, Meta Batch bis 50, LinkedIn Share-Listen. Umgesetzt ist die Kaskade der Tabelle; die Abfrage nach 30 Tagen bei X und Einstellungen pro Tarif kommen mit Phase 7.
+- **Planung**: `tick.analytics` reiht pro Account einen Job ein. Der Job beansprucht die fälligen Varianten mit `FOR UPDATE SKIP LOCKED` und 15 Minuten Sperrzeit, sodass zwei Läufe nie dieselben Posts abfragen. Verpasste Stufen werden übersprungen. Fehler verschieben die Abfragen: Rate-Limit `Retry-After` oder 15 Minuten, Zugang 6 Stunden, sonst 30 Minuten. Ein Post, den die Plattform nicht mehr kennt, bekommt `externalDeletedAt` und keine weiteren Abfragen ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)).
+- **Account-Metriken**: täglich um ca. 03:00 Workspace-Zeit, gestaffelt (Follower, Reichweite, Profil- bzw. Seitenaufrufe). `tick.account-metrics` läuft stündlich und holt den Vortag für jeden Account, in dessen Workspace es 03:00 Uhr oder später ist und dem der Tag fehlt; die Jobs verteilen sich über 50 Minuten.
 
-**Normalisierung** (versionierte Mappings pro Adapter; die Rohdaten bleiben erhalten, damit bei geänderten Mappings neu berechnet werden kann):
+**Normalisierung** (versionierte Mappings pro Adapter; die Rohdaten bleiben erhalten, damit bei geänderten Mappings neu berechnet werden kann; umgesetzt ist bisher das Mapping des Mock-Adapters, die echten folgen mit den Adaptern aus Schritt 4.12 bis 4.14):
 
 | Normalisiert | LinkedIn Organisation | LinkedIn Person | Facebook | Instagram | X |
 |---|---|---|---|---|---|
@@ -471,9 +473,11 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | likes / comments / shares | like/comment/shareCount | REACTION / COMMENT / RESHARE | reactions / comments / shares | likes / comments / shares | like / reply / retweet+quote |
 | saves / clicks | - / clickCount | - / Link-Klicks | - / Klicks | saved / - | bookmark / url_link_clicks |
 
-- **Abgeleitete Kennzahlen**: `engagements` ist die Summe der Interaktionen. `engagementRate = engagements / (impressions ?? views ?? reach)`; fehlt eine Basis, zeigt die UI "n. v." mit Tooltip.
-- **Reichweite**: ist über Posts nicht addierbar. Das Dashboard benennt das ehrlich und nutzt Account-Reichweite, wo vorhanden.
+- **Abgeleitete Kennzahlen**: `engagements` ist die Summe aus Likes, Kommentaren, Shares, Saves und Klicks und null, wenn keiner dieser Werte gemeldet ist. `impressions` sind Impressions, sonst Views. `engagementRate = engagements / (impressions ?? views ?? reach)`, über einen Zeitraum als Summe der Engagements durch die Summe der Basen; fehlt eine Basis, zeigt die UI "n. v." mit Erklärung. Der Follower-Zuwachs zählt vom letzten Stand vor dem Zeitraum, sonst vom ersten im Zeitraum ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)).
+- **Reichweite**: ist über Posts nicht addierbar. Das Dashboard benennt das ehrlich und nutzt Account-Reichweite, wo vorhanden. Die API nennt die Basis (`account`, `posts` oder `mixed`).
 - **Speicherung**: Snapshots (append-only), ein Upsert in `PostMetricLatest` und ein Rollup in `AnalyticsDaily` (zeitnah plus nächtlicher Komplettlauf). Ab ca. 50 Mio. Zeilen werden die Snapshots monatlich partitioniert.
+- **Rollup**: zählt pro Account und lokalem Tag der Workspace-Zone die Zuwächse zwischen aufeinanderfolgenden Snapshots, die veröffentlichten Posts und die Tageszahlen der Accounts. Der zeitnahe Lauf rechnet die Tage, die eine Abfrage berührt hat, der nächtliche in `tick.maintenance` die letzten 35 Tage. Eine Advisory-Sperre pro Workspace hält zwei Läufe auseinander.
+- **API**: sieben Endpunkte unter `/api/w/:ws/analytics` (`analytics.read`). Zeiträume sind lokale Tage, höchstens 366 pro Anfrage, und durch die Analytics-Historie begrenzt (bis Phase 7 `ANALYTICS_HISTORY_DAYS`). Die Übersicht liegt 5 Minuten in Redis, der CSV-Export ist gestreamt.
 - **Dashboard**:
   - KPI-Kacheln mit Vergleich zum Vorzeitraum: Impressions, Reach, Engagements, Engagement-Rate, Follower-Wachstum, Anzahl Posts.
   - Zeitreihen pro Tag, Plattform und Account.
@@ -482,7 +486,9 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
   - "Nächste geplante Posts".
   - CSV-Export.
   - Später eine Heatmap der besten Posting-Zeiten.
-- **Rückkopplung**: Die Top-Performer fließen in die KI-Themenvorschläge ein.
+
+  Umgesetzt unter `/w/:ws/analytics` mit eigenen Detailseiten für Post und Account; das Dashboard zeigt vier KPIs der letzten 30 Tage und die drei besten Posts ([ADR 0028](adr/0028-analytics-im-web.md)).
+- **Rückkopplung**: Die Top-Performer fließen in die KI-Themenvorschläge ein (Abschnitt 5.3).
 
 ---
 
@@ -568,7 +574,8 @@ onboarding/                      Organisation, Workspace, Profil (Branche, Zielg
 (app)/w/[ws]/calendar            Monat/Woche/Liste; Ansicht, Tag und Zeitzone über URL-Parameter
 (app)/w/[ws]/posts               eine Zeile pro Variante, Filter nach Status, Plattform, Account, Zeitraum
                                  (URL-Parameter); Massenaktionen Planung abbrechen und Löschen
-(app)/w/[ws]/analytics           Übersicht; Post- und Account-Details; CSV-Export
+(app)/w/[ws]/analytics           Übersicht, Filter im Query-String, CSV-Export;
+                                 /posts/[variantId] und /accounts/[accountId]: Post- und Account-Details
 (app)/w/[ws]/ideas               KI-Themenvorschläge, eigene Ideen, "Post erstellen"
 (app)/w/[ws]/media               Medienbibliothek
 (app)/w/[ws]/accounts            verbinden/trennen, Status (z.B. "Token läuft in 5 Tagen ab"), X-Methode und Kosten;
@@ -588,7 +595,8 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   - Planen: Datum und Uhrzeit in der Workspace-Zeitzone, Account und Zeitpunkt pro Variante überschreibbar, "Jetzt posten", Kostenhinweis bei X, Hinweis auf ablaufende Zugänge. Planungen laufen in der Warteschlange des Auto-Speicherns nach den offenen Speicherungen; der Status folgt den Live-Events, und eine Variante, die veröffentlicht wird oder wurde, ist gesperrt ([ADR 0026](adr/0026-planen-im-web.md)).
   - Entwürfe werden automatisch gespeichert: 800 ms nach der letzten Änderung, nacheinander und mit Optimistic Locking; ein neuer Beitrag entsteht, sobald Briefing und eine Plattform da sind ([ADR 0017](adr/0017-composer-zustand-und-auto-speichern.md)).
 - **Kalender**: eigener Kalender (CSS-Grid, `dnd-kit`) mit Varianten als Plattform-Kürzel, Uhrzeit, Textanfang und Status-Icon. Umplanen per Drag & Drop auf einen anderen Tag mit optimistischem Update und Rollback; vergangene Tage nehmen nichts an. Für Tastaturnutzer und neue Uhrzeiten gibt es einen Umplanen-Dialog ([ADR 0026](adr/0026-planen-im-web.md)).
-- **Bibliotheken**: TanStack Query (Orval-Hooks), react-hook-form + zodResolver (dieselben Schemas wie die API), der URL-State über einen kleinen Hook mit zod-Schema, der Composer-State als getesteter Reducer unter `useReducer` (Zustand-Stores nur für State, den mehrere Seiten teilen; ADR 0017), shadcn/ui + Tailwind 4, lucide, sonner, `dnd-kit`, Datum und Zeitzonen über `Intl` (ADR 0026); für Analytics später TanStack Table und Recharts.
+- **Analytics**: eigene SVG-Diagramme (Liniendiagramm, Balkenliste, Sparklines). Jede Plattform hat feste Farbe, Strichmuster und Marker. Das Liniendiagramm lässt sich mit den Pfeiltasten bedienen und hat eine Tabelle derselben Zahlen. Fehlende Werte erscheinen als "n. v.", nie als 0 ([ADR 0028](adr/0028-analytics-im-web.md)).
+- **Bibliotheken**: TanStack Query (Orval-Hooks), react-hook-form + zodResolver (dieselben Schemas wie die API), der URL-State über einen kleinen Hook mit zod-Schema, der Composer-State als getesteter Reducer unter `useReducer` (Zustand-Stores nur für State, den mehrere Seiten teilen; ADR 0017), shadcn/ui + Tailwind 4, lucide, sonner, `dnd-kit`, Datum und Zeitzonen über `Intl` (ADR 0026); für Analytics die Tabellen von `@smp/ui` und eigene Diagramme statt TanStack Table und Recharts (ADR 0028).
 - **i18n**: next-intl mit ICU-Nachrichten, eine Datei pro Namespace und Sprache (`apps/web/messages/{de,en}/<namespace>.json`), typisierte Keys. Deutsch ist die Referenz; `pnpm check:i18n` prüft in der CI, dass jede Sprache dieselben Keys mit denselben Argumenten hat und jede Nachricht gültiges ICU ist. Plural über ICU (`{count, plural, one {...} other {...}}`), Datum und Zahlen über `useFormatter`. API-Fehlercodes werden im Client unter `errors.codes.<CODE>` übersetzt.
 - **Live-Updates**: SSE `/api/w/:ws/events` invalidiert Query-Keys; als Fallback wird alle 30 s gepollt. Jeder Tab öffnet höchstens einen Stream, für den offenen Workspace. Die API hört pro Prozess mit einer Redis-Verbindung auf die Kanäle der Workspaces mit offenen Streams. Eine neue Benachrichtigung (`notification.created`) erreicht nur die Streams ihres Nutzers. Nach einem verlorenen Stream gelten alle Abfragen, die ein Ereignis ändern könnte, als veraltet.
 - **Ziel**: WCAG 2.2 AA.
@@ -702,8 +710,8 @@ docker compose --profile app up --build
 
 - **Seed**:
   - Demo-Organisation mit Nutzern pro Rolle (`owner@demo.local`, `admin@`, `editor@`, `viewer@`).
-  - Brand Voice und Stil-Presets, Mock-Accounts für alle 4 Plattformen.
-  - Posts in jedem Status und 90 Tage synthetische Metriken.
+  - Stil-Presets (per Migration) und im Demo-Workspace Mock-Accounts für alle 4 Plattformen. Eine Brand Voice legt der Seed nicht an ([ADR 0028](adr/0028-analytics-im-web.md)).
+  - Veröffentlichte Posts über 90 Tage mit Snapshots, Tageszahlen der Accounts und Rollup; dazu geplante Posts, Entwürfe, ein fehlgeschlagener und ein zu prüfender Post.
 - **MockPlatformAdapter**: nutzt die echten Capability-Tabellen und eine Fake-OAuth-Seite (so werden state und PKCE mitgetestet). Er simuliert Latenz, liefert deterministisch wachsende Metriken und injiziert Fehler pro Account: `failMode = rate_limit_once | auth_expired | unknown_outcome | permanent | slow`.
 - **Dry-Run**: per `PUBLISH_DRY_RUN=true` oder pro Workspace. Echte Adapter erneuern Tokens und validieren, senden aber nicht, und speichern den Payload-Snapshot. So lassen sich echte Verbindungen ohne Posts und ohne X-Kosten prüfen.
 - **Zeitraffer**: `SCHEDULER_TICK_MS=2000` und `ANALYTICS_CADENCE_SCALE=60` (1 Minute entspricht 1 Stunde).

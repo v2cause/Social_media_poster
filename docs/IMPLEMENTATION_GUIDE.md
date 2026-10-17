@@ -997,6 +997,10 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 
 #### 5.1 Datenmodell
 - **Erstellen**: `MetricSnapshot`, `PostMetricLatest`, `AccountMetricSnapshot`, `AnalyticsDaily`, die Indizes aus Teil A und RLS.
+- **Umgesetzt** ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)):
+  - Migration 0013 legt die vier Tabellen mit den Indizes aus Teil A an. `MetricSnapshot` ist append-only und hält Rohdaten und `mappingVersion`; `AccountMetricSnapshot` hat einen Eintrag pro Account und lokalem Tag. `PostVariant` bekommt `externalDeletedAt`.
+  - Migration 0014 legt die Policies `tenant_isolation` an. `app_user` darf Snapshots einfügen, aber weder ändern noch löschen.
+  - Tests: `packages/db/test/rls-analytics.integration.test.ts`.
 
 #### 5.2 Planer und Collector
 - **Erstellen**: `tick.analytics` (5 min), `metrics.post`, `metrics.account`, Normalisierungs-Mappings `src/<platform>/metrics-map.ts` mit `MAP_VERSION`.
@@ -1006,11 +1010,37 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Gelöschte Posts (404) bekommen die Markierung "extern gelöscht" und keine weiteren Abrufe.
 - **Darauf achten**: Fehlende Werte sind `null`, nicht 0. Rohdaten bleiben immer erhalten. Die Kaskade ist per `ANALYTICS_CADENCE_SCALE` für Tests beschleunigbar.
 - **Fertig, wenn**: Normalisierungstests mit echten (bereinigten) Payloads pro Plattform grün sind.
+- **Umgesetzt** ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)):
+  - Kaskade: 1, 24, 72, 168 und 720 Stunden nach der Veröffentlichung; X über die API nach 24, 72 und 168, über den Browser nach 24 und 168 Stunden. Die erste Abfrage plant der Publisher beim Veröffentlichen; verpasste Stufen werden übersprungen.
+  - Planer: `tick.analytics` reiht pro Account mit fälligen Varianten einen Job `metrics.post` ein. Der Job beansprucht die Varianten seines Accounts mit `FOR UPDATE SKIP LOCKED` und 15 Minuten Sperrzeit, in Batches (X 100, Meta und LinkedIn 50).
+  - Collector (Worker-Rolle `analytics`): Snapshot, `PostMetricLatest` nur bei neuerem Stand, nächste Stufe. Die Lesekosten von X stehen im Kostenbuch der Organisation.
+  - Gelöschte Posts bekommen `externalDeletedAt` und keine Abfragen mehr. Fehler verschieben die Abfragen: Rate-Limit `Retry-After` oder 15 Minuten, Zugang 6 Stunden, sonst 30 Minuten.
+  - Account-Zahlen: `tick.account-metrics` (stündlich) reiht `metrics.account` für den Vortag ein, sobald es in der Zone des Workspace 03:00 Uhr ist und der Tag fehlt.
+  - Mapping: `src/mock/metrics-map.ts` mit `MAP_VERSION`. Die Adapter melden gelöschte Posts, und die Contract-Suite prüft beides.
+  - Tests:
+    - `packages/core/test/analytics/` (`collect-post-metrics`, `collect-account-metrics`, `analytics-rules`)
+    - `packages/db/test/analytics-adapters.integration.test.ts`
+    - `apps/worker/src/scheduler/analytics-tick.test.ts`
+    - `apps/worker/test/analytics.integration.test.ts` (im Zeitraffer mit `ANALYTICS_CADENCE_SCALE`)
+    - `packages/platform-adapters/src/mock/metrics-map.test.ts`
+- **Stand**: für den Mock fertig. Für die echten Plattformen fehlen die Mappings und ihre Tests mit bereinigten echten Payloads. Gründe: Die Doku von LinkedIn, Meta und X ist aus der Entwicklungsumgebung gesperrt, und es gibt keine Test-Accounts (siehe 4.12 bis 4.14).
 
 #### 5.3 Rollups
 - **Erstellen**: `metrics.rollup` (nach jedem Collector-Lauf für den betroffenen Tag) und einen nächtlichen Komplettlauf über die letzten 35 Tage.
 - **So sieht es aus**: `AnalyticsDaily` wird per SQL-Upsert aus den Deltas aufeinanderfolgender Snapshots befüllt, pro Account und Tag in der **Workspace-Zeitzone**.
 - **Darauf achten**: Tagesgrenzen richten sich nach der Workspace-Zeitzone, nicht nach UTC. Die Reichweite wird nicht summiert, sondern als "Summe der Post-Reichweiten" gekennzeichnet.
+- **Umgesetzt** ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)):
+  - Rechnung: `metrics.rollup` füllt einen Zeitraum lokaler Tage per SQL-Upsert, und zwar mit:
+    - den Zuwächsen der Zähler zwischen aufeinanderfolgenden Snapshots,
+    - den an dem Tag veröffentlichten Posts,
+    - den Tageszahlen der Accounts.
+  - Grenzen: Summen werden bei `INT_MAX` gekappt, und null bleibt null. Tage ohne Werte werden gelöscht. Eine Advisory-Sperre pro Workspace hält zwei Läufe auseinander.
+  - Auslöser: Der Collector bestellt den Rollup der berührten Tage (Job-ID pro Workspace und Zeitraum, 10 s Verzögerung). `tick.maintenance` rechnet nachts die letzten 35 Tage jedes Workspace neu.
+  - Reichweite: `AnalyticsDaily` führt die Reichweite der Accounts (`account_reach`) und die Summe der Post-Reichweiten (`post_reach`) getrennt.
+  - Tests:
+    - `packages/core/test/analytics/roll-up-analytics.test.ts`
+    - `packages/db/test/analytics-rollup.integration.test.ts` (Tagesgrenzen in `Europe/Berlin`)
+    - `packages/queue/src/job-id.test.ts`
 
 #### 5.4 Analytics-API
 - **Erstellen**:
@@ -1022,6 +1052,18 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - `GET /api/w/:ws/analytics/accounts/:id`
   - `GET /api/w/:ws/analytics/export.csv` (gestreamt)
 - **Darauf achten**: Quoten und Raten werden einheitlich auf dem Server berechnet. Die Übersicht wird 5 min in Redis gecacht. Der Zeitraum ist durch die Analytics-Historie des Tarifs begrenzt.
+- **Umgesetzt** ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)):
+  - Rechte: Alle sieben Endpunkte verlangen `analytics.read`. Zeiträume sind lokale Tage des Workspace, ohne Angabe die letzten 30 Tage, höchstens 366 Tage pro Anfrage.
+  - Rechnung: Der Core rechnet die Kennzahlen für alle Ansichten mit denselben Funktionen. Die Reichweite nennt ihre Basis (`account`, `posts`, `mixed`).
+  - Vorzeitraum: Er wird an der Historie abgeschnitten (`ANALYTICS_HISTORY_DAYS`, Standard 365, bis Phase 7). Ein früherer Beginn ergibt `ANALYTICS_HISTORY_EXCEEDED`.
+  - Cache: Die Übersicht liegt 5 Minuten in Redis. Ohne Redis wird ohne Cache gerechnet.
+  - CSV-Export: gestreamt; Felder, die wie eine Formel beginnen, bekommen ein Apostroph.
+  - Tests:
+    - `packages/core/test/analytics/kpis.test.ts`
+    - `packages/contracts/src/analytics.test.ts`
+    - `apps/api/src/modules/analytics/csv.test.ts`
+    - `apps/api/test/analytics.integration.test.ts`
+    - die Rechte-Matrix
 
 #### 5.5 Web: Dashboard und Analytics
 - **So sieht es aus** (bei der Umsetzung das `dataviz`-Skill für Farben und Diagrammregeln laden):
@@ -1033,10 +1075,36 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - **Leerer Zustand**: "Noch keine Daten. Erste Metriken etwa 1 Stunde nach der Veröffentlichung."
 - **Darauf achten**: "n. v." und 0 werden sichtbar unterschieden. Die Diagramme sind barrierefrei (Tabellenalternative, keine Information nur über Farbe).
 - **Fertig, wenn**: Mit Seed-Daten (90 Tage) alle Ansichten korrekt rendern und die Zahlen auf Staging im Rahmen der Toleranz mit den Plattform-UIs übereinstimmen.
+- **Umgesetzt** ([ADR 0028](adr/0028-analytics-im-web.md)):
+  - Diagramme: eigene SVG-Diagramme statt Recharts (Liniendiagramm, Balkenliste, Sparklines). Die Geometrie liegt in getesteten Funktionen.
+  - Barrierefreiheit: Jede Plattform hat feste Farbe, Strichmuster und Marker. Das Liniendiagramm lässt sich mit den Pfeiltasten bedienen und hat eine Tabelle mit denselben Zahlen. "n. v." erscheint mit Erklärung.
+  - Seiten:
+    - `/w/:ws/analytics` mit Filterleiste, sechs KPI-Kacheln, Verlauf, Plattformvergleich, Top-Posts und Auswertung nach Stil oder Wochentag
+    - die Detailseiten für Post und Account
+    - auf dem Dashboard vier KPIs und die drei besten Posts
+  - Zustand und Export: Alle Filter stehen im Query-String. Der CSV-Export trägt dieselben Filter.
+  - Seed: `pnpm db:seed` legt im Demo-Workspace vier Mock-Accounts mit 90 Tagen Posts, Snapshots, Tageszahlen und Rollup an (`packages/db/src/seed/demo-analytics.ts`).
+  - Tests:
+    - `apps/web/src/features/analytics/*.test.ts`
+    - `packages/db/test/seed.integration.test.ts`
+    - `apps/web/e2e/analytics.spec.ts`: alle Ansichten auf den Seed-Daten, als Betrachter, mit Tabellen, "n. v." bei der Reichweite von X und dem CSV-Export
+- **Stand**: Mit den Seed-Daten rendern alle Ansichten. Offen ist der Abgleich mit den Plattform-UIs auf Staging; er braucht echte Accounts und Staging. Das Skill `dataviz` gibt es in dieser Umgebung nicht. Farben und Diagrammregeln stehen deshalb in [ADR 0028](adr/0028-analytics-im-web.md).
 
 #### 5.6 Rückkopplung in die Themenvorschläge
 - **Erstellen**: Die Top-5-Performer der letzten 90 Tage fließen in `suggestTopics` ein.
 - **Fertig, wenn**: Die Themenideen in `basedOn` auf echte Posts verweisen.
+- **Umgesetzt** ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)):
+  - Auswahl: die fünf veröffentlichten Varianten der letzten 90 Tage mit den meisten Engagements und mindestens 100 Impressions (sonst Views oder Reichweite). Probeläufe und gelöschte Posts zählen nicht.
+  - Prompt: Die Posts stehen mit Kürzel (`top-1` bis `top-5`) und ihren Zahlen im Prompt. Die Prompt-Version ist `gen-v2`.
+  - Verweis: Eine Idee, die ein Kürzel nennt, speichert die Variante als `variant:<id>` in `basedOn`. Die Ideen-API löst sie in `basedOnPosts` auf, und die Ideenseite verlinkt die Posts auf ihre Analytics.
+  - Tests:
+    - `packages/core/test/ai/refine-ideas-voice.test.ts`
+    - `packages/core/test/content/idea-sources.test.ts`
+    - `packages/ai/src/prompts/prompts.test.ts` (Snapshot)
+    - `packages/ai/src/mock/mock-ai-provider.test.ts`
+    - `packages/db/test/content-adapters.integration.test.ts`
+    - `apps/web/e2e/analytics.spec.ts`: Ideen erzeugen und dem Top-Post folgen
+- **Stand**: Der Eval-Lauf für `gen-v2` mit der Claude API wartet auf einen `ANTHROPIC_API_KEY` (wie Schritt 2.10).
 
 ---
 
