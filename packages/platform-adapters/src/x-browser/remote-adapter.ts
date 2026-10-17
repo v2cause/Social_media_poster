@@ -51,6 +51,10 @@ const TASK_MS: Readonly<Record<Exclude<XbOperation, 'login.start'>, number>> = {
   'verify-session': 2 * 60_000,
   canary: 2 * 60_000,
 };
+/** How long the caller of a command waits for its outcome: the start window and the task. */
+export const xbWaitMs = (operation: Exclude<XbOperation, 'login.start'>): number =>
+  XB_START_WINDOW_MS + TASK_MS[operation];
+
 /** The browser worker reads the counters of ten posts per command. */
 const METRICS_PER_COMMAND = 10;
 
@@ -210,7 +214,7 @@ export class XBrowserRemoteAdapter implements SocialPlatformAdapter {
     let outcome: XbOutcome<O>;
     try {
       outcome = await this.deps.bus.send(operation, command, {
-        waitMs: XB_START_WINDOW_MS + TASK_MS[operation],
+        waitMs: xbWaitMs(operation),
         signal: ctx.signal,
         heartbeat: () => ctx.keepAlive(),
       });

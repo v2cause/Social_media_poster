@@ -72,4 +72,4 @@ export { RedisSelectorDriftCounter } from './x-browser/drift-counter';
 export { BullBrowserLoginQueue } from './x-browser/login-queue';
 export { RedisBrowserLoginStore } from './x-browser/login-store';
 export { normalizeXBrowserPostMetrics, X_BROWSER_MAP_VERSION } from './x-browser/metrics-map';
-export { XB_START_WINDOW_MS, XBrowserRemoteAdapter } from './x-browser/remote-adapter';
+export { XB_START_WINDOW_MS, XBrowserRemoteAdapter, xbWaitMs } from './x-browser/remote-adapter';

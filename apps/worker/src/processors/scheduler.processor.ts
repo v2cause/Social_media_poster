@@ -5,6 +5,7 @@ import {
   SCHEDULER_QUEUE,
   TICK_JOB_OPTIONS,
   TICK_SCHEDULES,
+  TICKS,
   type Tick,
   type TickSchedule,
 } from '@smp/queue';
@@ -17,8 +18,9 @@ import { TICK_HANDLERS, WORKER_ENV } from '../worker.tokens';
 
 // The ticks of the role "scheduler" (architecture 7.4). Every tick with a handler becomes a job
 // scheduler named like the tick; all replicas upsert the same definitions, so each tick runs on
-// one worker at a time. The steps of the guide add their ticks as they come (4.7 publish and
-// sweeper, 4.9 tokens, phase 5 analytics).
+// one worker at a time, and a tick without a handler loses its scheduler. The steps of the guide
+// add their ticks as they come (4.7 publish and sweeper, 4.9 tokens, phase 5 analytics, 6.5 the
+// canary of the X browser).
 
 /** What a tick did, for the log; an empty record means there was nothing to do. */
 export type TickResult = Readonly<Record<string, unknown>>;
@@ -43,11 +45,16 @@ export class SchedulerProcessor extends WorkerHost implements OnApplicationBoots
 
   async onApplicationBootstrap(): Promise<void> {
     await this.queue.removeJobScheduler(LEGACY_SCHEDULER_ID);
-    for (const tick of Object.keys(this.handlers) as Tick[]) {
-      await this.queue.upsertJobScheduler(tick, this.scheduleOf(tick), {
-        name: tick,
-        opts: TICK_JOB_OPTIONS,
-      });
+    for (const tick of TICKS) {
+      if (this.handlers[tick]) {
+        await this.queue.upsertJobScheduler(tick, this.scheduleOf(tick), {
+          name: tick,
+          opts: TICK_JOB_OPTIONS,
+        });
+      } else {
+        // A tick the configuration no longer asks for, like the canary without its test account.
+        await this.queue.removeJobScheduler(tick);
+      }
     }
   }
 

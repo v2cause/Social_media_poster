@@ -10,9 +10,11 @@ import {
   PrismaPublishScheduler,
   PrismaSealedSecretStore,
   PrismaTokenMaintenanceUnitOfWork,
+  PrismaXBrowserOperations,
   type PrismaClient,
   type SystemPrismaClient,
 } from '@smp/db';
+import { BullXbCommandBus } from '@smp/platform-adapters';
 import {
   ANALYTICS_QUEUE,
   AnalyticsProducer,
@@ -24,7 +26,8 @@ import {
   TokenProducer,
   TOKENS_QUEUE,
 } from '@smp/queue';
-import { Queue } from 'bullmq';
+import { XB_COMMANDS_QUEUE } from '@smp/x-browser';
+import { Queue, QueueEvents } from 'bullmq';
 import Redis from 'ioredis';
 
 import type { TickHandlers } from '../processors/scheduler.processor';
@@ -33,12 +36,14 @@ import { Maintenance } from '../scheduler/maintenance';
 import { OutboxDispatcher } from '../scheduler/outbox-dispatcher';
 import { PublishTick } from '../scheduler/publish-tick';
 import { Sweeper } from '../scheduler/sweeper';
+import { XBrowserCanaryTick } from '../scheduler/x-browser-canary';
 import type { WorkerEnv } from '../worker-env';
 import { TICK_HANDLERS } from '../worker.tokens';
 
-// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9 and 5.2): the system client
-// for the scans across workspaces, app_user for the changes of the token monitor in the tenant of
-// each connection, the producers of the jobs the ticks add, and the tick handlers.
+// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9, 5.2 and 6.5): the system
+// client for the scans across workspaces, app_user for the changes of the token monitor in the
+// tenant of each connection, the producers of the jobs the ticks add, the commands of the daily
+// canary of the X browser, and the tick handlers.
 
 const SCHEDULER_CLIENTS = Symbol('SCHEDULER_CLIENTS');
 /** Variants per claim of tick.publish and per scan of the sweeper. */
@@ -49,6 +54,7 @@ interface SchedulerClients {
   system: SystemPrismaClient;
   database: PrismaClient;
   queues: Queue[];
+  events: QueueEvents[];
   producers: Redis;
   live: Redis;
 }
@@ -58,6 +64,9 @@ class SchedulerClientsLifecycle implements OnApplicationShutdown {
   constructor(@Inject(SCHEDULER_CLIENTS) private readonly clients: SchedulerClients) {}
 
   async onApplicationShutdown(): Promise<void> {
+    for (const events of this.clients.events) {
+      await events.close();
+    }
     for (const queue of this.clients.queues) {
       await queue.close();
     }
@@ -119,6 +128,23 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
     producer: new AnalyticsProducer(analyticsQueue),
     now: () => systemClock.now(),
   });
+  // The canary sends its command like the adapter of X does and waits for the outcome.
+  const canary =
+    env.FEATURE_X_BROWSER_GLOBAL && env.XB_CANARY_ACCOUNT_ID
+      ? {
+          queue: new Queue(XB_COMMANDS_QUEUE, { connection: producers }),
+          events: new QueueEvents(XB_COMMANDS_QUEUE, { connection: { url: env.REDIS_URL } }),
+          accountId: env.XB_CANARY_ACCOUNT_ID,
+        }
+      : null;
+  const canaryTick = canary
+    ? new XBrowserCanaryTick({
+        accounts: new PrismaXBrowserOperations(system),
+        bus: new BullXbCommandBus(canary.queue, canary.events),
+        accountId: canary.accountId,
+        now: () => systemClock.now(),
+      })
+    : null;
   const handlers: TickHandlers = {
     'tick.publish': () => publishTick.run(),
     'tick.sweep-queued': () => sweeper.run(),
@@ -130,6 +156,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
       const { secrets, outboxPurged } = await maintenance.run();
       return { ...secrets, outboxPurged, ...(await analytics.nightlyRollups()) };
     },
+    ...(canaryTick ? { 'tick.xb-canary': () => canaryTick.run() } : {}),
   };
   return [
     {
@@ -137,7 +164,14 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
       useValue: {
         system,
         database,
-        queues: [publishQueue, notificationsQueue, tokensQueue, analyticsQueue],
+        queues: [
+          publishQueue,
+          notificationsQueue,
+          tokensQueue,
+          analyticsQueue,
+          ...(canary ? [canary.queue] : []),
+        ],
+        events: canary ? [canary.events] : [],
         producers,
         live,
       } satisfies SchedulerClients,

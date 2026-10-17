@@ -35,6 +35,9 @@ export const workerEnvSchema = z
     // The deployment runs the browser worker: the roles "publisher" and "analytics" then reach X
     // without the API through xb-commands, where the gate of the workspace allows it (phase 6).
     FEATURE_X_BROWSER_GLOBAL: z.preprocess(unsetIfEmpty, z.stringbool().default(false)),
+    // The internal test account of X whose browser session the role "scheduler" runs the daily
+    // canary with (guide step 6.5); unset, no canary runs.
+    XB_CANARY_ACCOUNT_ID: z.preprocess(unsetIfEmpty, z.uuid().optional()),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true }).shape)
   // Needed by the role "scheduler" for its scans across workspaces (app_system).

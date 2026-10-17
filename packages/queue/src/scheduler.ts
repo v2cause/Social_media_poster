@@ -15,6 +15,7 @@ export const TICKS = [
   'tick.tokens',
   'tick.account-metrics',
   'tick.maintenance',
+  'tick.xb-canary',
 ] as const;
 export type Tick = (typeof TICKS)[number];
 
@@ -31,6 +32,8 @@ export const TICK_SCHEDULES: Readonly<Record<Tick, TickSchedule>> = {
   'tick.account-metrics': { pattern: '17 * * * *', tz: 'UTC' },
   // Nightly: re-wrap of the secrets, later the rollups and the clean-up.
   'tick.maintenance': { pattern: '41 3 * * *', tz: 'UTC' },
+  // Daily, where an internal test account is configured: the canary of the X browser (guide step 6.5).
+  'tick.xb-canary': { pattern: '23 5 * * *', tz: 'UTC' },
 };
 
 const DAY_SECONDS = 24 * 60 * 60;
