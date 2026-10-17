@@ -1,13 +1,17 @@
 import { capabilitiesOf, type Platform, type ValidationIssue } from '@smp/platform-rules';
 
 import type {
+  AccountMetricsResult,
   AdapterAccount,
   AdapterContext,
   ApiCostEntry,
   ConnectionMethod,
+  DateRange,
+  ExternalPostRef,
   NewPublishAttempt,
   OAuthConnector,
   OutboxEventInput,
+  PostMetricsResult,
   PublishAttemptOutcome,
   PublishJobDependencies,
   PublishJobScope,
@@ -404,6 +408,15 @@ export class ScriptedAdapter implements SocialPlatformAdapter {
   /** Runs inside publish before the answer, for example to record costs or stop the worker. */
   duringPublish: ((ctx: AdapterContext) => Promise<void>) | null = null;
   duringReconcile: ((ctx: AdapterContext) => Promise<void>) | null = null;
+  /** The posts of every metrics call, and the period of every account metrics call. */
+  readonly metricsCalls: ExternalPostRef[][] = [];
+  readonly accountRanges: DateRange[] = [];
+  /** An answer, an error, or a function of the posts asked for. */
+  metricsAnswers: (
+    PostMetricsResult[] | Error | ((refs: readonly ExternalPostRef[]) => PostMetricsResult[])
+  )[] = [];
+  accountAnswers: Answer<AccountMetricsResult>[] = [];
+  duringMetrics: ((ctx: AdapterContext, refs: readonly ExternalPostRef[]) => Promise<void>) | null = null;
 
   constructor(
     readonly platform: Platform = 'LINKEDIN',
@@ -461,14 +474,53 @@ export class ScriptedAdapter implements SocialPlatformAdapter {
     return Promise.reject(new Error('not used'));
   }
 
-  fetchPostMetrics(): Promise<never> {
-    return Promise.reject(new Error('not used'));
+  async fetchPostMetrics(
+    refs: readonly ExternalPostRef[],
+    ctx: AdapterContext,
+  ): Promise<PostMetricsResult[]> {
+    this.metricsCalls.push([...refs]);
+    this.tokens.push(await ctx.credentials.accessToken());
+    await this.duringMetrics?.(ctx, refs);
+    const answer = this.metricsAnswers.length > 1 ? this.metricsAnswers.shift() : this.metricsAnswers[0];
+    if (answer instanceof Error) {
+      throw answer;
+    }
+    if (typeof answer === 'function') {
+      return answer(refs);
+    }
+    return answer ?? refs.map((ref) => metricsOf(ref.externalPostId, 100));
   }
 
-  fetchAccountMetrics(): Promise<never> {
-    return Promise.reject(new Error('not used'));
+  async fetchAccountMetrics(range: DateRange, ctx: AdapterContext): Promise<AccountMetricsResult> {
+    this.accountRanges.push(range);
+    this.tokens.push(await ctx.credentials.accessToken());
+    return next(this.accountAnswers, () => ({
+      followers: 500,
+      reach: 2_000,
+      profileViews: 100,
+      raw: { followers: 500 },
+      mappingVersion: 1,
+    }));
   }
 }
+
+/** Metrics of a post with this many impressions; clicks and saves are not reported. */
+export const metricsOf = (externalPostId: string, impressions: number): PostMetricsResult => ({
+  kind: 'metrics',
+  externalPostId,
+  metrics: {
+    impressions,
+    reach: Math.round(impressions * 0.8),
+    views: null,
+    likes: Math.round(impressions * 0.05),
+    comments: 1,
+    shares: 0,
+    clicks: null,
+    saves: null,
+  },
+  raw: { impressions },
+  mappingVersion: 3,
+});
 
 export interface PublishJobTestbed extends PublishJobDependencies {
   unitOfWork: InMemoryPublishJobs;

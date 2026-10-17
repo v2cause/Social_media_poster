@@ -94,6 +94,14 @@ describe('PublishVariant', () => {
     });
   });
 
+  it('speeds the first metrics poll up with the cadence scale of time-lapse tests', async () => {
+    const bed = createPublishJobTestbed();
+    bed.metricsCadenceScale = 60;
+
+    await publish(bed);
+    expect(bed.unitOfWork.variant().metricsNextAt).toEqual(new Date(NOW + 60 * 1000));
+  });
+
   it('gives the same content the same hash in every run', async () => {
     const first = createPublishJobTestbed();
     const second = createPublishJobTestbed();

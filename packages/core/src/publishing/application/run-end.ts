@@ -1,8 +1,6 @@
-import type { Platform } from '@smp/platform-rules';
-
 import type { PlatformError } from '../../channels/domain/platform-error';
 import type { PublishResult } from '../../channels/ports/platform-adapter';
-import { firstMetricsAt, type PlatformErrorReaction, type PublishFailureCode } from '../domain/publish-job';
+import type { PlatformErrorReaction, PublishFailureCode } from '../domain/publish-job';
 import type { PublishAttemptResult, VariantRunResult } from '../ports/publish-job';
 import type { PublishJobOutcome } from './publish-job-types';
 
@@ -120,9 +118,10 @@ export function endOfReaction(
   }
 }
 
+/** The variant after the run; `firstPoll` names the first metrics poll of a published post. */
 export function variantResultOf(
   end: Exclude<RunEnd, { kind: 'lease_lost' }>,
-  platform: Platform,
+  firstPoll: (publishedAt: Date) => Date | null,
   now: Date,
 ): VariantRunResult {
   switch (end.kind) {
@@ -134,7 +133,7 @@ export function variantResultOf(
         externalUrl: end.result.externalUrl,
         contentHash: end.contentHash,
         isDryRun: false,
-        metricsNextAt: firstMetricsAt(platform, end.result.publishedAt),
+        metricsNextAt: firstPoll(end.result.publishedAt),
       };
     case 'dry_run':
       return {

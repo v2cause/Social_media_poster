@@ -36,6 +36,8 @@ export interface PublishJobDependencies {
   dryRunLive: boolean;
   /** How long a lease lasts; 5 minutes by default. */
   leaseMs?: number;
+  /** ANALYTICS_CADENCE_SCALE for the first metrics poll of a published post; 1 by default. */
+  metricsCadenceScale?: number;
 }
 
 export interface PublishJobInput {

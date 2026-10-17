@@ -559,7 +559,6 @@ export {
   type ResolveNeedsAttentionInput,
 } from './publishing/application/resolve-needs-attention';
 export {
-  firstMetricsAt,
   isMissedWindow,
   isRunnable,
   LEASE_GRACE_MS,
@@ -603,3 +602,36 @@ export type {
   PublishJobOutcome,
 } from './publishing/application/publish-job-types';
 export { PublishVariant } from './publishing/application/publish-variant';
+
+// Analytics (phase 5).
+export { cadenceHours, METRICS_BATCH_SIZE, metricsDueAt, nextPollAfter } from './analytics/domain/cadence';
+export { localDayRange, nextDay, startOfLocalDay } from './analytics/domain/days';
+export { engagementsOf, type Interactions } from './analytics/domain/metrics';
+export {
+  POLL_RETRY_MS,
+  type AnalyticsJobDependencies,
+  type AnalyticsJobInput,
+} from './analytics/application/analytics-job';
+export {
+  CollectPostMetrics,
+  METRICS_LEASE_MS,
+  type CollectPostMetricsResult,
+} from './analytics/application/collect-post-metrics';
+export {
+  CollectAccountMetrics,
+  type CollectAccountMetricsInput,
+  type CollectAccountMetricsResult,
+} from './analytics/application/collect-account-metrics';
+export type {
+  AccountDailyMetrics,
+  AccountMetricsRepository,
+  AnalyticsScope,
+  AnalyticsStore,
+  AnalyticsUnitOfWork,
+  DueAccountDay,
+  DueMetricsAccount,
+  DueVariant,
+  MetricsPlanScanner,
+  PostMetricsRepository,
+  VariantPoll,
+} from './analytics/ports/analytics';

@@ -1,8 +1,9 @@
 import { composePostText, renditionProfileFor } from '@smp/platform-rules';
 
+import { metricsDueAt } from '../../analytics/domain/cadence';
 import { ConnectionTokens, ReauthRequiredError } from '../../channels/application/connection-tokens';
 import { isPlatformError } from '../../channels/domain/platform-error';
-import type { SocialAccountType } from '../../channels/domain/types';
+import type { ConnectionMethod, SocialAccountType } from '../../channels/domain/types';
 import type {
   AdapterContext,
   PublishMedia,
@@ -72,6 +73,8 @@ export class PublishRun {
   /** Set from the mark before the request until the answer of the platform. */
   private sent = false;
   private tokens: ConnectionTokens | null = null;
+  /** How the run reaches the platform, once its adapter is known; it sets the metrics cascade. */
+  private method: ConnectionMethod | null = null;
   /** Units of paid calls per operation, booked with the end of the run. */
   private readonly costs = new Map<string, number>();
 
@@ -120,6 +123,7 @@ export class PublishRun {
     if (!adapter) {
       return failedEnd('ADAPTER_UNAVAILABLE', `No adapter for ${variant.platform} is available.`);
     }
+    this.method = adapter.method;
     const tokens = new ConnectionTokens(
       this.deps,
       (work) => this.unit((store) => work(store.connections)),
@@ -455,7 +459,12 @@ export class PublishRun {
       if (end.kind === 'lease_lost') {
         return false;
       }
-      const result = variantResultOf(end, variant.platform, now);
+      const result = variantResultOf(
+        end,
+        (publishedAt) =>
+          metricsDueAt(variant.platform, this.method ?? 'API', publishedAt, 0, this.deps.metricsCadenceScale),
+        now,
+      );
       if (
         !(await store.variants.finish(variant.workspaceId, variant.id, this.version, this.job.owner, result))
       ) {

@@ -1,5 +1,3 @@
-import type { Platform } from '@smp/platform-rules';
-
 import type { PlatformError, PlatformErrorCode } from '../../channels/domain/platform-error';
 import type { VariantStatus } from '../../content/domain/types';
 import type { MissedWindowBehavior } from '../../tenancy/domain/types';
@@ -69,10 +67,6 @@ export function isMissedWindow(
     now.getTime() - due.getTime() > MISSED_WINDOW_MS
   );
 }
-
-/** The first metrics poll (architecture 8): after an hour, on X after a day because reads cost. */
-export const firstMetricsAt = (platform: Platform, publishedAt: Date): Date =>
-  new Date(publishedAt.getTime() + (platform === 'X' ? 24 : 1) * 60 * 60 * 1000);
 
 /** How a run reacts to an error of the platform (architecture 7.1). */
 export type PlatformErrorReaction =

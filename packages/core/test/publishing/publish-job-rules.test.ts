@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  firstMetricsAt,
   isMissedWindow,
   isRunnable,
   PLATFORM_ERROR_CODES,
@@ -123,10 +122,5 @@ describe('the variants a publish job runs', () => {
 
   it('measures "Jetzt posten" from the time it was queued', () => {
     expect(isMissedWindow({ ...queued, scheduledAt: null }, 'sweep', now)).toBe(true);
-  });
-
-  it('polls the first metrics after an hour, on X after a day', () => {
-    expect(firstMetricsAt('LINKEDIN', now)).toEqual(new Date('2026-10-16T13:00:00Z'));
-    expect(firstMetricsAt('X', now)).toEqual(new Date('2026-10-17T12:00:00Z'));
   });
 });

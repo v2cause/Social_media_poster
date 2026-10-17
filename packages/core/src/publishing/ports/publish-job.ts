@@ -200,7 +200,8 @@ export interface ApiCostEntry {
   operation: string;
   units: number;
   costMicros: number;
-  sourceType: 'publish_attempt';
+  /** The publish attempt, or the poll of metrics (guide step 5.2) that made the calls. */
+  sourceType: 'publish_attempt' | 'metrics_poll';
   sourceId: string;
 }
 
