@@ -1,0 +1,200 @@
+import { randomUUID } from 'node:crypto';
+
+import { X_BROWSER_FLAG } from '@smp/core';
+import { startTestDatabase, type TestDatabase } from '@smp/testing';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import {
+  createPrismaClient,
+  createSystemPrismaClient,
+  PrismaXBrowserAdminStore,
+  PrismaXBrowserUnitOfWork,
+  type PrismaClient,
+  type SystemPrismaClient,
+} from '../src';
+
+// Guide step 6.1 on PostgreSQL: a workspace reads the kill switch, the gate of its organization
+// and its own flag and writes only its own, keeps one row per flag also under concurrent
+// writes, and records and revokes risk acknowledgements; the platform admins set the kill
+// switch and the gates of the organizations as app_system.
+
+const orgA = randomUUID();
+const orgB = randomUUID();
+const wsA = randomUUID();
+const wsB = randomUUID();
+const user = randomUUID();
+const scopeA = { userId: user, organizationId: orgA, workspaceId: wsA };
+const scopeB = { organizationId: orgB, workspaceId: wsB };
+
+describe('X browser adapters', () => {
+  let database: TestDatabase | undefined;
+  let prisma: PrismaClient | undefined;
+  let system: SystemPrismaClient | undefined;
+
+  const required = <T>(value: T | undefined, name: string): T => {
+    if (value === undefined) {
+      throw new Error(`${name} is not ready`);
+    }
+    return value;
+  };
+  const unitOfWork = () =>
+    new PrismaXBrowserUnitOfWork(required(prisma, 'prisma'), () => ({ ipAddress: '203.0.113.7' }));
+  const admin = () => new PrismaXBrowserAdminStore(required(system, 'system'));
+  // app_system sees past row-level security, which applies to the owner as well.
+  const flagRows = async (workspaceId: string | null, organizationId: string | null): Promise<number> => {
+    const owner = await required(database, 'database').connectAs('app_system');
+    try {
+      const { rows } = await owner.query<{ count: string }>(
+        `SELECT count(*) FROM feature_flag
+          WHERE key = $1 AND workspace_id IS NOT DISTINCT FROM $2 AND organization_id IS NOT DISTINCT FROM $3`,
+        [X_BROWSER_FLAG, workspaceId, organizationId],
+      );
+      return Number(rows[0]?.count ?? 0);
+    } finally {
+      await owner.end();
+    }
+  };
+
+  beforeAll(async () => {
+    database = await startTestDatabase();
+    const owner = await database.connectAs('app_system');
+    try {
+      await owner.query(
+        `INSERT INTO organization (id, name, updated_at) VALUES ($1, 'Demo GmbH', now()), ($2, 'B', now())`,
+        [orgA, orgB],
+      );
+      await owner.query(
+        `INSERT INTO workspace (id, organization_id, slug, name, timezone, content_language, updated_at)
+         VALUES ($1, $2, 'xb-demo', 'Demo', 'Europe/Berlin', 'de', now()),
+                ($3, $4, 'xb-other', 'B', 'Europe/Berlin', 'de', now())`,
+        [wsA, orgA, wsB, orgB],
+      );
+      await owner.query(
+        `INSERT INTO users (id, email, name, email_verified, created_at, updated_at)
+         VALUES ($1, 'olga@example.test', 'Olga Owner', true, now(), now())`,
+        [user],
+      );
+    } finally {
+      await owner.end();
+    }
+    prisma = createPrismaClient(database.url('app_user'));
+    system = createSystemPrismaClient(database.url('app_system'));
+  }, 300_000);
+
+  afterAll(async () => {
+    await prisma?.$disconnect();
+    await system?.$disconnect();
+    await database?.stop();
+  });
+
+  it('starts without flags and keeps one row per flag of the workspace, also under concurrent writes', async () => {
+    const flagsOf = () => unitOfWork().run(scopeA, (store) => store.flags(orgA, wsA));
+    await expect(flagsOf()).resolves.toEqual({ global: null, organization: null, workspace: null });
+
+    await Promise.all(
+      Array.from({ length: 5 }, (_, index) =>
+        unitOfWork().run(scopeA, (store) => store.setWorkspaceFlag(orgA, wsA, index % 2 === 0)),
+      ),
+    );
+    expect(await flagRows(wsA, orgA)).toBe(1);
+    await unitOfWork().run(scopeA, (store) => store.setWorkspaceFlag(orgA, wsA, true));
+    await expect(flagsOf()).resolves.toEqual({ global: null, organization: null, workspace: true });
+  });
+
+  it('lets the platform admins set the kill switch and the gates of the organizations', async () => {
+    const store = admin();
+    await expect(store.globalFlag()).resolves.toBeNull();
+    await store.setGlobalFlag(false);
+    await store.setGlobalFlag(false);
+    expect(await flagRows(null, null)).toBe(1);
+    await expect(store.globalFlag()).resolves.toMatchObject({ enabled: false });
+
+    await expect(store.organizationOfWorkspace('xb-demo')).resolves.toEqual({ id: orgA, name: 'Demo GmbH' });
+    await expect(store.organizationOfWorkspace('missing')).resolves.toBeNull();
+    await expect(store.setOrganizationFlag(orgA, true)).resolves.toBe(true);
+    await expect(store.setOrganizationFlag(randomUUID(), true)).resolves.toBe(false);
+    const allowed = await store.allowedOrganizations();
+    expect(allowed.map(({ id, name }) => ({ id, name }))).toEqual([{ id: orgA, name: 'Demo GmbH' }]);
+
+    // The workspace sees both switches; the other organization only the kill switch.
+    await expect(unitOfWork().run(scopeA, (s) => s.flags(orgA, wsA))).resolves.toEqual({
+      global: false,
+      organization: true,
+      workspace: true,
+    });
+    await expect(unitOfWork().run(scopeB, (s) => s.flags(orgB, wsB))).resolves.toEqual({
+      global: false,
+      organization: null,
+      workspace: null,
+    });
+
+    await store.setGlobalFlag(true);
+    await store.setOrganizationFlag(orgA, false);
+    await expect(store.allowedOrganizations()).resolves.toEqual([]);
+  });
+
+  it('refuses a flag of another workspace', async () => {
+    await expect(
+      unitOfWork().run(scopeA, (store) => store.setWorkspaceFlag(orgB, wsB, true)),
+    ).rejects.toThrow(/row-level security/);
+    expect(await flagRows(wsB, orgB)).toBe(0);
+  });
+
+  it('records an acknowledgement with the user and the audit log and revokes it', async () => {
+    const acceptedAt = new Date('2026-10-17T08:00:00Z');
+    await unitOfWork().run(scopeA, async (store) => {
+      await store.acknowledge({
+        id: randomUUID(),
+        workspaceId: wsA,
+        userId: user,
+        subject: 'x_browser',
+        textVersion: '2026-10-17',
+        textHash: 'a'.repeat(64),
+        locale: 'de',
+        ipAddress: '203.0.113.7',
+        acceptedAt,
+      });
+      await store.audit.record({
+        organizationId: orgA,
+        workspaceId: wsA,
+        action: 'x_browser.enable',
+        targetType: 'Workspace',
+        targetId: wsA,
+        metadata: { textVersion: '2026-10-17', locale: 'de' },
+      });
+    });
+    await expect(
+      unitOfWork().run(scopeA, (store) => store.acknowledgement(wsA, 'x_browser')),
+    ).resolves.toMatchObject({
+      userId: user,
+      userName: 'Olga Owner',
+      textVersion: '2026-10-17',
+      locale: 'de',
+      acceptedAt,
+    });
+    await expect(
+      unitOfWork().run(scopeB, (store) => store.acknowledgement(wsB, 'x_browser')),
+    ).resolves.toBeNull();
+
+    const owner = await required(database, 'database').connectAs('app_system');
+    try {
+      const { rows } = await owner.query<{ action: string; ip_address: string; actor_user_id: string }>(
+        `SELECT action, ip_address, actor_user_id FROM audit_log WHERE workspace_id = $1`,
+        [wsA],
+      );
+      expect(rows).toEqual([{ action: 'x_browser.enable', ip_address: '203.0.113.7', actor_user_id: user }]);
+    } finally {
+      await owner.end();
+    }
+
+    await expect(
+      unitOfWork().run(scopeA, (store) => store.revoke(wsA, 'x_browser', new Date('2026-10-18T08:00:00Z'))),
+    ).resolves.toBe(1);
+    await expect(
+      unitOfWork().run(scopeA, (store) => store.acknowledgement(wsA, 'x_browser')),
+    ).resolves.toBeNull();
+    await expect(
+      unitOfWork().run(scopeA, (store) => store.revoke(wsA, 'x_browser', new Date('2026-10-18T09:00:00Z'))),
+    ).resolves.toBe(0);
+  });
+});

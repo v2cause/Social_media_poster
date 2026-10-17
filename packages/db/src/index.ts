@@ -61,6 +61,9 @@ export { PrismaPublishJobUnitOfWork } from './publishing/prisma-publish-job-unit
 export { createPrismaAnalyticsStore } from './analytics/prisma-analytics-store';
 export { PrismaAnalyticsUnitOfWork } from './analytics/prisma-analytics-unit-of-work';
 export { PrismaMetricsPlanScanner } from './analytics/prisma-metrics-plan-scanner';
+export { createPrismaXBrowserStore } from './x-browser/prisma-x-browser-store';
+export { PrismaXBrowserUnitOfWork } from './x-browser/prisma-x-browser-unit-of-work';
+export { PrismaXBrowserAdminStore } from './x-browser/prisma-x-browser-admin-store';
 export {
   AnalyticsReadModel,
   type AnalyticsAccountView,
