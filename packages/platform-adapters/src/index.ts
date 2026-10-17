@@ -68,6 +68,7 @@ export {
   type SendOptions,
   type XbCommandBus,
 } from './x-browser/command-bus';
+export { RedisSelectorDriftCounter } from './x-browser/drift-counter';
 export { BullBrowserLoginQueue } from './x-browser/login-queue';
 export { RedisBrowserLoginStore } from './x-browser/login-store';
 export { normalizeXBrowserPostMetrics, X_BROWSER_MAP_VERSION } from './x-browser/metrics-map';

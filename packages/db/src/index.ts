@@ -65,6 +65,11 @@ export { createPrismaXBrowserStore } from './x-browser/prisma-x-browser-store';
 export { PrismaXBrowserUnitOfWork } from './x-browser/prisma-x-browser-unit-of-work';
 export { PrismaXBrowserAdminStore } from './x-browser/prisma-x-browser-admin-store';
 export {
+  PrismaXBrowserOperations,
+  type PlatformAdmin,
+  type XBrowserCanaryAccount,
+} from './x-browser/prisma-x-browser-operations';
+export {
   AnalyticsReadModel,
   type AnalyticsAccountView,
   type AnalyticsFilter,

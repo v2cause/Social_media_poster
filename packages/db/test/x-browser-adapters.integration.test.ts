@@ -8,15 +8,17 @@ import {
   createPrismaClient,
   createSystemPrismaClient,
   PrismaXBrowserAdminStore,
+  PrismaXBrowserOperations,
   PrismaXBrowserUnitOfWork,
   type PrismaClient,
   type SystemPrismaClient,
 } from '../src';
 
-// Guide step 6.1 on PostgreSQL: a workspace reads the kill switch, the gate of its organization
-// and its own flag and writes only its own, keeps one row per flag also under concurrent
-// writes, and records and revokes risk acknowledgements; the platform admins set the kill
-// switch and the gates of the organizations as app_system.
+// Guide steps 6.1 and 6.5 on PostgreSQL: a workspace reads the kill switch, the gate of its
+// organization and its own flag and writes only its own, keeps one row per flag also under
+// concurrent writes, and records and revokes risk acknowledgements; the platform admins set the
+// kill switch and the gates of the organizations as app_system, where the circuit breaker finds
+// the admins to alert and the canary its test account.
 
 const orgA = randomUUID();
 const orgB = randomUUID();
@@ -144,6 +146,50 @@ describe('X browser adapters', () => {
     await store.setGlobalFlag(true);
     await expect(store.closeGlobalFlag()).resolves.toBe(true);
     await store.setGlobalFlag(true);
+  });
+
+  it('finds the platform admins to alert and the test account of the canary', async () => {
+    const operations = new PrismaXBrowserOperations(required(system, 'system'));
+    const connectionId = randomUUID();
+    const accountId = randomUUID();
+    const owner = await required(database, 'database').connectAs('app_system');
+    try {
+      await owner.query(
+        `INSERT INTO users (id, email, name, email_verified, locale, is_platform_admin, created_at, updated_at)
+         VALUES ($1, 'ops@example.test', 'Ops', true, 'en', true, now(), now()),
+                ($2, 'unconfirmed@example.test', 'Unconfirmed', false, 'de', true, now(), now())`,
+        [randomUUID(), randomUUID()],
+      );
+      await owner.query(
+        `INSERT INTO social_connection
+           (id, workspace_id, platform, method, external_user_id, display_name, session_sealed, updated_at)
+         VALUES ($1, $2, 'X', 'BROWSER', '1846000000000000777', 'Canary', '\\x0102'::bytea, now())`,
+        [connectionId, wsA],
+      );
+      await owner.query(
+        `INSERT INTO social_account (id, workspace_id, connection_id, platform, type, external_id, name, handle,
+                                     settings, updated_at)
+         VALUES ($1, $2, $3, 'X', 'PROFILE', '1846000000000000777', 'Canary', 'smp_canary', '{"locale":"en"}', now())`,
+        [accountId, wsA, connectionId],
+      );
+    } finally {
+      await owner.end();
+    }
+
+    await expect(operations.platformAdmins()).resolves.toEqual([
+      { email: 'ops@example.test', name: 'Ops', locale: 'en' },
+    ]);
+    await expect(operations.canaryAccount(accountId)).resolves.toEqual({
+      organizationId: orgA,
+      workspaceId: wsA,
+      connectionId,
+      accountId,
+      externalUserId: '1846000000000000777',
+      handle: 'smp_canary',
+      settings: { locale: 'en' },
+      sessionSealed: Uint8Array.from([1, 2]),
+    });
+    await expect(operations.canaryAccount(randomUUID())).resolves.toBeNull();
   });
 
   it('refuses a flag of another workspace', async () => {
