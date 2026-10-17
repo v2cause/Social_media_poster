@@ -1,11 +1,14 @@
 import { MISSED_WINDOW_MS } from '@smp/core';
 
+import { Prisma } from '../generated/prisma/client';
 import { runInSystemScope, type SystemPrismaClient } from '../system-client';
 
 // The scans of the scheduler across all workspaces (guide step 4.7, architecture 7): due plans
 // become QUEUED, plans overdue beyond the window fail with MISSED_WINDOW (unless the workspace
 // posts them anyway), each change with its outbox event, all in one transaction with SKIP
 // LOCKED, so two ticks at the same time take disjoint rows. The jobs are added after the commit.
+// The plans of a read-only organization wait, neither queued nor missed, until it pays again
+// (guide step 7.4).
 
 export interface QueuedVariant {
   variantId: string;
@@ -65,6 +68,11 @@ const RETRYING_STALE_MS = 3 * 60 * 60_000;
 
 const seconds = (ms: number): number => Math.round(ms / 1000);
 
+/** The organization of the variant v is read-only now. */
+const READ_ONLY_ORGANIZATION = Prisma.sql`
+  SELECT 1 FROM workspace o JOIN subscription sub ON sub.organization_id = o.organization_id
+   WHERE o.id = v.workspace_id AND sub.read_only_at <= now()`;
+
 export class PrismaPublishScheduler {
   constructor(
     private readonly system: SystemPrismaClient,
@@ -86,6 +94,7 @@ export class PrismaPublishScheduler {
              WHERE v.status = 'SCHEDULED'
                AND v.scheduled_at < now() - make_interval(secs => ${window})
                AND COALESCE(s.missed_window_behavior, 'FAIL') = 'FAIL'
+               AND NOT EXISTS (${READ_ONLY_ORGANIZATION})
              ORDER BY v.scheduled_at
              LIMIT ${batch}
                FOR UPDATE OF v SKIP LOCKED
@@ -119,6 +128,7 @@ export class PrismaPublishScheduler {
               FROM post_variant v
              WHERE v.status = 'SCHEDULED'
                AND v.scheduled_at <= now() + make_interval(secs => ${lead})
+               AND NOT EXISTS (${READ_ONLY_ORGANIZATION})
              ORDER BY v.scheduled_at
              LIMIT ${batch}
                FOR UPDATE SKIP LOCKED

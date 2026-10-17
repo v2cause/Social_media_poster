@@ -172,6 +172,37 @@ describe('scheduler ticks of the worker', () => {
     expect(notices.map((row) => row.variant_id).sort()).toEqual(missed.map((row) => row.id).sort());
   });
 
+  it('pauses the plans of a read-only organization until it pays again (guide step 7.4)', async () => {
+    const paused = randomUUID();
+    const workspace = randomUUID();
+    await query(`INSERT INTO organization (id, name, updated_at) VALUES ($1, 'Unpaid', now())`, [paused]);
+    await query(
+      `INSERT INTO workspace (id, organization_id, slug, name, timezone, content_language, updated_at)
+       VALUES ($1, $2, 'ticks-paused', 'Paused', 'Europe/Berlin', 'de', now())`,
+      [workspace, paused],
+    );
+    await query(
+      `INSERT INTO subscription (id, organization_id, plan_key, status, read_only_at, updated_at)
+       VALUES (gen_random_uuid(), $1, 'pro', 'CANCELED', now() - interval '1 day', now())`,
+      [paused],
+    );
+    const [due] = await plan(workspace, 1, -1);
+    const [missed] = await plan(workspace, 1, -7 * 60);
+    const { tick } = workerParts();
+
+    await tick.run();
+    const statusOf = async (id: string | undefined) =>
+      (await query<{ status: string }>('SELECT status FROM post_variant WHERE id = $1', [id]))[0]?.status;
+    expect([await statusOf(due?.id), await statusOf(missed?.id)]).toEqual(['SCHEDULED', 'SCHEDULED']);
+
+    // Paid again: the due one goes out, the one beyond the window is missed now.
+    await query(`UPDATE subscription SET status = 'ACTIVE', read_only_at = NULL WHERE organization_id = $1`, [
+      paused,
+    ]);
+    await tick.run();
+    expect([await statusOf(due?.id), await statusOf(missed?.id)]).toEqual(['QUEUED', 'FAILED']);
+  });
+
   it('gives lost jobs back and restarts failed ones, leaving running ones alone', async () => {
     const { tick, sweeper } = workerParts();
     const queue = publishQueue();
