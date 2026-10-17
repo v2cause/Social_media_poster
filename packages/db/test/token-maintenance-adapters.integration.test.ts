@@ -221,6 +221,7 @@ describe('the token monitor on PostgreSQL', () => {
           displayName: 'Mira',
           accessTokenSealed: new Uint8Array([1]),
           refreshTokenSealed: null,
+          sessionSealed: null,
           accessTokenExpiresAt: new Date(NOW.getTime() + 60 * DAY_MS),
           refreshTokenExpiresAt: null,
           scopes: [],

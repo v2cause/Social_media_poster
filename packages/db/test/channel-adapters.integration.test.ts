@@ -8,7 +8,8 @@ import { ChannelReadModel, createPrismaClient, PrismaChannelUnitOfWork, type Pri
 
 // The Prisma adapters of the channel ports against PostgreSQL with row-level security (guide step
 // 4.5): connections and accounts of one workspace stay invisible to another, a new grant renews a
-// connection, accounts come back under their id, and the read model shows no token.
+// connection, accounts come back under their id, and the read model shows no token. A browser
+// connection of X keeps a session instead of tokens (guide step 6.4).
 
 const orgA = randomUUID();
 const orgB = randomUUID();
@@ -23,6 +24,7 @@ const grant = (overrides: Partial<ConnectionGrant> = {}): ConnectionGrant => ({
   displayName: 'Mira',
   accessTokenSealed: bytes('sealed-access'),
   refreshTokenSealed: bytes('sealed-refresh'),
+  sessionSealed: null,
   accessTokenExpiresAt: new Date('2026-10-16T14:00:00Z'),
   refreshTokenExpiresAt: new Date('2027-04-14T12:00:00Z'),
   scopes: ['tweet.read', 'tweet.write'],
@@ -237,5 +239,60 @@ describe('channel adapters on PostgreSQL', () => {
       accessTokenSealed: null,
       refreshTokenSealed: null,
     });
+  });
+
+  it('stores a browser connection of X with its session and the language of its account', async () => {
+    const browserConnectionId = randomUUID();
+    const browserAccountId = randomUUID();
+    const login = grant({
+      accessTokenSealed: null,
+      refreshTokenSealed: null,
+      sessionSealed: bytes('sealed-session'),
+      accessTokenExpiresAt: null,
+      refreshTokenExpiresAt: null,
+      scopes: [],
+    });
+    await inA(async (store) => {
+      await store.connections.insert({
+        id: browserConnectionId,
+        workspaceId: workspaceA,
+        platform: 'X',
+        method: 'BROWSER',
+        externalUserId: '1234567890',
+        ...login,
+      });
+      await store.accounts.upsert({
+        id: browserAccountId,
+        workspaceId: workspaceA,
+        connectionId: browserConnectionId,
+        platform: 'X',
+        type: 'PROFILE',
+        externalId: '1234567890',
+        name: 'SMP Demo',
+        handle: 'smp_demo',
+        avatarUrl: null,
+        accessTokenSealed: null,
+        connectedById: userId,
+        settings: { locale: 'en' },
+      });
+    });
+    await inA((store) =>
+      store.connections.replaceGrant(workspaceA, browserConnectionId, {
+        ...login,
+        sessionSealed: bytes('sealed-session-2'),
+      }),
+    );
+
+    const [row] = await query<{ access_token_sealed: Buffer | null; session_sealed: Buffer }>(
+      'SELECT access_token_sealed, session_sealed FROM social_connection WHERE id = $1',
+      [browserConnectionId],
+    );
+    expect(row?.access_token_sealed).toBeNull();
+    expect(row?.session_sealed.toString()).toBe('sealed-session-2');
+    const [account] = await query<{ settings: unknown }>(
+      'SELECT settings FROM social_account WHERE id = $1',
+      [browserAccountId],
+    );
+    expect(account?.settings).toEqual({ locale: 'en' });
   });
 });

@@ -6,11 +6,14 @@ import type { ConnectionMethod, SocialAccount, SocialAccountType, SocialConnecti
 // The repositories of the channels context (guide step 4.5). Every method names the workspace;
 // row-level security limits the statements to it as well (architecture 6.3).
 
-/** What a new grant sets on a connection. */
+/** What a new grant sets on a connection: the tokens of a consent, or the session of a login of X. */
 export interface ConnectionGrant {
   displayName: string;
-  accessTokenSealed: Uint8Array;
+  /** Null for a browser connection of X. */
+  accessTokenSealed: Uint8Array | null;
   refreshTokenSealed: Uint8Array | null;
+  /** The storage state of the browser worker (method BROWSER), sealed with the session keyring. */
+  sessionSealed: Uint8Array | null;
   accessTokenExpiresAt: Date | null;
   refreshTokenExpiresAt: Date | null;
   scopes: string[];
@@ -54,6 +57,8 @@ export interface SocialAccountWrite {
   avatarUrl: string | null;
   accessTokenSealed: Uint8Array | null;
   connectedById: string;
+  /** Replaces SocialAccount.settings when given, for example the language of X in the browser. */
+  settings?: Readonly<Record<string, string>>;
 }
 
 export interface SocialAccountRepository {

@@ -29,11 +29,13 @@ import { fixedClock, ScopeViolation, sequentialIds } from './in-memory-content';
 interface State {
   connections: Map<string, SocialConnection>;
   accounts: Map<string, SocialAccount>;
+  /** SocialAccount.settings, which the domain type leaves out. */
+  accountSettings: Map<string, Readonly<Record<string, string>>>;
   audit: AuditEntry[];
 }
 
 export class InMemoryChannels implements ChannelUnitOfWork {
-  state: State = { connections: new Map(), accounts: new Map(), audit: [] };
+  state: State = { connections: new Map(), accounts: new Map(), accountSettings: new Map(), audit: [] };
 
   async run<T>(scope: ChannelScope, work: (store: ChannelStore) => Promise<T>): Promise<T> {
     const snapshot = structuredClone(this.state);
@@ -90,7 +92,7 @@ export class InMemoryChannels implements ChannelUnitOfWork {
             displayName: connection.displayName,
             accessTokenSealed: connection.accessTokenSealed,
             refreshTokenSealed: connection.refreshTokenSealed,
-            sessionSealed: null,
+            sessionSealed: connection.sessionSealed,
             accessTokenExpiresAt: connection.accessTokenExpiresAt,
             refreshTokenExpiresAt: connection.refreshTokenExpiresAt,
             scopes: connection.scopes,
@@ -107,6 +109,7 @@ export class InMemoryChannels implements ChannelUnitOfWork {
               displayName: grant.displayName,
               accessTokenSealed: grant.accessTokenSealed,
               refreshTokenSealed: grant.refreshTokenSealed,
+              sessionSealed: grant.sessionSealed,
               accessTokenExpiresAt: grant.accessTokenExpiresAt,
               refreshTokenExpiresAt: grant.refreshTokenExpiresAt,
               scopes: grant.scopes,
@@ -123,6 +126,7 @@ export class InMemoryChannels implements ChannelUnitOfWork {
               status: 'REVOKED',
               accessTokenSealed: null,
               refreshTokenSealed: null,
+              sessionSealed: null,
               version: connection.version + 1,
             });
           }
@@ -167,6 +171,9 @@ export class InMemoryChannels implements ChannelUnitOfWork {
             disconnectedAt: null,
             version: existing ? existing.version + 1 : 0,
           });
+          if (write.settings) {
+            state().accountSettings.set(write.id, { ...write.settings });
+          }
           return Promise.resolve();
         },
         disconnect: (workspaceId, id, at) => {

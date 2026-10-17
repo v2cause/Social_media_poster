@@ -62,6 +62,7 @@ export class ConfirmConnection {
                 secrets.refreshToken,
                 connectionSecretAad(workspaceId, connectionId, 'refresh_token'),
               ),
+        sessionSealed: null,
         accessTokenExpiresAt: dateOf(secrets.accessTokenExpiresAt),
         refreshTokenExpiresAt: dateOf(secrets.refreshTokenExpiresAt),
         scopes: pending.grantedScopes,

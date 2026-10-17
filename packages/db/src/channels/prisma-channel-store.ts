@@ -10,8 +10,9 @@ import { clearReauthMarks } from './reauth';
 
 const grantData = (grant: ConnectionGrant) => ({
   displayName: grant.displayName,
-  accessTokenSealed: bytesOf(grant.accessTokenSealed),
+  accessTokenSealed: grant.accessTokenSealed ? bytesOf(grant.accessTokenSealed) : null,
   refreshTokenSealed: grant.refreshTokenSealed ? bytesOf(grant.refreshTokenSealed) : null,
+  sessionSealed: grant.sessionSealed ? bytesOf(grant.sessionSealed) : null,
   accessTokenExpiresAt: grant.accessTokenExpiresAt,
   refreshTokenExpiresAt: grant.refreshTokenExpiresAt,
   scopes: grant.scopes,
@@ -100,6 +101,7 @@ export function createPrismaChannelStore(
           avatarUrl: account.avatarUrl,
           accessTokenSealed: account.accessTokenSealed ? bytesOf(account.accessTokenSealed) : null,
           connectedById: account.connectedById,
+          ...(account.settings ? { settings: { ...account.settings } } : {}),
         };
         await tx.socialAccount.upsert({
           where: {
