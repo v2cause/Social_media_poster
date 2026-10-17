@@ -110,7 +110,13 @@ export {
   type PendingOutboxEvent,
 } from './outbox/prisma-outbox-relay';
 export { PrismaPriceCatalog } from './usage/prisma-price-catalog';
-export { DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData, type DemoSeedResult } from './seed/demo';
+export {
+  DEMO_PLATFORM_ADMIN,
+  DEMO_USERS,
+  DEMO_WORKSPACE_SLUG,
+  seedDemoData,
+  type DemoSeedResult,
+} from './seed/demo';
 export {
   AuditLogReadModel,
   InvalidCursorError,

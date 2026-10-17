@@ -16,6 +16,12 @@ export const DEMO_USERS: ReadonlyArray<{ email: string; name: string; role: Memb
   { email: 'viewer@demo.local', name: 'Demo Viewer', role: 'VIEWER' },
 ];
 
+/**
+ * A platform admin without a membership, for the switches under /admin (guide step 6.1). Only
+ * local demo data: platform operators set the flag by hand everywhere else.
+ */
+export const DEMO_PLATFORM_ADMIN = { email: 'platform@demo.local', name: 'Demo Platform Admin' } as const;
+
 // Better Auth stores email and password logins as an account with this provider id.
 const CREDENTIAL_PROVIDER = 'credential';
 
@@ -33,10 +39,17 @@ export async function seedDemoData(prisma: PrismaClient, password: string): Prom
   const passwordHash = await hashPassword(password);
 
   const userIds: Record<string, string> = {};
-  for (const demoUser of DEMO_USERS) {
+  for (const demoUser of [...DEMO_USERS, DEMO_PLATFORM_ADMIN]) {
+    const platformAdmin = demoUser.email === DEMO_PLATFORM_ADMIN.email;
     const user = await prisma.user.upsert({
       where: { email: demoUser.email },
-      create: { id: uuidv7(), email: demoUser.email, name: demoUser.name, emailVerified: true },
+      create: {
+        id: uuidv7(),
+        email: demoUser.email,
+        name: demoUser.name,
+        emailVerified: true,
+        isPlatformAdmin: platformAdmin,
+      },
       update: {},
     });
     userIds[demoUser.email] = user.id;

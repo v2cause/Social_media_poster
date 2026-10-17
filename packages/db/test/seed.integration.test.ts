@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
 
 import { createPrismaClient, type PrismaClient } from '../src';
-import { DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from '../src/seed/demo';
+import { DEMO_PLATFORM_ADMIN, DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from '../src/seed/demo';
 import { DEMO_ANALYTICS_DAYS, seedDemoAnalytics } from '../src/seed/demo-analytics';
 
 /** Noon in Berlin; the account numbers of yesterday came in at 03:15. */
@@ -54,17 +54,27 @@ describe('demo seed', () => {
   it('stores a password login per user and never the plain password', async () => {
     const accounts = await client().account.findMany({ where: { providerId: 'credential' } });
 
-    expect(accounts).toHaveLength(DEMO_USERS.length);
+    expect(accounts).toHaveLength(DEMO_USERS.length + 1);
     expect(accounts.every((a) => a.password && !a.password.includes('test-seed-password'))).toBe(true);
+  });
+
+  it('adds one platform admin without a membership, and no other', async () => {
+    const admins = await client().user.findMany({
+      where: { isPlatformAdmin: true },
+      include: { memberships: true },
+    });
+    expect(admins.map((user) => [user.email, user.memberships.length])).toEqual([
+      [DEMO_PLATFORM_ADMIN.email, 0],
+    ]);
   });
 
   it('changes nothing when it runs again', async () => {
     await seedDemoData(client(), 'test-seed-password');
 
     expect(await client().organization.count()).toBe(1);
-    expect(await client().user.count()).toBe(DEMO_USERS.length);
+    expect(await client().user.count()).toBe(DEMO_USERS.length + 1);
     expect(await client().membership.count()).toBe(DEMO_USERS.length);
-    expect(await client().account.count()).toBe(DEMO_USERS.length);
+    expect(await client().account.count()).toBe(DEMO_USERS.length + 1);
   });
 
   it('seeds 90 days of analytics on four mock accounts without tokens', async () => {

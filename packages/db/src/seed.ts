@@ -1,7 +1,7 @@
 // Entry point of `pnpm db:seed` (prisma db seed). Writes the local demo data.
 // The root .env is loaded by prisma.config.ts before this file runs.
 import { createPrismaClient } from './client';
-import { DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from './seed/demo';
+import { DEMO_PLATFORM_ADMIN, DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from './seed/demo';
 import { DEMO_ANALYTICS_DAYS, seedDemoAnalytics } from './seed/demo-analytics';
 
 async function main(): Promise<void> {
@@ -23,6 +23,7 @@ async function main(): Promise<void> {
     const demo = await seedDemoData(prisma, password);
     const emails = DEMO_USERS.map((user) => user.email).join(', ');
     process.stdout.write(`Seeded workspace "${DEMO_WORKSPACE_SLUG}" with ${emails}.\n`);
+    process.stdout.write(`Seeded the platform admin ${DEMO_PLATFORM_ADMIN.email} for /admin.\n`);
     const analytics = await seedDemoAnalytics(prisma, demo, new Date());
     process.stdout.write(
       analytics.created

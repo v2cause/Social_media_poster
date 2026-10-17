@@ -115,9 +115,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Write .env with fresh keys
+        # The settings test switches X without the API on (guide step 6.1); no browser worker runs.
         run: |
-          grep -vE '^(BETTER_AUTH_SECRET|TOKEN_KEKS|TOKEN_KEK_ACTIVE|SESSION_KEKS|SESSION_KEK_ACTIVE)=' .env.example > .env
+          grep -vE '^(BETTER_AUTH_SECRET|TOKEN_KEKS|TOKEN_KEK_ACTIVE|SESSION_KEKS|SESSION_KEK_ACTIVE|FEATURE_X_BROWSER_GLOBAL)=' .env.example > .env
           pnpm --silent gen:keys >> .env
+          echo 'FEATURE_X_BROWSER_GLOBAL=true' >> .env
       - run: docker compose up -d --wait
       - run: pnpm --filter @smp/db migrate:deploy
       - run: pnpm build
