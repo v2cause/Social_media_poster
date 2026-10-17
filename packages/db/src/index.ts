@@ -63,7 +63,16 @@ export {
   PrismaExpiringConnectionScanner,
   PrismaTokenMaintenanceUnitOfWork,
 } from './channels/prisma-token-maintenance';
-export { PrismaNotificationDirectory, PrismaNotificationInbox } from './notifications/prisma-notifications';
+export {
+  PrismaNotificationDirectory,
+  PrismaNotificationInbox,
+  PrismaUserNotifications,
+} from './notifications/prisma-notifications';
+export {
+  NotificationReadModel,
+  type NotificationFilter,
+  type NotificationView,
+} from './notifications/notification-read-model';
 export { createPrismaPublishJobStore } from './publishing/prisma-publish-job-store';
 export { createPrismaPublishingStore } from './publishing/prisma-publishing-store';
 export {

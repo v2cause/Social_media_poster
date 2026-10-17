@@ -6,11 +6,13 @@ import {
   type NotificationContent,
   type NotificationDirectory,
   type NotificationInbox,
+  type NotificationPreference,
   type NotificationRecipient,
   type NotificationRequest,
   type NotificationScope,
   type NotificationType,
   type NotificationWorkspace,
+  type UserNotifications,
 } from '@smp/core';
 
 import type { Prisma, PrismaClient } from '../generated/prisma/client';
@@ -18,8 +20,8 @@ import { withTenantTx, type TenantTransaction } from '../tenant-context';
 
 // The notifications of events on PostgreSQL (guide step 4.9, ADR 0025). The directory reads as
 // app_user in the tenant of the event: the connection or variant, its accounts, the workspace and
-// the members to tell. The inbox writes as each recipient, because notifications and their
-// settings are per user (architecture 6.3).
+// the members to tell. The inbox writes as each recipient, and the signed-in user changes their
+// own, because notifications and their settings are per user (architecture 6.3).
 
 /** A plain JSON copy for the payload column. */
 const json = (value: unknown): Prisma.InputJsonValue =>
@@ -184,6 +186,37 @@ export class PrismaNotificationInbox implements NotificationInbox {
         skipDuplicates: true,
       });
       return count === 1;
+    });
+  }
+}
+
+export class PrismaUserNotifications implements UserNotifications {
+  constructor(private readonly base: PrismaClient) {}
+
+  markRead(userId: string, ids: readonly string[] | 'all', at: Date): Promise<number> {
+    return withTenantTx(this.base, { userId }, async (tx) => {
+      const { count } = await tx.notification.updateMany({
+        where: { userId, readAt: null, ...(ids === 'all' ? {} : { id: { in: [...ids] } }) },
+        data: { readAt: at },
+      });
+      return count;
+    });
+  }
+
+  savePreferences(userId: string, preferences: readonly NotificationPreference[]): Promise<void> {
+    return withTenantTx(this.base, { userId }, async (tx) => {
+      for (const preference of preferences) {
+        for (const [channel, enabled] of [
+          ['IN_APP', preference.inApp],
+          ['EMAIL', preference.email],
+        ] as const) {
+          await tx.notificationPreference.upsert({
+            where: { userId_type_channel: { userId, type: preference.type, channel } },
+            create: { userId, type: preference.type, channel, enabled },
+            update: { enabled },
+          });
+        }
+      }
     });
   }
 }

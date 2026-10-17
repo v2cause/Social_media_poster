@@ -1,19 +1,28 @@
 import { randomUUID } from 'node:crypto';
 
-import { connectionSecretAad, DeliverNotification, type NotificationEmail } from '@smp/core';
+import {
+  connectionSecretAad,
+  DeliverNotification,
+  NOTIFICATION_TYPES,
+  type NotificationEmail,
+} from '@smp/core';
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   createPrismaClient,
+  InvalidCursorError,
+  NotificationReadModel,
   PrismaNotificationDirectory,
   PrismaNotificationInbox,
+  PrismaUserNotifications,
   type PrismaClient,
 } from '../src';
 
 // Guide step 4.9 on PostgreSQL: the notification of an event reaches the managers of a
 // connection or the author of a post, once, as each of them wants it, and stays readable for
-// its user only.
+// its user only. The user lists the notifications of the workspaces they may open, marks them
+// read and chooses how each type arrives.
 
 const NOW = new Date('2026-10-16T12:00:00Z');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -178,5 +187,94 @@ describe('notifications on PostgreSQL', () => {
     };
     expect(await visibleTo(users.editor)).toEqual([{ type: 'publish-failed' }]);
     expect(await visibleTo(users.admin)).toEqual([{ type: 'token-expiring' }]);
+  });
+
+  it('lists the notifications of the workspaces a user may open, newest first, and keeps the settings', async () => {
+    const reader = randomUUID();
+    const otherOrg = randomUUID();
+    const hiddenWorkspace = randomUUID();
+    await query(`INSERT INTO users (id, name, email, updated_at) VALUES ($1, 'Rea', $2, now())`, [
+      reader,
+      `reader-${reader}@demo.local`,
+    ]);
+    await query(
+      `INSERT INTO membership (id, organization_id, user_id, role, updated_at) VALUES ($1, $2, $3, 'EDITOR', now())`,
+      [randomUUID(), org, reader],
+    );
+    await query(`INSERT INTO organization (id, name, updated_at) VALUES ($1, 'Elsewhere', now())`, [
+      otherOrg,
+    ]);
+    await query(
+      `INSERT INTO workspace (id, organization_id, slug, name, timezone, content_language, updated_at)
+       VALUES ($1, $2, $3, 'Elsewhere', 'UTC', 'en', now())`,
+      [hiddenWorkspace, otherOrg, `elsewhere-${hiddenWorkspace}`],
+    );
+    const add = async (workspaceId: string, minutesAgo: number, read: boolean): Promise<string> => {
+      const id = randomUUID();
+      await query(
+        `INSERT INTO notification (id, user_id, organization_id, workspace_id, type, payload, read_at, created_at)
+         VALUES ($1, $2, $3, $4, 'publish-failed', $5, $6, now() - make_interval(mins => $7::int))`,
+        [
+          id,
+          reader,
+          workspaceId === workspace ? org : otherOrg,
+          workspaceId,
+          JSON.stringify({ type: 'publish-failed', preview: `Post ${String(minutesAgo)}` }),
+          read ? NOW : null,
+          minutesAgo,
+        ],
+      );
+      return id;
+    };
+    const oldest = await add(workspace, 3, true);
+    const middle = await add(workspace, 2, false);
+    const newest = await add(workspace, 1, false);
+    await add(hiddenWorkspace, 0, false);
+    const model = new NotificationReadModel(ready().base);
+
+    const first = await model.list(reader, { unreadOnly: false, limit: 2 });
+    expect(first.items.map((item) => item.id)).toEqual([newest, middle]);
+    expect(first.items[0]).toMatchObject({
+      type: 'publish-failed',
+      readAt: null,
+      workspace: { slug: 'nordlicht-notify', name: 'Nordlicht' },
+      payload: { preview: 'Post 1' },
+    });
+    expect(first.unread).toBe(2);
+    const second = await model.list(reader, { unreadOnly: false, limit: 2, cursor: first.nextCursor ?? '' });
+    expect(second).toMatchObject({ items: [{ id: oldest, readAt: NOW }], nextCursor: null });
+    expect((await model.list(reader, { unreadOnly: true, limit: 10 })).items.map((item) => item.id)).toEqual([
+      newest,
+      middle,
+    ]);
+    expect(() => model.list(reader, { unreadOnly: false, limit: 2, cursor: 'broken' })).toThrow(
+      InvalidCursorError,
+    );
+
+    const own = new PrismaUserNotifications(ready().base);
+    // Nobody marks the notifications of another user.
+    await expect(own.markRead(users.owner, [middle], NOW)).resolves.toBe(0);
+    await expect(own.markRead(reader, [middle], NOW)).resolves.toBe(1);
+    await expect(model.unreadCount(reader)).resolves.toBe(1);
+    await expect(own.markRead(reader, 'all', NOW)).resolves.toBe(2);
+    await expect(model.unreadCount(reader)).resolves.toBe(0);
+
+    expect(await model.preferences(reader)).toEqual(
+      NOTIFICATION_TYPES.map((type) => ({ type, inApp: true, email: true })),
+    );
+    await own.savePreferences(reader, [{ type: 'publish-failed', inApp: true, email: false }]);
+    await own.savePreferences(reader, [{ type: 'publish-failed', inApp: false, email: false }]);
+    expect((await model.preferences(reader)).find((item) => item.type === 'publish-failed')).toEqual({
+      type: 'publish-failed',
+      inApp: false,
+      email: false,
+    });
+    // The delivery reads the same settings.
+    await expect(
+      new PrismaNotificationInbox(ready().base).channelsOf(reader, 'publish-failed'),
+    ).resolves.toEqual({
+      inApp: false,
+      email: false,
+    });
   });
 });
