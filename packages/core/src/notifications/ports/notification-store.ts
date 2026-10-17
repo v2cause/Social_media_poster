@@ -10,7 +10,7 @@ import type {
 // What the delivery of a notification needs (guide step 4.9, ADR 0025). The directory reads in
 // the tenant of the event; the inbox writes per recipient, because notifications and their
 // settings belong to one user each (architecture 6.3); the mailer queues one email per event and
-// recipient.
+// recipient. UserNotifications serves the signed-in user, who reads and sets their own.
 
 export interface NotificationScope {
   organizationId: string;
@@ -54,4 +54,17 @@ export interface NotificationEmail {
 export interface NotificationMailer {
   /** Queues the email of an event for one recipient; a second call for both changes nothing. */
   send(email: NotificationEmail): Promise<void>;
+}
+
+/** How a user wants a type of notification. */
+export interface NotificationPreference extends NotificationChannels {
+  type: NotificationType;
+}
+
+/** The notifications and settings of one user; every method acts for that user only. */
+export interface UserNotifications {
+  /** Marks unread notifications of the user as read, the given ones or all; how many changed. */
+  markRead(userId: string, ids: readonly string[] | 'all', at: Date): Promise<number>;
+  /** Stores the settings of the given types; the other types keep theirs. */
+  savePreferences(userId: string, preferences: readonly NotificationPreference[]): Promise<void>;
 }

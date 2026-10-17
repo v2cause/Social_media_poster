@@ -218,13 +218,19 @@ export type {
   NotificationEmail,
   NotificationInbox,
   NotificationMailer,
+  NotificationPreference,
   NotificationScope,
+  UserNotifications,
 } from './notifications/ports/notification-store';
 export {
   DeliverNotification,
   type DeliverNotificationInput,
   type DeliveryReport,
 } from './notifications/application/deliver-notification';
+export {
+  MarkNotificationsRead,
+  SetNotificationPreferences,
+} from './notifications/application/user-notifications';
 
 // Channels (architecture 4, guide steps 4.2 ff.)
 export {
