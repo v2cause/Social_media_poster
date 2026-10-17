@@ -45,6 +45,10 @@ export const notifyEmailJobId = (outboxId: string, userId: string): string =>
 /** stripe.{eventId}: Stripe sends an event again until it gets an answer. */
 export const stripeJobId = (eventId: string): string => jobIdOf('stripe', eventId);
 
+/** usage.{organizationId}.{day}: one usage report per organization and day. */
+export const usageReportJobId = (organizationId: string, day: string): string =>
+  jobIdOf('usage', organizationId, day);
+
 /** gdpr.{requestId}: one job per export or erasure request. */
 export const gdprJobId = (requestId: string): string => jobIdOf('gdpr', requestId);
 

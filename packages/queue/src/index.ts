@@ -13,6 +13,7 @@ export {
   rollupKey,
   stripeJobId,
   tokenRefreshJobId,
+  usageReportJobId,
   xbJobId,
 } from './job-id';
 export {

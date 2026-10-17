@@ -1,10 +1,10 @@
 import type { JobsOptions, Queue } from 'bullmq';
 import { z } from 'zod';
 
-import { stripeJobId } from './job-id';
+import { stripeJobId, usageReportJobId } from './job-id';
 
 // Queue "billing" (architecture 7.4), processed by the worker role "billing" from phase 7: Stripe
-// webhooks after their signature was checked, and the usage reports to Stripe.
+// webhooks after their signature was checked, and the daily usage reports to Stripe.
 
 export const BILLING_QUEUE = 'billing';
 export const STRIPE_WEBHOOK = 'stripe.webhook';
@@ -18,7 +18,8 @@ export type StripeWebhook = z.output<typeof stripeWebhookSchema>;
 
 export const usageReportSchema = z.object({
   organizationId: z.uuid(),
-  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  // The UTC day the report runs on: it reports the usage from before its midnight (guide step 7.3).
+  until: z.iso.date(),
 });
 export type UsageReport = z.output<typeof usageReportSchema>;
 
@@ -46,7 +47,13 @@ export class BillingProducer {
     });
   }
 
-  async usageReport(job: UsageReport): Promise<void> {
-    await this.queue.add(USAGE_REPORT, usageReportSchema.parse(job), BILLING_JOB_OPTIONS);
+  /** One report per organization and day; the delay spreads the reports of a day. */
+  async usageReport(job: UsageReport, delayMs = 0): Promise<void> {
+    const payload = usageReportSchema.parse(job);
+    await this.queue.add(USAGE_REPORT, payload, {
+      ...BILLING_JOB_OPTIONS,
+      jobId: usageReportJobId(payload.organizationId, payload.until),
+      delay: delayMs,
+    });
   }
 }

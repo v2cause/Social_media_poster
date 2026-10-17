@@ -9,6 +9,7 @@ import {
   parseMetricsRollup,
   parsePublishVariant,
   parseStripeWebhook,
+  parseUsageReport,
   publishDeadLetterSchema,
   parseTokenRefresh,
   TICK_SCHEDULES,
@@ -68,6 +69,13 @@ describe('queue payloads', () => {
     ).not.toHaveProperty('accessToken');
     expect(() => parseStripeWebhook({ eventId: 'evt_123' })).not.toThrow();
     expect(() => parseStripeWebhook({ eventId: 'ch_123' })).toThrow();
+  });
+
+  it('reports the usage of an organization up to the midnight of a UTC day', () => {
+    const report = { organizationId: ids.organizationId, until: '2026-10-17' };
+    expect(parseUsageReport(report)).toEqual(report);
+    expect(() => parseUsageReport({ ...report, until: '2026-10-17T00:00:00Z' })).toThrow();
+    expect(() => parseUsageReport({ ...report, until: '2026-13-01' })).toThrow();
   });
 
   it('schedules every tick of the architecture', () => {

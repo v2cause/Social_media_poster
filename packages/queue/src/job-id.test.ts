@@ -16,6 +16,7 @@ import {
   rollupKey,
   stripeJobId,
   tokenRefreshJobId,
+  usageReportJobId,
   xbJobId,
 } from './index';
 
@@ -35,6 +36,7 @@ describe('job ids', () => {
       notifyJobId(id),
       notifyEmailJobId(id, id),
       stripeJobId('evt_1Abc'),
+      usageReportJobId(id, '2026-10-17'),
       gdprJobId(id),
       mediaProcessJobId(id),
       mediaRenderJobId({ assetId: id, profile: 'instagram_feed', cropHash: 'x0y120w1080h1350-lb' }),
@@ -53,6 +55,7 @@ describe('job ids', () => {
     expect(rollupKey(id, '2026-10-15', '2026-10-16')).toBe(`ru.${id}.2026-10-15.2026-10-16`);
     expect(notifyJobId(id)).toBe(`ntf.${id}`);
     expect(notifyEmailJobId(id, 'u1')).toBe(`ntf.${id}.u1`);
+    expect(usageReportJobId(id, '2026-10-17')).toBe(`usage.${id}.2026-10-17`);
     expect(xbJobId('login.start', id, 1)).toBe(`xb.login.start.${id}.1`);
   });
 

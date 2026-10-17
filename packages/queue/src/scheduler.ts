@@ -16,6 +16,7 @@ export const TICKS = [
   'tick.account-metrics',
   'tick.maintenance',
   'tick.xb-canary',
+  'tick.usage-report',
 ] as const;
 export type Tick = (typeof TICKS)[number];
 
@@ -34,6 +35,8 @@ export const TICK_SCHEDULES: Readonly<Record<Tick, TickSchedule>> = {
   'tick.maintenance': { pattern: '41 3 * * *', tz: 'UTC' },
   // Daily, where an internal test account is configured: the canary of the X browser (guide step 6.5).
   'tick.xb-canary': { pattern: '23 5 * * *', tz: 'UTC' },
+  // Daily after midnight UTC, where Stripe is set up: the usage of the day before (guide step 7.3).
+  'tick.usage-report': { pattern: '7 0 * * *', tz: 'UTC' },
 };
 
 const DAY_SECONDS = 24 * 60 * 60;
