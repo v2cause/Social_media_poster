@@ -1,0 +1,79 @@
+{
+  "bell": {
+    "label": "{count, plural, =0 {Notifications} other {Notifications, # unread}}",
+    "title": "Notifications",
+    "empty": "No notifications.",
+    "markAllRead": "Mark all as read",
+    "settings": "Settings",
+    "loadError": "The notifications could not be loaded.",
+    "unread": "Unread"
+  },
+  "item": {
+    "tokenExpiring": {
+      "title": "Access ends soon",
+      "body": "{accounts} on {platform}: access ends on {date}."
+    },
+    "reauthRequired": {
+      "title": "Reconnect needed",
+      "body": "{accounts} on {platform}: the connection no longer works.",
+      "affected": "{count, plural, one {One scheduled post is affected.} other {# scheduled posts are affected.}}"
+    },
+    "publishFailed": {
+      "title": "Post not published",
+      "body": "{accounts} on {platform}: {reason}"
+    },
+    "needsAttention": {
+      "title": "Decision needed",
+      "body": "{accounts} on {platform}: it is unclear whether the post went out."
+    },
+    "more": "{names} (+{count})"
+  },
+  "failureReasons": {
+    "PERMISSION_DENIED": "The platform denied a permission it needs.",
+    "VALIDATION_REJECTED": "The platform rejected the content.",
+    "DUPLICATE": "The platform considers the post a duplicate.",
+    "TRANSIENT": "The platform could not be reached several times.",
+    "MEDIA_PROCESSING": "The images were not ready in time.",
+    "RATE_LIMITED": "The platform reported too many requests.",
+    "OUTCOME_UNKNOWN": "It is unclear whether the post went out.",
+    "CHALLENGE_REQUIRED": "The platform asks to confirm the login.",
+    "SELECTOR_DRIFT": "The interface of the platform has changed.",
+    "REAUTH_REQUIRED": "The account needs to be reconnected.",
+    "SPEND_CAP": "The spending cap for X has been reached.",
+    "MISSED_WINDOW": "The planned time was more than 6 hours ago.",
+    "SOCIAL_ACCOUNT_DISCONNECTED": "The account is no longer connected.",
+    "ADAPTER_UNAVAILABLE": "The platform is not available right now.",
+    "VARIANT_NOT_PUBLISHABLE": "The content does not meet the rules of the platform.",
+    "INTERNAL": "An internal error occurred.",
+    "other": "An error occurred."
+  },
+  "settings": {
+    "title": "Notifications",
+    "description": "Choose what you hear about in the app and by email.",
+    "event": "Event",
+    "inApp": "In the app",
+    "email": "By email",
+    "toggle": "{event}: {channel}",
+    "saved": "Settings saved.",
+    "saveError": "The settings could not be saved.",
+    "loadError": "The settings could not be loaded.",
+    "types": {
+      "tokenExpiring": {
+        "title": "Access ends",
+        "description": "14, 7 and 1 day before the access to an account ends. To owners and admins."
+      },
+      "reauthRequired": {
+        "title": "Reconnect needed",
+        "description": "When an account needs to be reconnected. To owners and admins."
+      },
+      "publishFailed": {
+        "title": "Post not published",
+        "description": "When a post could not go out for good. To the person who created it."
+      },
+      "needsAttention": {
+        "title": "Decision needed",
+        "description": "When it is unclear whether a post went out. To the person who created it."
+      }
+    }
+  }
+}

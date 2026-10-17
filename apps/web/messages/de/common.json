@@ -20,8 +20,6 @@
     "collapse": "Seitenleiste einklappen",
     "expand": "Seitenleiste ausklappen",
     "workspaceSwitcher": "Workspace wechseln",
-    "notifications": "Benachrichtigungen",
-    "noNotifications": "Keine neuen Benachrichtigungen.",
     "language": "Sprache",
     "userMenu": "Konto von {name}",
     "account": "Konto und Sicherheit",
@@ -43,7 +41,8 @@
     "brandVoices": "Brand Voices",
     "settings": "Einstellungen",
     "members": "Mitglieder",
-    "security": "Sicherheit"
+    "security": "Sicherheit",
+    "notifications": "Benachrichtigungen"
   },
   "languages": {
     "de": "Deutsch",

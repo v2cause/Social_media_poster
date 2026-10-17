@@ -20,8 +20,6 @@
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
     "workspaceSwitcher": "Switch workspace",
-    "notifications": "Notifications",
-    "noNotifications": "No new notifications.",
     "language": "Language",
     "userMenu": "Account of {name}",
     "account": "Account and security",
@@ -43,7 +41,8 @@
     "brandVoices": "Brand voices",
     "settings": "Settings",
     "members": "Members",
-    "security": "Security"
+    "security": "Security",
+    "notifications": "Notifications"
   },
   "languages": {
     "de": "Deutsch",

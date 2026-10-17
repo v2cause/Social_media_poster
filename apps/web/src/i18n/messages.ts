@@ -6,6 +6,7 @@ import deComposer from '../../messages/de/composer.json';
 import deErrors from '../../messages/de/errors.json';
 import deIdeas from '../../messages/de/ideas.json';
 import deMedia from '../../messages/de/media.json';
+import deNotifications from '../../messages/de/notifications.json';
 import deOnboarding from '../../messages/de/onboarding.json';
 import dePosts from '../../messages/de/posts.json';
 import deTeam from '../../messages/de/team.json';
@@ -17,6 +18,7 @@ import enComposer from '../../messages/en/composer.json';
 import enErrors from '../../messages/en/errors.json';
 import enIdeas from '../../messages/en/ideas.json';
 import enMedia from '../../messages/en/media.json';
+import enNotifications from '../../messages/en/notifications.json';
 import enOnboarding from '../../messages/en/onboarding.json';
 import enPosts from '../../messages/en/posts.json';
 import enTeam from '../../messages/en/team.json';
@@ -35,6 +37,7 @@ const MESSAGES = {
     posts: dePosts,
     ideas: deIdeas,
     media: deMedia,
+    notifications: deNotifications,
     brand: deBrand,
     errors: deErrors,
   },
@@ -48,6 +51,7 @@ const MESSAGES = {
     posts: enPosts,
     ideas: enIdeas,
     media: enMedia,
+    notifications: enNotifications,
     brand: enBrand,
     errors: enErrors,
   },

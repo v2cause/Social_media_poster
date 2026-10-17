@@ -14,9 +14,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   SheetContent,
 } from '@smp/ui';
 import {
@@ -45,6 +42,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 
+import { NotificationBell } from '@/features/notifications/notification-bell';
 import { authClient } from '@/lib/auth-client';
 import { useStoredFlag } from '@/lib/use-stored-flag';
 
@@ -62,7 +60,8 @@ type NavKey =
   | 'brandVoices'
   | 'settings'
   | 'members'
-  | 'security';
+  | 'security'
+  | 'notifications';
 
 interface NavItem {
   key: NavKey;
@@ -102,7 +101,10 @@ function navItems(area: ShellArea): NavItem[] {
     case 'organization':
       return [{ key: 'members', href: `/org/${area.organizationId}/members`, icon: Users }];
     case 'account':
-      return [{ key: 'security', href: '/account/security', icon: ShieldCheck }];
+      return [
+        { key: 'security', href: '/account/security', icon: ShieldCheck },
+        { key: 'notifications', href: '/account/notifications', icon: Bell },
+      ];
   }
 }
 
@@ -231,7 +233,7 @@ export function AppShell(props: {
           <AreaSwitcher area={props.area} memberships={props.memberships} />
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <Notifications />
+            <NotificationBell />
             <LanguageSwitcher signedIn />
             <UserMenu user={props.user} area={props.area} memberships={props.memberships} />
           </div>
@@ -285,23 +287,6 @@ function AreaSwitcher({ area, memberships }: { area: ShellArea; memberships: MyM
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function Notifications() {
-  const t = useTranslations('shell');
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t('notifications')}>
-          <Bell aria-hidden="true" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent>
-        <p className="text-sm font-medium">{t('notifications')}</p>
-        <p className="mt-2 text-sm text-muted-foreground">{t('noNotifications')}</p>
-      </PopoverContent>
-    </Popover>
   );
 }
 

@@ -1,0 +1,79 @@
+{
+  "bell": {
+    "label": "{count, plural, =0 {Benachrichtigungen} other {Benachrichtigungen, # ungelesen}}",
+    "title": "Benachrichtigungen",
+    "empty": "Keine Benachrichtigungen.",
+    "markAllRead": "Alle als gelesen markieren",
+    "settings": "Einstellungen",
+    "loadError": "Die Benachrichtigungen konnten nicht geladen werden.",
+    "unread": "Ungelesen"
+  },
+  "item": {
+    "tokenExpiring": {
+      "title": "Zugang läuft bald ab",
+      "body": "{accounts} auf {platform}: Der Zugang endet am {date}."
+    },
+    "reauthRequired": {
+      "title": "Neu verbinden nötig",
+      "body": "{accounts} auf {platform}: Die Verbindung funktioniert nicht mehr.",
+      "affected": "{count, plural, one {Ein geplanter Post ist betroffen.} other {# geplante Posts sind betroffen.}}"
+    },
+    "publishFailed": {
+      "title": "Post nicht veröffentlicht",
+      "body": "{accounts} auf {platform}: {reason}"
+    },
+    "needsAttention": {
+      "title": "Entscheidung nötig",
+      "body": "{accounts} auf {platform}: Es ist unklar, ob der Post erschienen ist."
+    },
+    "more": "{names} (+{count})"
+  },
+  "failureReasons": {
+    "PERMISSION_DENIED": "Die Plattform hat die nötige Berechtigung verweigert.",
+    "VALIDATION_REJECTED": "Die Plattform hat den Inhalt abgelehnt.",
+    "DUPLICATE": "Die Plattform hält den Post für ein Duplikat.",
+    "TRANSIENT": "Die Plattform war wiederholt nicht erreichbar.",
+    "MEDIA_PROCESSING": "Die Bilder waren nicht rechtzeitig fertig.",
+    "RATE_LIMITED": "Die Plattform hat zu viele Anfragen gemeldet.",
+    "OUTCOME_UNKNOWN": "Es ist unklar, ob der Post erschienen ist.",
+    "CHALLENGE_REQUIRED": "Die Plattform verlangt eine Bestätigung der Anmeldung.",
+    "SELECTOR_DRIFT": "Die Oberfläche der Plattform hat sich geändert.",
+    "REAUTH_REQUIRED": "Der Account muss neu verbunden werden.",
+    "SPEND_CAP": "Das Ausgabenlimit für X ist erreicht.",
+    "MISSED_WINDOW": "Der geplante Zeitpunkt lag mehr als 6 Stunden zurück.",
+    "SOCIAL_ACCOUNT_DISCONNECTED": "Der Account ist nicht mehr verbunden.",
+    "ADAPTER_UNAVAILABLE": "Die Plattform ist gerade nicht verfügbar.",
+    "VARIANT_NOT_PUBLISHABLE": "Der Inhalt erfüllt die Regeln der Plattform nicht.",
+    "INTERNAL": "Ein interner Fehler ist aufgetreten.",
+    "other": "Ein Fehler ist aufgetreten."
+  },
+  "settings": {
+    "title": "Benachrichtigungen",
+    "description": "Legen Sie fest, worüber Sie in der App und per E-Mail informiert werden.",
+    "event": "Ereignis",
+    "inApp": "In der App",
+    "email": "Per E-Mail",
+    "toggle": "{event}: {channel}",
+    "saved": "Einstellungen gespeichert.",
+    "saveError": "Die Einstellungen konnten nicht gespeichert werden.",
+    "loadError": "Die Einstellungen konnten nicht geladen werden.",
+    "types": {
+      "tokenExpiring": {
+        "title": "Zugang läuft ab",
+        "description": "14, 7 und 1 Tag, bevor der Zugang zu einem Account endet. An Inhaber und Administratoren."
+      },
+      "reauthRequired": {
+        "title": "Neu verbinden nötig",
+        "description": "Wenn ein Account neu verbunden werden muss. An Inhaber und Administratoren."
+      },
+      "publishFailed": {
+        "title": "Post nicht veröffentlicht",
+        "description": "Wenn ein Post endgültig nicht erscheinen konnte. An die Person, die ihn erstellt hat."
+      },
+      "needsAttention": {
+        "title": "Entscheidung nötig",
+        "description": "Wenn unklar ist, ob ein Post erschienen ist. An die Person, die ihn erstellt hat."
+      }
+    }
+  }
+}
