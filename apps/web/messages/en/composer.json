@@ -113,5 +113,59 @@
     "description": "Someone changed this post since you opened it. Load the new state, or overwrite it with your changes.",
     "reload": "Reload",
     "overwrite": "Overwrite"
+  },
+  "schedule": {
+    "title": "Schedule",
+    "description": "When and on which account the variants appear.",
+    "date": "Date",
+    "time": "Time",
+    "timeZone": "Time zone: {zone}",
+    "saveFirst": "Once the post has a brief and a platform, it is saved and can be scheduled.",
+    "account": "Account for {platform}",
+    "noAccount": "Do not schedule",
+    "reconnectOption": "{name} (reconnect)",
+    "connectAccount": "Connect an account",
+    "noAccounts": "No account is connected for {platform} yet.",
+    "ownTime": "Own time",
+    "ownDate": "Date for {platform}",
+    "ownTimeOf": "Time for {platform}",
+    "plannedFor": "Scheduled for {time}",
+    "publishedAt": "Published on {time}",
+    "original": "View original",
+    "plan": "Schedule",
+    "planCount": "{count, plural, one {Schedule # variant} other {Schedule # variants}}",
+    "now": "Post now",
+    "cancel": "Cancel plan",
+    "planned": "{count, plural, one {# variant scheduled.} other {# variants scheduled.}}",
+    "posting": "{count, plural, one {# variant is being published now.} other {# variants are being published now.}}",
+    "canceled": "The plan is canceled.",
+    "failed": "{platform}: {reason}",
+    "confirmNow": {
+      "title": "Publish now?",
+      "description": "{count, plural, one {# variant goes} other {# variants go}} to the platforms right away. This cannot be undone.",
+      "confirm": "Post now"
+    },
+    "hints": {
+      "needsReauth": "{account} must be reconnected before it can post.",
+      "expiresBefore": "The access to {account} ends on {date}, before the scheduled time. Reconnect the account first.",
+      "expiring": "The access to {account} expires on {date}.",
+      "xCost": "Posts through the X API cost money. So far for {account}: {amount}.",
+      "locked": "This variant is being published or was published. Its text and media can no longer change.",
+      "needsAttention": "It is unclear whether this variant appeared. Check the platform and decide."
+    },
+    "warnings": {
+      "ACCESS_EXPIRES_BEFORE_PUBLISH": "{platform}: The access of the account ends before the scheduled time.",
+      "ACCOUNT_EXPIRING": "{platform}: The access of the account expires soon."
+    },
+    "resolve": {
+      "recheck": "Check again",
+      "publish_anyway": "Post anyway",
+      "discard": "Discard"
+    },
+    "resolved": {
+      "recheck": "The variant is checked again.",
+      "publish_anyway": "The variant is published again.",
+      "discard": "The variant is discarded."
+    }
   }
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { usePostsGet } from '@smp/api-client';
 import {
   LOCALES,
   type BrandVoiceDto,
@@ -48,6 +49,8 @@ import type { StreamState } from './generation-stream';
 import { PlatformPreview } from './platform-preview';
 import { RefineActions } from './refine-actions';
 import { ConflictDialog, SaveStatus } from './save-status';
+import { ScheduleBar } from './schedule-bar';
+import { isContentLocked } from './schedule-model';
 import { useComposerSaver } from './use-composer-saver';
 import { useGenerationStream } from './use-generation-stream';
 import { VariantEditor, VariantTabs } from './variant-editor';
@@ -55,7 +58,9 @@ import { VariantMediaStrip } from './variant-media-strip';
 
 // The composer (guide step 2.8): brief on the left, the variants in the middle, the preview on
 // the right; stacked on small screens. Changes save themselves; the AI streams into the variants
-// the user has not edited, and refinements open as a diff to accept or discard.
+// the user has not edited, and refinements open as a diff to accept or discard. Below, the
+// schedule bar plans the variants (guide step 4.11); the live events of the publish job refresh
+// their status, and a variant that goes out or went out can no longer be edited.
 
 export interface ComposerPageProps {
   ws: string;
@@ -66,6 +71,12 @@ export interface ComposerPageProps {
   canWrite: boolean;
   /** ai.use */
   canUseAi: boolean;
+  /** post.schedule */
+  canSchedule: boolean;
+  /** post.publish */
+  canPublish: boolean;
+  /** The time zone of the workspace, in which the schedule bar plans. */
+  timeZone: string;
   styles: StyleDto[];
   /** The brand voices that are not archived. */
   voices: BrandVoiceDto[];
@@ -121,6 +132,14 @@ export function ComposerPage(props: ComposerPageProps) {
   const refinement = useGenerationStream();
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [review, setReview] = useState<Review | null>(null);
+
+  // The post as the server holds it; a live event of a status fetches it again.
+  const server = usePostsGet(props.ws, state.postId ?? '', { query: { enabled: state.postId !== null } });
+  useEffect(() => {
+    if (server.data) {
+      dispatch({ type: 'synced', post: server.data });
+    }
+  }, [server.data]);
 
   // The state at the end of an AI call, which may come several renders after it started.
   const latest = useRef(state);
@@ -219,6 +238,8 @@ export function ComposerPage(props: ComposerPageProps) {
       : null;
   const forbiddenWords =
     props.voices.find((voice) => voice.id === state.post.brandVoiceId)?.content.forbiddenWords ?? [];
+  // A variant that goes out or went out keeps its content.
+  const locked = active !== null && isContentLocked(active.publishing.status);
 
   return (
     <div className="flex flex-col gap-6">
@@ -260,12 +281,13 @@ export function ComposerPage(props: ComposerPageProps) {
                     dispatch({ type: 'activated', variantId });
                   }}
                 />
+                {locked && !readOnly ? <Alert>{t('composer.schedule.hints.locked')}</Alert> : null}
                 <VariantEditor
                   key={active.id}
                   variant={active}
                   streamingText={streamingText}
                   forbiddenWords={forbiddenWords}
-                  readOnly={readOnly}
+                  readOnly={readOnly || locked}
                   onChange={(patch) => {
                     dispatch({ type: 'variant-changed', variantId: active.id, patch });
                   }}
@@ -276,13 +298,13 @@ export function ComposerPage(props: ComposerPageProps) {
                   variant={active}
                   language={state.post.language}
                   context={state.post.brief}
-                  readOnly={readOnly}
+                  readOnly={readOnly || locked}
                   canUseAi={canGenerate}
                   onChange={(media) => {
                     dispatch({ type: 'media-changed', variantId: active.id, media });
                   }}
                 />
-                {canGenerate ? (
+                {canGenerate && !locked ? (
                   <div className="border-t border-border pt-4">
                     <RefineActions
                       key={active.id}
@@ -313,6 +335,20 @@ export function ComposerPage(props: ComposerPageProps) {
           />
         </div>
       </div>
+
+      {state.postId !== null && state.variants.length > 0 ? (
+        <ScheduleBar
+          ws={props.ws}
+          timeZone={props.timeZone}
+          variants={state.variants}
+          canSchedule={props.canSchedule}
+          canPublish={props.canPublish}
+          runAfterSave={saver.runAfterSave}
+          apply={saver.apply}
+        />
+      ) : props.canSchedule ? (
+        <p className="text-sm text-muted-foreground">{t('composer.schedule.saveFirst')}</p>
+      ) : null}
 
       <footer className="border-t border-border pt-4">
         <SaveStatus

@@ -113,5 +113,59 @@
     "description": "Jemand hat diesen Beitrag geändert, seit Sie ihn geöffnet haben. Laden Sie den neuen Stand, oder überschreiben Sie ihn mit Ihren Änderungen.",
     "reload": "Neu laden",
     "overwrite": "Überschreiben"
+  },
+  "schedule": {
+    "title": "Planen",
+    "description": "Wann und auf welchem Account die Varianten erscheinen.",
+    "date": "Datum",
+    "time": "Uhrzeit",
+    "timeZone": "Zeitzone: {zone}",
+    "saveFirst": "Sobald der Beitrag ein Briefing und eine Plattform hat, wird er gespeichert und lässt sich planen.",
+    "account": "Account für {platform}",
+    "noAccount": "Nicht planen",
+    "reconnectOption": "{name} (neu verbinden)",
+    "connectAccount": "Account verbinden",
+    "noAccounts": "Für {platform} ist noch kein Account verbunden.",
+    "ownTime": "Eigener Zeitpunkt",
+    "ownDate": "Datum für {platform}",
+    "ownTimeOf": "Uhrzeit für {platform}",
+    "plannedFor": "Geplant für {time}",
+    "publishedAt": "Veröffentlicht am {time}",
+    "original": "Original ansehen",
+    "plan": "Planen",
+    "planCount": "{count, plural, one {# Variante planen} other {# Varianten planen}}",
+    "now": "Jetzt posten",
+    "cancel": "Planung abbrechen",
+    "planned": "{count, plural, one {# Variante geplant.} other {# Varianten geplant.}}",
+    "posting": "{count, plural, one {# Variante wird jetzt veröffentlicht.} other {# Varianten werden jetzt veröffentlicht.}}",
+    "canceled": "Die Planung ist abgebrochen.",
+    "failed": "{platform}: {reason}",
+    "confirmNow": {
+      "title": "Jetzt veröffentlichen?",
+      "description": "{count, plural, one {# Variante geht} other {# Varianten gehen}} sofort an die Plattformen. Das lässt sich nicht rückgängig machen.",
+      "confirm": "Jetzt posten"
+    },
+    "hints": {
+      "needsReauth": "{account} muss neu verbunden werden, bevor darüber gepostet werden kann.",
+      "expiresBefore": "Der Zugang zu {account} endet am {date}, vor dem geplanten Zeitpunkt. Verbinden Sie den Account vorher neu.",
+      "expiring": "Der Zugang zu {account} läuft am {date} ab.",
+      "xCost": "Posts über die X-API kosten Geld. Bisher für {account}: {amount}.",
+      "locked": "Diese Variante wird gerade veröffentlicht oder ist veröffentlicht. Text und Medien lassen sich nicht mehr ändern.",
+      "needsAttention": "Es ist unklar, ob diese Variante erschienen ist. Prüfen Sie es auf der Plattform und entscheiden Sie."
+    },
+    "warnings": {
+      "ACCESS_EXPIRES_BEFORE_PUBLISH": "{platform}: Der Zugang des Accounts endet vor dem geplanten Zeitpunkt.",
+      "ACCOUNT_EXPIRING": "{platform}: Der Zugang des Accounts läuft bald ab."
+    },
+    "resolve": {
+      "recheck": "Erneut prüfen",
+      "publish_anyway": "Trotzdem posten",
+      "discard": "Verwerfen"
+    },
+    "resolved": {
+      "recheck": "Die Variante wird erneut geprüft.",
+      "publish_anyway": "Die Variante wird erneut veröffentlicht.",
+      "discard": "Die Variante ist verworfen."
+    }
   }
 }

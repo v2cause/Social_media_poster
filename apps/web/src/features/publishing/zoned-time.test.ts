@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { addDays, localDateOf, localDateTimeOf, startOfLocalDay, weekdayOf } from './zoned-time';
+import { addDays, instantOf, localDateOf, localDateTimeOf, startOfLocalDay, weekdayOf } from './zoned-time';
 
 describe('dates and times in a time zone', () => {
   it('shows an instant on the wall clock of the zone', () => {
@@ -19,6 +19,14 @@ describe('dates and times in a time zone', () => {
     expect(startOfLocalDay('2026-10-21', 'Pacific/Auckland')).toEqual(new Date('2026-10-20T11:00:00Z'));
     // Sao Paulo skipped from 00:00 to 01:00 on November 4, 2018: the day began at 01:00.
     expect(startOfLocalDay('2018-11-04', 'America/Sao_Paulo')).toEqual(new Date('2018-11-04T03:00:00Z'));
+  });
+
+  it('finds the instant of a local time like the API: after a gap, the earlier of a repeated hour', () => {
+    expect(instantOf('2026-10-20T09:30', 'Europe/Berlin')).toEqual(new Date('2026-10-20T07:30:00Z'));
+    // 02:30 on March 28, 2027 does not exist in Berlin; 03:00 is the first minute after the gap.
+    expect(instantOf('2027-03-28T02:30', 'Europe/Berlin')).toEqual(new Date('2027-03-28T01:00:00Z'));
+    // 02:30 on October 25, 2026 exists twice; the first one, still in summer time, counts.
+    expect(instantOf('2026-10-25T02:30', 'Europe/Berlin')).toEqual(new Date('2026-10-25T00:30:00Z'));
   });
 
   it('counts days and weekdays of local dates', () => {

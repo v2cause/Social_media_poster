@@ -250,4 +250,78 @@ describe('composerReducer', () => {
     expect(x().media.map((item) => item.assetId)).toEqual(['a', 'b']);
     expect(isMediaDirty(x())).toBe(true);
   });
+
+  it('follows the plans of the composer and the live status without losing local edits', () => {
+    let state = loaded();
+    const linkedin = () => state.variants.find((variant) => variant.id === 'v-linkedin');
+    const server = post.variants[1] as VariantDto;
+
+    // A plan of this composer: status, plan and version as the server answered.
+    state = composerReducer(state, {
+      type: 'planned',
+      variant: {
+        ...server,
+        status: 'SCHEDULED',
+        socialAccountId: 'account-1',
+        scheduledAt: '2026-10-20T07:30:00.000Z',
+        scheduledTimezone: 'Europe/Berlin',
+        version: 3,
+      },
+    });
+    expect(linkedin()).toMatchObject({
+      version: 3,
+      publishing: { status: 'SCHEDULED', socialAccountId: 'account-1', scheduledTimezone: 'Europe/Berlin' },
+    });
+
+    // The publish job moved it on: without local changes the version follows.
+    const published = {
+      ...server,
+      status: 'PUBLISHED' as const,
+      publishedAt: '2026-10-20T07:30:05.000Z',
+      externalUrl: 'https://mock.linkedin.example/posts/1',
+      version: 6,
+    };
+    state = composerReducer(state, { type: 'synced', post: { ...post, variants: [published] } });
+    expect(linkedin()).toMatchObject({
+      version: 6,
+      publishing: { status: 'PUBLISHED', externalUrl: 'https://mock.linkedin.example/posts/1' },
+    });
+
+    // An older answer changes nothing.
+    state = composerReducer(state, { type: 'synced', post });
+    expect(linkedin()?.publishing.status).toBe('PUBLISHED');
+
+    // With an unsaved edit the status follows, the version stays: a save then reports the conflict.
+    state = composerReducer(state, {
+      type: 'variant-changed',
+      variantId: 'v-linkedin',
+      patch: { text: 'Neu' },
+    });
+    state = composerReducer(state, {
+      type: 'synced',
+      post: { ...post, variants: [{ ...published, status: 'DELETED', version: 7 }] },
+    });
+    expect(linkedin()).toMatchObject({ version: 6, text: 'Neu', publishing: { status: 'DELETED' } });
+  });
+
+  it('takes the status a save answers with, a failed variant becomes a draft again', () => {
+    let state = composerReducer(loaded(), {
+      type: 'loaded',
+      post: {
+        ...post,
+        variants: [{ ...(post.variants[1] as VariantDto), status: 'FAILED', failureCode: 'TRANSIENT' }],
+      },
+    });
+    state = composerReducer(state, {
+      type: 'variant-changed',
+      variantId: 'v-linkedin',
+      patch: { text: 'Neu' },
+    });
+    state = composerReducer(state, {
+      type: 'variant-saved',
+      variant: { ...(post.variants[1] as VariantDto), text: 'Neu', status: 'DRAFT', version: 3 },
+      revision: 1,
+    });
+    expect(state.variants[0]?.publishing).toMatchObject({ status: 'DRAFT', failureCode: null });
+  });
 });

@@ -31,6 +31,9 @@ export default async function PostPage({ params }: { params: Promise<{ ws: strin
       contentLanguage={toLocale(context.workspace.contentLanguage)}
       canWrite={context.permissions.includes('post.write')}
       canUseAi={context.permissions.includes('ai.use')}
+      canSchedule={context.permissions.includes('post.schedule')}
+      canPublish={context.permissions.includes('post.publish')}
+      timeZone={context.workspace.timezone}
       styles={options.styles}
       voices={options.voices}
       post={post}

@@ -11,7 +11,9 @@ import type { Platform } from '@smp/platform-rules';
 // The state of the composer (guide step 2.8) as a reducer, so the rules are testable without a
 // browser: what is dirty and must be saved, and which variants a generation may overwrite.
 // The media of a variant (guide step 3.6) have their own revision: text and media are saved with
-// separate requests, but by the same saver and with the same version of the variant.
+// separate requests, but by the same saver and with the same version of the variant. The plan of
+// a variant (guide step 4.11) follows the server: the plans of this composer and the live events
+// of the publish job update it without touching the text.
 
 /** An asset in a variant, with crop, letterbox and alt text of this use. */
 export interface DraftMedia {
@@ -21,6 +23,18 @@ export interface DraftMedia {
   /** The alt text of this use; null takes the one of the asset. */
   altText: string | null;
   asset: MediaAssetDto;
+}
+
+/** Where a variant stands with its publication, as the server reported it last. */
+export interface VariantPublishing {
+  status: VariantDto['status'];
+  socialAccountId: string | null;
+  scheduledAt: string | null;
+  scheduledTimezone: string | null;
+  publishedAt: string | null;
+  externalUrl: string | null;
+  failureCode: string | null;
+  isDryRun: boolean;
 }
 
 export interface DraftVariant {
@@ -43,6 +57,7 @@ export interface DraftVariant {
   savedMediaRevision: number;
   /** What the server found in the last generated text, until the text changes. */
   check: { forbiddenWords: string[]; autoShortened: boolean } | null;
+  publishing: VariantPublishing;
 }
 
 export interface DraftPost {
@@ -78,6 +93,10 @@ export type ComposerAction =
   | { type: 'media-changed'; variantId: string; media: DraftMedia[] }
   | { type: 'media-saved'; variant: VariantDto; mediaRevision: number }
   | { type: 'variant-version'; variantId: string; version: number }
+  /** A plan, cancel or post of this composer: the variant as the server answered. */
+  | { type: 'planned'; variant: VariantDto }
+  /** The post as the server holds it now, after a live event of the publish job. */
+  | { type: 'synced'; post: PostDto }
   | { type: 'generation-started'; variantIds: readonly string[] }
   | { type: 'generated'; variants: readonly GeneratedVariantDto[] }
   | { type: 'refined'; result: GeneratedVariantDto }
@@ -111,6 +130,17 @@ const toDraftMedia = (variant: VariantDto): DraftMedia[] =>
       asset: use.asset,
     }));
 
+const publishingOf = (variant: VariantDto): VariantPublishing => ({
+  status: variant.status,
+  socialAccountId: variant.socialAccountId,
+  scheduledAt: variant.scheduledAt,
+  scheduledTimezone: variant.scheduledTimezone,
+  publishedAt: variant.publishedAt,
+  externalUrl: variant.externalUrl,
+  failureCode: variant.failureCode,
+  isDryRun: variant.isDryRun,
+});
+
 const toDraft = (variant: VariantDto): DraftVariant => ({
   id: variant.id,
   platform: variant.platform,
@@ -127,7 +157,29 @@ const toDraft = (variant: VariantDto): DraftVariant => ({
   media: toDraftMedia(variant),
   mediaRevision: 0,
   savedMediaRevision: 0,
+  publishing: publishingOf(variant),
 });
+
+const sameList = (a: readonly string[], b: readonly string[]): boolean =>
+  a.length === b.length && a.every((item, index) => item === b[index]);
+
+/**
+ * A variant after a fetch of its post. The status and the plan always follow the server, unless
+ * the answer is older than what the composer knows. The version follows only when the local
+ * variant has no unsaved change and the same content: then the server changed the status, not
+ * the text, and the next save must not report a conflict.
+ */
+function synced(variant: DraftVariant, server: VariantDto): DraftVariant {
+  if (server.version < variant.version) {
+    return variant;
+  }
+  const same =
+    !isVariantDirty(variant) &&
+    server.text === variant.text &&
+    sameList(server.hashtags, variant.hashtags) &&
+    server.firstComment === variant.firstComment;
+  return { ...variant, publishing: publishingOf(server), version: same ? server.version : variant.version };
+}
 
 const byTarget = (a: { targetKey: string }, b: { targetKey: string }): number =>
   a.targetKey.localeCompare(b.targetKey, 'en', { numeric: true });
@@ -224,10 +276,12 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         check: action.patch.text === undefined ? variant.check : null,
       }));
     case 'variant-saved':
+      // An edit turns a failed or canceled variant into a draft again.
       return updateVariant(state, action.variant.id, (variant) => ({
         ...variant,
         version: action.variant.version,
         savedRevision: Math.max(variant.savedRevision, action.revision),
+        publishing: publishingOf(action.variant),
       }));
     case 'media-changed':
       return updateVariant(state, action.variantId, (variant) => ({
@@ -242,9 +296,25 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         savedMediaRevision: Math.max(variant.savedMediaRevision, action.mediaRevision),
         // Fresh thumbnail URLs, unless the user changed the media again meanwhile.
         media: variant.mediaRevision === action.mediaRevision ? toDraftMedia(action.variant) : variant.media,
+        publishing: publishingOf(action.variant),
       }));
     case 'variant-version':
       return updateVariant(state, action.variantId, (variant) => ({ ...variant, version: action.version }));
+    case 'planned':
+      // Plans run after the pending saves, so the server holds the text of the composer.
+      return updateVariant(state, action.variant.id, (variant) => ({
+        ...variant,
+        version: Math.max(variant.version, action.variant.version),
+        publishing: publishingOf(action.variant),
+      }));
+    case 'synced':
+      return {
+        ...state,
+        variants: state.variants.map((variant) => {
+          const server = action.post.variants.find((candidate) => candidate.id === variant.id);
+          return server ? synced(variant, server) : variant;
+        }),
+      };
     case 'generation-started':
       // The user agreed to replace these texts; edits from now on stay protected.
       return {

@@ -30,6 +30,8 @@ import {
 // and every changed variant, one request after the other, each with the version it read. A 409
 // stops saving until the user chooses to reload or to overwrite. The media of a variant go in a
 // request of their own after its text (guide step 3.6), with the version the text save returned.
+// The plans of the schedule bar (guide step 4.11) run in the same queue, after the pending saves,
+// so a plan never races a save of the same variant for its version.
 
 const DELAY_MS = 800;
 
@@ -51,6 +53,12 @@ export function useComposerSaver(options: {
   status: SaverStatus;
   /** Saves now; the saved state, or null when saving failed or waits for a conflict. */
   flush: () => Promise<ComposerState | null>;
+  /**
+   * Saves the pending changes, then runs the task in the queue of the saves; null when saving
+   * failed. The task applies its results with apply, so the next save sees their versions.
+   */
+  runAfterSave: <T>(task: (saved: ComposerState) => Promise<T>) => Promise<T | null>;
+  apply: (action: ComposerAction) => void;
   resolveConflict: (choice: 'reload' | 'overwrite') => Promise<void>;
 } {
   const { ws, state, dispatch, readOnly } = options;
@@ -203,6 +211,20 @@ export function useComposerSaver(options: {
 
   const flush = useCallback(() => enqueue(), [enqueue]);
 
+  const runAfterSave = useCallback(
+    <T>(task: (saved: ComposerState) => Promise<T>): Promise<T | null> => {
+      const run = async (): Promise<T | null> => {
+        const saved = await saveOnce();
+        return saved === null ? null : task(saved);
+      };
+      const next = queueRef.current.then(run, run);
+      // A failed task must not stop the saves behind it.
+      queueRef.current = next.catch(() => undefined);
+      return next;
+    },
+    [saveOnce],
+  );
+
   const resolveConflict = useCallback(
     async (choice: 'reload' | 'overwrite') => {
       const conflict = conflictRef.current;
@@ -227,5 +249,5 @@ export function useComposerSaver(options: {
     [apply, enqueue, ws],
   );
 
-  return { status, flush, resolveConflict };
+  return { status, flush, runAfterSave, apply, resolveConflict };
 }

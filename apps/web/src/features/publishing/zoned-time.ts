@@ -38,19 +38,40 @@ export function localDateTimeOf(instant: Date, timeZone: string): string {
 export const localDateOf = (instant: Date, timeZone: string): string =>
   localDateTimeOf(instant, timeZone).slice(0, 10);
 
-/**
- * The first instant of a local day (YYYY-MM-DD) in the zone. Where the clocks skip midnight, the
- * day starts with the first minute after the gap.
- */
-export function startOfLocalDay(date: string, timeZone: string): Date {
+/** The wall clock of an instant in the zone, as the milliseconds of the same wall clock in UTC. */
+function wallClockOf(instant: number, timeZone: string): number {
+  const [date = '', time = ''] = localDateTimeOf(new Date(instant), timeZone).split('T');
   const [year = 0, month = 1, day = 1] = date.split('-').map(Number);
-  const wall = Date.UTC(year, month - 1, day);
-  // Offsets stay within 14 hours, so the day starts within a day of its midnight in UTC.
+  const [hour = 0, minute = 0] = time.split(':').map(Number);
+  return Date.UTC(year, month - 1, day, hour, minute);
+}
+
+/**
+ * The instant of a local date and time (YYYY-MM-DDTHH:mm) in the zone, resolved like the API: in
+ * a repeated hour the earlier instant, in the gap of a change of the clocks the first minute
+ * after it.
+ */
+export function instantOf(localDateTime: string, timeZone: string): Date {
+  const [date = '', time = '00:00'] = localDateTime.split('T');
+  const [year = 0, month = 1, day = 1] = date.split('-').map(Number);
+  const [hour = 0, minute = 0] = time.split(':').map(Number);
+  const wall = Date.UTC(year, month - 1, day, hour, minute);
+  const offsetAt = (instant: number): number => wallClockOf(instant, timeZone) - instant;
+  // The offsets a day before and a day after enclose any change near this wall time.
+  const offsetBefore = offsetAt(wall - DAY_MS);
+  const candidates = [...new Set([wall - offsetBefore, wall - offsetAt(wall + DAY_MS)])]
+    .filter((instant) => wall - offsetAt(instant) === instant)
+    .sort((a, b) => a - b);
+  const [first] = candidates;
+  if (first !== undefined) {
+    return new Date(first);
+  }
+  // In a gap: the first minute after it is where the new offset starts.
   let low = (wall - DAY_MS) / MINUTE_MS;
   let high = (wall + DAY_MS) / MINUTE_MS;
   while (high - low > 1) {
     const middle = Math.floor((low + high) / 2);
-    if (localDateOf(new Date(middle * MINUTE_MS), timeZone) < date) {
+    if (offsetAt(middle * MINUTE_MS) === offsetBefore) {
       low = middle;
     } else {
       high = middle;
@@ -58,6 +79,9 @@ export function startOfLocalDay(date: string, timeZone: string): Date {
   }
   return new Date(high * MINUTE_MS);
 }
+
+/** The first instant of a local day (YYYY-MM-DD) in the zone. */
+export const startOfLocalDay = (date: string, timeZone: string): Date => instantOf(`${date}T00:00`, timeZone);
 
 /** The local date a number of days after another, as YYYY-MM-DD. */
 export function addDays(date: string, days: number): string {
