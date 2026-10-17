@@ -220,6 +220,8 @@ describe('channel adapters on PostgreSQL', () => {
         accessExpiresAt: new Date('2027-04-14T12:00:00Z'),
         grantedScopes: ['tweet.read'],
         connectedAt: expect.any(Date) as Date,
+        // An X account without paid calls so far.
+        costMicros: 0,
       },
     ]);
     await expect(

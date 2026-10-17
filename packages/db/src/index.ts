@@ -59,6 +59,12 @@ export { ChannelReadModel, type SocialAccountView } from './channels/channel-rea
 export { PrismaPublishingUnitOfWork } from './publishing/prisma-publishing-unit-of-work';
 export { PrismaPublishJobUnitOfWork } from './publishing/prisma-publish-job-unit-of-work';
 export {
+  VariantListReadModel,
+  type VariantListFilter,
+  type VariantListItemView,
+  type VariantListOrder,
+} from './publishing/variant-list-read-model';
+export {
   createPrismaTokenMaintenanceStore,
   PrismaExpiringConnectionScanner,
   PrismaTokenMaintenanceUnitOfWork,

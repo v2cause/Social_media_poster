@@ -40,6 +40,7 @@ describe('database roles and migrations', () => {
         '0009_channels_publishing',
         '0010_rls_channels_publishing',
         '0011_notification_events',
+        '0012_variant_schedule_index',
       ]);
       expect(rows.every((row) => row.finished_at instanceof Date)).toBe(true);
     } finally {

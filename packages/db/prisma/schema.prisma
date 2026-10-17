@@ -559,7 +559,8 @@ model PostVariant {
   attempts      PublishAttempt[]
 
   @@unique([postId, targetKey])
-  @@index([workspaceId])
+  // The calendar asks for the variants of a workspace in a period (guide step 4.11).
+  @@index([workspaceId, scheduledAt])
   @@index([socialAccountId])
   @@index([scheduledAt], map: "post_variant_due_idx", where: raw("status = 'SCHEDULED'"))
   @@index([metricsNextAt], map: "post_variant_metrics_due_idx", where: raw("status = 'PUBLISHED'"))
