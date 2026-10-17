@@ -29,7 +29,7 @@
     },
     "test:e2e": {
       "cache": false,
-      "passThroughEnv": ["E2E_BASE_URL", "PLAYWRIGHT_CHROMIUM_EXECUTABLE"]
+      "passThroughEnv": ["E2E_BASE_URL", "E2E_SHOTS_DIR", "PLAYWRIGHT_CHROMIUM_EXECUTABLE"]
     }
   }
 }
