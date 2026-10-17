@@ -1,3 +1,4 @@
+import type { PostLimits } from '../../billing/application/plan-limits';
 import {
   composePostText,
   planRendition,
@@ -40,6 +41,8 @@ import type {
 export interface PublishingDependencies {
   unitOfWork: PublishingUnitOfWork;
   clock: Clock;
+  /** The posts per month the plan of the organization allows (guide step 7.4). */
+  posts: PostLimits;
 }
 
 /** A local date and time (YYYY-MM-DDTHH:mm) in an IANA time zone, as the user picked it. */

@@ -1,12 +1,15 @@
 import type { Provider } from '@nestjs/common';
 import {
   CancelVariant,
+  EntitlementsService,
+  planPostLimits,
   PublishNow,
   RescheduleVariant,
   ResolveNeedsAttention,
   RetryVariant,
   ScheduleVariant,
   systemClock,
+  type PlanUsage,
   type PublishingDependencies,
 } from '@smp/core';
 import {
@@ -18,6 +21,7 @@ import {
 
 import { RequestOriginService } from '../../common/cls/tenant-context';
 import { DATABASE_CLIENT } from '../../infrastructure/clients.module';
+import { PLAN_USAGE } from '../billing/plan.module';
 
 export const PUBLISHING_DEPENDENCIES = Symbol('PUBLISHING_DEPENDENCIES');
 export const PUBLISHING_READ_MODEL = Symbol('PUBLISHING_READ_MODEL');
@@ -39,10 +43,17 @@ const PUBLISHING_USE_CASES = [
 export const publishingProviders: Provider[] = [
   {
     provide: PUBLISHING_DEPENDENCIES,
-    inject: [DATABASE_CLIENT, RequestOriginService],
-    useFactory: (base: PrismaClient, origin: RequestOriginService): PublishingDependencies => ({
+    inject: [DATABASE_CLIENT, RequestOriginService, EntitlementsService, PLAN_USAGE],
+    useFactory: (
+      base: PrismaClient,
+      origin: RequestOriginService,
+      entitlements: EntitlementsService,
+      usage: PlanUsage,
+    ): PublishingDependencies => ({
       unitOfWork: new PrismaPublishingUnitOfWork(base, () => origin.get()),
       clock: systemClock,
+      // The posts of a month in all workspaces stay within the plan (guide step 7.4).
+      posts: planPostLimits(entitlements, usage),
     }),
   },
   {

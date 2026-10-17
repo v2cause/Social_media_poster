@@ -342,3 +342,60 @@ describe('PublishNow, RetryVariant and ResolveNeedsAttention', () => {
     expect(bed.unitOfWork.state.outbox).toEqual([]);
   });
 });
+
+describe('the posts per month of the plan (guide step 7.4)', () => {
+  it('plans a post only while its month has room in the plan, counting each variant once', async () => {
+    const bed = createPublishingTestbed();
+    seedVariant(bed);
+    seedVariant(bed, { id: 'variant-2', status: 'SCHEDULED', scheduledAt: new Date('2026-10-25T08:00:00Z') });
+    bed.posts.max = 1;
+
+    const refused = failure(
+      new ScheduleVariant(bed).execute({
+        actor: editor,
+        variantId: 'variant-1',
+        version: 4,
+        at: berlin('2026-10-20T09:30'),
+      }),
+    );
+    expect(await refused).toMatchObject({
+      code: 'PLAN_LIMIT_REACHED',
+      params: { limit: 'scheduledPostsPerMonth', max: 1 },
+    });
+    expect(bed.unitOfWork.state.variants.get('variant-1')?.status).toBe('DRAFT');
+    // Another month has room, and moving the planned one within October counts it once.
+    await expect(
+      new ScheduleVariant(bed).execute({
+        actor: editor,
+        variantId: 'variant-1',
+        version: 4,
+        at: berlin('2026-11-02T09:30'),
+      }),
+    ).resolves.toMatchObject({ status: 'SCHEDULED' });
+    await expect(
+      new RescheduleVariant(bed).execute({
+        actor: editor,
+        variantId: 'variant-2',
+        version: 4,
+        at: berlin('2026-10-28T09:30'),
+      }),
+    ).resolves.toMatchObject({ status: 'SCHEDULED' });
+  });
+
+  it('holds for posting now as well', async () => {
+    const bed = createPublishingTestbed();
+    seedVariant(bed);
+    bed.posts.max = 0;
+
+    expect(
+      await failure(
+        new PublishNow(bed).execute({
+          actor: editor,
+          variantId: 'variant-1',
+          version: 4,
+          timeZone: 'Europe/Berlin',
+        }),
+      ),
+    ).toMatchObject({ code: 'PLAN_LIMIT_REACHED' });
+  });
+});

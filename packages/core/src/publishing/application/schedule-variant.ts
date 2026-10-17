@@ -14,7 +14,8 @@ import {
 
 // Planning a variant (architecture 7, step 1): checks and the status change with a new schedule
 // version in one transaction. The scheduler tick queues it when it is due (guide step 4.7).
-// Rescheduling raises the schedule version as well, so a job queued before is stale.
+// Rescheduling raises the schedule version as well, so a job queued before is stale. The month of
+// the new time needs room for one more post in the plan (guide step 7.4).
 
 export interface ScheduleVariantInput {
   actor: ContentActor;
@@ -47,6 +48,7 @@ async function plan(
     );
     const accountId = input.socialAccountId ?? variant.socialAccountId;
     const warnings = await checkPublishable(store, variant, accountId, scheduledAt);
+    await deps.posts.assertRoom(actor.organizationId, variant.id, scheduledAt);
     const scheduleVersion = await applyChange(
       store,
       variant,

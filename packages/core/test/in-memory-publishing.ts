@@ -9,6 +9,7 @@ import type {
   SchedulableVariant,
   VariantMediaSource,
 } from '../src';
+import { PlanLimitReachedError, type PostLimits } from '../src';
 import { fixedClock, ScopeViolation } from './in-memory-content';
 
 // In-memory adapters for the planning use cases: a unit of work that hides other workspaces and
@@ -95,15 +96,39 @@ export class InMemoryPublishing implements PublishingUnitOfWork {
   }
 }
 
+/** The posts per month of the plan over the variants of the in-memory store. */
+export class MemoryPostLimits implements PostLimits {
+  max = Number.POSITIVE_INFINITY;
+
+  constructor(private readonly unitOfWork: InMemoryPublishing) {}
+
+  assertRoom(_organizationId: string, variantId: string, at: Date): Promise<void> {
+    const month = at.toISOString().slice(0, 7);
+    const used = [...this.unitOfWork.state.variants.values()].filter(
+      (variant) =>
+        variant.id !== variantId &&
+        ['SCHEDULED', 'QUEUED', 'PUBLISHING', 'RETRYING', 'PUBLISHED', 'NEEDS_ATTENTION'].includes(
+          variant.status,
+        ) &&
+        variant.scheduledAt?.toISOString().slice(0, 7) === month,
+    ).length;
+    if (used + 1 > this.max) {
+      return Promise.reject(new PlanLimitReachedError('scheduledPostsPerMonth', this.max));
+    }
+    return Promise.resolve();
+  }
+}
+
 export interface PublishingTestbed extends PublishingDependencies {
   unitOfWork: InMemoryPublishing;
+  posts: MemoryPostLimits;
 }
 
 /** Now is 2026-10-16T12:00:00Z, 14:00 in Berlin. */
-export const createPublishingTestbed = (): PublishingTestbed => ({
-  unitOfWork: new InMemoryPublishing(),
-  clock: fixedClock('2026-10-16T12:00:00Z'),
-});
+export function createPublishingTestbed(): PublishingTestbed {
+  const unitOfWork = new InMemoryPublishing();
+  return { unitOfWork, clock: fixedClock('2026-10-16T12:00:00Z'), posts: new MemoryPostLimits(unitOfWork) };
+}
 
 /** A LinkedIn draft of workspace ws-1 with a text and an active account. */
 export function seedVariant(

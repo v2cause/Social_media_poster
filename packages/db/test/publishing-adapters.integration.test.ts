@@ -5,6 +5,7 @@ import {
   RescheduleVariant,
   ScheduleVariant,
   SocialAccountNotReadyError,
+  unlimitedPosts,
   VariantNotFoundError,
   VersionConflictError,
   type ContentActor,
@@ -61,6 +62,7 @@ describe('publishing adapters on PostgreSQL', () => {
         userAgent: 'vitest',
       })),
       clock: { now: () => new Date('2026-10-16T12:00:00Z') },
+      posts: unlimitedPosts,
     };
   };
   const query = async <T>(sql: string, values: unknown[] = []): Promise<T[]> => {

@@ -273,4 +273,37 @@ describe('publishing API', () => {
     await invalid({ from: '2026-11-01T00:00:00Z', to: '2026-10-01T00:00:00Z' }).expect(400);
     expect((await invalid({ cursor: 'forged' }).expect(422)).body).toMatchObject({ code: 'INVALID_CURSOR' });
   });
+
+  it('plans no more posts in a month than the plan allows (guide step 7.4)', async () => {
+    const variant = await draft();
+    const [demo] = await sql<{ organization_id: string }>(
+      'SELECT organization_id FROM workspace WHERE id = $1',
+      [workspaceId],
+    );
+    const organizationId = demo?.organization_id ?? '';
+    // A plan without posts: nothing more goes out this month.
+    await sql(
+      `UPDATE subscription SET limit_overrides = '{"scheduledPostsPerMonth": 0}' WHERE organization_id = $1`,
+      [organizationId],
+    );
+    try {
+      const refused = await as(editor)
+        .post(`${ws}/variants/${variant.id}/schedule`)
+        .send({
+          version: variant.version,
+          localDateTime: inDays(3),
+          timeZone: ZONE,
+          socialAccountId: accountId,
+        })
+        .expect(402);
+      expect(refused.body).toMatchObject({
+        code: 'PLAN_LIMIT_REACHED',
+        params: { limit: 'scheduledPostsPerMonth', max: 0 },
+      });
+    } finally {
+      await sql(`UPDATE subscription SET limit_overrides = NULL WHERE organization_id = $1`, [
+        organizationId,
+      ]);
+    }
+  });
 });
