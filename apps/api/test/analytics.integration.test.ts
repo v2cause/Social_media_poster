@@ -22,6 +22,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { startApiTestApp, type ApiTestApp } from './support/api-app';
 import { signIn, type Browser } from './support/browser';
+import { onPlan } from './support/plan';
 
 // Guide step 5.4 through the API: KPIs of the last 30 days against the 30 before, series per
 // platform, top posts, breakdowns, a post with its snapshots, an account and the CSV export, all
@@ -63,6 +64,12 @@ describe('analytics API', () => {
       throw new Error('not signed in');
     }
     return viewer;
+  };
+  const started = (): ApiTestApp => {
+    if (!api) {
+      throw new Error('API is not running');
+    }
+    return api;
   };
   const sql = async (text: string, values: unknown[] = []): Promise<void> => {
     if (!system) {
@@ -248,6 +255,8 @@ describe('analytics API', () => {
       await app.$disconnect();
     }
     viewer = await signIn(api, viewerEmail(), SEED_PASSWORD);
+    // Pro keeps a year of analytics (guide step 7.4).
+    await onPlan(api, organizationId, 'pro');
   }, 300_000);
 
   afterAll(async () => {
@@ -420,6 +429,19 @@ describe('analytics API', () => {
       code: 'ANALYTICS_HISTORY_EXCEEDED',
       params: { earliest: d(364) },
     });
+    // The 30 days of the trial, as an override of the operators.
+    await onPlan(started(), organizationId, 'pro', { analyticsHistoryDays: 30 });
+    try {
+      expect(
+        (
+          await as()
+            .get(`${ws}/analytics/overview?from=${d(40)}`)
+            .expect(422)
+        ).body,
+      ).toMatchObject({ params: { earliest: d(29) } });
+    } finally {
+      await onPlan(started(), organizationId, 'pro');
+    }
     expect(
       (
         await as()

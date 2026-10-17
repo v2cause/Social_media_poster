@@ -69,7 +69,7 @@ export interface ApiTestOptions {
   captureInvitations?: boolean;
   /** Other limits of the AI routes, for tests that make many AI calls in a minute. */
   aiRateLimits?: AiRateLimits;
-  /** Further environment variables, for example AI_MONTHLY_CAP_MICROS. */
+  /** Further environment variables, for example STRIPE_API_BASE. */
   env?: Record<string, string>;
   /**
    * Start SeaweedFS with a bucket and process the media queue like the worker role "media" does.

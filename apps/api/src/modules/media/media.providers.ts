@@ -2,20 +2,22 @@ import type { Provider } from '@nestjs/common';
 import {
   CompleteUpload,
   DeleteMedia,
+  EntitlementsService,
+  planMediaLimits,
   RequestUpload,
   systemClock,
   UpdateMediaAltText,
   uuidV7Ids,
   type MediaDependencies,
+  type PlanUsage,
   type StoragePort,
 } from '@smp/core';
 import { MediaReadModel, PrismaMediaUnitOfWork, type PrismaClient } from '@smp/db';
 import { MediaProducer } from '@smp/queue';
 
 import { RequestOriginService } from '../../common/cls/tenant-context';
-import type { ApiEnv } from '../../config/api-env';
-import { API_ENV } from '../../config/config.module';
 import { DATABASE_CLIENT, MEDIA_STORAGE } from '../../infrastructure/clients.module';
+import { PLAN_USAGE } from '../billing/plan.module';
 
 export const MEDIA_DEPENDENCIES = Symbol('MEDIA_DEPENDENCIES');
 export const MEDIA_READ_MODEL = Symbol('MEDIA_READ_MODEL');
@@ -29,18 +31,27 @@ const MEDIA_USE_CASES = [RequestUpload, CompleteUpload, UpdateMediaAltText, Dele
 export const mediaProviders: Provider[] = [
   {
     provide: MEDIA_DEPENDENCIES,
-    inject: [DATABASE_CLIENT, RequestOriginService, MEDIA_STORAGE, MediaProducer, API_ENV],
+    inject: [
+      DATABASE_CLIENT,
+      RequestOriginService,
+      MEDIA_STORAGE,
+      MediaProducer,
+      EntitlementsService,
+      PLAN_USAGE,
+    ],
     useFactory: (
       base: PrismaClient,
       origin: RequestOriginService,
       storage: StoragePort,
       jobs: MediaProducer,
-      env: ApiEnv,
+      entitlements: EntitlementsService,
+      usage: PlanUsage,
     ): ApiMediaDependencies => ({
       unitOfWork: new PrismaMediaUnitOfWork(base, () => origin.get()),
       storage,
       jobs,
-      limits: { storageBytes: env.MEDIA_STORAGE_LIMIT_BYTES },
+      // The originals of all workspaces of the organization, within its plan (guide step 7.4).
+      limits: planMediaLimits(entitlements, usage),
       clock: systemClock,
       ids: uuidV7Ids,
     }),

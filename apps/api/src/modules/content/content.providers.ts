@@ -6,9 +6,10 @@ import {
   CreatePost,
   CreateStyle,
   DeletePost,
-  fixedQuotaLimits,
+  EntitlementsService,
   GenerateIdeas,
   GenerateVariants,
+  planQuotaLimits,
   QuotaService,
   RefineVariant,
   SetVariantMedia,
@@ -93,12 +94,13 @@ export const contentProviders: Provider[] = [
     }),
   },
   {
+    // The AI usage of a month stays within the credits and the overage of the plan (guide step 7.4).
     provide: QuotaService,
-    inject: [DATABASE_CLIENT, API_ENV],
-    useFactory: (base: PrismaClient, env: ApiEnv) =>
+    inject: [DATABASE_CLIENT, EntitlementsService],
+    useFactory: (base: PrismaClient, entitlements: EntitlementsService) =>
       new QuotaService({
         store: new PrismaQuotaStore(base),
-        limits: fixedQuotaLimits({ ai_micros: BigInt(env.AI_MONTHLY_CAP_MICROS) }),
+        limits: planQuotaLimits(entitlements),
         clock: systemClock,
       }),
   },

@@ -8,9 +8,12 @@ import type { MediaJobs } from '../ports/media-jobs';
 import type { MediaScope, MediaUnitOfWork } from '../ports/media-store';
 import type { StoragePort } from '../ports/storage';
 
-/** The storage quota of a workspace until plans set it per organization (phase 7). */
+/** The storage of an organization: what its plan allows and what its workspaces store (guide step 7.4). */
 export interface MediaLimits {
-  storageBytes: number;
+  /** The originals the plan allows in all workspaces, in bytes. */
+  storageBytes(organizationId: string): Promise<number>;
+  /** The bytes all workspaces store: every asset neither deleted nor rejected. */
+  storageUsed(organizationId: string): Promise<number>;
 }
 
 /** What the media use cases need from the outside. */

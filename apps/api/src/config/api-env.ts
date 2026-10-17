@@ -15,21 +15,6 @@ export const apiEnvSchema = z
     APP_URL: z.url(),
     API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
     REDIS_URL: z.url({ protocol: /^rediss?$/ }),
-    // The storage quota of a workspace until plans set it per organization (phase 7).
-    MEDIA_STORAGE_LIMIT_BYTES: z.preprocess(
-      unsetIfEmpty,
-      z.coerce
-        .number()
-        .int()
-        .min(1)
-        .default(5 * 1024 ** 3),
-    ),
-    // The days of analytics every organization keeps until plans set it per organization
-    // (phase 7); periods that start earlier are refused.
-    ANALYTICS_HISTORY_DAYS: z.preprocess(
-      unsetIfEmpty,
-      z.coerce.number().int().min(7).max(3_650).default(365),
-    ),
     // Better Auth: signs session cookies and tokens. Generate with `pnpm gen:keys`.
     BETTER_AUTH_SECRET: z.string().min(32),
     // The public origin the browser talks to (same origin as the web app).

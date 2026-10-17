@@ -79,7 +79,7 @@ describe('RequestUpload', () => {
     expect(testbed.unitOfWork.state.assets.size).toBe(0);
   });
 
-  it('counts announced and measured sizes against the storage quota of the workspace', async () => {
+  it('counts announced and measured sizes against the storage the plan allows', async () => {
     const testbed = createMediaTestbed(25 * MB);
     await requested(testbed, { size: 10 * MB });
     await requested(testbed, { size: 10 * MB });

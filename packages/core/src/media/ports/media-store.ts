@@ -17,10 +17,11 @@ export interface MediaAssetRepository {
   /** An asset of the workspace, deleted ones included. */
   find(workspaceId: string, assetId: string): Promise<MediaAsset | null>;
   insert(asset: MediaAsset): Promise<void>;
-  /** Waits for other uploads of the workspace, so the quota check and the insert are atomic. */
-  lockStorage(workspaceId: string): Promise<void>;
-  /** The bytes the workspace stores: every asset neither deleted nor rejected. */
-  storageUsed(workspaceId: string): Promise<number>;
+  /**
+   * Waits for other uploads of the organization, in all its workspaces, so that the check of the
+   * storage of its plan and the insert are atomic (guide step 7.4).
+   */
+  lockStorage(organizationId: string): Promise<void>;
   /** PENDING_UPLOAD to PROCESSING with the measured size; false when it was not pending. */
   startProcessing(workspaceId: string, assetId: string, sizeBytes: number): Promise<boolean>;
   /** PROCESSING to READY; false when it was not processing. */

@@ -856,6 +856,7 @@ export type { PlanUsage } from './billing/ports/plan-usage';
 export {
   planAccountLimits,
   planAnalyticsHistory,
+  planMediaLimits,
   planPostLimits,
   planQuotaLimits,
   unlimitedAccounts,

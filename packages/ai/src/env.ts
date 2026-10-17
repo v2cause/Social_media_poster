@@ -22,11 +22,6 @@ export const aiEnvSchema = z.object({
   AI_EFFORT_IDEAS: effort('medium'),
   AI_EFFORT_ALT_TEXT: effort('low'),
   AI_REFUSAL_FALLBACK: z.preprocess(unsetIfEmpty, z.stringbool().default(true)),
-  // Until billing (phase 7) the monthly cap of every organization, in micro-USD.
-  AI_MONTHLY_CAP_MICROS: z.preprocess(
-    unsetIfEmpty,
-    z.coerce.number().int().nonnegative().default(10_000_000),
-  ),
 });
 
 export type AiEnv = z.infer<typeof aiEnvSchema>;

@@ -1,4 +1,5 @@
 import type { AnalyticsHistory } from '../../analytics/application/analytics-period';
+import type { MediaLimits } from '../../media/application/dependencies';
 import type { QuotaLimits } from '../../usage/ports/quota-store';
 import { assertWithinLimit } from '../domain/limits';
 import { aiCapMicros } from '../domain/plan';
@@ -6,8 +7,8 @@ import type { PlanUsage } from '../ports/plan-usage';
 import type { EntitlementsService } from './entitlements';
 
 // The limits of the plan where the other modules check them (guide step 7.4, ADR 0035): the AI
-// quota, the analytics history, the posts per month and the connected accounts, read from the
-// subscription of the organization through the entitlements.
+// quota, the analytics history, the storage, the posts per month and the connected accounts, read
+// from the subscription of the organization through the entitlements.
 
 export type PlanEntitlements = Pick<EntitlementsService, 'of'>;
 
@@ -19,6 +20,15 @@ export const planQuotaLimits = (entitlements: PlanEntitlements): QuotaLimits => 
 /** The days of analytics the plan of an organization keeps. */
 export const planAnalyticsHistory = (entitlements: PlanEntitlements): AnalyticsHistory => ({
   daysOf: async (organizationId) => (await entitlements.of(organizationId)).limits.analyticsHistoryDays,
+});
+
+/** The storage the plan of an organization allows and what its workspaces store. */
+export const planMediaLimits = (
+  entitlements: PlanEntitlements,
+  usage: Pick<PlanUsage, 'storageBytes'>,
+): MediaLimits => ({
+  storageBytes: async (organizationId) => (await entitlements.of(organizationId)).limits.storageBytes,
+  storageUsed: (organizationId) => usage.storageBytes(organizationId),
 });
 
 /** The posts per month the plan of an organization allows. */

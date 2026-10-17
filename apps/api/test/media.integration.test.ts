@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { startApiTestApp, TEST_BUCKET, type ApiTestApp } from './support/api-app';
 import { signIn, type Browser } from './support/browser';
+import { onPlan } from './support/plan';
 
 // Guide step 3.3: the upload flow end to end against SeaweedFS. The browser gets a presigned PUT,
 // uploads, reports completion; a consumer of the media queue processes the file like the worker
@@ -117,12 +118,14 @@ describe('media API', () => {
   };
 
   beforeAll(async () => {
-    api = await startApiTestApp({ objectStorage: true, env: { MEDIA_STORAGE_LIMIT_BYTES: String(45 * MB) } });
+    api = await startApiTestApp({ objectStorage: true });
     const system = createPrismaClient(api.database.url('app_system'));
     try {
       await seedDemoData(system, SEED_PASSWORD);
       const workspace = await system.workspace.findFirstOrThrow({ where: { slug: DEMO_WORKSPACE_SLUG } });
       workspaceId = workspace.id;
+      // 45 MB of storage for the demo organization, as an override of its plan (guide step 7.4).
+      await onPlan(api, workspace.organizationId, 'agency', { storageBytes: 45 * MB });
     } finally {
       await system.$disconnect();
     }
@@ -228,8 +231,8 @@ describe('media API', () => {
     expect(await objectExists(`ws/${workspaceId}/assets/${bigger.asset.id}/original`)).toBe(false);
   });
 
-  it('keeps the uploads of a workspace within its storage quota', async () => {
-    // 45 MB in this test app; the photos above used a few hundred KB.
+  it('keeps the uploads of an organization within the storage of its plan', async () => {
+    // 45 MB for this organization; the photos above used a few hundred KB.
     const request = () =>
       as(editor)
         .post(`${ws}/media/uploads`)

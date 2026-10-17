@@ -244,8 +244,13 @@ describe('content and AI API', () => {
     ]);
   });
 
-  it('answers 402 when the quota of the month is used up', async () => {
+  it('answers 402 when the AI usage the plan allows this month is used up', async () => {
     const post = await createPost('Noch ein Beitrag.');
+    // 10 USD of credits and no overage, all of it used (guide step 7.4).
+    await sql(`UPDATE subscription SET limit_overrides = $2::jsonb WHERE organization_id = $1`, [
+      organizationId,
+      JSON.stringify({ aiCreditsMicros: 10_000_000, aiOverageCapMicros: 0 }),
+    ]);
     await sql(
       `INSERT INTO usage_counter (id, organization_id, meter, period_start, value, updated_at)
        VALUES (gen_random_uuid(), $1, 'ai_micros', date_trunc('month', now() AT TIME ZONE 'UTC')::date, 10000000, now())
@@ -257,6 +262,9 @@ describe('content and AI API', () => {
       expect(response.body).toMatchObject({ code: 'QUOTA_EXCEEDED' });
     } finally {
       await sql(`UPDATE usage_counter SET value = 0 WHERE organization_id = $1`, [organizationId]);
+      await sql(`UPDATE subscription SET limit_overrides = NULL WHERE organization_id = $1`, [
+        organizationId,
+      ]);
     }
   });
 

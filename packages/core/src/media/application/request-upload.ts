@@ -6,8 +6,9 @@ import type { MediaAsset } from '../domain/types';
 import type { PresignedUpload } from '../ports/storage';
 import { assertCanWriteMedia, mediaScopeOf, type MediaDependencies } from './dependencies';
 
-// Step 1 of an upload (architecture 9): type and size as announced by the browser, the storage
-// quota of the workspace, then an asset waiting for its file and a presigned PUT for it.
+// Step 1 of an upload (architecture 9): type and size as announced by the browser, the storage the
+// plan of the organization allows in all its workspaces (guide step 7.4), then an asset waiting
+// for its file and a presigned PUT for it.
 
 export interface RequestUploadInput {
   actor: ContentActor;
@@ -58,10 +59,12 @@ export class RequestUpload {
       processedAt: null,
       deletedAt: null,
     };
+    const allowed = await this.deps.limits.storageBytes(actor.organizationId);
     await this.deps.unitOfWork.run(mediaScopeOf(actor), async (store) => {
-      await store.assets.lockStorage(actor.workspaceId);
-      const used = await store.assets.storageUsed(actor.workspaceId);
-      if (used + input.size > this.deps.limits.storageBytes) {
+      await store.assets.lockStorage(actor.organizationId);
+      // Counted after the lock: an upload that held it before is committed by now.
+      const used = await this.deps.limits.storageUsed(actor.organizationId);
+      if (used + input.size > allowed) {
         throw new StorageQuotaExceededError();
       }
       await store.assets.insert(asset);

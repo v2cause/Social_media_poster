@@ -67,7 +67,7 @@ describe('media worker', () => {
       unitOfWork: new PrismaMediaUnitOfWork(started.base),
       storage: started.storage,
       jobs: new MediaProducer(started.queue),
-      limits: { storageBytes: 100 * MB },
+      limits: { storageBytes: () => Promise.resolve(100 * MB), storageUsed: () => Promise.resolve(0) },
       clock: systemClock,
       ids: uuidV7Ids,
     };

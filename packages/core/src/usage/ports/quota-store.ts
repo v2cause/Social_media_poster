@@ -38,7 +38,7 @@ export interface QuotaStore {
   current(key: QuotaKey): Promise<bigint>;
 }
 
-/** The limit of a meter per period. Until billing (phase 7) one cap for every organization. */
+/** The limit of a meter per period: the credits and the overage of the plan (guide step 7.4). */
 export interface QuotaLimits {
   limitOf(organizationId: string, meter: UsageMeter): Promise<bigint>;
 }

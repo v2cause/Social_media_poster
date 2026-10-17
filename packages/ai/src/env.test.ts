@@ -21,10 +21,7 @@ const issuesOf = (source: Record<string, string>): string[] => {
 
 describe('aiEnvSchema', () => {
   it('applies the defaults of .env.example, also for empty values', () => {
-    for (const source of [
-      {},
-      { AI_PROVIDER: '', AI_MODEL: '', AI_REFUSAL_FALLBACK: '', AI_MONTHLY_CAP_MICROS: '' },
-    ]) {
+    for (const source of [{}, { AI_PROVIDER: '', AI_MODEL: '', AI_REFUSAL_FALLBACK: '' }]) {
       const env = aiEnvSchema.parse(source);
 
       expect(env).toEqual({
@@ -36,30 +33,21 @@ describe('aiEnvSchema', () => {
         AI_EFFORT_IDEAS: 'medium',
         AI_EFFORT_ALT_TEXT: 'low',
         AI_REFUSAL_FALLBACK: true,
-        AI_MONTHLY_CAP_MICROS: 10_000_000,
       });
       expect(aiEfforts(env)).toEqual({ generate: 'medium', refine: 'low', ideas: 'medium', altText: 'low' });
     }
   });
 
-  it('parses the switches and numbers from their string form', () => {
-    const env = aiEnvSchema.parse({
-      AI_REFUSAL_FALLBACK: 'false',
-      AI_MONTHLY_CAP_MICROS: '2500000',
-      AI_EFFORT_GENERATE: 'high',
-    });
+  it('parses the switches from their string form', () => {
+    const env = aiEnvSchema.parse({ AI_REFUSAL_FALLBACK: 'false', AI_EFFORT_GENERATE: 'high' });
 
     expect(env.AI_REFUSAL_FALLBACK).toBe(false);
-    expect(env.AI_MONTHLY_CAP_MICROS).toBe(2_500_000);
     expect(env.AI_EFFORT_GENERATE).toBe('high');
   });
 
-  it('rejects unknown providers, efforts and negative caps', () => {
+  it('rejects unknown providers and efforts', () => {
     expect(issuesOf({ AI_PROVIDER: 'openai' })).toEqual([expect.stringMatching(/^AI_PROVIDER: /)]);
     expect(issuesOf({ AI_EFFORT_REFINE: 'none' })).toEqual([expect.stringMatching(/^AI_EFFORT_REFINE: /)]);
-    expect(issuesOf({ AI_MONTHLY_CAP_MICROS: '-1' })).toEqual([
-      expect.stringMatching(/^AI_MONTHLY_CAP_MICROS: /),
-    ]);
   });
 
   it('refuses the mock in production', () => {

@@ -8,6 +8,7 @@ import type {
   MediaDependencies,
   MediaJob,
   MediaJobs,
+  MediaLimits,
   MediaRendition,
   MediaScope,
   MediaStore,
@@ -95,18 +96,12 @@ export class InMemoryMedia implements MediaUnitOfWork {
           this.state.assets.set(asset.id, asset);
           return Promise.resolve();
         },
-        lockStorage: (workspaceId) => {
-          assertScope(workspaceId);
+        lockStorage: (organizationId) => {
+          if (organizationId !== scope.organizationId) {
+            throw new ScopeViolation(`organization ${organizationId} is outside the scope`);
+          }
           this.locks += 1;
           return Promise.resolve();
-        },
-        storageUsed: (workspaceId) => {
-          assertScope(workspaceId);
-          const sizes = [...this.state.assets.values()]
-            .filter((asset) => asset.workspaceId === workspaceId)
-            .filter((asset) => asset.deletedAt === null && asset.status !== 'REJECTED')
-            .map((asset) => asset.sizeBytes ?? asset.declaredSize);
-          return Promise.resolve(sizes.reduce((sum, size) => sum + size, 0));
         },
         startProcessing: (workspaceId, assetId, sizeBytes) =>
           Promise.resolve(
@@ -358,15 +353,29 @@ export interface MediaTestbed extends MediaDependencies {
   processor: FakeProcessor;
 }
 
-export const createMediaTestbed = (storageBytes = 100 * 1024 * 1024): MediaTestbed => ({
-  unitOfWork: new InMemoryMedia(),
-  storage: new MemoryStorage(),
-  jobs: new RecordingJobs(),
-  processor: new FakeProcessor(),
-  limits: { storageBytes },
-  clock: fixedClock(),
-  ids: sequentialIds('asset'),
+/** The storage of the plan, over the assets of every workspace the in-memory store holds. */
+export const memoryMediaLimits = (unitOfWork: InMemoryMedia, storageBytes: number): MediaLimits => ({
+  storageBytes: () => Promise.resolve(storageBytes),
+  storageUsed: () =>
+    Promise.resolve(
+      [...unitOfWork.state.assets.values()]
+        .filter((asset) => asset.deletedAt === null && asset.status !== 'REJECTED')
+        .reduce((sum, asset) => sum + (asset.sizeBytes ?? asset.declaredSize), 0),
+    ),
 });
+
+export function createMediaTestbed(storageBytes = 100 * 1024 * 1024): MediaTestbed {
+  const unitOfWork = new InMemoryMedia();
+  return {
+    unitOfWork,
+    storage: new MemoryStorage(),
+    jobs: new RecordingJobs(),
+    processor: new FakeProcessor(),
+    limits: memoryMediaLimits(unitOfWork, storageBytes),
+    clock: fixedClock(),
+    ids: sequentialIds('asset'),
+  };
+}
 
 /** The first bytes of a JPEG, enough for the magic byte check. */
 export const JPEG_BYTES = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, ...Array.from({ length: 60 }, () => 0)]);

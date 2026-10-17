@@ -25,20 +25,10 @@ export function createPrismaMediaStore(
       async insert(asset) {
         await tx.mediaAsset.create({ data: asset });
       },
-      async lockStorage(workspaceId) {
-        // Held until the transaction ends. Uploads of other workspaces do not wait; a collision of
-        // the hash only makes two of them wait for each other.
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`media.storage.${workspaceId}`}, 0))`;
-      },
-      async storageUsed(workspaceId) {
-        // The measured size once the file arrived, the announced one before.
-        const rows = await tx.$queryRaw<{ used: bigint }[]>`
-          SELECT COALESCE(SUM(COALESCE(size_bytes, declared_size)), 0)::bigint AS used
-            FROM media_asset
-           WHERE workspace_id = ${workspaceId}::uuid
-             AND deleted_at IS NULL
-             AND status <> 'REJECTED'`;
-        return Number(rows[0]?.used ?? 0n);
+      async lockStorage(organizationId) {
+        // Held until the transaction ends. Uploads of other organizations do not wait; a collision
+        // of the hash only makes two of them wait for each other.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`media.storage.${organizationId}`}, 0))`;
       },
       async startProcessing(workspaceId, assetId, sizeBytes) {
         const { count } = await tx.mediaAsset.updateMany({

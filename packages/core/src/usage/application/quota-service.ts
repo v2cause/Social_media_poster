@@ -102,7 +102,7 @@ export class QuotaService {
   }
 }
 
-/** The same limit for every organization, from AI_MONTHLY_CAP_MICROS until billing (phase 7). */
+/** The same limit for every organization: for tests; the API takes it from the plan (guide step 7.4). */
 export const fixedQuotaLimits = (limits: Readonly<Record<UsageMeter, bigint>>): QuotaLimits => ({
   limitOf: (_organizationId, meter) => Promise.resolve(limits[meter]),
 });

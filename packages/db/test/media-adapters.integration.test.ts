@@ -29,7 +29,15 @@ import {
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createPrismaClient, MediaReadModel, PrismaMediaUnitOfWork, type PrismaClient } from '../src';
+import {
+  createPrismaClient,
+  createSystemPrismaClient,
+  MediaReadModel,
+  PrismaMediaUnitOfWork,
+  PrismaPlanUsage,
+  type PrismaClient,
+  type SystemPrismaClient,
+} from '../src';
 
 // The Prisma adapters of the media ports against PostgreSQL with row-level security: the use cases
 // of the core run unchanged, the storage quota holds under parallel uploads, and the read model
@@ -124,6 +132,7 @@ const processor: ImageProcessor = {
 describe('media adapters on PostgreSQL', () => {
   let database: TestDatabase | undefined;
   let base: PrismaClient | undefined;
+  let systemClient: SystemPrismaClient | undefined;
   const storage = new MapStorage();
   const jobs: MediaJob[] = [];
   const renders: RenderJob[] = [];
@@ -148,7 +157,16 @@ describe('media adapters on PostgreSQL', () => {
       },
     },
     processor,
-    limits: { storageBytes },
+    // The plan of the organization allows storageBytes; its workspaces store what app_system sums.
+    limits: {
+      storageBytes: () => Promise.resolve(storageBytes),
+      storageUsed: (organizationId) => {
+        if (!systemClient) {
+          throw new Error('database not ready');
+        }
+        return new PrismaPlanUsage(systemClient).storageBytes(organizationId);
+      },
+    },
     clock: systemClock,
     ids: uuidV7Ids,
   });
@@ -195,10 +213,12 @@ describe('media adapters on PostgreSQL', () => {
       );
     });
     base = createPrismaClient(database.url('app_user'));
+    systemClient = createSystemPrismaClient(database.url('app_system'));
   }, 300_000);
 
   afterAll(async () => {
     await base?.$disconnect();
+    await systemClient?.$disconnect();
     await database?.stop();
   });
 
@@ -262,7 +282,7 @@ describe('media adapters on PostgreSQL', () => {
     ).resolves.toBe('SKIPPED');
   });
 
-  it('keeps parallel uploads of a workspace within its storage quota', async () => {
+  it('keeps parallel uploads of an organization within the storage of its plan', async () => {
     const quotaActor = actor('EDITOR', workspaceB);
     const requests = Array.from({ length: 5 }, () =>
       new RequestUpload(deps(25 * MB)).execute({
