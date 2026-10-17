@@ -883,3 +883,51 @@ export {
   type UsageReportDependencies,
   type UsageReportResult,
 } from './billing/application/usage-report';
+
+// Data protection (phase 8)
+export * from './gdpr/domain/errors';
+export {
+  DOWNLOAD_LINK_SECONDS,
+  EXPORT_AVAILABLE_HOURS,
+  GDPR_REQUEST_KINDS,
+  GDPR_REQUEST_STATUSES,
+  exportExpiryOf,
+  exportFileNameOf,
+  exportKeyOf,
+  exportPrefixOf,
+  isDownloadable,
+  isOpen,
+  type GdprRequest,
+  type GdprRequestDetails,
+  type GdprRequestKind,
+  type GdprRequestStatus,
+} from './gdpr/domain/request';
+export type {
+  GdprJobs,
+  GdprRequestRepository,
+  GdprRequestRunner,
+  GdprScope,
+  GdprStore,
+  GdprUnitOfWork,
+} from './gdpr/ports/gdpr-store';
+export type {
+  ExportArchive,
+  ExportArchives,
+  ExportedMedia,
+  ExportedOrganization,
+  GdprNotifier,
+  OrganizationDataSource,
+} from './gdpr/ports/gdpr-runtime';
+export {
+  DownloadDataExport,
+  ListDataExports,
+  RequestDataExport,
+  type GdprDependencies,
+} from './gdpr/application/requests';
+export {
+  ExpireExports,
+  ExportOrganizationData,
+  archiveName,
+  type ExportDependencies,
+  type ExportResult,
+} from './gdpr/application/export';
