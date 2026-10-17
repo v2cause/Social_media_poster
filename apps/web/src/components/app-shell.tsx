@@ -42,6 +42,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 
+import { LiveEventsProvider } from '@/features/live/live-events-provider';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { authClient } from '@/lib/auth-client';
 import { useStoredFlag } from '@/lib/use-stored-flag';
@@ -187,60 +188,62 @@ export function AppShell(props: {
   );
 
   return (
-    <div className="flex min-h-screen">
-      <aside
-        className={cn(
-          'sticky top-0 flex h-screen shrink-0 flex-col gap-4 border-r border-border p-3 max-md:hidden',
-          collapsed ? 'w-16' : 'w-60',
-        )}
-      >
-        <div className={cn('flex items-center gap-2', collapsed ? 'justify-center' : 'justify-between')}>
-          {collapsed ? null : <span className="truncate px-2 text-sm font-semibold">{t('app.name')}</span>}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              setCollapsed(!collapsed);
-            }}
-            aria-label={collapsed ? t('shell.expand') : t('shell.collapse')}
-            aria-expanded={!collapsed}
-          >
-            {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
-          </Button>
-        </div>
-        {navigation(collapsed)}
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background px-3">
-          <Dialog open={drawerOpen} onOpenChange={setDrawerOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 md:hidden"
-                aria-label={t('shell.openNavigation')}
-              >
-                <Menu aria-hidden="true" />
-              </Button>
-            </DialogTrigger>
-            <SheetContent closeLabel={t('actions.close')} aria-describedby={undefined}>
-              <DialogTitle className="px-2 text-sm font-semibold">{t('app.name')}</DialogTitle>
-              {navigation(false)}
-            </SheetContent>
-          </Dialog>
-
-          <AreaSwitcher area={props.area} memberships={props.memberships} />
-
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            <NotificationBell />
-            <LanguageSwitcher signedIn />
-            <UserMenu user={props.user} area={props.area} memberships={props.memberships} />
+    <LiveEventsProvider slug={props.area.kind === 'workspace' ? props.area.slug : null}>
+      <div className="flex min-h-screen">
+        <aside
+          className={cn(
+            'sticky top-0 flex h-screen shrink-0 flex-col gap-4 border-r border-border p-3 max-md:hidden',
+            collapsed ? 'w-16' : 'w-60',
+          )}
+        >
+          <div className={cn('flex items-center gap-2', collapsed ? 'justify-center' : 'justify-between')}>
+            {collapsed ? null : <span className="truncate px-2 text-sm font-semibold">{t('app.name')}</span>}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setCollapsed(!collapsed);
+              }}
+              aria-label={collapsed ? t('shell.expand') : t('shell.collapse')}
+              aria-expanded={!collapsed}
+            >
+              {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
+            </Button>
           </div>
-        </header>
-        <main className="flex-1 p-6 max-md:p-4">{props.children}</main>
+          {navigation(collapsed)}
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background px-3">
+            <Dialog open={drawerOpen} onOpenChange={setDrawerOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 md:hidden"
+                  aria-label={t('shell.openNavigation')}
+                >
+                  <Menu aria-hidden="true" />
+                </Button>
+              </DialogTrigger>
+              <SheetContent closeLabel={t('actions.close')} aria-describedby={undefined}>
+                <DialogTitle className="px-2 text-sm font-semibold">{t('app.name')}</DialogTitle>
+                {navigation(false)}
+              </SheetContent>
+            </Dialog>
+
+            <AreaSwitcher area={props.area} memberships={props.memberships} />
+
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              <NotificationBell />
+              <LanguageSwitcher signedIn />
+              <UserMenu user={props.user} area={props.area} memberships={props.memberships} />
+            </div>
+          </header>
+          <main className="flex-1 p-6 max-md:p-4">{props.children}</main>
+        </div>
       </div>
-    </div>
+    </LiveEventsProvider>
   );
 }
 

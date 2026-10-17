@@ -13,10 +13,11 @@ import Link from 'next/link';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
+import { useLiveEvents } from '../live/live-events-provider';
 import { hrefOf } from './notification-link';
 import { useNotificationText } from './use-notification-text';
 
-/** Asked again every 30 s, until the live events of guide step 4.10 announce new ones. */
+/** Asked again every 30 s while no live events arrive (guide step 4.10). */
 const POLL_MS = 30_000;
 /** The newest ones; older ones stay reachable through their pages later. */
 const LIMIT = 10;
@@ -30,7 +31,11 @@ export function NotificationBell() {
   const textOf = useNotificationText();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const list = useNotificationsList({ limit: LIMIT }, { query: { refetchInterval: POLL_MS } });
+  const { connected } = useLiveEvents();
+  const list = useNotificationsList(
+    { limit: LIMIT },
+    { query: { refetchInterval: connected ? false : POLL_MS } },
+  );
   const refresh = () => queryClient.invalidateQueries({ queryKey: getNotificationsListQueryKey() });
   const markRead = useNotificationsMarkRead({ mutation: { onSettled: refresh } });
   const markAllRead = useNotificationsMarkAllRead({ mutation: { onSettled: refresh } });
