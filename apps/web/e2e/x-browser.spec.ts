@@ -1,11 +1,52 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
+import { STAND_IN_USER, startBrowserWorkerStandIn } from './browser-worker-stand-in';
 import { DEMO_WORKSPACE, seedPassword, signInDemo } from './demo';
 
-// Guide step 6.1 in the browser: the platform admin allows the demo organization, the owner
-// switches X without the API on with the risk text, the checkbox and the password, the kill
-// switch closes it for every workspace, and the owner switches it off again. Needs the stack
-// with FEATURE_X_BROWSER_GLOBAL=true and the demo seed.
+// Guide steps 6.1 and 6.4 in the browser: the platform admin allows the demo organization, the
+// owner switches X without the API on with the risk text, the checkbox and the password, connects
+// an X account through the login dialog with the code of the two-factor login, the kill switch
+// closes X without the API for every workspace, and the owner switches it off again. Needs the
+// stack with FEATURE_X_BROWSER_GLOBAL=true and the demo seed; a stand-in takes the part of the
+// browser worker, which must not run.
+
+const X_PASSWORD = 'the-password-of-the-x-account';
+const X_CODE = '482916';
+
+/** Connects an X account through the login dialog; the stand-in plays the browser worker. */
+async function connectThroughTheBrowser(page: Page) {
+  const standIn = await startBrowserWorkerStandIn({ password: X_PASSWORD, code: X_CODE });
+  try {
+    await page.goto(`${DEMO_WORKSPACE}/accounts`);
+    await page.getByLabel('Browser (experimentell)').check();
+    await page.getByRole('button', { name: 'X verbinden' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Bei X anmelden' });
+    await dialog.getByLabel('Benutzername oder E-Mail-Adresse bei X').fill(STAND_IN_USER.handle);
+    await dialog.getByLabel('Passwort bei X').fill(X_PASSWORD);
+    await dialog.getByRole('button', { name: 'Bei X anmelden' }).click();
+
+    await expect(dialog.getByText('X fragt nach dem Code der Zwei-Faktor-Anmeldung.')).toBeVisible();
+    await dialog.getByLabel('Code', { exact: true }).fill(X_CODE);
+    await dialog.getByRole('button', { name: 'Code senden' }).click();
+    await expect(page.getByText('Der X-Account ist verbunden.')).toBeVisible();
+    await expect(dialog).toBeHidden();
+    const row = page.getByRole('listitem').filter({ hasText: `@${STAND_IN_USER.handle}` });
+    await expect(row.getByText('Über den Browser')).toBeVisible();
+    expect(standIn.logins).toHaveLength(1);
+    expect(standIn.logins[0]).toMatchObject({
+      passwordInPlain: false,
+      codeArrived: true,
+      codeInPlain: false,
+    });
+
+    // The account leaves again, so the demo stays as it was.
+    await row.getByRole('button', { name: 'Trennen' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Trennen' }).click();
+    await expect(page.getByText(`${STAND_IN_USER.name} ist getrennt.`)).toBeVisible();
+  } finally {
+    await standIn.close();
+  }
+}
 
 async function signInPlatformAdmin(browser: Browser): Promise<Page> {
   const page = await (await browser.newContext()).newPage();
@@ -20,7 +61,7 @@ async function signInPlatformAdmin(browser: Browser): Promise<Page> {
   return page;
 }
 
-test('switch X without the API on, stop it with the kill switch and switch it off again', async ({
+test('switch X without the API on, connect an account, stop it with the kill switch and switch it off', async ({
   page,
   browser,
 }) => {
@@ -41,6 +82,9 @@ test('switch X without the API on, stop it with the kill switch and switch it of
   await enable.click();
   await expect(section.getByText('X ohne API ist eingeschaltet.').first()).toBeVisible();
   await expect(section.getByText(/Die Risiken wurden am .* von Demo Owner bestätigt\./)).toBeVisible();
+
+  await connectThroughTheBrowser(page);
+  await page.goto(`${DEMO_WORKSPACE}/settings`);
 
   await admin.getByRole('button', { name: 'Kill-Switch aktivieren' }).click();
   await admin.getByRole('dialog').getByRole('button', { name: 'Kill-Switch aktivieren' }).click();
