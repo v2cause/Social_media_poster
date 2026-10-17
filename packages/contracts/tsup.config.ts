@@ -8,4 +8,6 @@ export default defineConfig({
   clean: true,
   target: 'es2023',
   outDir: 'dist',
+  // The legal texts under src/legal/ are bundled as strings; nothing reads files at runtime.
+  loader: { '.md': 'text' },
 });

@@ -69,7 +69,12 @@
     "SOCIAL_ACCOUNT_REQUIRED": "Please choose the account the variant goes out to.",
     "SOCIAL_ACCOUNT_NOT_READY": "The account is not connected or needs to be connected again.",
     "VARIANT_NOT_PUBLISHABLE": "The variant does not meet the rules of the platform, or it is empty.",
-    "ANALYTICS_HISTORY_EXCEEDED": "The period reaches back further than your plan keeps analytics. Please choose a later start."
+    "ANALYTICS_HISTORY_EXCEEDED": "The period reaches back further than your plan keeps analytics. Please choose a later start.",
+    "INVALID_PASSWORD": "The password is not correct.",
+    "X_BROWSER_UNAVAILABLE": "X without the API is not available for this workspace.",
+    "RISK_TEXT_OUTDATED": "The risk text has changed in the meantime. Please read and confirm the new version.",
+    "XB_LOGIN_NOT_FOUND": "The sign-in to X has expired. Please start it again.",
+    "XB_LOGIN_NOT_AWAITING_CODE": "X is not waiting for a code right now."
   },
   "validation": {
     "required": "Please fill in this field.",

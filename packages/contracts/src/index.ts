@@ -27,6 +27,7 @@ export {
 export * from './content';
 export { ERROR_CODES, type ErrorCode } from './errors';
 export { meSchema, type Me } from './identity';
+export { X_BROWSER_RISK, type LegalText } from './legal';
 export { DEFAULT_LOCALE, LOCALES, localeSchema, toLocale, type Locale } from './locale';
 export * from './live-events';
 export * from './media';
@@ -44,3 +45,4 @@ export {
 } from './permissions';
 export * from './tenancy';
 export { DEFAULT_TIMEZONE, isTimezone, timezoneSchema } from './timezone';
+export * from './x-browser';
