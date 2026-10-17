@@ -88,6 +88,8 @@ export class FakeStripe {
   readonly portalConfigurations = new Map<string, Json>();
   webhookUrl: string | undefined;
   private readonly idempotent = new Map<string, { status: number; body: unknown }>();
+  /** The prices each lookup key had, so that a fake that starts again gives its prices the same ids. */
+  private readonly lookupKeyPrices = new Map<string, number>();
   private readonly meterIdentifiers = new Set<string>();
   private counter = 0;
 
@@ -425,8 +427,13 @@ export class FakeStripe {
       }
     }
     const unitAmount = stringOf(params['unit_amount']);
+    // An app that keeps the id of a price for a while finds it again after the fake restarted.
+    const version = lookupKey ? (this.lookupKeyPrices.get(lookupKey) ?? 0) + 1 : 0;
+    if (lookupKey) {
+      this.lookupKeyPrices.set(lookupKey, version);
+    }
     const price: Json = {
-      id: this.id('price'),
+      id: lookupKey ? `price_${lookupKey}_${String(version)}` : this.id('price'),
       object: 'price',
       created: this.now(),
       active: true,
