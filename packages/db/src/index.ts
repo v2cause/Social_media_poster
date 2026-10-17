@@ -56,6 +56,7 @@ export { PrismaSubscriptionReader, toPlan, toSubscription } from './billing/pris
 export {
   PrismaBillingCustomers,
   PrismaBillingDirectory,
+  PrismaReadOnlyNotices,
   PrismaSubscriptionSync,
   PrismaWebhookInbox,
   PrismaWebhookRecorder,

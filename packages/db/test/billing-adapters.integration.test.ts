@@ -8,6 +8,7 @@ import {
   createSystemPrismaClient,
   PrismaBillingCustomers,
   PrismaBillingDirectory,
+  PrismaReadOnlyNotices,
   PrismaSubscriptionReader,
   PrismaSubscriptionSync,
   PrismaWebhookInbox,
@@ -163,5 +164,26 @@ describe('billing adapters on PostgreSQL', () => {
       ],
     });
     await expect(directory.owners(randomUUID())).resolves.toBeNull();
+  });
+
+  it('finds the read-only organizations whose owners have not heard of it, once per moment', async () => {
+    const notices = new PrismaReadOnlyNotices(clients().system);
+    const moment = new Date('2026-10-20T00:00:00Z');
+    await runInSystemScope(() =>
+      clients().system.subscription.update({
+        where: { organizationId: org },
+        data: { status: 'CANCELED', readOnlyAt: moment, readOnlyNotifiedAt: null },
+      }),
+    );
+
+    await expect(notices.due(new Date('2026-10-19T23:59:59Z'), 10)).resolves.toEqual([]);
+    await expect(notices.due(new Date('2026-10-21T00:00:00Z'), 10)).resolves.toEqual([
+      { organizationId: org, status: 'CANCELED', readOnlyAt: moment },
+    ]);
+    // A moment that moved meanwhile stays due.
+    await notices.markSent(org, new Date('2026-10-19T00:00:00Z'), new Date('2026-10-21T00:00:00Z'));
+    await expect(notices.due(new Date('2026-10-21T00:00:00Z'), 10)).resolves.toHaveLength(1);
+    await notices.markSent(org, moment, new Date('2026-10-21T00:00:00Z'));
+    await expect(notices.due(new Date('2026-10-21T00:00:00Z'), 10)).resolves.toEqual([]);
   });
 });

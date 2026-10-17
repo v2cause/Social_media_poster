@@ -2,6 +2,7 @@ import type {
   BillingCustomers,
   BillingState,
   Plan,
+  ReadOnlyNotices,
   StoredWebhook,
   Subscription,
   SubscriptionReader,
@@ -168,5 +169,32 @@ export class PrismaBillingDirectory {
           owners: organization.memberships.map(({ user: { id, ...user } }) => ({ userId: id, ...user })),
         }
       : null;
+  }
+}
+
+/** The organizations that became read-only and whose owners have not heard of it (app_system). */
+export class PrismaReadOnlyNotices implements ReadOnlyNotices {
+  constructor(private readonly system: SystemPrismaClient) {}
+
+  async due(now: Date, limit: number) {
+    const rows = await runInSystemScope(() =>
+      this.system.subscription.findMany({
+        where: { readOnlyAt: { lte: now }, readOnlyNotifiedAt: null },
+        select: { organizationId: true, status: true, readOnlyAt: true },
+        orderBy: { readOnlyAt: 'asc' },
+        take: limit,
+      }),
+    );
+    return rows.flatMap((row) => (row.readOnlyAt ? [{ ...row, readOnlyAt: row.readOnlyAt }] : []));
+  }
+
+  async markSent(organizationId: string, readOnlyAt: Date, at: Date): Promise<void> {
+    // A sync that moved the moment meanwhile leaves the notice due for the new one.
+    await runInSystemScope(() =>
+      this.system.subscription.updateMany({
+        where: { organizationId, readOnlyAt, readOnlyNotifiedAt: null },
+        data: { readOnlyNotifiedAt: at },
+      }),
+    );
   }
 }
