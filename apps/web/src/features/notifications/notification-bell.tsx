@@ -27,7 +27,7 @@ export function NotificationBell() {
   const t = useTranslations('notifications.bell');
   const states = useTranslations('states');
   const format = useFormatter();
-  const now = useNow({ updateInterval: POLL_MS });
+  const now = useNow({ updateInterval: 10_000 });
   const textOf = useNotificationText();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -41,6 +41,12 @@ export function NotificationBell() {
   const markAllRead = useNotificationsMarkAllRead({ mutation: { onSettled: refresh } });
   const unread = list.data?.unread ?? 0;
   const items = list.data?.items ?? [];
+  // A notification newer than the clock of the page, or than a browser clock that runs late,
+  // reads as just now rather than as in the future.
+  const relativeAge = (createdAt: string): string => {
+    const created = new Date(createdAt);
+    return format.relativeTime(created, created > now ? created : now);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -117,7 +123,7 @@ export function NotificationBell() {
                         </span>
                       ) : null}
                       <span className="mt-1 block text-xs text-muted-foreground">
-                        {`${notification.workspace.name}, ${format.relativeTime(new Date(notification.createdAt), now)}`}
+                        {`${notification.workspace.name}, ${relativeAge(notification.createdAt)}`}
                       </span>
                     </span>
                   </Link>
