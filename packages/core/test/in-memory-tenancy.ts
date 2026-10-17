@@ -27,6 +27,7 @@ interface State {
   memberships: Map<string, Membership>;
   invitations: Map<string, Invitation>;
   audit: (AuditEntry & { scopeUserId: string })[];
+  trials: Map<string, { id: string; trialEndsAt: Date; readOnlyAt: Date }>;
 }
 
 const emptyState = (): State => ({
@@ -36,6 +37,7 @@ const emptyState = (): State => ({
   memberships: new Map(),
   invitations: new Map(),
   audit: [],
+  trials: new Map(),
 });
 
 export class ScopeViolation extends Error {}
@@ -291,6 +293,13 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
         record: (entry) => {
           writeOrg(entry.organizationId);
           state().audit.push({ ...entry, scopeUserId: scope.userId });
+          return Promise.resolve();
+        },
+      },
+      trials: {
+        startTrial: ({ organizationId, ...trial }) => {
+          writeOrg(organizationId);
+          state().trials.set(organizationId, trial);
           return Promise.resolve();
         },
       },

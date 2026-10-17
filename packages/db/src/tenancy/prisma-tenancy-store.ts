@@ -1,6 +1,7 @@
 import type { TenancyScope, TenancyStore } from '@smp/core';
 
 import { prismaAuditTrail, type RequestOrigin } from '../audit/prisma-audit-trail';
+import { prismaTrialStarter } from '../billing/prisma-subscriptions';
 import { Prisma } from '../generated/prisma/client';
 import type { TenantTransaction } from '../tenant-context';
 import { toInvitation, toMembership, toSettings, toWorkspace } from './mappers';
@@ -197,5 +198,6 @@ export function createPrismaTenancyStore(
     },
 
     audit: prismaAuditTrail(tx, scope.userId, origin),
+    trials: prismaTrialStarter(tx),
   };
 }

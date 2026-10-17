@@ -1,3 +1,4 @@
+import { trialFrom } from '../../billing/domain/subscription';
 import { EmailNotVerifiedError } from '../domain/errors';
 import type { WorkspaceProfile } from '../domain/types';
 import type { TenancyDependencies } from './dependencies';
@@ -17,10 +18,11 @@ export interface CreateOrganizationResult {
 
 /**
  * Creates organization, owner membership, first workspace and its settings in one transaction
- * (guide step 1.5). Only users with a verified email address may create organizations.
+ * (guide step 1.5), and starts the trial of the organization (guide step 7.1). Only users with a
+ * verified email address may create organizations.
  */
 export class CreateOrganization {
-  constructor(private readonly deps: Pick<TenancyDependencies, 'unitOfWork' | 'ids' | 'tokens'>) {}
+  constructor(private readonly deps: Pick<TenancyDependencies, 'unitOfWork' | 'ids' | 'tokens' | 'clock'>) {}
 
   async execute(input: CreateOrganizationInput): Promise<CreateOrganizationResult> {
     if (!input.user.emailVerified) {
@@ -33,6 +35,7 @@ export class CreateOrganization {
 
     return this.deps.unitOfWork.run(scope, async (store) => {
       await store.organizations.create({ id: organizationId, name: input.name });
+      await store.trials.startTrial({ id: ids.newId(), organizationId, ...trialFrom(this.deps.clock.now()) });
       await store.memberships.create({
         id: ids.newId(),
         organizationId,

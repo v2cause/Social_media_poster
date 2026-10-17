@@ -14,7 +14,13 @@ import { secretTokens } from '@smp/crypto';
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createPrismaClient, PrismaTenancyUnitOfWork, TenancyReadModel, type PrismaClient } from '../src';
+import {
+  createPrismaClient,
+  PrismaSubscriptionReader,
+  PrismaTenancyUnitOfWork,
+  TenancyReadModel,
+  type PrismaClient,
+} from '../src';
 
 // The Prisma adapters of the tenancy ports against PostgreSQL with row-level security: the use
 // cases of the core run unchanged, and every repository method sees only its own tenant.
@@ -110,6 +116,20 @@ describe('tenancy adapters on PostgreSQL', () => {
         (m) => m.email,
       ),
     ).toEqual(['bob@example.test']);
+
+    // Each organization starts its trial of 14 days with it (guide step 7.1), visible only to itself.
+    const subscriptions = new PrismaSubscriptionReader(client());
+    const trial = await subscriptions.find(acme.organizationId);
+    expect(trial).toMatchObject({ status: 'TRIALING', plan: { key: 'trial' }, stripeCustomerId: null });
+    expect(trial?.readOnlyAt).toEqual(trial?.trialEndsAt);
+    expect((trial?.trialEndsAt?.getTime() ?? 0) - Date.now()).toBeGreaterThan(13 * 24 * 60 * 60 * 1000);
+    expect(await subscriptions.find(globex.organizationId)).toMatchObject({ plan: { key: 'trial' } });
+    expect((await subscriptions.plans()).map((plan) => plan.key)).toEqual([
+      'trial',
+      'starter',
+      'pro',
+      'agency',
+    ]);
 
     // The audit entries carry actor and origin.
     const system = await database?.connectAs('app_system');

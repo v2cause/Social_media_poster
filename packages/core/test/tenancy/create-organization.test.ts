@@ -38,6 +38,11 @@ describe('CreateOrganization', () => {
       missedWindowBehavior: 'FAIL',
     });
     expect(state.audit.map((entry) => entry.action)).toEqual(['organization.create', 'workspace.create']);
+    // The trial of 14 days starts with the organization (guide step 7.1).
+    expect(state.trials.get(result.organizationId)).toMatchObject({
+      trialEndsAt: new Date('2026-10-30T09:00:00.000Z'),
+      readOnlyAt: new Date('2026-10-30T09:00:00.000Z'),
+    });
     expect(scopes).toEqual([
       { userId: 'user-1', organizationId: result.organizationId, workspaceId: result.workspaceId },
     ]);

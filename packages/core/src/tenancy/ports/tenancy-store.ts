@@ -1,4 +1,5 @@
 import type { AuditTrail } from '../../audit/ports/audit-trail';
+import type { TrialStarter } from '../../billing/ports/subscription-store';
 import type {
   Invitation,
   MemberRole,
@@ -74,6 +75,8 @@ export interface TenancyStore {
   memberships: MembershipRepository;
   invitations: InvitationRepository;
   audit: AuditTrail;
+  /** Billing: a new organization starts its trial in the same transaction. */
+  trials: TrialStarter;
 }
 
 /** Runs work in one transaction with the scope set at its start. */
