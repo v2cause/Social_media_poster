@@ -13,6 +13,7 @@ import { ClientsModule } from './infrastructure/clients.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { PlanModule } from './modules/billing/plan.module';
 import { AccessModule } from './common/guards/access.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { ContentModule } from './modules/content/content.module';
@@ -49,6 +50,7 @@ export class AppModule {
         LoggerModule.forRoot(pinoParams),
         RequestContextModule,
         ClientsModule,
+        PlanModule,
         HealthModule,
         IdentityModule,
         AccessModule,

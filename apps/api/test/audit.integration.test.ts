@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { startApiTestApp, type ApiTestApp } from './support/api-app';
 import { signUpVerified, type Browser } from './support/browser';
+import { onPlan } from './support/plan';
 
 // Guide step 1.7: every tenancy action leaves an entry with actor, address and user agent, and
 // the log pages with a cursor and filters by action, actor and period.
@@ -33,6 +34,7 @@ describe('audit log API', () => {
       })
       .expect(201);
     organizationId = (created.body as { organizationId: string }).organizationId;
+    await onPlan(api, organizationId);
     for (const email of ['a@example.test', 'b@example.test', 'c@example.test']) {
       await owner.post(`/api/org/${organizationId}/invitations`).send({ email, role: 'VIEWER' }).expect(201);
     }

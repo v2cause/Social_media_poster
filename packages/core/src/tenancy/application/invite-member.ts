@@ -1,3 +1,4 @@
+import { assertWithinLimit } from '../../billing/domain/limits';
 import { NotPermittedError } from '../../shared/domain/errors';
 import { AlreadyMemberError, InvalidWorkspaceSelectionError } from '../domain/errors';
 import { INVITATION_TTL_MS, normalizeEmail } from '../domain/invitation';
@@ -16,6 +17,7 @@ export interface InviteMemberInput {
 /**
  * Invites a person by email (guide step 1.5). The token has 32 random bytes; only its hash is
  * stored. The invitation is valid for seven days and replaces open invitations to the address.
+ * Members and open invitations together stay within the plan (guide step 7.4).
  */
 export class InviteMember {
   constructor(private readonly deps: TenancyDependencies) {}
@@ -30,11 +32,17 @@ export class InviteMember {
     const workspaceIds = seesAllWorkspaces(input.role) ? [] : [...new Set(input.workspaceIds)];
     const now = this.deps.clock.now();
     const scope = { userId: actor.userId, organizationId: actor.organizationId };
+    const { limits } = await this.deps.entitlements.of(actor.organizationId);
 
     const { invitation, token } = await this.deps.unitOfWork.run(scope, async (store) => {
       if (await store.memberships.findByEmail(actor.organizationId, email)) {
         throw new AlreadyMemberError();
       }
+      await store.organizations.lockPlan(actor.organizationId);
+      const members = await store.memberships.countIn(actor.organizationId);
+      // An open invitation to the same address is replaced, so it does not count.
+      const invited = await store.invitations.countOpen(actor.organizationId, now, email);
+      assertWithinLimit(limits, 'maxMembers', members + invited);
       if (
         workspaceIds.length > 0 &&
         !(await store.workspaces.allBelongTo(actor.organizationId, workspaceIds))

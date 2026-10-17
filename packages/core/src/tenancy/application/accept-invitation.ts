@@ -1,3 +1,4 @@
+import { assertWithinLimit } from '../../billing/domain/limits';
 import {
   AlreadyMemberError,
   EmailNotVerifiedError,
@@ -16,10 +17,16 @@ export interface AcceptInvitationInput {
 
 /**
  * Turns an invitation into a membership. The signed-in address must match the invited one, and
- * the invitation works once and only within seven days (guide step 1.5).
+ * the invitation works once and only within seven days (guide step 1.5). The plan needs room for
+ * one more member: after a downgrade an open invitation no longer makes one (guide step 7.4).
  */
 export class AcceptInvitation {
-  constructor(private readonly deps: Pick<TenancyDependencies, 'unitOfWork' | 'clock' | 'ids' | 'tokens'>) {}
+  constructor(
+    private readonly deps: Pick<
+      TenancyDependencies,
+      'unitOfWork' | 'clock' | 'ids' | 'tokens' | 'entitlements'
+    >,
+  ) {}
 
   async execute(
     input: AcceptInvitationInput,
@@ -42,10 +49,13 @@ export class AcceptInvitation {
     assertInvitationRecipient(invitation, input.user.email);
 
     const { organizationId } = invitation;
+    const { limits } = await this.deps.entitlements.of(organizationId);
     return this.deps.unitOfWork.run({ userId: input.user.id, organizationId }, async (store) => {
       if (await store.memberships.findByUser(organizationId, input.user.id)) {
         throw new AlreadyMemberError();
       }
+      await store.organizations.lockPlan(organizationId);
+      assertWithinLimit(limits, 'maxMembers', await store.memberships.countIn(organizationId));
       if (!(await store.invitations.markAccepted(organizationId, invitation.id, now))) {
         throw new InvitationUsedError();
       }

@@ -1,13 +1,14 @@
 import type { Clock } from '../../shared/ports/clock';
-import { PlanLimitReachedError, SubscriptionInactiveError } from '../domain/errors';
+import { SubscriptionInactiveError } from '../domain/errors';
+import { assertWithinLimit } from '../domain/limits';
 import { effectiveLimits, type CountedLimit, type Plan, type PlanLimits } from '../domain/plan';
 import { graceEndOf, isReadOnlyAt, type SubscriptionStatus } from '../domain/subscription';
 import type { Subscription, SubscriptionReader } from '../ports/subscription-store';
 
 // What an organization may do under its subscription (guide steps 7.2 and 7.4, ADR 0033): the
 // limits of its plan with the overrides of the operators, and whether it may write at all. The
-// API asks for every change, so a subscription stays in memory for a few seconds; a webhook takes
-// effect after that at the latest.
+// API reads the subscription with every change, so a webhook takes effect with the next request;
+// a caller that asks often, like a gate of the worker, may keep it in memory for a few seconds.
 
 export interface Entitlements {
   organizationId: string;
@@ -74,10 +75,7 @@ export class EntitlementsService {
    * resources are checked: after a downgrade, what exists stays.
    */
   async assertWithin(organizationId: string, limit: CountedLimit, used: number, adding = 1): Promise<void> {
-    const { limits } = await this.of(organizationId);
-    if (used + adding > limits[limit]) {
-      throw new PlanLimitReachedError(limit, limits[limit]);
-    }
+    assertWithinLimit((await this.of(organizationId)).limits, limit, used, adding);
   }
 
   /** Forgets what this process remembers of an organization, after it changed the subscription. */

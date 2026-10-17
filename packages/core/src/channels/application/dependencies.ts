@@ -1,5 +1,6 @@
 import type { Platform } from '@smp/platform-rules';
 
+import type { AccountLimits } from '../../billing/application/plan-limits';
 import type { ContentActor } from '../../content/domain/types';
 import { NotPermittedError } from '../../shared/domain/errors';
 import type { Clock } from '../../shared/ports/clock';
@@ -29,6 +30,8 @@ export interface ChannelDependencies {
   ids: IdGenerator;
   /** The OAuth callback of the app for a platform, as registered with the platform app. */
   callbackUrl: (platform: Platform) => string;
+  /** The connected accounts the plan of the organization allows (guide step 7.4). */
+  accounts: AccountLimits;
 }
 
 export const channelScopeOf = (actor: ContentActor): ChannelScope => ({

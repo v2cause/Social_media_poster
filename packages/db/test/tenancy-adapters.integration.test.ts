@@ -2,8 +2,11 @@ import {
   AcceptInvitation,
   ChangeMemberRole,
   CreateOrganization,
+  CreateWorkspace,
+  EntitlementsService,
   InviteMember,
   LastOwnerError,
+  PlanLimitReachedError,
   systemClock,
   uuidV7Ids,
   type InvitationMessage,
@@ -65,6 +68,10 @@ describe('tenancy adapters on PostgreSQL', () => {
         return Promise.resolve();
       },
     },
+    entitlements: new EntitlementsService({
+      subscriptions: new PrismaSubscriptionReader(client()),
+      clock: systemClock,
+    }),
   });
 
   beforeAll(async () => {
@@ -218,5 +225,28 @@ describe('tenancy adapters on PostgreSQL', () => {
         role: 'ADMIN',
       }),
     ).rejects.toThrow(LastOwnerError);
+  });
+
+  it('keeps workspaces and members within the trial of a new organization', async () => {
+    const org = await new CreateOrganization(deps()).execute({
+      user: users.carol,
+      name: 'Trial GmbH',
+      workspace: profile('Trial Space'),
+    });
+    const owner = { userId: users.carol.id, organizationId: org.organizationId, role: 'OWNER' as const };
+
+    // The trial allows one workspace and three members, the open invitations included.
+    await expect(
+      new CreateWorkspace(deps()).execute({ actor: owner, profile: profile('Second Space') }),
+    ).rejects.toThrow(PlanLimitReachedError);
+    const invite = (email: string) =>
+      new InviteMember(deps()).execute({ actor: owner, email, role: 'EDITOR', workspaceIds: [] });
+    await invite('one@example.test');
+    await invite('two@example.test');
+    await invite('two@example.test');
+    await expect(invite('three@example.test')).rejects.toMatchObject({
+      code: 'PLAN_LIMIT_REACHED',
+      params: { limit: 'maxMembers', max: 3 },
+    });
   });
 });

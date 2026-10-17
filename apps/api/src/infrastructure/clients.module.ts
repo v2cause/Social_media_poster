@@ -32,8 +32,9 @@ export const DATABASE_CLIENT = Symbol('DATABASE_CLIENT');
 /** app_user with the tenant of the current request set in every operation. */
 export const TENANT_DATABASE_CLIENT = Symbol('TENANT_DATABASE_CLIENT');
 /**
- * app_system, past row-level security: only for the switches of the platform admins, which
- * belong to no workspace (guide step 6.1), and only inside @SystemScope() methods.
+ * app_system, past row-level security, only inside @SystemScope() methods: for the switches of
+ * the platform admins, which belong to no workspace (guide step 6.1), and for what an
+ * organization uses of its plan across its workspaces (guide step 7.4).
  */
 export const SYSTEM_DATABASE_CLIENT = Symbol('SYSTEM_DATABASE_CLIENT');
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');

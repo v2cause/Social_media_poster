@@ -1,0 +1,69 @@
+import type { AnalyticsHistory } from '../../analytics/application/analytics-period';
+import type { QuotaLimits } from '../../usage/ports/quota-store';
+import { assertWithinLimit } from '../domain/limits';
+import { aiCapMicros } from '../domain/plan';
+import type { PlanUsage } from '../ports/plan-usage';
+import type { EntitlementsService } from './entitlements';
+
+// The limits of the plan where the other modules check them (guide step 7.4, ADR 0035): the AI
+// quota, the analytics history, the posts per month and the connected accounts, read from the
+// subscription of the organization through the entitlements.
+
+export type PlanEntitlements = Pick<EntitlementsService, 'of'>;
+
+/** The AI usage an organization may reach in a month: the credits and the overage of its plan. */
+export const planQuotaLimits = (entitlements: PlanEntitlements): QuotaLimits => ({
+  limitOf: async (organizationId) => BigInt(aiCapMicros((await entitlements.of(organizationId)).limits)),
+});
+
+/** The days of analytics the plan of an organization keeps. */
+export const planAnalyticsHistory = (entitlements: PlanEntitlements): AnalyticsHistory => ({
+  daysOf: async (organizationId) => (await entitlements.of(organizationId)).limits.analyticsHistoryDays,
+});
+
+/** The posts per month the plan of an organization allows. */
+export interface PostLimits {
+  /** Throws PlanLimitReachedError when one more post in the month of `at` goes beyond the plan. */
+  assertRoom(organizationId: string, variantId: string, at: Date): Promise<void>;
+}
+
+export const planPostLimits = (
+  entitlements: PlanEntitlements,
+  usage: Pick<PlanUsage, 'postsInMonth'>,
+): PostLimits => ({
+  async assertRoom(organizationId, variantId, at) {
+    const [{ limits }, used] = await Promise.all([
+      entitlements.of(organizationId),
+      usage.postsInMonth(organizationId, at, variantId),
+    ]);
+    assertWithinLimit(limits, 'scheduledPostsPerMonth', used);
+  },
+});
+
+/** No limit: for tests and tools that plan without a subscription. */
+export const unlimitedPosts: PostLimits = { assertRoom: () => Promise.resolve() };
+
+/** The connected accounts the plan of an organization allows, in all its workspaces. */
+export interface AccountLimits {
+  /** Throws PlanLimitReachedError when connecting `adding` more accounts goes beyond the plan. */
+  assertRoom(organizationId: string, adding: number): Promise<void>;
+}
+
+export const planAccountLimits = (
+  entitlements: PlanEntitlements,
+  usage: Pick<PlanUsage, 'socialAccounts'>,
+): AccountLimits => ({
+  async assertRoom(organizationId, adding) {
+    if (adding <= 0) {
+      return;
+    }
+    const [{ limits }, used] = await Promise.all([
+      entitlements.of(organizationId),
+      usage.socialAccounts(organizationId),
+    ]);
+    assertWithinLimit(limits, 'maxSocialAccounts', used, adding);
+  },
+});
+
+/** No limit: for tests that connect accounts without a subscription. */
+export const unlimitedAccounts: AccountLimits = { assertRoom: () => Promise.resolve() };

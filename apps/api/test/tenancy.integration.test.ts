@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { startApiTestApp, type ApiTestApp } from './support/api-app';
 import { browser, signUpVerified, type Browser } from './support/browser';
+import { onPlan } from './support/plan';
 
 // Guide step 1.6 end to end: onboarding, workspace routes, tenant isolation (404 for foreign
 // tenants), invitations with workspace restriction, role changes that apply at once.
@@ -86,7 +87,19 @@ describe('tenancy API', () => {
     await owner.get('/api/org/not-a-uuid/members').expect(404);
   });
 
+  it('keeps the trial of a new organization to one workspace', async () => {
+    const refused = await owner
+      .post(`/api/org/${organizationId}/workspaces`)
+      .send({ ...workspace, name: 'One Too Many' })
+      .expect(402);
+    expect(refused.body).toMatchObject({
+      code: 'PLAN_LIMIT_REACHED',
+      params: { limit: 'maxWorkspaces', max: 1 },
+    });
+  });
+
   it('invites with a workspace restriction and turns the invitation into a membership', async () => {
+    await onPlan(started(), organizationId);
     const second = await owner
       .post(`/api/org/${organizationId}/workspaces`)
       .send({ ...workspace, name: 'Hidden Corner' })

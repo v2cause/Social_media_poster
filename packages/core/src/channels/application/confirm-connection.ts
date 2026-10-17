@@ -8,7 +8,8 @@ import { parsePendingSecrets } from './pending-secrets';
 
 // Connects the accounts the user picked (guide step 4.5). A consent of the same platform user
 // renews the existing connection; accounts connected before, also through another connection,
-// are connected again. Every token is sealed anew with the AAD of its row.
+// are connected again. Every token is sealed anew with the AAD of its row. The accounts that are
+// not connected yet need room in the plan (guide step 7.4).
 
 export interface ConfirmConnectionInput {
   actor: ContentActor;
@@ -23,7 +24,10 @@ export interface ConfirmedConnection {
 
 export class ConfirmConnection {
   constructor(
-    private readonly deps: Pick<ChannelDependencies, 'unitOfWork' | 'pendings' | 'sealer' | 'clock' | 'ids'>,
+    private readonly deps: Pick<
+      ChannelDependencies,
+      'unitOfWork' | 'pendings' | 'sealer' | 'clock' | 'ids' | 'accounts'
+    >,
   ) {}
 
   async execute(input: ConfirmConnectionInput): Promise<ConfirmedConnection> {
@@ -42,6 +46,14 @@ export class ConfirmConnection {
     const workspaceId = actor.workspaceId;
 
     const confirmed = await this.deps.unitOfWork.run(channelScopeOf(actor), async (store) => {
+      const before = await store.accounts.findByExternalIds(workspaceId, pending.platform, selected);
+      const connectedBefore = new Set(
+        before.filter((account) => account.disconnectedAt === null).map((account) => account.externalId),
+      );
+      await this.deps.accounts.assertRoom(
+        actor.organizationId,
+        selected.filter((externalId) => !connectedBefore.has(externalId)).length,
+      );
       const existing = await store.connections.findByExternalUser(
         workspaceId,
         pending.platform,
@@ -82,12 +94,7 @@ export class ConfirmConnection {
         });
       }
 
-      const known = new Map(
-        (await store.accounts.findByExternalIds(workspaceId, pending.platform, selected)).map((account) => [
-          account.externalId,
-          account.id,
-        ]),
-      );
+      const known = new Map(before.map((account) => [account.externalId, account.id]));
       const accountIds: string[] = [];
       for (const externalId of selected) {
         const account = offered.get(externalId);

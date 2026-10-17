@@ -332,6 +332,46 @@ describe('ConfirmConnection', () => {
   });
 });
 
+describe('the connected accounts of the plan (guide step 7.4)', () => {
+  it('starts a new connection only while the plan has room for another account', async () => {
+    const bed = createChannelTestbed();
+    await new ConfirmConnection(bed).execute({
+      actor: owner,
+      pendingId: await consent(bed),
+      externalIds: ['page-1'],
+    });
+    bed.accounts.max = 1;
+
+    await expect(start(bed)).rejects.toMatchObject({
+      code: 'PLAN_LIMIT_REACHED',
+      params: { limit: 'maxSocialAccounts', max: 1 },
+    });
+    // A reconnect adds no account.
+    await expect(
+      new StartConnection(bed).execute({ actor: owner, workspaceSlug: SLUG, reconnectAccountId: 'ch-2' }),
+    ).resolves.toHaveProperty('authorizationUrl');
+  });
+
+  it('counts only the picked accounts that are not connected yet and keeps the consent', async () => {
+    const bed = createChannelTestbed();
+    const confirm = new ConfirmConnection(bed);
+    await confirm.execute({ actor: owner, pendingId: await consent(bed), externalIds: ['page-1'] });
+    const pendingId = await consent(bed);
+    bed.accounts.max = 1;
+
+    await expect(
+      confirm.execute({ actor: owner, pendingId, externalIds: ['page-1', 'page-2'] }),
+    ).rejects.toMatchObject({ params: { limit: 'maxSocialAccounts', max: 1 } });
+    expect(bed.pendings.pendings.has(pendingId)).toBe(true);
+    expect(bed.unitOfWork.state.accounts.size).toBe(1);
+    await expect(confirm.execute({ actor: owner, pendingId, externalIds: ['page-1'] })).resolves.toEqual({
+      connectionId: 'ch-1',
+      accountIds: ['ch-2'],
+    });
+    expect(bed.accounts.asked.slice(-2)).toEqual([1, 0]);
+  });
+});
+
 describe('reconnect and disconnect', () => {
   it('starts a reconnect with the platform and method of the account', async () => {
     const bed = createChannelTestbed();

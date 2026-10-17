@@ -19,7 +19,7 @@ import type {
   SocialConnection,
   TokenSet,
 } from '../src';
-import { PlatformError } from '../src';
+import { PlanLimitReachedError, PlatformError, type AccountLimits } from '../src';
 import { fixedClock, ScopeViolation, sequentialIds } from './in-memory-content';
 
 // In-memory adapters for the channel use cases: a unit of work that hides other workspaces and
@@ -340,10 +340,28 @@ export const fakeConnectors = (
   },
 });
 
+/** The account limit of the plan over the connected accounts of the in-memory store. */
+export class MemoryAccountLimits implements AccountLimits {
+  max = Number.POSITIVE_INFINITY;
+  readonly asked: number[] = [];
+
+  constructor(private readonly channels: InMemoryChannels) {}
+
+  assertRoom(_organizationId: string, adding: number): Promise<void> {
+    this.asked.push(adding);
+    const used = [...this.channels.state.accounts.values()].filter((a) => a.disconnectedAt === null).length;
+    if (adding > 0 && used + adding > this.max) {
+      return Promise.reject(new PlanLimitReachedError('maxSocialAccounts', this.max));
+    }
+    return Promise.resolve();
+  }
+}
+
 export interface ChannelTestbed extends ChannelDependencies {
   unitOfWork: InMemoryChannels;
   states: MemoryStates;
   pendings: MemoryPendings;
+  accounts: MemoryAccountLimits;
   facebook: FakeConnector;
   x: FakeConnector;
 }
@@ -351,8 +369,9 @@ export interface ChannelTestbed extends ChannelDependencies {
 export function createChannelTestbed(): ChannelTestbed {
   const facebook = new FakeConnector();
   const x = new FakeConnector(['tweet.read', 'offline.access'], true);
+  const unitOfWork = new InMemoryChannels();
   return {
-    unitOfWork: new InMemoryChannels(),
+    unitOfWork,
     connectors: fakeConnectors({
       FACEBOOK: { method: 'API', connector: facebook },
       X: { method: 'API', connector: x },
@@ -364,6 +383,7 @@ export function createChannelTestbed(): ChannelTestbed {
     clock: fixedClock(),
     ids: sequentialIds('ch'),
     callbackUrl: (platform) => `http://localhost:3000/api/oauth/${platform.toLowerCase()}/callback`,
+    accounts: new MemoryAccountLimits(unitOfWork),
     facebook,
     x,
   };

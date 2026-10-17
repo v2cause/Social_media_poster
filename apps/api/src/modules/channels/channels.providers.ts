@@ -3,11 +3,14 @@ import {
   CompleteAuthorization,
   ConfirmConnection,
   DisconnectAccount,
+  EntitlementsService,
   GetPendingConnection,
+  planAccountLimits,
   StartConnection,
   systemClock,
   uuidV7Ids,
   type ChannelDependencies,
+  type PlanUsage,
 } from '@smp/core';
 import { oauthRandom, sealerFromEnv } from '@smp/crypto';
 import { ChannelReadModel, PrismaChannelUnitOfWork, type PrismaClient } from '@smp/db';
@@ -18,6 +21,7 @@ import { RequestOriginService } from '../../common/cls/tenant-context';
 import type { ApiEnv } from '../../config/api-env';
 import { API_ENV } from '../../config/config.module';
 import { DATABASE_CLIENT, REDIS_CLIENT } from '../../infrastructure/clients.module';
+import { PLAN_USAGE } from '../billing/plan.module';
 import { mockAuthorizeUrl, oauthCallbackUrl } from './oauth-urls';
 import { RedisOAuthStateStore, RedisPendingConnectionStore } from './redis-oauth-stores';
 
@@ -52,13 +56,23 @@ export const channelProviders: Provider[] = [
   },
   {
     provide: CHANNEL_DEPENDENCIES,
-    inject: [API_ENV, DATABASE_CLIENT, REDIS_CLIENT, RequestOriginService, ADAPTER_REGISTRY],
+    inject: [
+      API_ENV,
+      DATABASE_CLIENT,
+      REDIS_CLIENT,
+      RequestOriginService,
+      ADAPTER_REGISTRY,
+      EntitlementsService,
+      PLAN_USAGE,
+    ],
     useFactory: (
       env: ApiEnv,
       base: PrismaClient,
       redis: Redis,
       origin: RequestOriginService,
       registry: AdapterRegistry,
+      entitlements: EntitlementsService,
+      usage: PlanUsage,
     ): ChannelDependencies => ({
       unitOfWork: new PrismaChannelUnitOfWork(base, () => origin.get()),
       connectors: registry,
@@ -69,6 +83,7 @@ export const channelProviders: Provider[] = [
       clock: systemClock,
       ids: uuidV7Ids,
       callbackUrl: (platform) => oauthCallbackUrl(env.APP_URL, platform),
+      accounts: planAccountLimits(entitlements, usage),
     }),
   },
   {

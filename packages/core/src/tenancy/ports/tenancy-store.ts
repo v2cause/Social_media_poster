@@ -24,6 +24,11 @@ export interface TenancyScope {
 export interface OrganizationRepository {
   create(organization: Organization): Promise<void>;
   findById(organizationId: string): Promise<Organization | null>;
+  /**
+   * Serializes the changes of an organization that a limit of its plan counts, workspaces and
+   * members, until the transaction ends (guide step 7.4).
+   */
+  lockPlan(organizationId: string): Promise<void>;
 }
 
 export interface WorkspaceRepository {
@@ -32,6 +37,7 @@ export interface WorkspaceRepository {
   findById(organizationId: string, workspaceId: string): Promise<Workspace | null>;
   /** True if every id is a workspace of the organization. */
   allBelongTo(organizationId: string, workspaceIds: readonly string[]): Promise<boolean>;
+  countIn(organizationId: string): Promise<number>;
   createSettings(workspaceId: string): Promise<void>;
   findSettings(workspaceId: string): Promise<WorkspaceSettings | null>;
   updateSettings(
@@ -45,6 +51,7 @@ export interface MembershipRepository {
   findById(organizationId: string, membershipId: string): Promise<Membership | null>;
   findByUser(organizationId: string, userId: string): Promise<Membership | null>;
   findByEmail(organizationId: string, email: string): Promise<Membership | null>;
+  countIn(organizationId: string): Promise<number>;
   /** Counts the owners and locks their rows until the transaction ends, so that two owners
    * cannot demote each other at the same time. */
   countOwnersForUpdate(organizationId: string): Promise<number>;
@@ -59,6 +66,8 @@ export interface InvitationRepository {
   findByTokenHash(tokenHash: string): Promise<Invitation | null>;
   /** Revokes the open invitations to an address and returns how many there were. */
   revokeOpen(organizationId: string, email: string, at: Date): Promise<number>;
+  /** The invitations open at a moment, without those to one address. */
+  countOpen(organizationId: string, at: Date, exceptEmail: string): Promise<number>;
   /** Sets acceptedAt if the invitation is open and not expired at that time. False otherwise,
    * for example when a parallel request was faster. */
   markAccepted(organizationId: string, invitationId: string, at: Date): Promise<boolean>;

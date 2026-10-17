@@ -326,6 +326,33 @@ describe('channels API with the mock OAuth', () => {
     ]);
   });
 
+  it('connects no account beyond the plan of the organization (guide step 7.4)', async () => {
+    const [demo] = await query<{ organization_id: string; connected: number }>(
+      `SELECT w.organization_id,
+              (SELECT count(*)::int FROM social_account a JOIN workspace o ON o.id = a.workspace_id
+                WHERE o.organization_id = w.organization_id AND a.disconnected_at IS NULL) AS connected
+         FROM workspace w WHERE w.id = $1`,
+      [workspaceId],
+    );
+    const organizationId = demo?.organization_id ?? '';
+    const connected = demo?.connected ?? 0;
+    await query(`UPDATE subscription SET limit_overrides = $2::jsonb WHERE organization_id = $1`, [
+      organizationId,
+      JSON.stringify({ maxSocialAccounts: connected }),
+    ]);
+    try {
+      const refused = await as(owner).post(`${ws}/channels/linkedin/connect`).expect(402);
+      expect(refused.body).toMatchObject({
+        code: 'PLAN_LIMIT_REACHED',
+        params: { limit: 'maxSocialAccounts', max: connected },
+      });
+    } finally {
+      await query(`UPDATE subscription SET limit_overrides = NULL WHERE organization_id = $1`, [
+        organizationId,
+      ]);
+    }
+  });
+
   it('keeps the consent page from sending codes anywhere but to the callback of the app', async () => {
     const page = new URLSearchParams({
       platform: 'X',

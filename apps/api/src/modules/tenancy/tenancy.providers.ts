@@ -4,6 +4,7 @@ import {
   ChangeMemberRole,
   CreateOrganization,
   CreateWorkspace,
+  EntitlementsService,
   InviteMember,
   LeaveOrganization,
   RemoveMember,
@@ -41,13 +42,18 @@ export const tenancyProviders: Provider[] = [
   { provide: INVITATION_NOTIFIER, useClass: QueueInvitationNotifier },
   {
     provide: TENANCY_DEPENDENCIES,
-    inject: [TENANCY_UNIT_OF_WORK, INVITATION_NOTIFIER],
-    useFactory: (unitOfWork: TenancyUnitOfWork, notifier: InvitationNotifier): TenancyDependencies => ({
+    inject: [TENANCY_UNIT_OF_WORK, INVITATION_NOTIFIER, EntitlementsService],
+    useFactory: (
+      unitOfWork: TenancyUnitOfWork,
+      notifier: InvitationNotifier,
+      entitlements: EntitlementsService,
+    ): TenancyDependencies => ({
       unitOfWork,
       notifier,
       clock: systemClock,
       ids: uuidV7Ids,
       tokens: secretTokens,
+      entitlements,
     }),
   },
   ...USE_CASES.map((UseCase) => ({

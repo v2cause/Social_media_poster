@@ -18,7 +18,7 @@ import {
   type SocialAccount,
 } from '../../src';
 import { MemoryBrowserLogins, RecordingLoginEvents, RecordingLoginQueue } from '../in-memory-browser-login';
-import { fakeSealer, InMemoryChannels } from '../in-memory-channels';
+import { fakeSealer, InMemoryChannels, MemoryAccountLimits } from '../in-memory-channels';
 import { sequentialIds } from '../in-memory-content';
 
 // Guide step 6.4: the interactive login of X. The credentials reach the browser worker sealed
@@ -70,6 +70,7 @@ function setup(options: { open?: boolean } = {}) {
   const queue = new RecordingLoginQueue();
   const events = new RecordingLoginEvents();
   const channels = new InMemoryChannels();
+  const accounts = new MemoryAccountLimits(channels);
   const deps: BrowserLoginDependencies = {
     logins,
     queue,
@@ -77,6 +78,7 @@ function setup(options: { open?: boolean } = {}) {
     sealer: fakeSealer,
     aad,
     gate: { allows: () => Promise.resolve(options.open ?? true) },
+    accounts,
     unitOfWork: channels,
     clock: { now: () => now },
     ids: sequentialIds('xbl'),
@@ -88,6 +90,7 @@ function setup(options: { open?: boolean } = {}) {
     queue,
     events,
     channels,
+    accounts,
     advance: (ms: number) => {
       now = new Date(now.getTime() + ms);
     },
@@ -163,6 +166,17 @@ describe('the interactive login of X', () => {
     // The next hour counts afresh.
     t.advance(60 * 60_000);
     await expect(t.start()).resolves.toMatchObject({ status: 'STARTING' });
+  });
+
+  it('starts a login for a new account only while the plan has room for it (guide step 7.4)', async () => {
+    const t = setup();
+    t.accounts.max = 0;
+
+    await expect(t.start()).rejects.toMatchObject({
+      code: 'PLAN_LIMIT_REACHED',
+      params: { limit: 'maxSocialAccounts', max: 0 },
+    });
+    expect(t.queue.commands).toEqual([]);
   });
 
   it('passes a code on sealed only while X asks for one, and once per question', async () => {

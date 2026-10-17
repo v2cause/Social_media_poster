@@ -28,6 +28,11 @@ export function createPrismaTenancyStore(
         const row = await tx.organization.findUnique({ where: { id: organizationId } });
         return row ? { id: row.id, name: row.name } : null;
       },
+      async lockPlan(organizationId) {
+        // Held until the transaction ends: two requests that add a workspace or a member count
+        // one after the other.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`plan.${organizationId}`}, 0))`;
+      },
     },
 
     workspaces: {
@@ -60,6 +65,9 @@ export function createPrismaTenancyStore(
         const unique = [...new Set(workspaceIds)];
         const count = await tx.workspace.count({ where: { organizationId, id: { in: unique } } });
         return count === unique.length;
+      },
+      countIn(organizationId) {
+        return tx.workspace.count({ where: { organizationId } });
       },
       async createSettings(workspaceId) {
         await tx.workspaceSettings.create({ data: { workspaceId } });
@@ -124,6 +132,9 @@ export function createPrismaTenancyStore(
         });
         return row ? toMembership(row) : null;
       },
+      countIn(organizationId) {
+        return tx.membership.count({ where: { organizationId } });
+      },
       async countOwnersForUpdate(organizationId) {
         const rows = await tx.$queryRaw<{ id: string }[]>`
           SELECT id FROM membership
@@ -168,6 +179,17 @@ export function createPrismaTenancyStore(
           data: { revokedAt: at },
         });
         return count;
+      },
+      countOpen(organizationId, at, exceptEmail) {
+        return tx.invitation.count({
+          where: {
+            organizationId,
+            email: { not: exceptEmail },
+            acceptedAt: null,
+            revokedAt: null,
+            expiresAt: { gt: at },
+          },
+        });
       },
       async markAccepted(organizationId, invitationId, at) {
         const { count } = await tx.invitation.updateMany({

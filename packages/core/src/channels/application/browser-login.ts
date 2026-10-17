@@ -1,3 +1,4 @@
+import type { AccountLimits } from '../../billing/application/plan-limits';
 import type { ContentActor } from '../../content/domain/types';
 import type { Clock } from '../../shared/ports/clock';
 import type { IdGenerator } from '../../shared/ports/ids';
@@ -47,6 +48,8 @@ export interface BrowserLoginDependencies {
   aad: BrowserLoginAad;
   /** Whether the X browser runs in the workspace. */
   gate: Pick<XBrowserGate, 'allows'>;
+  /** The connected accounts the plan of the organization allows (guide step 7.4). */
+  accounts: AccountLimits;
   unitOfWork: ChannelUnitOfWork;
   clock: Clock;
   ids: IdGenerator;
@@ -132,6 +135,9 @@ export class StartBrowserLogin {
       if (account?.platform !== 'X' || account.disconnectedAt !== null) {
         throw new SocialAccountNotFoundError();
       }
+    } else {
+      // The plan is checked when the login starts; the worker connects what the login brings.
+      await deps.accounts.assertRoom(organizationId, 1);
     }
     const now = deps.clock.now();
     if ((await deps.logins.countStart(workspaceId, now)) > BROWSER_LOGINS_PER_HOUR) {

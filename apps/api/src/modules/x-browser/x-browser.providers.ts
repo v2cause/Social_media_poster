@@ -3,9 +3,11 @@ import { riskTextOf, X_BROWSER_RISK } from '@smp/contracts';
 import {
   DisableXBrowser,
   EnableXBrowser,
+  EntitlementsService,
   GetBrowserLogin,
   GetXBrowserAdmin,
   GetXBrowserStatus,
+  planAccountLimits,
   SetXBrowserKillSwitch,
   SetXBrowserOrganization,
   StartBrowserLogin,
@@ -19,6 +21,7 @@ import {
   type SecretSealer,
   type XBrowserAccessDependencies,
   type XBrowserAdminDependencies,
+  type PlanUsage,
 } from '@smp/core';
 import { sealerFromEnv } from '@smp/crypto';
 import {
@@ -47,6 +50,7 @@ import {
   SYSTEM_DATABASE_CLIENT,
   XB_COMMANDS_JOBS_QUEUE,
 } from '../../infrastructure/clients.module';
+import { PLAN_USAGE } from '../billing/plan.module';
 
 // The X browser of the API (guide steps 6.1 and 6.4): status and switching per workspace as
 // app_user in its tenant, the switches of the platform admins as app_system, and the interactive
@@ -106,6 +110,8 @@ export const xBrowserProviders: Provider[] = [
       XB_COMMANDS_JOBS_QUEUE,
       RequestOriginService,
       X_BROWSER_ACCESS,
+      EntitlementsService,
+      PLAN_USAGE,
     ],
     useFactory: (
       env: ApiEnv,
@@ -114,6 +120,8 @@ export const xBrowserProviders: Provider[] = [
       commands: Queue | null,
       origin: RequestOriginService,
       access: XBrowserAccessDependencies,
+      entitlements: EntitlementsService,
+      usage: PlanUsage,
     ): BrowserLoginDependencies => ({
       logins: new RedisBrowserLoginStore(redis),
       queue: commands ? new BullBrowserLoginQueue(commands) : closedQueue,
@@ -121,6 +129,7 @@ export const xBrowserProviders: Provider[] = [
       sealer: env.FEATURE_X_BROWSER_GLOBAL ? sealerFromEnv('sessions', env) : closedSealer,
       aad: xbLoginAad,
       gate: new XBrowserGate(access),
+      accounts: planAccountLimits(entitlements, usage),
       unitOfWork: new PrismaChannelUnitOfWork(base, () => origin.get()),
       clock: systemClock,
       ids: uuidV7Ids,

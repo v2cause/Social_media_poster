@@ -9,6 +9,7 @@ import { assertCanManageChannels, channelScopeOf, type ChannelDependencies } fro
 // The start of the OAuth flow (guide step 4.5): a state of 32 random bytes, bound to user,
 // workspace and platform, valid for 10 minutes and once, plus the PKCE verifier where the
 // platform uses PKCE. Reconnecting an account starts the same flow for its platform and method.
+// A new connection needs room for one more account in the plan (guide step 7.4).
 
 export type StartConnectionInput =
   | { actor: ContentActor; workspaceSlug: string; platform: Platform }
@@ -24,7 +25,7 @@ export class StartConnection {
   constructor(
     private readonly deps: Pick<
       ChannelDependencies,
-      'unitOfWork' | 'connectors' | 'states' | 'random' | 'callbackUrl'
+      'unitOfWork' | 'connectors' | 'states' | 'random' | 'callbackUrl' | 'accounts'
     >,
   ) {}
 
@@ -43,6 +44,9 @@ export class StartConnection {
     const connector = method === null ? null : this.deps.connectors.connector(platform, method);
     if (method === null || !connector) {
       throw new ChannelUnavailableError();
+    }
+    if (target.reconnectAccountId === null) {
+      await this.deps.accounts.assertRoom(actor.organizationId, 1);
     }
 
     const state = this.deps.random.token();

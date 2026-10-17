@@ -773,6 +773,7 @@ export type {
 
 // Billing (phase 7).
 export * from './billing/domain/errors';
+export { assertWithinLimit } from './billing/domain/limits';
 export {
   aiCapMicros,
   effectiveLimits,
@@ -851,6 +852,18 @@ export {
   reportCutoffOf,
 } from './billing/domain/usage';
 export type { UsageBatch, UsageReportStore } from './billing/ports/usage-report-store';
+export type { PlanUsage } from './billing/ports/plan-usage';
+export {
+  planAccountLimits,
+  planAnalyticsHistory,
+  planPostLimits,
+  planQuotaLimits,
+  unlimitedAccounts,
+  unlimitedPosts,
+  type AccountLimits,
+  type PlanEntitlements,
+  type PostLimits,
+} from './billing/application/plan-limits';
 export {
   ReportUsage,
   type UsageReportDependencies,

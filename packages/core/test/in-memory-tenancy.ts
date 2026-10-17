@@ -1,12 +1,15 @@
 import type {
   AuditEntry,
   Clock,
+  Entitlements,
   IdGenerator,
   Invitation,
   InvitationMessage,
   InvitationNotifier,
   Membership,
   Organization,
+  PlanEntitlements,
+  PlanLimits,
   SecretTokens,
   TenancyDependencies,
   TenancyScope,
@@ -16,6 +19,7 @@ import type {
   WorkspaceProfile,
   WorkspaceSettings,
 } from '../src';
+import { planOf } from './in-memory-billing';
 
 // An in-memory unit of work for the use case tests. Like row-level security, it hides rows of
 // other organizations and rejects writes outside the scope, and it rolls back on errors.
@@ -48,6 +52,8 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
   readonly foreignSlugs = new Set<string>();
   readonly users = new Map<string, string>();
   readonly scopes: TenancyScope[] = [];
+  /** The organizations whose plan lock a transaction took. */
+  readonly planLocks: string[] = [];
 
   async run<T>(scope: TenancyScope, work: (store: TenancyStore) => Promise<T>): Promise<T> {
     this.scopes.push(scope);
@@ -123,6 +129,11 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
         },
         findById: (organizationId) =>
           Promise.resolve(inOrg(organizationId) ? (state().organizations.get(organizationId) ?? null) : null),
+        lockPlan: (organizationId) => {
+          writeOrg(organizationId);
+          this.planLocks.push(organizationId);
+          return Promise.resolve();
+        },
       },
       workspaces: {
         create: (workspace) => {
@@ -147,6 +158,12 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
           Promise.resolve(
             inOrg(organizationId) &&
               workspaceIds.every((id) => state().workspaces.get(id)?.organizationId === organizationId),
+          ),
+        countIn: (organizationId) =>
+          Promise.resolve(
+            inOrg(organizationId)
+              ? [...state().workspaces.values()].filter((w) => w.organizationId === organizationId).length
+              : 0,
           ),
         createSettings: (workspaceId) => {
           writeWorkspace(workspaceId);
@@ -196,6 +213,12 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
             findMembership(
               (m) => m.organizationId === organizationId && this.users.get(m.userId)?.toLowerCase() === email,
             ),
+          ),
+        countIn: (organizationId) =>
+          Promise.resolve(
+            [...state().memberships.values()].filter(
+              (m) => inOrg(organizationId) && m.organizationId === organizationId,
+            ).length,
           ),
         countOwnersForUpdate: (organizationId) =>
           Promise.resolve(
@@ -255,6 +278,18 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
           }
           return Promise.resolve(count);
         },
+        countOpen: (organizationId, at, exceptEmail) =>
+          Promise.resolve(
+            [...state().invitations.values()].filter(
+              (i) =>
+                inOrg(organizationId) &&
+                i.organizationId === organizationId &&
+                i.email !== exceptEmail &&
+                i.acceptedAt === null &&
+                i.revokedAt === null &&
+                i.expiresAt > at,
+            ).length,
+          ),
         markAccepted: (organizationId, invitationId, at) => {
           writeOrg(organizationId);
           const invitation = state().invitations.get(invitationId);
@@ -350,10 +385,33 @@ export class RecordingNotifier implements InvitationNotifier {
   }
 }
 
+/** The entitlements of every organization: the agency plan unless a test lowers a limit. */
+export class FixedEntitlements implements PlanEntitlements {
+  limits: PlanLimits = { ...planOf('agency').limits };
+
+  of(organizationId: string): Promise<Entitlements> {
+    return Promise.resolve({
+      organizationId,
+      plan: planOf('agency'),
+      limits: this.limits,
+      status: 'ACTIVE',
+      readOnly: false,
+      readOnlyAt: null,
+      trialEndsAt: null,
+      graceEndsAt: null,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+    });
+  }
+}
+
 export interface TenancyTestbed extends TenancyDependencies {
   unitOfWork: InMemoryTenancy;
   clock: FixedClock;
   notifier: RecordingNotifier;
+  entitlements: FixedEntitlements;
 }
 
 export const createTestbed = (): TenancyTestbed => ({
@@ -362,6 +420,7 @@ export const createTestbed = (): TenancyTestbed => ({
   ids: new SequentialIds(),
   tokens: new FakeTokens(),
   notifier: new RecordingNotifier(),
+  entitlements: new FixedEntitlements(),
 });
 
 export const PROFILE: WorkspaceProfile = {
