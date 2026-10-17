@@ -247,11 +247,17 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    # No env_file: the container gets only what it needs, never database or storage credentials.
     environment:
       REDIS_URL: redis://redis:6379
       NODE_ENV: production
       LOG_LEVEL: info
       FEATURE_X_BROWSER_GLOBAL: 'true'
+      # Only this container opens the sessions of X.
+      SESSION_KEKS: ${SESSION_KEKS:-}
+      SESSION_KEK_ACTIVE: ${SESSION_KEK_ACTIVE:-}
+      # The media are signed for S3_PUBLIC_ENDPOINT; inside the network the storage is s3:8333.
+      XB_EGRESS_HOSTS: http://s3:8333
 
   otel-lgtm:
     image: grafana/otel-lgtm:0.36.0

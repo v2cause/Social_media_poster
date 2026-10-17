@@ -10,10 +10,12 @@
     "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.mts"
   },
   "dependencies": {
     "@smp/observability": "workspace:*",
+    "@smp/x-browser": "workspace:*",
     "bullmq": "^5.81.5",
     "ioredis": "^5.11.1",
     "playwright": "1.64.1",
