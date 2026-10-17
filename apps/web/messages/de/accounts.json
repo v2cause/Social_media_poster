@@ -18,7 +18,9 @@
       "API": "API (Standard)",
       "MOCK": "Testplattform (Mock)",
       "BROWSER": "Browser (experimentell)",
-      "browserLater": "Folgt in einer späteren Version."
+      "browserOff": "Owner und Admins schalten X ohne API in den Einstellungen ein.",
+      "browserSettings": "Zu den Einstellungen",
+      "browserUnavailable": "Derzeit nicht verfügbar."
     }
   },
   "list": {
@@ -38,6 +40,7 @@
       "PAUSED": "Pausiert",
       "REVOKED": "Zugriff entzogen"
     },
+    "browser": "Über den Browser",
     "expiry": {
       "never": "Zugang ohne Ablauf",
       "expired": "Zugang abgelaufen",
@@ -56,6 +59,41 @@
     "description": "Geplante Beiträge für diesen Account werden nicht mehr veröffentlicht. Sie können ihn später wieder verbinden.",
     "confirm": "Trennen",
     "done": "{name} ist getrennt."
+  },
+  "xLogin": {
+    "title": "Bei X anmelden",
+    "reconnectTitle": "@{handle} neu verbinden",
+    "description": "Der X-Browser meldet sich einmal mit Ihren Zugangsdaten bei X an und behält danach nur die Sitzung. Fragt X nach einem Code, geben Sie ihn hier ein.",
+    "username": "Benutzername oder E-Mail-Adresse bei X",
+    "usernameHint": "Wie bei der Anmeldung auf x.com.",
+    "password": "Passwort bei X",
+    "passwordHint": "Wird nicht gespeichert: Es geht verschlüsselt an den X-Browser und nur für diese Anmeldung.",
+    "submit": "Bei X anmelden",
+    "starting": "Wird gestartet ...",
+    "waiting": {
+      "STARTING": "Der X-Browser meldet sich bei X an ...",
+      "VERIFYING": "X prüft den Code ..."
+    },
+    "until": "Die Anmeldung endet spätestens um {time}.",
+    "codeRequested": "X fragt nach dem Code der Zwei-Faktor-Anmeldung.",
+    "codeRejected": "X hat den Code nicht angenommen. Bitte geben Sie einen neuen ein.",
+    "code": "Code",
+    "codeHint": "Aus Ihrer Authenticator-App oder der SMS; ein Backup-Code geht auch.",
+    "sendCode": "Code senden",
+    "succeeded": "Der X-Account ist verbunden.",
+    "failed": "Die Anmeldung bei X ist fehlgeschlagen.",
+    "lost": "Die Anmeldung ist abgelaufen. Bitte starten Sie sie neu.",
+    "retry": "Erneut versuchen",
+    "failure": {
+      "INVALID_CREDENTIALS": "X hat den Benutzernamen oder das Passwort nicht angenommen.",
+      "INVALID_CODE": "X hat die Codes nicht angenommen. Bitte starten Sie die Anmeldung neu.",
+      "CHALLENGE_REQUIRED": "X verlangt eine zusätzliche Prüfung. Bitte melden Sie sich einmal direkt auf x.com an und versuchen Sie es danach erneut.",
+      "SELECTOR_DRIFT": "Die Oberfläche von X hat sich geändert. Die Anmeldung ist vorübergehend nicht möglich.",
+      "TIMEOUT": "Die Anmeldung hat zu lange gedauert. Bitte starten Sie sie neu.",
+      "ACCOUNT_MISMATCH": "Sie haben sich mit einem anderen X-Account angemeldet als dem, der neu verbunden werden sollte.",
+      "UNAVAILABLE": "Der X-Browser ist gerade nicht verfügbar. Bitte versuchen Sie es später erneut.",
+      "TRANSIENT": "Die Anmeldung ist fehlgeschlagen. Bitte versuchen Sie es später erneut."
+    }
   },
   "connected": "{count, plural, one {# Account verbunden.} other {# Accounts verbunden.}}",
   "connectError": {

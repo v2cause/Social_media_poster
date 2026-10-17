@@ -32,16 +32,16 @@ describe('live events in the browser', () => {
     ]);
   });
 
-  it('makes the accounts stale once an X login succeeded', () => {
+  it('makes the login of X stale with each step, and the accounts once it succeeded', () => {
+    const loginId = '0192f5d4-0000-7000-8000-000000000004';
     const step = (status: string) =>
-      parseLiveEvent(
-        JSON.stringify({ type: 'xb.login', loginSessionId: '0192f5d4-0000-7000-8000-000000000004', status }),
-      );
+      parseLiveEvent(JSON.stringify({ type: 'xb.login', loginSessionId: loginId, status }));
     const awaiting = step('AWAITING_2FA');
     const succeeded = step('SUCCEEDED');
 
-    expect(awaiting && queryKeysOf(awaiting, 'nordlicht')).toEqual([]);
-    expect(succeeded && queryKeysOf(succeeded, 'nordlicht')).toEqual([['/api/w/nordlicht/accounts']]);
+    const login = [`/api/w/nordlicht/x-browser/login-sessions/${loginId}`];
+    expect(awaiting && queryKeysOf(awaiting, 'nordlicht')).toEqual([login]);
+    expect(succeeded && queryKeysOf(succeeded, 'nordlicht')).toEqual([login, ['/api/w/nordlicht/accounts']]);
     expect(step('SOMETHING_NEW')).toBeNull();
   });
 

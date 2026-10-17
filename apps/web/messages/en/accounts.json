@@ -18,7 +18,9 @@
       "API": "API (standard)",
       "MOCK": "Test platform (mock)",
       "BROWSER": "Browser (experimental)",
-      "browserLater": "Comes with a later version."
+      "browserOff": "Owners and admins switch X without the API on in the settings.",
+      "browserSettings": "Go to the settings",
+      "browserUnavailable": "Currently unavailable."
     }
   },
   "list": {
@@ -38,6 +40,7 @@
       "PAUSED": "Paused",
       "REVOKED": "Access revoked"
     },
+    "browser": "Through the browser",
     "expiry": {
       "never": "Access does not expire",
       "expired": "Access expired",
@@ -56,6 +59,41 @@
     "description": "Scheduled posts for this account will no longer be published. You can connect it again later.",
     "confirm": "Disconnect",
     "done": "{name} is disconnected."
+  },
+  "xLogin": {
+    "title": "Sign in to X",
+    "reconnectTitle": "Reconnect @{handle}",
+    "description": "The X browser signs in to X once with your credentials and keeps only the session afterwards. If X asks for a code, enter it here.",
+    "username": "User name or email address at X",
+    "usernameHint": "As when you sign in on x.com.",
+    "password": "Password at X",
+    "passwordHint": "Not stored: it goes encrypted to the X browser, for this sign-in only.",
+    "submit": "Sign in to X",
+    "starting": "Starting ...",
+    "waiting": {
+      "STARTING": "The X browser is signing in to X ...",
+      "VERIFYING": "X is checking the code ..."
+    },
+    "until": "The sign-in ends at {time} at the latest.",
+    "codeRequested": "X asks for the code of the two-factor sign-in.",
+    "codeRejected": "X did not accept the code. Please enter a new one.",
+    "code": "Code",
+    "codeHint": "From your authenticator app or the text message; a backup code works too.",
+    "sendCode": "Send code",
+    "succeeded": "The X account is connected.",
+    "failed": "The sign-in to X failed.",
+    "lost": "The sign-in has expired. Please start it again.",
+    "retry": "Try again",
+    "failure": {
+      "INVALID_CREDENTIALS": "X did not accept the user name or the password.",
+      "INVALID_CODE": "X did not accept the codes. Please start the sign-in again.",
+      "CHALLENGE_REQUIRED": "X asks for an additional check. Please sign in once directly on x.com and try again afterwards.",
+      "SELECTOR_DRIFT": "The interface of X has changed. Signing in is not possible for the time being.",
+      "TIMEOUT": "The sign-in took too long. Please start it again.",
+      "ACCOUNT_MISMATCH": "You signed in with another X account than the one to reconnect.",
+      "UNAVAILABLE": "The X browser is not available right now. Please try again later.",
+      "TRANSIENT": "The sign-in failed. Please try again later."
+    }
   },
   "connected": "{count, plural, one {# account connected.} other {# accounts connected.}}",
   "connectError": {

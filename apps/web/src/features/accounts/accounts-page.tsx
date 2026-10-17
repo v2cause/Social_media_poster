@@ -7,6 +7,7 @@ import {
   useAccountsReconnect,
   useChannelsConnect,
   useChannelsList,
+  useXBrowserStatus,
 } from '@smp/api-client';
 import { slugOfPlatform, type ConnectFailure, type SocialAccountDto } from '@smp/contracts';
 import { PLATFORMS, type Platform } from '@smp/platform-rules';
@@ -35,14 +36,17 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { PlatformMark } from '@/features/publishing/platform-mark';
+import { viewOf } from '@/features/settings/x-browser-model';
 import { useErrorMessage } from '@/lib/use-error-message';
 
 import { accessExpiryOf, initialsOf, STATUS_BADGE, usdOf } from './account-model';
+import { XLoginDialog } from './x-login-dialog';
 
 // The accounts of a workspace (guide step 4.11): a card per platform to connect it, and the
 // connected accounts with the state of their access, the costs of X and, for owners and admins,
 // reconnect and disconnect. The OAuth callback comes back here with ?connect_error=<code>, the
-// selection page with ?connected=<count>.
+// selection page with ?connected=<count>. X connects through its API or, where the workspace
+// switched X without the API on, through the login dialog of the browser worker (guide step 6.4).
 
 export function AccountsPage(props: {
   ws: string;
@@ -142,6 +146,23 @@ function PlatformCards(props: { ws: string }) {
   });
   const methodOf = (platform: Platform) =>
     options.data?.items.find((option) => option.platform === platform)?.method ?? null;
+  const xBrowser = useXBrowserStatus(props.ws);
+  const xBrowserView = xBrowser.data ? viewOf(xBrowser.data) : null;
+  const browserAvailable = xBrowser.data?.available ?? false;
+  const [xChoice, setXChoice] = useState<'api' | 'browser' | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const xApi = methodOf('X');
+  // The choice of the user while it is open to them, else what X can connect with.
+  const xMethod =
+    xChoice === 'browser' && browserAvailable
+      ? 'browser'
+      : xChoice === 'api' && xApi !== null
+        ? 'api'
+        : xApi !== null
+          ? 'api'
+          : browserAvailable
+            ? 'browser'
+            : null;
 
   return (
     <section aria-labelledby="connect-platform" className="flex flex-col gap-4">
@@ -151,6 +172,7 @@ function PlatformCards(props: { ws: string }) {
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {PLATFORMS.map((platform) => {
           const method = methodOf(platform);
+          const connectable = platform === 'X' ? xMethod !== null : method !== null;
           return (
             <li key={platform}>
               <Card className="h-full">
@@ -162,24 +184,58 @@ function PlatformCards(props: { ws: string }) {
                       <p className="text-sm text-muted-foreground">{t(`hints.${platform}`)}</p>
                     </div>
                   </div>
-                  {platform === 'X' && method !== null ? (
+                  {platform === 'X' && (xApi !== null || xBrowserView !== null) ? (
                     <fieldset className="flex flex-col gap-2 text-sm">
                       <legend className="mb-1 font-medium">{t('method.label')}</legend>
-                      <label className="flex items-center gap-2">
-                        <input type="radio" name="x-method" checked readOnly className="accent-primary" />
-                        {t(`method.${method === 'MOCK' ? 'MOCK' : 'API'}`)}
+                      <label
+                        className={`flex items-center gap-2${xApi === null ? ' text-muted-foreground' : ''}`}
+                      >
+                        <input
+                          type="radio"
+                          name="x-method"
+                          value="api"
+                          checked={xMethod === 'api'}
+                          disabled={xApi === null}
+                          onChange={() => {
+                            setXChoice('api');
+                          }}
+                          className="accent-primary"
+                        />
+                        {t(`method.${xApi === 'MOCK' ? 'MOCK' : 'API'}`)}
                       </label>
-                      <label className="flex items-start gap-2 text-muted-foreground">
-                        <input type="radio" name="x-method" disabled className="mt-0.5" />
+                      <label
+                        className={`flex items-start gap-2${browserAvailable ? '' : ' text-muted-foreground'}`}
+                      >
+                        <input
+                          type="radio"
+                          name="x-method"
+                          value="browser"
+                          checked={xMethod === 'browser'}
+                          disabled={!browserAvailable}
+                          onChange={() => {
+                            setXChoice('browser');
+                          }}
+                          className="mt-0.5 accent-primary"
+                        />
                         <span>
                           {t('method.BROWSER')}
-                          <span className="block text-xs">{t('method.browserLater')}</span>
+                          {browserAvailable || xBrowserView === null ? null : xBrowserView.kind ===
+                            'unavailable' ? (
+                            <span className="block text-xs">{t('method.browserUnavailable')}</span>
+                          ) : (
+                            <span className="block text-xs">
+                              {t('method.browserOff')}{' '}
+                              <Link href={`/w/${props.ws}/settings`} className="underline">
+                                {t('method.browserSettings')}
+                              </Link>
+                            </span>
+                          )}
                         </span>
                       </label>
                     </fieldset>
                   ) : null}
                   <div className="mt-auto">
-                    {options.isPending ? null : method === null ? (
+                    {options.isPending ? null : !connectable ? (
                       <Badge variant="muted">{t('unavailable')}</Badge>
                     ) : (
                       <Button
@@ -187,6 +243,10 @@ function PlatformCards(props: { ws: string }) {
                         className="w-full"
                         disabled={redirecting !== null}
                         onClick={() => {
+                          if (platform === 'X' && xMethod === 'browser') {
+                            setLoginOpen(true);
+                            return;
+                          }
                           setRedirecting(platform);
                           connect.mutate({ ws: props.ws, platform: slugOfPlatform(platform) });
                         }}
@@ -203,6 +263,7 @@ function PlatformCards(props: { ws: string }) {
           );
         })}
       </ul>
+      <XLoginDialog ws={props.ws} open={loginOpen} onOpenChange={setLoginOpen} />
     </section>
   );
 }
@@ -216,6 +277,8 @@ function AccountRow(props: { ws: string; account: SocialAccountDto; canManage: b
   const errorMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const browser = account.method === 'BROWSER';
   const reconnect = useAccountsReconnect({
     mutation: {
       onSuccess: ({ authorizationUrl }) => {
@@ -266,6 +329,7 @@ function AccountRow(props: { ws: string; account: SocialAccountDto; canManage: b
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="muted">{t(`list.type.${account.type}`)}</Badge>
+              {browser ? <Badge variant="muted">{t('list.browser')}</Badge> : null}
               <Badge variant={STATUS_BADGE[account.status]}>{t(`list.status.${account.status}`)}</Badge>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -284,7 +348,7 @@ function AccountRow(props: { ws: string; account: SocialAccountDto; canManage: b
                 {t('list.missingScopes', { scopes: account.missingScopes.join(', ') })}
               </p>
             ) : null}
-            {account.costMicros !== null ? (
+            {account.costMicros !== null && !browser ? (
               <p className="text-sm">
                 {t('list.cost', {
                   amount: format.number(usdOf(account.costMicros), {
@@ -313,6 +377,10 @@ function AccountRow(props: { ws: string; account: SocialAccountDto; canManage: b
                 size="sm"
                 disabled={reconnect.isPending}
                 onClick={() => {
+                  if (browser) {
+                    setLoginOpen(true);
+                    return;
+                  }
                   reconnect.mutate({ ws: props.ws, accountId: account.id });
                 }}
               >
@@ -334,6 +402,14 @@ function AccountRow(props: { ws: string; account: SocialAccountDto; canManage: b
           ) : null}
         </div>
       </CardContent>
+      {browser && props.canManage ? (
+        <XLoginDialog
+          ws={props.ws}
+          open={loginOpen}
+          onOpenChange={setLoginOpen}
+          reconnect={{ accountId: account.id, handle: account.handle }}
+        />
+      ) : null}
       <Dialog open={confirming} onOpenChange={setConfirming}>
         <DialogContent closeLabel={actions('close')}>
           <DialogTitle>{t('disconnect.title', { name: account.name })}</DialogTitle>

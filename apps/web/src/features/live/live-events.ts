@@ -4,6 +4,7 @@ import {
   getPostsGetQueryKey,
   getPostsListQueryKey,
   getPublishingListQueryKey,
+  getXBrowserLoginGetQueryKey,
 } from '@smp/api-client';
 import { liveEventDtoSchema, type LiveEventDto } from '@smp/contracts';
 import type { QueryKey } from '@tanstack/react-query';
@@ -34,8 +35,12 @@ export function queryKeysOf(event: LiveEventDto, slug: string): QueryKey[] {
     case 'notification.created':
       return [getNotificationsListQueryKey()];
     case 'xb.login':
-      // A login of X that succeeded connected an account (guide step 6.4).
-      return event.status === 'SUCCEEDED' ? [getAccountsListQueryKey(slug)] : [];
+      // The dialog of the login reads its status; once it succeeded, an account is connected (guide
+      // step 6.4).
+      return [
+        getXBrowserLoginGetQueryKey(slug, event.loginSessionId),
+        ...(event.status === 'SUCCEEDED' ? [getAccountsListQueryKey(slug)] : []),
+      ];
   }
 }
 
