@@ -1,0 +1,83 @@
+{
+  "title": "Accounts",
+  "description": "The channels this workspace publishes to.",
+  "platforms": {
+    "title": "Connect a platform",
+    "connect": "Connect {platform}",
+    "redirecting": "Redirecting ...",
+    "unavailable": "Currently unavailable",
+    "managersOnly": "Owners and admins connect and disconnect accounts.",
+    "hints": {
+      "LINKEDIN": "Your profile and company pages",
+      "INSTAGRAM": "Business and creator accounts",
+      "FACEBOOK": "Facebook pages",
+      "X": "Your profile; the X API is paid"
+    },
+    "method": {
+      "label": "Method",
+      "API": "API (standard)",
+      "MOCK": "Test platform (mock)",
+      "BROWSER": "Browser (experimental)",
+      "browserLater": "Comes with a later version."
+    }
+  },
+  "list": {
+    "title": "Connected accounts",
+    "empty": "No accounts connected yet.",
+    "emptyHint": "Connect a platform to schedule and publish posts.",
+    "avatar": "Avatar of {name}",
+    "type": {
+      "PROFILE": "Profile",
+      "PAGE": "Page",
+      "BUSINESS": "Business"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "EXPIRING": "Expiring soon",
+      "NEEDS_REAUTH": "Reconnect needed",
+      "PAUSED": "Paused",
+      "REVOKED": "Access revoked"
+    },
+    "expiry": {
+      "never": "Access does not expire",
+      "expired": "Access expired",
+      "days": "{days, plural, =0 {Access expires today} one {Access expires in # day} other {Access expires in # days}}",
+      "date": "Access until {date}"
+    },
+    "missingScopes": "Not granted: {scopes}",
+    "cost": "API costs so far: {amount}",
+    "connectedAt": "Connected on {date}",
+    "reconnect": "Reconnect",
+    "disconnect": "Disconnect"
+  },
+  "disconnect": {
+    "title": "Disconnect {name}?",
+    "description": "Scheduled posts for this account will no longer be published. You can connect it again later.",
+    "confirm": "Disconnect",
+    "done": "{name} is disconnected."
+  },
+  "connected": "{count, plural, one {# account connected.} other {# accounts connected.}}",
+  "connectError": {
+    "title": "The connection was not established.",
+    "STATE_INVALID": "The sign-in expired or was already used. Please start it again.",
+    "USER_MISMATCH": "You signed in to the platform with a different account than the connected one.",
+    "ACCESS_DENIED": "You declined the access at the platform.",
+    "PROVIDER_ERROR": "The platform reported an error. Please try again later.",
+    "EXCHANGE_FAILED": "The access could not be obtained. Please try again.",
+    "CHANNEL_UNAVAILABLE": "This platform is currently unavailable.",
+    "other": "An unknown error occurred."
+  },
+  "select": {
+    "title": "Choose accounts",
+    "description": "{name} granted access to {platform}. Choose where this workspace should publish.",
+    "accounts": "Accounts",
+    "connected": "Already connected; the access is renewed.",
+    "missingScopes": "Not granted: {scopes}. The statistics will be missing.",
+    "validUntil": "The selection is valid until {time}.",
+    "confirm": "Connect",
+    "none": "Choose at least one account.",
+    "empty": "The access reaches no account that can be published to.",
+    "expired": "This selection has expired. Please connect the platform again.",
+    "back": "Back to the accounts"
+  }
+}

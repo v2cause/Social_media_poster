@@ -1,0 +1,83 @@
+{
+  "title": "Accounts",
+  "description": "Die Kanäle, auf denen dieser Workspace veröffentlicht.",
+  "platforms": {
+    "title": "Plattform verbinden",
+    "connect": "{platform} verbinden",
+    "redirecting": "Weiterleitung ...",
+    "unavailable": "Derzeit nicht verfügbar",
+    "managersOnly": "Accounts verbinden und trennen Owner und Admins.",
+    "hints": {
+      "LINKEDIN": "Ihr Profil und Unternehmensseiten",
+      "INSTAGRAM": "Business- und Creator-Accounts",
+      "FACEBOOK": "Facebook-Seiten",
+      "X": "Ihr Profil; die API von X ist kostenpflichtig"
+    },
+    "method": {
+      "label": "Methode",
+      "API": "API (Standard)",
+      "MOCK": "Testplattform (Mock)",
+      "BROWSER": "Browser (experimentell)",
+      "browserLater": "Folgt in einer späteren Version."
+    }
+  },
+  "list": {
+    "title": "Verbundene Accounts",
+    "empty": "Noch keine Accounts verbunden.",
+    "emptyHint": "Verbinden Sie eine Plattform, um Beiträge zu planen und zu veröffentlichen.",
+    "avatar": "Avatar von {name}",
+    "type": {
+      "PROFILE": "Profil",
+      "PAGE": "Seite",
+      "BUSINESS": "Business"
+    },
+    "status": {
+      "ACTIVE": "Aktiv",
+      "EXPIRING": "Läuft bald ab",
+      "NEEDS_REAUTH": "Neu verbinden nötig",
+      "PAUSED": "Pausiert",
+      "REVOKED": "Zugriff entzogen"
+    },
+    "expiry": {
+      "never": "Zugang ohne Ablauf",
+      "expired": "Zugang abgelaufen",
+      "days": "{days, plural, =0 {Zugang läuft heute ab} one {Zugang läuft in # Tag ab} other {Zugang läuft in # Tagen ab}}",
+      "date": "Zugang bis {date}"
+    },
+    "missingScopes": "Nicht freigegeben: {scopes}",
+    "cost": "Bisherige API-Kosten: {amount}",
+    "connectedAt": "Verbunden am {date}",
+    "reconnect": "Neu verbinden",
+    "disconnect": "Trennen"
+  },
+  "disconnect": {
+    "title": "{name} trennen?",
+    "description": "Geplante Beiträge für diesen Account werden nicht mehr veröffentlicht. Sie können ihn später wieder verbinden.",
+    "confirm": "Trennen",
+    "done": "{name} ist getrennt."
+  },
+  "connected": "{count, plural, one {# Account verbunden.} other {# Accounts verbunden.}}",
+  "connectError": {
+    "title": "Die Verbindung kam nicht zustande.",
+    "STATE_INVALID": "Die Anmeldung ist abgelaufen oder wurde schon verwendet. Bitte starten Sie sie erneut.",
+    "USER_MISMATCH": "Sie haben sich bei der Plattform mit einem anderen Konto angemeldet als dem verbundenen.",
+    "ACCESS_DENIED": "Sie haben den Zugriff bei der Plattform abgelehnt.",
+    "PROVIDER_ERROR": "Die Plattform hat einen Fehler gemeldet. Bitte versuchen Sie es später erneut.",
+    "EXCHANGE_FAILED": "Der Zugang konnte nicht abgeholt werden. Bitte versuchen Sie es erneut.",
+    "CHANNEL_UNAVAILABLE": "Diese Plattform ist derzeit nicht verfügbar.",
+    "other": "Ein unbekannter Fehler ist aufgetreten."
+  },
+  "select": {
+    "title": "Accounts auswählen",
+    "description": "{name} hat den Zugriff auf {platform} freigegeben. Wählen Sie, wo dieser Workspace veröffentlichen soll.",
+    "accounts": "Accounts",
+    "connected": "Schon verbunden; der Zugang wird erneuert.",
+    "missingScopes": "Nicht freigegeben: {scopes}. Die Statistiken fehlen dann.",
+    "validUntil": "Die Auswahl gilt bis {time}.",
+    "confirm": "Verbinden",
+    "none": "Wählen Sie mindestens einen Account.",
+    "empty": "Die Freigabe erreicht keinen Account, auf dem veröffentlicht werden kann.",
+    "expired": "Diese Auswahl ist abgelaufen. Bitte verbinden Sie die Plattform erneut.",
+    "back": "Zu den Accounts"
+  }
+}

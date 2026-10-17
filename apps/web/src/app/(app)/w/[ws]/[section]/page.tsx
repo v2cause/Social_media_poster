@@ -7,7 +7,6 @@ import { getTranslations } from 'next-intl/server';
 const UPCOMING = {
   calendar: 'calendar',
   analytics: 'analytics',
-  accounts: 'accounts',
   settings: 'settings',
 } as const;
 

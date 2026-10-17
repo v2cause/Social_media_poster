@@ -63,7 +63,7 @@
     "noPostsHint": "Create posts under \"Create\"; scheduling follows with phase 4.",
     "accounts": "Connected accounts",
     "noAccounts": "No accounts connected yet.",
-    "noAccountsHint": "Connecting LinkedIn, Instagram, Facebook and X arrives with phase 4.",
+    "noAccountsHint": "Connect LinkedIn, Instagram, Facebook and X under Accounts.",
     "role": "Your role: {role}"
   },
   "section": {

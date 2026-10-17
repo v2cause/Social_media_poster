@@ -29,7 +29,8 @@
     "title": "All set",
     "description": "Your workspace {workspace} is ready.",
     "accountsTitle": "Connect accounts",
-    "accountsHint": "You connect LinkedIn, Instagram, Facebook and X under Accounts from phase 4.",
-    "toDashboard": "Go to the dashboard"
+    "accountsHint": "Connect LinkedIn, Instagram, Facebook and X to schedule posts.",
+    "toDashboard": "Go to the dashboard",
+    "toAccounts": "Connect accounts"
   }
 }

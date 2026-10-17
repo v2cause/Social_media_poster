@@ -229,9 +229,12 @@ export function OnboardingWizard() {
           <CardContent>
             <Alert title={t('done.accountsTitle')}>{t('done.accountsHint')}</Alert>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-wrap gap-2">
             <Button asChild>
               <Link href={`/w/${created.slug}/dashboard`}>{t('done.toDashboard')}</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/w/${created.slug}/accounts`}>{t('done.toAccounts')}</Link>
             </Button>
           </CardFooter>
         </Card>

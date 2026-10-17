@@ -29,7 +29,8 @@
     "title": "Alles bereit",
     "description": "Ihr Workspace {workspace} ist angelegt.",
     "accountsTitle": "Accounts verbinden",
-    "accountsHint": "LinkedIn, Instagram, Facebook und X verbinden Sie ab Phase 4 unter Accounts.",
-    "toDashboard": "Zum Dashboard"
+    "accountsHint": "Verbinden Sie LinkedIn, Instagram, Facebook und X, um Beiträge zu planen.",
+    "toDashboard": "Zum Dashboard",
+    "toAccounts": "Accounts verbinden"
   }
 }
