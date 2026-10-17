@@ -1,0 +1,752 @@
+{
+  "source": "https://github.com/stripe/openapi (openapi/spec3.json)",
+  "apiVersion": "2026-09-30.endive",
+  "endpoints": {
+    "POST /v1/customers": {
+      "required": [],
+      "params": {
+        "address": {
+          "city": true,
+          "country": true,
+          "line1": true,
+          "line2": true,
+          "postal_code": true,
+          "state": true
+        },
+        "balance": true,
+        "business_name": true,
+        "cash_balance": { "settings": { "reconciliation_mode": true } },
+        "description": true,
+        "email": true,
+        "expand": true,
+        "individual_name": true,
+        "invoice_prefix": true,
+        "invoice_settings": {
+          "custom_fields": { "[]": { "name": true, "value": true } },
+          "default_payment_method": true,
+          "footer": true,
+          "rendering_options": { "amount_tax_display": true, "template": true }
+        },
+        "metadata": "*",
+        "name": true,
+        "next_invoice_sequence": true,
+        "payment_method": true,
+        "phone": true,
+        "preferred_locales": true,
+        "shipping": {
+          "address": {
+            "city": true,
+            "country": true,
+            "line1": true,
+            "line2": true,
+            "postal_code": true,
+            "state": true
+          },
+          "name": true,
+          "phone": true
+        },
+        "source": true,
+        "tax": { "ip_address": true, "validate_location": true },
+        "tax_exempt": true,
+        "tax_id_data": { "[]": { "type": true, "value": true } },
+        "test_clock": true
+      }
+    },
+    "POST /v1/checkout/sessions": {
+      "required": [],
+      "params": {
+        "adaptive_pricing": { "enabled": true },
+        "after_expiration": { "recovery": { "allow_promotion_codes": true, "enabled": true } },
+        "allow_promotion_codes": true,
+        "allowed_payment_method_types": true,
+        "automatic_tax": { "enabled": true, "liability": { "account": true, "type": true } },
+        "billing_address_collection": true,
+        "branding_settings": {
+          "background_color": true,
+          "border_style": true,
+          "button_color": true,
+          "display_name": true,
+          "font_family": true,
+          "icon": { "file": true, "type": true, "url": true },
+          "logo": { "file": true, "type": true, "url": true }
+        },
+        "cancel_url": true,
+        "client_reference_id": true,
+        "consent_collection": {
+          "payment_method_reuse_agreement": { "position": true },
+          "promotions": true,
+          "terms_of_service": true
+        },
+        "currency": true,
+        "custom_fields": {
+          "[]": {
+            "dropdown": { "default_value": true, "options": { "[]": { "label": true, "value": true } } },
+            "key": true,
+            "label": { "custom": true, "type": true },
+            "numeric": { "default_value": true, "maximum_length": true, "minimum_length": true },
+            "optional": true,
+            "text": { "default_value": true, "maximum_length": true, "minimum_length": true },
+            "type": true
+          }
+        },
+        "custom_text": {
+          "after_submit": { "message": true },
+          "shipping_address": { "message": true },
+          "submit": { "message": true },
+          "terms_of_service_acceptance": { "message": true }
+        },
+        "customer": true,
+        "customer_account": true,
+        "customer_creation": true,
+        "customer_email": true,
+        "customer_update": { "address": true, "name": true, "shipping": true },
+        "discounts": { "[]": { "coupon": true, "promotion_code": true } },
+        "excluded_payment_method_types": true,
+        "expand": true,
+        "expires_at": true,
+        "integration_identifier": true,
+        "invoice_creation": {
+          "enabled": true,
+          "invoice_data": {
+            "account_tax_ids": true,
+            "custom_fields": { "[]": { "name": true, "value": true } },
+            "description": true,
+            "footer": true,
+            "issuer": { "account": true, "type": true },
+            "metadata": "*",
+            "rendering_options": { "amount_tax_display": true, "template": true }
+          }
+        },
+        "line_items": {
+          "[]": {
+            "adjustable_quantity": { "enabled": true, "maximum": true, "minimum": true },
+            "metadata": "*",
+            "price": true,
+            "price_data": {
+              "currency": true,
+              "product": true,
+              "product_data": {
+                "description": true,
+                "images": true,
+                "metadata": "*",
+                "name": true,
+                "tax_code": true,
+                "tax_details": "*",
+                "unit_label": true
+              },
+              "recurring": { "interval": true, "interval_count": true },
+              "tax_behavior": true,
+              "unit_amount": true,
+              "unit_amount_decimal": true
+            },
+            "quantity": true,
+            "tax_rates": true
+          }
+        },
+        "locale": true,
+        "managed_payments": { "enabled": true },
+        "metadata": "*",
+        "mode": true,
+        "name_collection": {
+          "business": { "enabled": true, "optional": true },
+          "individual": { "enabled": true, "optional": true }
+        },
+        "optional_items": {
+          "[]": {
+            "adjustable_quantity": { "enabled": true, "maximum": true, "minimum": true },
+            "price": true,
+            "quantity": true
+          }
+        },
+        "origin_context": true,
+        "payment_intent_data": {
+          "application_fee_amount": true,
+          "capture_method": true,
+          "description": true,
+          "metadata": "*",
+          "on_behalf_of": true,
+          "receipt_email": true,
+          "setup_future_usage": true,
+          "shipping": {
+            "address": {
+              "city": true,
+              "country": true,
+              "line1": true,
+              "line2": true,
+              "postal_code": true,
+              "state": true
+            },
+            "carrier": true,
+            "name": true,
+            "phone": true,
+            "tracking_number": true
+          },
+          "statement_descriptor": true,
+          "statement_descriptor_suffix": true,
+          "transfer_data": { "amount": true, "destination": true },
+          "transfer_group": true
+        },
+        "payment_method_collection": true,
+        "payment_method_configuration": true,
+        "payment_method_data": { "allow_redisplay": true },
+        "payment_method_options": {
+          "acss_debit": {
+            "currency": true,
+            "mandate_options": {
+              "custom_mandate_url": true,
+              "default_for": true,
+              "interval_description": true,
+              "payment_schedule": true,
+              "transaction_type": true
+            },
+            "setup_future_usage": true,
+            "target_date": true,
+            "verification_method": true
+          },
+          "affirm": { "capture_method": true, "setup_future_usage": true },
+          "afterpay_clearpay": { "capture_method": true, "setup_future_usage": true },
+          "alipay": { "setup_future_usage": true },
+          "alma": { "capture_method": true },
+          "amazon_pay": { "capture_method": true, "setup_future_usage": true },
+          "au_becs_debit": { "setup_future_usage": true, "target_date": true },
+          "bacs_debit": {
+            "mandate_options": { "reference_prefix": true },
+            "setup_future_usage": true,
+            "target_date": true
+          },
+          "bancontact": { "setup_future_usage": true },
+          "billie": { "capture_method": true },
+          "blik": { "mandate_options": { "expires_at": true }, "setup_future_usage": true },
+          "boleto": { "expires_after_days": true, "setup_future_usage": true },
+          "card": {
+            "capture_method": true,
+            "installments": { "enabled": true },
+            "request_extended_authorization": true,
+            "request_incremental_authorization": true,
+            "request_multicapture": true,
+            "request_overcapture": true,
+            "request_three_d_secure": true,
+            "restrictions": { "brands_blocked": true, "funding_types_blocked": true },
+            "setup_future_usage": true,
+            "statement_descriptor_suffix_kana": true,
+            "statement_descriptor_suffix_kanji": true
+          },
+          "cashapp": { "capture_method": true, "setup_future_usage": true },
+          "crypto": { "setup_future_usage": true },
+          "customer_balance": {
+            "bank_transfer": { "eu_bank_transfer": "*", "requested_address_types": true, "type": true },
+            "funding_type": true,
+            "setup_future_usage": true
+          },
+          "demo_pay": { "setup_future_usage": true },
+          "eps": { "setup_future_usage": true },
+          "fpx": { "setup_future_usage": true },
+          "giropay": { "setup_future_usage": true },
+          "grabpay": { "setup_future_usage": true },
+          "ideal": { "setup_future_usage": true },
+          "kakao_pay": { "capture_method": true, "setup_future_usage": true },
+          "klarna": {
+            "capture_method": true,
+            "setup_future_usage": true,
+            "subscriptions": {
+              "[]": {
+                "interval": true,
+                "interval_count": true,
+                "name": true,
+                "next_billing": "*",
+                "reference": true
+              }
+            }
+          },
+          "konbini": { "expires_after_days": true, "setup_future_usage": true },
+          "kr_card": { "capture_method": true, "setup_future_usage": true },
+          "link": { "capture_method": true, "setup_future_usage": true },
+          "mobilepay": { "capture_method": true, "setup_future_usage": true },
+          "multibanco": { "setup_future_usage": true },
+          "naver_pay": { "capture_method": true, "setup_future_usage": true },
+          "oxxo": { "expires_after_days": true, "setup_future_usage": true },
+          "p24": { "setup_future_usage": true, "tos_shown_and_accepted": true },
+          "pay_by_bank": true,
+          "payco": { "capture_method": true, "setup_future_usage": true },
+          "paynow": { "setup_future_usage": true },
+          "paypal": {
+            "capture_method": true,
+            "preferred_locale": true,
+            "reference": true,
+            "risk_correlation_id": true,
+            "setup_future_usage": true
+          },
+          "payto": {
+            "mandate_options": {
+              "amount": true,
+              "amount_type": true,
+              "end_date": true,
+              "payment_schedule": true,
+              "payments_per_period": true,
+              "purpose": true,
+              "start_date": true
+            },
+            "setup_future_usage": true
+          },
+          "pix": {
+            "amount_includes_iof": true,
+            "expires_after_seconds": true,
+            "mandate_options": {
+              "amount": true,
+              "amount_includes_iof": true,
+              "amount_type": true,
+              "currency": true,
+              "end_date": true,
+              "payment_schedule": true,
+              "reference": true,
+              "start_date": true
+            },
+            "setup_future_usage": true
+          },
+          "revolut_pay": { "capture_method": true, "setup_future_usage": true },
+          "samsung_pay": { "capture_method": true, "setup_future_usage": true },
+          "satispay": { "capture_method": true },
+          "scalapay": { "capture_method": true },
+          "sepa_debit": {
+            "mandate_options": { "reference_prefix": true },
+            "setup_future_usage": true,
+            "target_date": true
+          },
+          "sequra": { "capture_method": true },
+          "sofort": { "setup_future_usage": true },
+          "sunbit": { "capture_method": true, "setup_future_usage": true },
+          "swish": { "reference": true },
+          "twint": { "setup_future_usage": true },
+          "upi": {
+            "mandate_options": { "amount": true, "amount_type": true, "description": true, "end_date": true },
+            "setup_future_usage": true
+          },
+          "us_bank_account": {
+            "financial_connections": { "permissions": true, "prefetch": true },
+            "setup_future_usage": true,
+            "target_date": true,
+            "verification_method": true
+          },
+          "wechat_pay": { "app_id": true, "client": true, "setup_future_usage": true }
+        },
+        "permissions": { "update_shipping_details": true },
+        "phone_number_collection": { "enabled": true },
+        "redirect_on_completion": true,
+        "return_url": true,
+        "saved_payment_method_options": {
+          "allow_redisplay_filters": true,
+          "payment_method_remove": true,
+          "payment_method_save": true
+        },
+        "setup_intent_data": { "description": true, "metadata": "*", "on_behalf_of": true },
+        "shipping_address_collection": { "allowed_countries": true },
+        "shipping_options": {
+          "[]": {
+            "shipping_rate": true,
+            "shipping_rate_data": {
+              "delivery_estimate": { "maximum": "*", "minimum": "*" },
+              "display_name": true,
+              "fixed_amount": { "amount": true, "currency": true, "currency_options": "*" },
+              "metadata": "*",
+              "tax_behavior": true,
+              "tax_code": true,
+              "type": true
+            }
+          }
+        },
+        "submit_type": true,
+        "subscription_data": {
+          "application_fee_percent": true,
+          "billing_cycle_anchor": true,
+          "billing_cycle_anchor_config": {
+            "day_of_month": true,
+            "hour": true,
+            "minute": true,
+            "month": true,
+            "second": true
+          },
+          "billing_mode": { "flexible": { "proration_discounts": true }, "type": true },
+          "default_tax_rates": true,
+          "description": true,
+          "invoice_settings": { "issuer": { "account": true, "type": true } },
+          "metadata": "*",
+          "on_behalf_of": true,
+          "pending_invoice_item_interval": { "interval": true, "interval_count": true },
+          "proration_behavior": true,
+          "transfer_data": { "amount_percent": true, "destination": true },
+          "trial_end": true,
+          "trial_period_days": true,
+          "trial_settings": { "end_behavior": { "missing_payment_method": true } }
+        },
+        "success_url": true,
+        "tax_id_collection": { "enabled": true, "required": true },
+        "ui_mode": true,
+        "wallet_options": { "link": { "display": true } }
+      }
+    },
+    "POST /v1/billing_portal/sessions": {
+      "required": [],
+      "params": {
+        "configuration": true,
+        "customer": true,
+        "customer_account": true,
+        "expand": true,
+        "flow_data": {
+          "after_completion": {
+            "hosted_confirmation": { "custom_message": true },
+            "redirect": { "return_url": true },
+            "type": true
+          },
+          "subscription_cancel": { "retention": { "coupon_offer": "*", "type": true }, "subscription": true },
+          "subscription_update": { "subscription": true },
+          "subscription_update_confirm": {
+            "discounts": { "[]": { "coupon": true, "promotion_code": true } },
+            "items": { "[]": { "id": true, "price": true, "quantity": true } },
+            "subscription": true
+          },
+          "type": true
+        },
+        "locale": true,
+        "on_behalf_of": true,
+        "return_url": true
+      }
+    },
+    "POST /v1/billing_portal/configurations": {
+      "required": ["features"],
+      "params": {
+        "business_profile": { "headline": true, "privacy_policy_url": true, "terms_of_service_url": true },
+        "default_return_url": true,
+        "expand": true,
+        "features": {
+          "customer_update": { "allowed_updates": true, "enabled": true },
+          "invoice_history": { "enabled": true },
+          "payment_method_update": { "enabled": true, "payment_method_configuration": true },
+          "subscription_cancel": {
+            "cancellation_reason": { "enabled": true, "feedback_options": true, "options": true },
+            "enabled": true,
+            "mode": true,
+            "proration_behavior": true
+          },
+          "subscription_update": {
+            "billing_cycle_anchor": true,
+            "default_allowed_updates": true,
+            "enabled": true,
+            "products": { "[]": { "adjustable_quantity": "*", "prices": true, "product": true } },
+            "proration_behavior": true,
+            "schedule_at_period_end": { "conditions": { "[]": "*" } },
+            "trial_update_behavior": true
+          }
+        },
+        "login_page": { "enabled": true },
+        "metadata": "*",
+        "name": true
+      }
+    },
+    "POST /v1/billing_portal/configurations/{configuration}": {
+      "required": [],
+      "params": {
+        "active": true,
+        "business_profile": { "headline": true, "privacy_policy_url": true, "terms_of_service_url": true },
+        "default_return_url": true,
+        "expand": true,
+        "features": {
+          "customer_update": { "allowed_updates": true, "enabled": true },
+          "invoice_history": { "enabled": true },
+          "payment_method_update": { "enabled": true, "payment_method_configuration": true },
+          "subscription_cancel": {
+            "cancellation_reason": { "enabled": true, "feedback_options": true, "options": true },
+            "enabled": true,
+            "mode": true,
+            "proration_behavior": true
+          },
+          "subscription_update": {
+            "billing_cycle_anchor": true,
+            "default_allowed_updates": true,
+            "enabled": true,
+            "products": { "[]": { "adjustable_quantity": "*", "prices": true, "product": true } },
+            "proration_behavior": true,
+            "schedule_at_period_end": { "conditions": { "[]": "*" } },
+            "trial_update_behavior": true
+          }
+        },
+        "login_page": { "enabled": true },
+        "metadata": "*",
+        "name": true
+      }
+    },
+    "POST /v1/subscriptions/{subscription_exposed_id}": {
+      "required": [],
+      "params": {
+        "add_invoice_items": {
+          "[]": {
+            "discountable": true,
+            "discounts": { "[]": { "coupon": true, "discount": true, "promotion_code": true } },
+            "metadata": "*",
+            "period": {
+              "end": { "timestamp": true, "type": true },
+              "start": { "timestamp": true, "type": true }
+            },
+            "price": true,
+            "price_data": {
+              "currency": true,
+              "product": true,
+              "tax_behavior": true,
+              "unit_amount": true,
+              "unit_amount_decimal": true
+            },
+            "quantity": true,
+            "tax_rates": true
+          }
+        },
+        "application_fee_percent": true,
+        "automatic_tax": { "enabled": true, "liability": { "account": true, "type": true } },
+        "billing_cycle_anchor": { "type": true },
+        "billing_schedules": {
+          "[]": {
+            "applies_to": { "[]": { "price": true, "type": true } },
+            "bill_until": {
+              "duration": { "interval": true, "interval_count": true },
+              "timestamp": true,
+              "type": true
+            },
+            "key": true
+          }
+        },
+        "billing_thresholds": { "amount_gte": true, "reset_billing_cycle_anchor": true },
+        "cancel_at": true,
+        "cancel_at_period_end": true,
+        "cancellation_details": { "comment": true, "feedback": true, "feedback_option": true },
+        "collection_method": true,
+        "days_until_due": true,
+        "default_payment_method": true,
+        "default_source": true,
+        "default_tax_rates": true,
+        "description": true,
+        "discounts": { "[]": { "coupon": true, "discount": true, "promotion_code": true } },
+        "expand": true,
+        "invoice_settings": {
+          "account_tax_ids": true,
+          "custom_fields": { "[]": { "name": true, "value": true } },
+          "description": true,
+          "footer": true,
+          "issuer": { "account": true, "type": true }
+        },
+        "items": {
+          "[]": {
+            "billing_thresholds": { "usage_gte": true },
+            "clear_usage": true,
+            "current_trial": { "trial_offer": true },
+            "deleted": true,
+            "discounts": { "[]": { "coupon": true, "discount": true, "promotion_code": true } },
+            "id": true,
+            "metadata": "*",
+            "price": true,
+            "price_data": {
+              "currency": true,
+              "product": true,
+              "recurring": { "interval": true, "interval_count": true },
+              "tax_behavior": true,
+              "unit_amount": true,
+              "unit_amount_decimal": true
+            },
+            "quantity": true,
+            "tax_rates": true
+          }
+        },
+        "metadata": "*",
+        "off_session": true,
+        "on_behalf_of": true,
+        "pause_collection": { "behavior": true, "resumes_at": true },
+        "payment_behavior": true,
+        "payment_settings": {
+          "payment_method_options": {
+            "acss_debit": { "mandate_options": "*", "verification_method": true },
+            "bancontact": { "preferred_language": true },
+            "billie": { "company_details": "*" },
+            "blik": { "mandate_options": "*" },
+            "card": { "mandate_options": "*", "network": true, "request_three_d_secure": true },
+            "customer_balance": { "bank_transfer": "*", "funding_type": true },
+            "konbini": true,
+            "payto": { "mandate_options": "*" },
+            "pix": { "expires_after_seconds": true, "mandate_options": "*" },
+            "sepa_debit": true,
+            "upi": { "mandate_options": "*" },
+            "us_bank_account": { "financial_connections": "*", "verification_method": true }
+          },
+          "payment_method_types": true,
+          "save_default_payment_method": true
+        },
+        "pending_invoice_item_interval": { "interval": true, "interval_count": true },
+        "proration_behavior": true,
+        "proration_date": true,
+        "transfer_data": { "amount_percent": true, "destination": true },
+        "trial_end": true,
+        "trial_from_plan": true,
+        "trial_settings": { "end_behavior": { "billing_cycle_anchor": true, "missing_payment_method": true } }
+      }
+    },
+    "POST /v1/billing/meter_events": {
+      "required": ["event_name", "payload"],
+      "params": { "event_name": true, "expand": true, "identifier": true, "payload": "*", "timestamp": true }
+    },
+    "POST /v1/billing/meters": {
+      "required": ["default_aggregation", "display_name", "event_name"],
+      "params": {
+        "customer_mapping": { "event_payload_key": true, "type": true },
+        "default_aggregation": { "formula": true },
+        "display_name": true,
+        "event_name": true,
+        "event_time_window": true,
+        "expand": true,
+        "value_settings": { "event_payload_key": true }
+      }
+    },
+    "POST /v1/products": {
+      "required": ["name"],
+      "params": {
+        "active": true,
+        "default_price_data": {
+          "currency": true,
+          "currency_options": "*",
+          "custom_unit_amount": { "enabled": true, "maximum": true, "minimum": true, "preset": true },
+          "metadata": "*",
+          "recurring": { "interval": true, "interval_count": true },
+          "tax_behavior": true,
+          "unit_amount": true,
+          "unit_amount_decimal": true
+        },
+        "description": true,
+        "expand": true,
+        "id": true,
+        "images": true,
+        "marketing_features": { "[]": { "name": true } },
+        "metadata": "*",
+        "name": true,
+        "package_dimensions": { "height": true, "length": true, "weight": true, "width": true },
+        "shippable": true,
+        "statement_descriptor": true,
+        "tax_code": true,
+        "tax_details": { "performance_location": true, "tax_code": true },
+        "unit_label": true,
+        "url": true
+      }
+    },
+    "POST /v1/products/{id}": {
+      "required": [],
+      "params": {
+        "active": true,
+        "default_price": true,
+        "description": true,
+        "expand": true,
+        "images": true,
+        "marketing_features": { "[]": { "name": true } },
+        "metadata": "*",
+        "name": true,
+        "package_dimensions": { "height": true, "length": true, "weight": true, "width": true },
+        "shippable": true,
+        "statement_descriptor": true,
+        "tax_code": true,
+        "tax_details": { "performance_location": true, "tax_code": true },
+        "unit_label": true,
+        "url": true
+      }
+    },
+    "POST /v1/prices": {
+      "required": ["currency"],
+      "params": {
+        "active": true,
+        "billing_scheme": true,
+        "currency": true,
+        "currency_options": "*",
+        "custom_unit_amount": { "enabled": true, "maximum": true, "minimum": true, "preset": true },
+        "expand": true,
+        "lookup_key": true,
+        "metadata": "*",
+        "nickname": true,
+        "product": true,
+        "product_data": {
+          "active": true,
+          "id": true,
+          "metadata": "*",
+          "name": true,
+          "statement_descriptor": true,
+          "tax_code": true,
+          "tax_details": { "performance_location": true, "tax_code": true },
+          "unit_label": true
+        },
+        "recurring": { "interval": true, "interval_count": true, "meter": true, "usage_type": true },
+        "tax_behavior": true,
+        "tiers": {
+          "[]": {
+            "flat_amount": true,
+            "flat_amount_decimal": true,
+            "unit_amount": true,
+            "unit_amount_decimal": true,
+            "up_to": true
+          }
+        },
+        "tiers_mode": true,
+        "transfer_lookup_key": true,
+        "transform_quantity": { "divide_by": true, "round": true },
+        "unit_amount": true,
+        "unit_amount_decimal": true
+      }
+    },
+    "GET /v1/customers/{customer}": { "required": [], "params": { "expand": true } },
+    "GET /v1/prices": {
+      "required": [],
+      "params": {
+        "active": true,
+        "created": { "gt": true, "gte": true, "lt": true, "lte": true },
+        "currency": true,
+        "ending_before": true,
+        "expand": true,
+        "limit": true,
+        "lookup_keys": true,
+        "product": true,
+        "recurring": { "interval": true, "meter": true, "usage_type": true },
+        "starting_after": true,
+        "type": true
+      }
+    },
+    "GET /v1/products/{id}": { "required": [], "params": { "expand": true } },
+    "GET /v1/billing/meters": {
+      "required": [],
+      "params": {
+        "ending_before": true,
+        "expand": true,
+        "limit": true,
+        "starting_after": true,
+        "status": true
+      }
+    },
+    "GET /v1/billing_portal/configurations": {
+      "required": [],
+      "params": {
+        "active": true,
+        "ending_before": true,
+        "expand": true,
+        "is_default": true,
+        "limit": true,
+        "starting_after": true
+      }
+    },
+    "GET /v1/subscriptions/{subscription_exposed_id}": { "required": [], "params": { "expand": true } },
+    "GET /v1/invoices": {
+      "required": [],
+      "params": {
+        "collection_method": true,
+        "created": { "gt": true, "gte": true, "lt": true, "lte": true },
+        "customer": true,
+        "customer_account": true,
+        "due_date": { "gt": true, "gte": true, "lt": true, "lte": true },
+        "ending_before": true,
+        "expand": true,
+        "limit": true,
+        "starting_after": true,
+        "status": true,
+        "subscription": true
+      }
+    }
+  }
+}

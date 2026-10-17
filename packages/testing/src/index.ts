@@ -12,3 +12,13 @@ export {
 export { PASSWORDS, startTestDatabase, type DatabaseRole, type TestDatabase } from './postgres';
 export { totpCode } from './totp';
 export { describeAdapterContract, type AdapterContractFixtures, type TestRunner } from './adapter-contract';
+export {
+  FakeStripe,
+  stripeSignature,
+  type FakeMeterEvent,
+  type FakeRequest,
+  type FakeStripeOptions,
+  type FakeSubscriptionStatus,
+  type FakeWebhook,
+} from './stripe/fake-stripe';
+export { STRIPE_SPEC_VERSION } from './stripe/params';
