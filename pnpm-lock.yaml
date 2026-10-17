@@ -217,6 +217,9 @@ importers:
 
   apps/browser-worker:
     dependencies:
+      '@smp/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
       '@smp/observability':
         specifier: workspace:*
         version: link:../../packages/observability

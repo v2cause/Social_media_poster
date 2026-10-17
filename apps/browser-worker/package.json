@@ -6,7 +6,7 @@
   "main": "./dist/main.js",
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch",
+    "dev": "tsup --watch --onSuccess \"node --env-file-if-exists=../../.env dist/main.js\"",
     "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -14,6 +14,7 @@
     "test:integration": "vitest run --config vitest.integration.config.mts"
   },
   "dependencies": {
+    "@smp/crypto": "workspace:*",
     "@smp/observability": "workspace:*",
     "@smp/x-browser": "workspace:*",
     "bullmq": "^5.81.5",
