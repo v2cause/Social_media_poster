@@ -76,7 +76,12 @@ describe('the Redis user of the browser worker', () => {
     closing.push(commands, events, results, worker);
     await events.waitUntilReady();
 
-    const job = await commands.add('xb.verify-session', { commandId: 'c-1' }, { removeOnComplete: true });
+    // The job stays a minute: removed on completion, it can be gone before the wait looks at it.
+    const job = await commands.add(
+      'xb.verify-session',
+      { commandId: 'c-1' },
+      { removeOnComplete: { age: 60 } },
+    );
     await expect(job.waitUntilFinished(events, 20_000)).resolves.toEqual({ echoed: { commandId: 'c-1' } });
     await results.add(XB_REPORT, { kind: 'drift' }, { removeOnComplete: true });
     await expect(new Queue(XB_RESULTS_QUEUE, { connection: { url: admin } }).getWaitingCount()).resolves.toBe(
