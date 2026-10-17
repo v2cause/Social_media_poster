@@ -13,6 +13,7 @@ import {
 } from '@smp/db';
 import { S3Storage, storageConfigOf } from '@smp/media';
 import { MEDIA_QUEUE, MediaProducer, NOTIFICATIONS_QUEUE, NotificationProducer } from '@smp/queue';
+import { XB_COMMANDS_QUEUE } from '@smp/x-browser';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
@@ -35,6 +36,8 @@ export const NOTIFICATIONS = Symbol('NOTIFICATIONS');
 /** The storage of the media pipeline (StoragePort). */
 export const MEDIA_STORAGE = Symbol('MEDIA_STORAGE');
 export const MEDIA_JOBS_QUEUE = Symbol('MEDIA_JOBS_QUEUE');
+/** The commands of the browser worker of X; null where the deployment does not run it. */
+export const XB_COMMANDS_JOBS_QUEUE = Symbol('XB_COMMANDS_JOBS_QUEUE');
 export const TENANCY_UNIT_OF_WORK = Symbol('TENANCY_UNIT_OF_WORK');
 export const TENANCY_READ_MODEL = Symbol('TENANCY_READ_MODEL');
 export const AUDIT_LOG_READ_MODEL = Symbol('AUDIT_LOG_READ_MODEL');
@@ -94,6 +97,7 @@ class ClientLifecycle implements OnApplicationShutdown {
     @Inject(NOTIFICATIONS) private readonly notifications: Queue,
     @Inject(MEDIA_STORAGE) private readonly storage: S3Storage,
     @Inject(MEDIA_JOBS_QUEUE) private readonly media: Queue,
+    @Inject(XB_COMMANDS_JOBS_QUEUE) private readonly xbCommands: Queue | null,
   ) {}
 
   async onApplicationShutdown(): Promise<void> {
@@ -105,6 +109,7 @@ class ClientLifecycle implements OnApplicationShutdown {
       this.redis.quit(),
       closeQueue(this.notifications),
       closeQueue(this.media),
+      ...(this.xbCommands ? [closeQueue(this.xbCommands)] : []),
     ]);
   }
 }
@@ -192,6 +197,13 @@ class ClientLifecycle implements OnApplicationShutdown {
       inject: [MEDIA_JOBS_QUEUE],
       useFactory: (queue: Queue) => new MediaProducer(queue),
     },
+    {
+      // The start of a login of X (guide step 6.4), only where the browser worker runs.
+      provide: XB_COMMANDS_JOBS_QUEUE,
+      inject: [API_ENV],
+      useFactory: (env: ApiEnv): Queue | null =>
+        env.FEATURE_X_BROWSER_GLOBAL ? producerQueue(XB_COMMANDS_QUEUE, env) : null,
+    },
     ClientLifecycle,
   ],
   exports: [
@@ -203,6 +215,7 @@ class ClientLifecycle implements OnApplicationShutdown {
     NotificationProducer,
     MEDIA_STORAGE,
     MediaProducer,
+    XB_COMMANDS_JOBS_QUEUE,
     TENANCY_UNIT_OF_WORK,
     TENANCY_READ_MODEL,
     AUDIT_LOG_READ_MODEL,

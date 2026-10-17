@@ -44,6 +44,8 @@ import { INVITATION_NOTIFIER } from '../../src/modules/tenancy/invitation-notifi
 export const APP_ORIGIN = 'http://localhost:3000';
 /** The token keyring of the tests, as in .env.test. */
 export const TEST_TOKEN_KEKS = 'test-kek:c21wLXRlc3Qta2VrLW1hdGVyaWFsLTAwMDAwMDAwMDA=';
+/** The session keyring of the tests, which seals the logins of X. */
+export const TEST_SESSION_KEKS = 'test-session-kek:c21wLXRlc3Qtc2Vzc2lvbi1rZWstbWF0ZXJpYWwtMDA=';
 export const TEST_BUCKET = 'smp-test-media';
 
 export interface ApiTestApp {
@@ -132,6 +134,8 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
     BETTER_AUTH_URL: APP_ORIGIN,
     TOKEN_KEKS: TEST_TOKEN_KEKS,
     TOKEN_KEK_ACTIVE: 'test-kek',
+    SESSION_KEKS: TEST_SESSION_KEKS,
+    SESSION_KEK_ACTIVE: 'test-session-kek',
     // The deterministic mock provider; automated tests never call the Claude API (architecture 7).
     AI_PROVIDER: 'mock',
     ...options.env,

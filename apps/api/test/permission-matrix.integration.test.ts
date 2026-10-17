@@ -470,6 +470,27 @@ const ENDPOINTS: Endpoint[] = [
     permission: 'x_browser.enable',
     path: (i) => `/api/w/${i.slug}/x-browser/activation`,
   },
+  {
+    // The X browser is off in this deployment: allowed roles get 409.
+    method: 'post',
+    route: '/api/w/:ws/x-browser/login-sessions',
+    permission: 'account.manage',
+    path: (i) => `/api/w/${i.slug}/x-browser/login-sessions`,
+    body: () => ({ username: 'smp_demo', password: 'not-a-password', locale: 'de' }),
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/x-browser/login-sessions/:loginId',
+    permission: 'account.manage',
+    path: (i) => `/api/w/${i.slug}/x-browser/login-sessions/${unknownId}`,
+  },
+  {
+    method: 'post',
+    route: '/api/w/:ws/x-browser/login-sessions/:loginId/code',
+    permission: 'account.manage',
+    path: (i) => `/api/w/${i.slug}/x-browser/login-sessions/${unknownId}/code`,
+    body: () => ({ code: '123456' }),
+  },
   // Destructive for everyone who may leave: last.
   {
     method: 'post',

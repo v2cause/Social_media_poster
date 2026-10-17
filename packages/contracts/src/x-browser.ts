@@ -72,6 +72,8 @@ export type XbLoginFailureDto = z.infer<typeof xbLoginFailureSchema>;
 export const startXbLoginSchema = z.object({
   username: z.string().trim().min(1).max(100),
   password: z.string().min(1).max(256),
+  /** The language the browser worker opens X in, usually that of the interface. */
+  locale: localeSchema,
   /** The account to connect again; the same X user has to sign in. */
   reconnectAccountId: id.optional(),
 });

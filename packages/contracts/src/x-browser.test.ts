@@ -11,7 +11,10 @@ describe('X browser contracts', () => {
   });
 
   it('trims the user name and takes the codes of apps, text messages and backups', () => {
-    expect(startXbLoginSchema.parse({ username: '  smp_demo ', password: 'p' }).username).toBe('smp_demo');
+    expect(startXbLoginSchema.parse({ username: '  smp_demo ', password: 'p', locale: 'en' }).username).toBe(
+      'smp_demo',
+    );
+    expect(startXbLoginSchema.safeParse({ username: 'smp_demo', password: 'p' }).success).toBe(false);
     expect(xbLoginCodeSchema.safeParse({ code: ' 123456 ' }).success).toBe(true);
     expect(xbLoginCodeSchema.safeParse({ code: 'ab12cd34ef56' }).success).toBe(true);
     expect(xbLoginCodeSchema.safeParse({ code: '12 34' }).success).toBe(false);

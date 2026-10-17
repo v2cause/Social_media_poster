@@ -39,6 +39,10 @@ export const apiEnvSchema = z
     // The deployment runs the browser worker of X (guide step 6.1); without it the X browser is
     // off everywhere, whatever the flags say.
     FEATURE_X_BROWSER_GLOBAL: z.preprocess(unsetIfEmpty, z.stringbool().default(false)),
+    // Seal the credentials of a login of X for the browser worker, which alone opens them (guide
+    // step 6.4); required once the X browser is offered.
+    SESSION_KEKS: z.preprocess(unsetIfEmpty, z.string().optional()),
+    SESSION_KEK_ACTIVE: z.preprocess(unsetIfEmpty, z.string().optional()),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true, DATABASE_SYSTEM_URL: true }).shape)
   .extend(storageEnvSchema.shape)
@@ -46,7 +50,16 @@ export const apiEnvSchema = z
   .extend(aiEnvSchema.shape)
   .extend(platformEnvSchema.shape)
   // The mock AI provider never starts in production, and the Claude API needs a key.
-  .superRefine(checkAiEnv);
+  .superRefine(checkAiEnv)
+  .superRefine((env, context) => {
+    if (env.FEATURE_X_BROWSER_GLOBAL && (!env.SESSION_KEKS || !env.SESSION_KEK_ACTIVE)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['SESSION_KEKS'],
+        message: 'SESSION_KEKS and SESSION_KEK_ACTIVE are required when FEATURE_X_BROWSER_GLOBAL is true',
+      });
+    }
+  });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
 

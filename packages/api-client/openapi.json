@@ -3391,6 +3391,135 @@
         ]
       }
     },
+    "/api/w/{ws}/x-browser/login-sessions": {
+      "post": {
+        "operationId": "xBrowserLoginStart",
+        "parameters": [
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartXbLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XbLoginSessionDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "x-browser"
+        ]
+      }
+    },
+    "/api/w/{ws}/x-browser/login-sessions/{loginId}": {
+      "get": {
+        "operationId": "xBrowserLoginGet",
+        "parameters": [
+          {
+            "name": "loginId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XbLoginSessionDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "x-browser"
+        ]
+      }
+    },
+    "/api/w/{ws}/x-browser/login-sessions/{loginId}/code": {
+      "post": {
+        "operationId": "xBrowserLoginCode",
+        "parameters": [
+          {
+            "name": "loginId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/XbLoginCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XbLoginSessionDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "x-browser"
+        ]
+      }
+    },
     "/api/admin/x-browser": {
       "get": {
         "operationId": "xBrowserAdminGet",
@@ -10240,6 +10369,103 @@
           "locale",
           "accepted",
           "password"
+        ]
+      },
+      "StartXbLoginDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "de",
+              "en"
+            ]
+          },
+          "reconnectAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "username",
+          "password",
+          "locale"
+        ]
+      },
+      "XbLoginSessionDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "STARTING",
+              "AWAITING_2FA",
+              "VERIFYING",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "failure": {
+            "nullable": true,
+            "type": "string",
+            "enum": [
+              "INVALID_CREDENTIALS",
+              "INVALID_CODE",
+              "CHALLENGE_REQUIRED",
+              "SELECTOR_DRIFT",
+              "TIMEOUT",
+              "ACCOUNT_MISMATCH",
+              "UNAVAILABLE",
+              "TRANSIENT"
+            ]
+          },
+          "accountId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "failure",
+          "accountId",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "XbLoginCodeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9]{6,12}$"
+          }
+        },
+        "required": [
+          "code"
         ]
       },
       "XBrowserAdminDto_Output": {

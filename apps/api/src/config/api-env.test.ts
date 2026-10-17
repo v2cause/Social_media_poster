@@ -94,4 +94,19 @@ describe('loadApiEnv with AI settings', () => {
     });
     expect(env.AI_PROVIDER).toBe('anthropic');
   });
+
+  it('needs the session keyring once the X browser is offered, without printing it', () => {
+    expect(() => loadApiEnv({ ...validEnv, FEATURE_X_BROWSER_GLOBAL: 'true' })).toThrow(
+      /SESSION_KEKS: SESSION_KEKS and SESSION_KEK_ACTIVE are required/,
+    );
+    const keys = 'test-session-kek:c21wLXRlc3Qtc2Vzc2lvbi1rZWstbWF0ZXJpYWwtMDA=';
+    const env = loadApiEnv({
+      ...validEnv,
+      FEATURE_X_BROWSER_GLOBAL: 'true',
+      SESSION_KEKS: keys,
+      SESSION_KEK_ACTIVE: 'test-session-kek',
+    });
+    expect(env.SESSION_KEKS).toBe(keys);
+    expect(loadApiEnv({ ...validEnv, SESSION_KEKS: '' }).SESSION_KEKS).toBeUndefined();
+  });
 });
