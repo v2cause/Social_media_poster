@@ -35,6 +35,8 @@ describe('loadWorkerEnv', () => {
 
     expect(env.SCHEDULER_TICK_MS).toBe(2_000);
     expect(env.WORKER_HEALTH_PORT).toBe(4_100);
+    // Any free port, for the integration tests.
+    expect(loadWorkerEnv({ ...validEnv, WORKER_HEALTH_PORT: '0' }).WORKER_HEALTH_PORT).toBe(0);
   });
 
   it('names a missing or broken variable without printing values', () => {

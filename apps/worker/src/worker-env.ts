@@ -12,7 +12,8 @@ export const workerEnvSchema = z
     WORKER_ROLES: z.string().min(1),
     // The interval of tick.publish (architecture 7.4); 2000 for time-lapse tests (architecture 16).
     SCHEDULER_TICK_MS: z.coerce.number().int().min(1_000).default(15_000),
-    WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(3002),
+    // 0 takes any free port, as the integration tests do.
+    WORKER_HEALTH_PORT: z.coerce.number().int().min(0).max(65535).default(3002),
     REDIS_URL: z.url({ protocol: /^rediss?$/ }),
     // Needed by the role "notify" only; WorkerModule checks them when that role is active. The
     // links of the notification emails lead into the web app at APP_URL.

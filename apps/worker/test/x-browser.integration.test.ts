@@ -202,7 +202,7 @@ describe('X without the API in the role "publisher"', () => {
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',
       WORKER_ROLES: 'publisher',
-      WORKER_HEALTH_PORT: String(40_000 + Math.floor(Math.random() * 10_000)),
+      WORKER_HEALTH_PORT: '0',
       REDIS_URL: redis.url,
       DATABASE_URL: database.url('app_user'),
       // The circuit breaker switches the global flag as app_system and links to the admin page.

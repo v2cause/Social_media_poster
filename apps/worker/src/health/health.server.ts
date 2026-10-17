@@ -57,8 +57,14 @@ export class HealthServer implements OnApplicationBootstrap, OnApplicationShutdo
         },
       );
     });
-    this.server.listen(this.env.WORKER_HEALTH_PORT, '0.0.0.0');
-    this.logger.info({ port: this.env.WORKER_HEALTH_PORT }, 'worker.health.listening');
+    const server = this.server;
+    server.listen(this.env.WORKER_HEALTH_PORT, '0.0.0.0', () => {
+      const address = server.address();
+      this.logger.info(
+        { port: typeof address === 'object' && address ? address.port : this.env.WORKER_HEALTH_PORT },
+        'worker.health.listening',
+      );
+    });
   }
 
   async onApplicationShutdown(): Promise<void> {

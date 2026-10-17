@@ -49,7 +49,7 @@ describe('the canary of the X browser in the role "scheduler"', () => {
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',
       WORKER_ROLES: 'scheduler',
-      WORKER_HEALTH_PORT: String(40_000 + Math.floor(Math.random() * 10_000)),
+      WORKER_HEALTH_PORT: '0',
       REDIS_URL: started().redis.url,
       DATABASE_URL: started().database.url('app_user'),
       DATABASE_SYSTEM_URL: started().database.url('app_system'),

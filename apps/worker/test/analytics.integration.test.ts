@@ -100,7 +100,7 @@ describe('the analytics role', () => {
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',
       WORKER_ROLES: 'publisher,analytics',
-      WORKER_HEALTH_PORT: String(40_000 + Math.floor(Math.random() * 10_000)),
+      WORKER_HEALTH_PORT: '0',
       REDIS_URL: redis.url,
       DATABASE_URL: database.url('app_user'),
       TOKEN_KEKS: KEK,
