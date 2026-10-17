@@ -118,6 +118,17 @@ export interface AnalyticsUnitOfWork {
   run<T>(scope: AnalyticsScope, work: (store: AnalyticsStore) => Promise<T>): Promise<T>;
 }
 
+/** A rollup of the local days from `from` to `to` (YYYY-MM-DD, both included). */
+export interface RollupRequest extends AnalyticsScope {
+  from: string;
+  to: string;
+}
+
+/** Adds the job metrics.rollup; requests for the same days that are still waiting merge. */
+export interface RollupRequests {
+  request(rollup: RollupRequest): Promise<void>;
+}
+
 /** An account with due polls, from the scan of the planner. */
 export interface DueMetricsAccount {
   organizationId: string;
@@ -140,4 +151,6 @@ export interface MetricsPlanScanner {
    * time zone of their workspace, at most `limit`.
    */
   accountDaysDue(now: Date, limit: number): Promise<DueAccountDay[]>;
+  /** The workspaces with accounts, with the day it is now in their time zone, for the nightly rollup. */
+  rollupWorkspaces(now: Date): Promise<(AnalyticsScope & { today: string })[]>;
 }

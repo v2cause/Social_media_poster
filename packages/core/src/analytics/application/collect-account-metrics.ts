@@ -5,6 +5,7 @@ import {
   accessAccount,
   CallCosts,
   contextOf,
+  requestRollup,
   unitOf,
   type AccountAccess,
   type AnalyticsJobDependencies,
@@ -35,12 +36,13 @@ export class CollectAccountMetrics {
     }
     const timeZone =
       (await unitOf(deps, input, (store) => store.workspaces.timeZoneOf(input.workspaceId))) ?? 'UTC';
+    const range = localDayRange(input.day, timeZone);
     const costs = new CallCosts();
     const context = () => contextOf(deps, input, access, costs);
     try {
       await access.tokens.refresh(context, false);
       const metrics = await access.tokens.withToken(context, (ctx) =>
-        access.adapter.fetchAccountMetrics(localDayRange(input.day, timeZone), ctx),
+        access.adapter.fetchAccountMetrics(range, ctx),
       );
       await unitOf(deps, input, async (store) => {
         await store.accountMetrics.saveDaily({
@@ -60,6 +62,7 @@ export class CollectAccountMetrics {
           await store.costs.record(entries);
         }
       });
+      await requestRollup(deps, input, [range.from]);
       return { saved: true };
     } catch (error) {
       const refused = error instanceof ReauthRequiredError || (isPlatformError(error) && !error.retryable);

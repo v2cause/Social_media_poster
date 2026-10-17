@@ -33,6 +33,10 @@ describe('CollectAccountMetrics', () => {
       },
     ]);
 
+    expect(bed.requested).toEqual([
+      { organizationId: 'org-1', workspaceId: 'ws-1', from: '2026-10-15', to: '2026-10-15' },
+    ]);
+
     bed.adapter.accountAnswers = [
       { followers: 510, reach: null, profileViews: null, raw: {}, mappingVersion: 1 },
     ];

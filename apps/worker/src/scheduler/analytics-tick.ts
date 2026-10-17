@@ -1,4 +1,4 @@
-import type { MetricsPlanScanner } from '@smp/core';
+import { daysBefore, NIGHTLY_ROLLUP_DAYS, type MetricsPlanScanner } from '@smp/core';
 import type { AnalyticsProducer } from '@smp/queue';
 
 import type { TickResult } from '../processors/scheduler.processor';
@@ -7,7 +7,8 @@ import type { TickResult } from '../processors/scheduler.processor';
 // minutes) adds a job metrics.post per account with due polls; its id holds the bucket of the
 // tick, so one tick adds one job per account. tick.account-metrics (every hour) adds a job
 // metrics.account per account whose numbers of the day before are missing once it is past 03:00
-// in the time zone of its workspace; the jobs spread over the hour.
+// in the time zone of its workspace; the jobs spread over the hour. tick.maintenance (nightly)
+// rolls the last 35 days of every workspace with accounts up again (guide step 5.3).
 
 /** Accounts per tick; the next tick takes the rest. */
 const ACCOUNTS_PER_TICK = 1_000;
@@ -28,7 +29,7 @@ export function spreadDelayMs(accountId: string, spreadMs = ACCOUNT_SPREAD_MS): 
 
 interface AnalyticsTickDeps {
   scanner: MetricsPlanScanner;
-  producer: Pick<AnalyticsProducer, 'postMetrics' | 'accountMetrics'>;
+  producer: Pick<AnalyticsProducer, 'postMetrics' | 'accountMetrics' | 'rollup'>;
   now: () => Date;
 }
 
@@ -58,6 +59,23 @@ export class AnalyticsTick {
     return {
       accounts: days.length,
       enqueueFailed: results.filter((result) => result.status === 'rejected').length,
+    };
+  }
+
+  /** The nightly part of tick.maintenance. */
+  async nightlyRollups(): Promise<TickResult> {
+    const workspaces = await this.deps.scanner.rollupWorkspaces(this.deps.now());
+    const results = await Promise.allSettled(
+      workspaces.map(({ organizationId, workspaceId, today }) =>
+        this.deps.producer.rollup(
+          { organizationId, workspaceId, from: daysBefore(today, NIGHTLY_ROLLUP_DAYS), to: today },
+          0,
+        ),
+      ),
+    );
+    return {
+      rollups: workspaces.length,
+      rollupEnqueueFailed: results.filter((result) => result.status === 'rejected').length,
     };
   }
 }

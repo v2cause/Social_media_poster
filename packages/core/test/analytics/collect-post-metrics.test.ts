@@ -58,6 +58,34 @@ describe('CollectPostMetrics', () => {
     }
   });
 
+  it('asks for the rollup of the local days it touched, with the day of a first post', async () => {
+    const bed = createAnalyticsTestbed({ variants: 0 });
+    // Published at 23:30 in Berlin on October 15, first polled at 14:00 on October 16.
+    addPublishedVariant(bed.unitOfWork, 'first-poll', { publishedAt: new Date('2026-10-15T21:30:00Z') });
+    addPublishedVariant(bed.unitOfWork, 'later-poll', {
+      publishedAt: new Date('2026-10-14T08:00:00Z'),
+      metricsStep: 1,
+    });
+
+    await collect(bed);
+    expect(bed.requested).toEqual([
+      { organizationId: 'org-1', workspaceId: 'ws-1', from: '2026-10-15', to: '2026-10-16' },
+    ]);
+
+    const idle = createAnalyticsTestbed({ variants: 0 });
+    await collect(idle);
+    expect(idle.requested).toEqual([]);
+  });
+
+  it('still stores its polls when the rollup cannot be asked for', async () => {
+    const bed = createAnalyticsTestbed();
+    bed.rollups = { request: () => Promise.reject(new Error('Redis is away')) };
+
+    await expect(collect(bed)).resolves.toMatchObject({ polled: 2 });
+    expect(bed.unitOfWork.state.snapshots).toHaveLength(2);
+    expect(bed.warnings).toEqual(['analytics.rollup_request_failed']);
+  });
+
   it('reads as many posts at once as the platform allows', async () => {
     const bed = createAnalyticsTestbed({ platform: 'X', variants: 150 });
 

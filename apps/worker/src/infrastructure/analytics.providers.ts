@@ -14,7 +14,8 @@ import {
   operationPriceMicros,
   RedisMockPlatformStore,
 } from '@smp/platform-adapters';
-import { withLock } from '@smp/queue';
+import { ANALYTICS_QUEUE, AnalyticsProducer, withLock } from '@smp/queue';
+import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
 import type { WorkerEnv } from '../worker-env';
@@ -22,8 +23,8 @@ import { ANALYTICS_PIPELINE } from '../worker.tokens';
 
 // The adapters of the role "analytics" (guide step 5.2): the database as app_user in the tenant
 // of each job, the token keyring, the platform adapters of PLATFORM_MODE_* (the mock platforms
-// keep their state in Redis, shared with the publisher) and the lock of a connection, which a
-// token refresh before a poll shares with the publish job.
+// keep their state in Redis, shared with the publisher), the lock of a connection, which a
+// token refresh before a poll shares with the publish job, and the producer of the rollups.
 
 /** How long the lock of a connection lasts, and how long a poll waits for it. */
 const CONNECTION_LOCK_TTL_MS = 30_000;
@@ -37,6 +38,8 @@ export interface AnalyticsPipeline {
 interface AnalyticsClients {
   database: PrismaClient;
   redis: Redis;
+  rollupQueue: Queue;
+  producers: Redis;
 }
 
 const ANALYTICS_CLIENTS = Symbol('ANALYTICS_CLIENTS');
@@ -46,6 +49,9 @@ class AnalyticsClientsLifecycle implements OnApplicationShutdown {
   constructor(@Inject(ANALYTICS_CLIENTS) private readonly clients: AnalyticsClients) {}
 
   async onApplicationShutdown(): Promise<void> {
+    await this.clients.rollupQueue.close();
+    // A queue leaves a connection it was given open.
+    this.clients.producers.disconnect();
     this.clients.redis.disconnect();
     await this.clients.database.$disconnect();
   }
@@ -74,6 +80,11 @@ export function analyticsPipeline(env: WorkerEnv): Provider[] {
       }
     },
   };
+  // The producer fails fast instead of queueing commands while Redis is away; the nightly
+  // rollup fills the days of a lost request.
+  const producers = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false });
+  const rollupQueue = new Queue(ANALYTICS_QUEUE, { connection: producers });
+  const rollups = new AnalyticsProducer(rollupQueue);
   const locks: ConnectionLock = {
     withConnectionLock: (connectionId, work) =>
       withLock(redis, `lock:conn:${connectionId}`, CONNECTION_LOCK_TTL_MS, () => work(), {
@@ -89,11 +100,15 @@ export function analyticsPipeline(env: WorkerEnv): Provider[] {
       prices: { priceMicros: operationPriceMicros },
       clock: systemClock,
       ids: uuidV7Ids,
+      rollups: { request: (rollup) => rollups.rollup(rollup) },
       cadenceScale: env.ANALYTICS_CADENCE_SCALE,
     },
   };
   return [
-    { provide: ANALYTICS_CLIENTS, useValue: { database, redis } satisfies AnalyticsClients },
+    {
+      provide: ANALYTICS_CLIENTS,
+      useValue: { database, redis, rollupQueue, producers } satisfies AnalyticsClients,
+    },
     AnalyticsClientsLifecycle,
     { provide: ANALYTICS_PIPELINE, useValue: pipeline },
   ];

@@ -639,5 +639,7 @@ export type {
   DueVariant,
   MetricsPlanScanner,
   PostMetricsRepository,
+  RollupRequest,
+  RollupRequests,
   VariantPoll,
 } from './analytics/ports/analytics';

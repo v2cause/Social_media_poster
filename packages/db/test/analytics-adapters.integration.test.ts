@@ -150,6 +150,7 @@ describe('analytics adapters on PostgreSQL', () => {
       clock: { now: () => now },
       ids: { newId: () => randomUUID() },
       logger: { info: () => undefined, warn: () => undefined },
+      rollups: { request: () => Promise.resolve() },
     };
   };
 

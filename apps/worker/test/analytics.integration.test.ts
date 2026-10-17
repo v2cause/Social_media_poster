@@ -20,9 +20,9 @@ import { WorkerModule } from '../src/worker.module';
 
 // Guide step 5.2 with the mock platform: a post published by the role "publisher" gets its
 // first metrics poll after an hour, here a second in time lapse (ANALYTICS_CADENCE_SCALE=3600).
-// The role "analytics" polls it, stores the snapshot and plans the next poll; once the post is
-// deleted on the platform, the next poll marks it and ends its polls. The daily numbers of the
-// account land per day.
+// The role "analytics" polls it, stores the snapshot, plans the next poll and rolls the day up
+// (guide step 5.3); once the post is deleted on the platform, the next poll marks it and ends its
+// polls. The daily numbers of the account land per day.
 
 const org = randomUUID();
 const workspace = randomUUID();
@@ -198,6 +198,14 @@ describe('the analytics role', () => {
     expect(await variantOf(variantId)).toMatchObject({
       metrics_step: 1,
       metrics_next_at: new Date(publishedAt + 24_000),
+    });
+    // The collector asked for the rollup of the day: the post and its impressions are in it.
+    await waitFor('the rollup', async () => {
+      const rows = await query<{ posts_published: number; impressions: number | null }>(
+        `SELECT posts_published, impressions FROM analytics_daily WHERE social_account_id = $1`,
+        [accountId],
+      );
+      return rows[0]?.posts_published === 1 && rows[0].impressions === snapshot?.impressions;
     });
 
     // The post is deleted on the platform; the next poll marks it and ends the polls.

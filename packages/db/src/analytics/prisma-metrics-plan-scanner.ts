@@ -1,4 +1,4 @@
-import type { DueAccountDay, DueMetricsAccount, MetricsPlanScanner } from '@smp/core';
+import type { AnalyticsScope, DueAccountDay, DueMetricsAccount, MetricsPlanScanner } from '@smp/core';
 
 import { runInSystemScope, type SystemPrismaClient } from '../system-client';
 
@@ -14,6 +14,12 @@ interface DueAccountRow {
 
 interface DueDayRow extends DueAccountRow {
   day: string;
+}
+
+interface RollupRow {
+  workspace_id: string;
+  organization_id: string;
+  today: string;
 }
 
 /** The local hour from which the numbers of the day before are polled (architecture 8). */
@@ -71,6 +77,23 @@ export class PrismaMetricsPlanScanner implements MetricsPlanScanner {
       workspaceId: row.workspace_id,
       organizationId: row.organization_id,
       day: row.day,
+    }));
+  }
+
+  async rollupWorkspaces(now: Date): Promise<(AnalyticsScope & { today: string })[]> {
+    const rows = await runInSystemScope(
+      () => this.system.$queryRaw<RollupRow[]>`
+        SELECT w.id AS workspace_id, w.organization_id,
+               to_char((${now}::timestamptz AT TIME ZONE w.timezone)::date, 'YYYY-MM-DD') AS today
+          FROM workspace w
+         WHERE w.timezone IN (SELECT name FROM pg_timezone_names)
+           AND EXISTS (SELECT 1 FROM social_account a WHERE a.workspace_id = w.id)
+         ORDER BY w.id`,
+    );
+    return rows.map((row) => ({
+      workspaceId: row.workspace_id,
+      organizationId: row.organization_id,
+      today: row.today,
     }));
   }
 }

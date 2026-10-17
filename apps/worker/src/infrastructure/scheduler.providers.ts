@@ -128,7 +128,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
     'tick.account-metrics': () => analytics.accountMetrics(),
     'tick.maintenance': async () => {
       const { secrets, outboxPurged } = await maintenance.run();
-      return { ...secrets, outboxPurged };
+      return { ...secrets, outboxPurged, ...(await analytics.nightlyRollups()) };
     },
   };
   return [

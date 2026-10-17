@@ -10,6 +10,7 @@ import type {
   ConnectionMethod,
   NormalizedPostMetrics,
   PublishJobTarget,
+  RollupRequest,
   SocialConnection,
 } from '../src';
 import { connectionSecretAad } from '../src';
@@ -276,6 +277,8 @@ export interface AnalyticsTestbed extends AnalyticsJobDependencies {
   clock: MovingClock;
   adapter: ScriptedAdapter;
   warnings: string[];
+  /** The rollups the jobs asked for. */
+  requested: RollupRequest[];
 }
 
 /**
@@ -291,11 +294,19 @@ export function createAnalyticsTestbed(
   const unitOfWork = new InMemoryAnalytics();
   const adapter = new ScriptedAdapter(platform, method, clock);
   const warnings: string[] = [];
+  const requested: RollupRequest[] = [];
   const bed: AnalyticsTestbed = {
     unitOfWork,
     clock,
     adapter,
     warnings,
+    requested,
+    rollups: {
+      request: (rollup) => {
+        requested.push(rollup);
+        return Promise.resolve();
+      },
+    },
     adapters: { resolve: () => Promise.resolve(adapter) },
     sealer: fakeSealer,
     locks: { withConnectionLock: (_connectionId, work) => work() },

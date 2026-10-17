@@ -11,7 +11,8 @@ import { isConnectionUsable } from '../../publishing/domain/rules';
 import type { ApiCostEntry, OperationPrices, PublishJobTarget } from '../../publishing/ports/publish-job';
 import type { Clock } from '../../shared/ports/clock';
 import type { IdGenerator } from '../../shared/ports/ids';
-import type { AnalyticsScope, AnalyticsStore, AnalyticsUnitOfWork } from '../ports/analytics';
+import { localDayOf } from '../domain/days';
+import type { AnalyticsScope, AnalyticsStore, AnalyticsUnitOfWork, RollupRequests } from '../ports/analytics';
 
 // What the analytics jobs share (guide step 5.2): the account with its adapter and tokens, the
 // context of a call with its costs, and how long the polls of an account wait after a failure.
@@ -27,6 +28,8 @@ export interface AnalyticsJobDependencies {
   clock: Clock;
   ids: IdGenerator;
   logger: AdapterLogger;
+  /** The rollup of the days a run touched (guide step 5.3). */
+  rollups: RollupRequests;
   /** ANALYTICS_CADENCE_SCALE: above 1 the cascade runs faster, for tests. */
   cadenceScale?: number;
 }
@@ -171,4 +174,31 @@ export function contextOf(
     dryRun: false,
     keepAlive: () => Promise.resolve(),
   };
+}
+
+/**
+ * Asks for the rollup of the local days of these instants. A request that fails is logged: the
+ * nightly rollup fills the days anyway.
+ */
+export async function requestRollup(
+  deps: AnalyticsJobDependencies,
+  input: AnalyticsJobInput,
+  instants: readonly Date[],
+): Promise<void> {
+  if (instants.length === 0) {
+    return;
+  }
+  try {
+    const timeZone =
+      (await unitOf(deps, input, (store) => store.workspaces.timeZoneOf(input.workspaceId))) ?? 'UTC';
+    const days = instants.map((instant) => localDayOf(instant, timeZone)).sort();
+    await deps.rollups.request({
+      organizationId: input.organizationId,
+      workspaceId: input.workspaceId,
+      from: days[0] ?? '',
+      to: days.at(-1) ?? '',
+    });
+  } catch (error) {
+    deps.logger.warn({ accountId: input.accountId, err: error }, 'analytics.rollup_request_failed');
+  }
 }

@@ -8,6 +8,7 @@ import {
   contextOf,
   POLL_RETRY_MS,
   pollWaitAfter,
+  requestRollup,
   unitOf,
   type AccountAccess,
   type AnalyticsJobDependencies,
@@ -67,6 +68,9 @@ export class CollectPostMetrics {
         break;
     }
     const batchSize = METRICS_BATCH_SIZE[access.target.account.platform];
+    // The snapshots go to the days they were taken; a first poll also counts its post as
+    // published on its day.
+    const touched: Date[] = [];
     for (let batch = 0; batch < MAX_BATCHES; batch += 1) {
       const claimedAt = deps.clock.now();
       const due = await unitOf(deps, input, (store) =>
@@ -78,10 +82,15 @@ export class CollectPostMetrics {
           new Date(claimedAt.getTime() + METRICS_LEASE_MS),
         ),
       );
-      if (due.length === 0 || !(await this.poll(input, access, due, result)) || due.length < batchSize) {
+      if (
+        due.length === 0 ||
+        !(await this.poll(input, access, due, result, touched)) ||
+        due.length < batchSize
+      ) {
         break;
       }
     }
+    await requestRollup(deps, input, touched);
     return result;
   }
 
@@ -91,6 +100,7 @@ export class CollectPostMetrics {
     access: ReadyAccess,
     due: readonly DueVariant[],
     result: CollectPostMetricsResult,
+    touched: Date[],
   ): Promise<boolean> {
     const { deps } = this;
     const costs = new CallCosts();
@@ -170,6 +180,11 @@ export class CollectPostMetrics {
       }
       await this.book(store, costs, input, access);
     });
+    for (const poll of polls) {
+      if (poll.kind === 'metrics') {
+        touched.push(capturedAt, ...(poll.step === 0 ? [poll.publishedAt] : []));
+      }
+    }
     const deleted = polls.filter((poll) => poll.kind === 'deleted').length;
     result.deleted += deleted;
     result.polled += polls.length - deleted;
