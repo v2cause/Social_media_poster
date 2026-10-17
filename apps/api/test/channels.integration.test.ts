@@ -163,6 +163,8 @@ describe('channels API with the mock OAuth', () => {
       status: 'ACTIVE',
       connectionId: confirmed.connectionId,
       missingScopes: [],
+      // Calls to LinkedIn cost nothing; only X accounts carry costs.
+      costMicros: null,
     });
     const expiresInDays = (Date.parse(accounts.items[0]?.accessExpiresAt ?? '') - Date.now()) / 86_400_000;
     expect(expiresInDays).toBeGreaterThan(59);

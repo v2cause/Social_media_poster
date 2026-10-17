@@ -56,6 +56,8 @@ export const socialAccountSchema = z.object({
   /** Scopes the connection asked for and did not get, for example the statistics. */
   missingScopes: z.array(z.string()),
   connectedAt: timestamp,
+  /** The paid calls of the account so far in micro-USD (X); null where calls cost nothing. */
+  costMicros: z.number().int().nonnegative().nullable(),
 });
 export type SocialAccountDto = z.infer<typeof socialAccountSchema>;
 export const socialAccountListSchema = z.object({ items: z.array(socialAccountSchema) });

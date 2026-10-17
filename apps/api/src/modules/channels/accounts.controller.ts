@@ -63,6 +63,7 @@ export class AccountsController {
           account.grantedScopes,
         ),
         connectedAt: account.connectedAt.toISOString(),
+        costMicros: account.costMicros,
       })),
     };
   }
