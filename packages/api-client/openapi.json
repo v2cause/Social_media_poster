@@ -2597,6 +2597,37 @@
           "notifications"
         ]
       }
+    },
+    "/api/w/{ws}/events": {
+      "get": {
+        "operationId": "liveEventsStream",
+        "parameters": [
+          {
+            "name": "ws",
+            "required": true,
+            "in": "path",
+            "description": "Workspace slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server-sent events: variant.status and notification.created (schema liveEventDtoSchema in @smp/contracts).",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "live"
+        ]
+      }
     }
   },
   "info": {
