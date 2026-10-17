@@ -102,6 +102,23 @@ describe('S3 storage against SeaweedFS', () => {
     await expect(store().get(key, { maxBytes: 1000 })).rejects.toBeInstanceOf(StorageObjectTooLargeError);
   });
 
+  it('names the file of a signed download', async () => {
+    const key = `exports/${randomUUID()}/${randomUUID()}.zip`;
+    await store().put(key, new Uint8Array([0x50, 0x4b, 5, 6]), { contentType: 'application/zip' });
+
+    const url = await store().signedGetUrl(key, {
+      expiresInSeconds: 300,
+      downloadName: 'social-media-poster-export-2026-10-17.zip',
+    });
+    const response = await fetch(url);
+
+    expect(response.ok).toBe(true);
+    expect(response.headers.get('content-disposition')).toBe(
+      'attachment; filename="social-media-poster-export-2026-10-17.zip"',
+    );
+    await store().delete(key);
+  });
+
   it('answers null for a missing object', async () => {
     await expect(store().head(originalKey(workspaceId, randomUUID()))).resolves.toBeNull();
   });

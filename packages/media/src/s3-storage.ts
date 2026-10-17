@@ -49,6 +49,9 @@ const clientFor = (config: S3StorageConfig, endpoint: string): S3Client =>
     credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
   });
 
+/** A file name for Content-Disposition: printable ASCII without quotes and backslashes. */
+const asciiFileName = (name: string): string => name.replace(/[^\x20-\x7e]|["\\]/g, '_');
+
 const isNotFound = (error: unknown): boolean =>
   error instanceof S3ServiceException &&
   (error.name === 'NotFound' || error.name === 'NoSuchKey' || error.$metadata.httpStatusCode === 404);
@@ -91,10 +94,15 @@ export class S3Storage implements StoragePort {
     }
   }
 
-  signedGetUrl(key: string, options: { expiresInSeconds: number }): Promise<string> {
-    return getSignedUrl(this.signer, new GetObjectCommand({ Bucket: this.config.bucket, Key: key }), {
-      expiresIn: options.expiresInSeconds,
+  signedGetUrl(key: string, options: { expiresInSeconds: number; downloadName?: string }): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.config.bucket,
+      Key: key,
+      ...(options.downloadName
+        ? { ResponseContentDisposition: `attachment; filename="${asciiFileName(options.downloadName)}"` }
+        : {}),
     });
+    return getSignedUrl(this.signer, command, { expiresIn: options.expiresInSeconds });
   }
 
   async get(key: string, options: { maxBytes: number }): Promise<Uint8Array> {

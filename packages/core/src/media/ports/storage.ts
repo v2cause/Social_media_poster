@@ -22,8 +22,11 @@ export interface StoragePort {
   ): Promise<PresignedUpload>;
   /** Size and type of an object, or null when it does not exist. */
   head(key: string): Promise<StoredObject | null>;
-  /** A URL to read one object for a while, for previews in the browser and for platforms. */
-  signedGetUrl(key: string, options: { expiresInSeconds: number }): Promise<string>;
+  /**
+   * A URL to read one object for a while, for previews in the browser and for platforms. With a
+   * download name the browser saves the object under that name instead of showing it.
+   */
+  signedGetUrl(key: string, options: { expiresInSeconds: number; downloadName?: string }): Promise<string>;
   /** The bytes of an object; fails when it is larger than maxBytes. */
   get(key: string, options: { maxBytes: number }): Promise<Uint8Array>;
   put(key: string, body: Uint8Array, options: { contentType: string }): Promise<void>;
