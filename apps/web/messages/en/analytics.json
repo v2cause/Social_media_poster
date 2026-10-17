@@ -1,0 +1,159 @@
+{
+  "title": "Analytics",
+  "description": "The numbers of your posts and accounts in the chosen period, compared with the period before.",
+  "notAvailable": "n/a",
+  "notAvailableHint": "n/a (not available): the platform does not report this value, or there is no measurement for the day.",
+  "empty": {
+    "title": "No data yet.",
+    "description": "The first metrics arrive about 1 hour after publication."
+  },
+  "export": "Export CSV",
+  "period": "{from} to {to}",
+  "previous": "Previous period: {from} to {to}",
+  "noPrevious": "The history does not reach back into the previous period.",
+  "filters": {
+    "title": "Filters",
+    "period": "Period",
+    "periods": {
+      "7": "7 days",
+      "30": "30 days",
+      "90": "90 days",
+      "custom": "Custom"
+    },
+    "from": "From",
+    "to": "To",
+    "platforms": "Platforms",
+    "accounts": "Accounts",
+    "allAccounts": "All accounts",
+    "someAccounts": "{count, plural, one {# account} other {# accounts}}",
+    "reset": "Reset",
+    "problems": {
+      "incomplete": "Please choose the start and the end of the period.",
+      "inverted": "The start is after the end.",
+      "too_long": "A period covers 366 days at most."
+    }
+  },
+  "kpis": {
+    "title": "Key figures",
+    "impressions": "Impressions",
+    "reach": "Reach",
+    "engagements": "Engagements",
+    "engagementRate": "Engagement rate",
+    "followerGrowth": "Follower growth",
+    "postsPublished": "Published posts",
+    "reachBasis": {
+      "account": "Reach of the accounts",
+      "posts": "Sum of the post reaches",
+      "mixed": "Accounts, otherwise sum of the post reaches"
+    },
+    "change": "{change} vs. previous period",
+    "noChange": "No comparison with the previous period",
+    "direction": {
+      "up": "up",
+      "down": "down",
+      "flat": "unchanged"
+    },
+    "points": "{value} pp"
+  },
+  "metrics": {
+    "impressions": "Impressions",
+    "reach": "Reach",
+    "views": "Views",
+    "engagements": "Engagements",
+    "engagementRate": "Engagement rate",
+    "likes": "Likes",
+    "comments": "Comments",
+    "shares": "Shares",
+    "clicks": "Clicks",
+    "saves": "Saves",
+    "followers": "Followers",
+    "postsPublished": "Published posts",
+    "profileViews": "Profile views",
+    "accountReach": "Reach of the account",
+    "posts": "Posts"
+  },
+  "granularities": {
+    "day": "Days",
+    "week": "Weeks",
+    "month": "Months"
+  },
+  "timeline": {
+    "title": "Over time by platform",
+    "metric": "Metric",
+    "granularity": "Grouping",
+    "empty": "No platform reports values of this metric in the period."
+  },
+  "comparison": {
+    "title": "Platform comparison",
+    "metric": "Compare by"
+  },
+  "chart": {
+    "legend": "Legend",
+    "keyboardHint": "Use the arrow keys to pick a value.",
+    "showTable": "Show as table",
+    "date": "Date",
+    "weekOf": "Week of {day}"
+  },
+  "topPosts": {
+    "title": "Top posts",
+    "sort": "Sort by",
+    "post": "Post",
+    "publishedAt": "Published",
+    "empty": "No post has reached 100 impressions in the period yet.",
+    "deleted": "Deleted on the platform",
+    "noText": "No text"
+  },
+  "breakdown": {
+    "title": "By post style",
+    "titleWeekday": "By weekday",
+    "by": "Break down by",
+    "byOptions": {
+      "style": "Style",
+      "weekday": "Weekday"
+    },
+    "posts": "Posts",
+    "noStyle": "No style",
+    "empty": "No post was published in the period.",
+    "weekdays": {
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday",
+      "7": "Sunday"
+    }
+  },
+  "post": {
+    "title": "Post analytics",
+    "back": "Back to analytics",
+    "openPost": "Open post",
+    "openOnPlatform": "View on the platform",
+    "publishedAt": "Published on {date}",
+    "style": "Style: {style}",
+    "capturedAt": "As of {date}",
+    "notFound": "This variant does not exist or is not published.",
+    "noMetrics": "No metrics yet. The first poll follows about 1 hour after publication.",
+    "deleted": "The platform no longer knows this post since {date}; it is not polled any more.",
+    "latest": "Latest poll",
+    "history": "Poll history",
+    "metric": "Metric",
+    "afterHours": "{hours, plural, one {after # hour} other {after # hours}}",
+    "afterDays": "{days, plural, one {after # day} other {after # days}}"
+  },
+  "account": {
+    "title": "Account analytics",
+    "back": "Back to analytics",
+    "disconnected": "Disconnected",
+    "notFound": "This account does not exist in this workspace.",
+    "followers": "Followers",
+    "followersChart": "Followers per day",
+    "dailyChart": "Daily values",
+    "metric": "Metric"
+  },
+  "dashboard": {
+    "title": "Key figures of the last 30 days",
+    "topPosts": "Top posts",
+    "toAnalytics": "To analytics"
+  }
+}

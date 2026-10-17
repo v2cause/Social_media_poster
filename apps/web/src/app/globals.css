@@ -20,6 +20,11 @@
   --destructive-foreground: #ffffff;
   --success: #15803d;
   --warning: #b45309;
+  /* Series of the analytics charts; each one has at least 3:1 against the card in both themes. */
+  --chart-1: #2563eb;
+  --chart-2: #c026d3;
+  --chart-3: #0f766e;
+  --chart-4: #52525b;
 }
 
 @theme inline {
@@ -39,6 +44,10 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -59,6 +68,10 @@
     --destructive-foreground: #ffffff;
     --success: #22c55e;
     --warning: #f59e0b;
+    --chart-1: #60a5fa;
+    --chart-2: #e879f9;
+    --chart-3: #2dd4bf;
+    --chart-4: #d4d4d8;
   }
 }
 
@@ -79,6 +92,10 @@
   --destructive-foreground: #ffffff;
   --success: #22c55e;
   --warning: #f59e0b;
+  --chart-1: #60a5fa;
+  --chart-2: #e879f9;
+  --chart-3: #2dd4bf;
+  --chart-4: #d4d4d8;
 }
 
 body {

@@ -1,0 +1,159 @@
+{
+  "title": "Analytics",
+  "description": "Kennzahlen Ihrer Posts und Accounts im gewählten Zeitraum, verglichen mit dem Zeitraum davor.",
+  "notAvailable": "n. v.",
+  "notAvailableHint": "n. v. (nicht verfügbar): Die Plattform meldet diesen Wert nicht, oder für den Tag gibt es keine Messung.",
+  "empty": {
+    "title": "Noch keine Daten.",
+    "description": "Erste Metriken etwa 1 Stunde nach der Veröffentlichung."
+  },
+  "export": "CSV exportieren",
+  "period": "{from} bis {to}",
+  "previous": "Vorzeitraum: {from} bis {to}",
+  "noPrevious": "Die Historie reicht nicht bis in den Vorzeitraum.",
+  "filters": {
+    "title": "Filter",
+    "period": "Zeitraum",
+    "periods": {
+      "7": "7 Tage",
+      "30": "30 Tage",
+      "90": "90 Tage",
+      "custom": "Frei"
+    },
+    "from": "Von",
+    "to": "Bis",
+    "platforms": "Plattformen",
+    "accounts": "Accounts",
+    "allAccounts": "Alle Accounts",
+    "someAccounts": "{count, plural, one {# Account} other {# Accounts}}",
+    "reset": "Zurücksetzen",
+    "problems": {
+      "incomplete": "Bitte wählen Sie Beginn und Ende des Zeitraums.",
+      "inverted": "Der Beginn liegt nach dem Ende.",
+      "too_long": "Ein Zeitraum umfasst höchstens 366 Tage."
+    }
+  },
+  "kpis": {
+    "title": "Kennzahlen",
+    "impressions": "Impressions",
+    "reach": "Reichweite",
+    "engagements": "Engagements",
+    "engagementRate": "Engagement-Rate",
+    "followerGrowth": "Follower-Zuwachs",
+    "postsPublished": "Veröffentlichte Posts",
+    "reachBasis": {
+      "account": "Reichweite der Accounts",
+      "posts": "Summe der Post-Reichweiten",
+      "mixed": "Accounts, sonst Summe der Post-Reichweiten"
+    },
+    "change": "{change} ggü. Vorzeitraum",
+    "noChange": "Kein Vergleich mit dem Vorzeitraum",
+    "direction": {
+      "up": "gestiegen",
+      "down": "gesunken",
+      "flat": "unverändert"
+    },
+    "points": "{value} Pp."
+  },
+  "metrics": {
+    "impressions": "Impressions",
+    "reach": "Reichweite",
+    "views": "Aufrufe",
+    "engagements": "Engagements",
+    "engagementRate": "Engagement-Rate",
+    "likes": "Likes",
+    "comments": "Kommentare",
+    "shares": "Geteilt",
+    "clicks": "Klicks",
+    "saves": "Gespeichert",
+    "followers": "Follower",
+    "postsPublished": "Veröffentlichte Posts",
+    "profileViews": "Profilaufrufe",
+    "accountReach": "Reichweite des Accounts",
+    "posts": "Posts"
+  },
+  "granularities": {
+    "day": "Tage",
+    "week": "Wochen",
+    "month": "Monate"
+  },
+  "timeline": {
+    "title": "Verlauf nach Plattform",
+    "metric": "Kennzahl",
+    "granularity": "Einteilung",
+    "empty": "Für diese Kennzahl meldet im Zeitraum keine Plattform Werte."
+  },
+  "comparison": {
+    "title": "Plattformvergleich",
+    "metric": "Vergleichen nach"
+  },
+  "chart": {
+    "legend": "Legende",
+    "keyboardHint": "Mit den Pfeiltasten wählen Sie einen Wert.",
+    "showTable": "Als Tabelle anzeigen",
+    "date": "Datum",
+    "weekOf": "Woche ab {day}"
+  },
+  "topPosts": {
+    "title": "Top-Posts",
+    "sort": "Sortieren nach",
+    "post": "Post",
+    "publishedAt": "Veröffentlicht",
+    "empty": "Im Zeitraum hat noch kein Post mindestens 100 Impressions.",
+    "deleted": "Extern gelöscht",
+    "noText": "Ohne Text"
+  },
+  "breakdown": {
+    "title": "Auswertung nach Post-Stil",
+    "titleWeekday": "Auswertung nach Wochentag",
+    "by": "Auswerten nach",
+    "byOptions": {
+      "style": "Stil",
+      "weekday": "Wochentag"
+    },
+    "posts": "Posts",
+    "noStyle": "Ohne Stil",
+    "empty": "Im Zeitraum wurde kein Post veröffentlicht.",
+    "weekdays": {
+      "1": "Montag",
+      "2": "Dienstag",
+      "3": "Mittwoch",
+      "4": "Donnerstag",
+      "5": "Freitag",
+      "6": "Samstag",
+      "7": "Sonntag"
+    }
+  },
+  "post": {
+    "title": "Post-Analytics",
+    "back": "Zurück zu Analytics",
+    "openPost": "Beitrag öffnen",
+    "openOnPlatform": "Auf der Plattform ansehen",
+    "publishedAt": "Veröffentlicht am {date}",
+    "style": "Stil: {style}",
+    "capturedAt": "Stand: {date}",
+    "notFound": "Diese Variante gibt es nicht, oder sie ist nicht veröffentlicht.",
+    "noMetrics": "Noch keine Metriken. Die erste Abfrage folgt etwa 1 Stunde nach der Veröffentlichung.",
+    "deleted": "Die Plattform kennt diesen Post seit {date} nicht mehr; er wird nicht mehr abgefragt.",
+    "latest": "Letzte Abfrage",
+    "history": "Verlauf der Abfragen",
+    "metric": "Kennzahl",
+    "afterHours": "{hours, plural, one {nach # Stunde} other {nach # Stunden}}",
+    "afterDays": "{days, plural, one {nach # Tag} other {nach # Tagen}}"
+  },
+  "account": {
+    "title": "Account-Analytics",
+    "back": "Zurück zu Analytics",
+    "disconnected": "Getrennt",
+    "notFound": "Diesen Account gibt es in diesem Workspace nicht.",
+    "followers": "Follower",
+    "followersChart": "Follower pro Tag",
+    "dailyChart": "Tageswerte",
+    "metric": "Kennzahl"
+  },
+  "dashboard": {
+    "title": "Kennzahlen der letzten 30 Tage",
+    "topPosts": "Top-Posts",
+    "toAnalytics": "Zu Analytics"
+  }
+}

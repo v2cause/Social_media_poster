@@ -240,7 +240,7 @@ export function AppShell(props: {
               <UserMenu user={props.user} area={props.area} memberships={props.memberships} />
             </div>
           </header>
-          <main className="flex-1 p-6 max-md:p-4">{props.children}</main>
+          <main className="min-w-0 flex-1 p-6 max-md:p-4">{props.children}</main>
         </div>
       </div>
     </LiveEventsProvider>
