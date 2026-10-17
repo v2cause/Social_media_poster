@@ -3,6 +3,7 @@ import { DocumentBuilder, type OpenAPIObject, SwaggerModule } from '@nestjs/swag
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { z } from 'zod';
 
+import * as analyticsDtos from './modules/analytics/analytics.dto';
 import { AuditLogPageDto, AuditLogQueryDto } from './modules/audit/audit.controller';
 import * as channelDtos from './modules/channels/channels.dto';
 import * as contentDtos from './modules/content/content.dto';
@@ -25,6 +26,7 @@ export const OPENAPI_DTOS: { name: string; schema: z.ZodType }[] = [
   ...Object.values(mediaDtos),
   ...Object.values(channelDtos),
   ...Object.values(publishingDtos),
+  ...Object.values(analyticsDtos),
   ...Object.values(notificationDtos),
 ];
 

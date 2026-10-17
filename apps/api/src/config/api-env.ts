@@ -23,6 +23,12 @@ export const apiEnvSchema = z
         .min(1)
         .default(5 * 1024 ** 3),
     ),
+    // The days of analytics every organization keeps until plans set it per organization
+    // (phase 7); periods that start earlier are refused.
+    ANALYTICS_HISTORY_DAYS: z.preprocess(
+      unsetIfEmpty,
+      z.coerce.number().int().min(7).max(3_650).default(365),
+    ),
     // Better Auth: signs session cookies and tokens. Generate with `pnpm gen:keys`.
     BETTER_AUTH_SECRET: z.string().min(32),
     // The public origin the browser talks to (same origin as the web app).

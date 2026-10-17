@@ -1,0 +1,2 @@
+export const ANALYTICS_READ_MODEL = Symbol('ANALYTICS_READ_MODEL');
+export const ANALYTICS_HISTORY = Symbol('ANALYTICS_HISTORY');

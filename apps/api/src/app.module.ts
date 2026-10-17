@@ -10,6 +10,7 @@ import { httpLogSerializers } from './common/logging/http-log-serializers';
 import type { ApiEnv } from './config/api-env';
 import { ConfigModule } from './config/config.module';
 import { ClientsModule } from './infrastructure/clients.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AccessModule } from './common/guards/access.module';
 import { ChannelsModule } from './modules/channels/channels.module';
@@ -55,6 +56,7 @@ export class AppModule {
         MediaModule,
         ChannelsModule,
         PublishingModule,
+        AnalyticsModule,
         NotificationsModule,
         LiveModule,
         // The fake OAuth page of the mock platforms never exists in production (guide step 4.4).

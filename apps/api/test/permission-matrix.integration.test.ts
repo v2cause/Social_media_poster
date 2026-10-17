@@ -402,6 +402,49 @@ const ENDPOINTS: Endpoint[] = [
     path: (i) => `/api/w/${i.slug}/variants/${unknownId}/resolve`,
     body: () => ({ version: 0, action: 'recheck' }),
   },
+  // Analytics (guide step 5.4): every role reads; an unknown post or account is 404.
+  {
+    method: 'get',
+    route: '/api/w/:ws/analytics/overview',
+    permission: 'analytics.read',
+    path: (i) => `/api/w/${i.slug}/analytics/overview`,
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/analytics/timeseries',
+    permission: 'analytics.read',
+    path: (i) => `/api/w/${i.slug}/analytics/timeseries?metric=followers&groupBy=account`,
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/analytics/top-posts',
+    permission: 'analytics.read',
+    path: (i) => `/api/w/${i.slug}/analytics/top-posts`,
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/analytics/breakdown',
+    permission: 'analytics.read',
+    path: (i) => `/api/w/${i.slug}/analytics/breakdown?by=style`,
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/analytics/posts/:variantId',
+    permission: 'analytics.read',
+    path: (i) => `/api/w/${i.slug}/analytics/posts/${unknownId}`,
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/analytics/accounts/:accountId',
+    permission: 'analytics.read',
+    path: (i) => `/api/w/${i.slug}/analytics/accounts/${unknownId}`,
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/analytics/export.csv',
+    permission: 'analytics.read',
+    path: (i) => `/api/w/${i.slug}/analytics/export.csv`,
+  },
   // Destructive for everyone who may leave: last.
   {
     method: 'post',
