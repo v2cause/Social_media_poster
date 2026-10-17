@@ -3,10 +3,12 @@ import { Global, Inject, Logger, Module, type OnApplicationShutdown } from '@nes
 import {
   AuditLogReadModel,
   createPrismaClient,
+  createSystemPrismaClient,
   createTenantClient,
   PrismaTenancyUnitOfWork,
   TenancyReadModel,
   type PrismaClient,
+  type SystemPrismaClient,
   type TenantPrismaClient,
 } from '@smp/db';
 import { S3Storage, storageConfigOf } from '@smp/media';
@@ -22,6 +24,11 @@ import { API_ENV } from '../config/config.module';
 export const DATABASE_CLIENT = Symbol('DATABASE_CLIENT');
 /** app_user with the tenant of the current request set in every operation. */
 export const TENANT_DATABASE_CLIENT = Symbol('TENANT_DATABASE_CLIENT');
+/**
+ * app_system, past row-level security: only for the switches of the platform admins, which
+ * belong to no workspace (guide step 6.1), and only inside @SystemScope() methods.
+ */
+export const SYSTEM_DATABASE_CLIENT = Symbol('SYSTEM_DATABASE_CLIENT');
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 export const S3_CLIENT = Symbol('S3_CLIENT');
 export const NOTIFICATIONS = Symbol('NOTIFICATIONS');
@@ -81,6 +88,7 @@ async function closeQueue(queue: Queue): Promise<void> {
 class ClientLifecycle implements OnApplicationShutdown {
   constructor(
     @Inject(DATABASE_CLIENT) private readonly prisma: PrismaClient,
+    @Inject(SYSTEM_DATABASE_CLIENT) private readonly system: SystemPrismaClient,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @Inject(S3_CLIENT) private readonly s3: S3Client,
     @Inject(NOTIFICATIONS) private readonly notifications: Queue,
@@ -93,6 +101,7 @@ class ClientLifecycle implements OnApplicationShutdown {
     this.storage.destroy();
     await Promise.allSettled([
       this.prisma.$disconnect(),
+      this.system.$disconnect(),
       this.redis.quit(),
       closeQueue(this.notifications),
       closeQueue(this.media),
@@ -107,6 +116,11 @@ class ClientLifecycle implements OnApplicationShutdown {
       provide: DATABASE_CLIENT,
       inject: [API_ENV],
       useFactory: (env: ApiEnv): PrismaClient => createPrismaClient(env.DATABASE_URL),
+    },
+    {
+      provide: SYSTEM_DATABASE_CLIENT,
+      inject: [API_ENV],
+      useFactory: (env: ApiEnv): SystemPrismaClient => createSystemPrismaClient(env.DATABASE_SYSTEM_URL),
     },
     {
       provide: TENANT_DATABASE_CLIENT,
@@ -183,6 +197,7 @@ class ClientLifecycle implements OnApplicationShutdown {
   exports: [
     DATABASE_CLIENT,
     TENANT_DATABASE_CLIENT,
+    SYSTEM_DATABASE_CLIENT,
     REDIS_CLIENT,
     S3_CLIENT,
     NotificationProducer,

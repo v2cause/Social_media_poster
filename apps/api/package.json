@@ -31,6 +31,7 @@
     "@smp/platform-adapters": "workspace:*",
     "@smp/platform-rules": "workspace:*",
     "@smp/queue": "workspace:*",
+    "@smp/x-browser": "workspace:*",
     "better-auth": "^1.7.9",
     "bullmq": "^5.81.5",
     "express": "^5.3.0",

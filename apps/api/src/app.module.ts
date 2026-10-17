@@ -23,6 +23,7 @@ import { MediaModule } from './modules/media/media.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PublishingModule } from './modules/publishing/publishing.module';
 import { TenancyModule } from './modules/tenancy/tenancy.module';
+import { XBrowserModule } from './modules/x-browser/x-browser.module';
 
 @Module({})
 export class AppModule {
@@ -59,6 +60,7 @@ export class AppModule {
         AnalyticsModule,
         NotificationsModule,
         LiveModule,
+        XBrowserModule,
         // The fake OAuth page of the mock platforms never exists in production (guide step 4.4).
         ...(env.NODE_ENV === 'production' ? [] : [DevModule]),
       ],

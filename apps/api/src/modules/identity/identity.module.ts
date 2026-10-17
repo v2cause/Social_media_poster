@@ -7,11 +7,15 @@ import { DATABASE_CLIENT } from '../../infrastructure/clients.module';
 import { AUTH, createAuth } from './auth';
 import { AuthMailer } from './auth-mailer';
 import { MeController } from './me.controller';
+import { PasswordCheck } from './password-check';
+import { PlatformAdminGuard } from './platform-admin.guard';
 
 @Module({
   controllers: [MeController],
   providers: [
     AuthMailer,
+    PasswordCheck,
+    PlatformAdminGuard,
     {
       provide: AUTH,
       inject: [API_ENV, DATABASE_CLIENT, AuthMailer],
@@ -19,6 +23,6 @@ import { MeController } from './me.controller';
         createAuth({ env, prisma, mailer, logger: new Logger('Auth') }),
     },
   ],
-  exports: [AUTH],
+  exports: [AUTH, PasswordCheck, PlatformAdminGuard],
 })
 export class IdentityModule {}

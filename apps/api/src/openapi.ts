@@ -12,6 +12,7 @@ import * as mediaDtos from './modules/media/media.dto';
 import * as notificationDtos from './modules/notifications/notifications.dto';
 import * as publishingDtos from './modules/publishing/publishing.dto';
 import * as tenancyDtos from './modules/tenancy/tenancy.dto';
+import * as xBrowserDtos from './modules/x-browser/x-browser.dto';
 
 // The OpenAPI document of the API. packages/api-client generates the typed TanStack Query client
 // from it (Orval, ADR 0013). The integration tests keep packages/api-client/openapi.json current.
@@ -28,6 +29,7 @@ export const OPENAPI_DTOS: { name: string; schema: z.ZodType }[] = [
   ...Object.values(publishingDtos),
   ...Object.values(analyticsDtos),
   ...Object.values(notificationDtos),
+  ...Object.values(xBrowserDtos),
 ];
 
 const capitalize = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);

@@ -74,7 +74,8 @@
     "X_BROWSER_UNAVAILABLE": "X ohne API ist für diesen Workspace nicht verfügbar.",
     "RISK_TEXT_OUTDATED": "Der Risikotext wurde inzwischen geändert. Bitte lesen und bestätigen Sie die neue Fassung.",
     "XB_LOGIN_NOT_FOUND": "Die Anmeldung bei X ist abgelaufen. Bitte starten Sie sie neu.",
-    "XB_LOGIN_NOT_AWAITING_CODE": "X wartet gerade auf keinen Code."
+    "XB_LOGIN_NOT_AWAITING_CODE": "X wartet gerade auf keinen Code.",
+    "TOO_MANY_ATTEMPTS": "Zu viele Versuche. Bitte warten Sie einige Minuten."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

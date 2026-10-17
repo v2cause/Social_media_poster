@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { can, ROLES, type Permission, type Role } from '@smp/contracts';
+import { can, ROLES, X_BROWSER_RISK, type Permission, type Role } from '@smp/contracts';
 import { createPrismaClient, DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from '@smp/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -444,6 +444,31 @@ const ENDPOINTS: Endpoint[] = [
     route: '/api/w/:ws/analytics/export.csv',
     permission: 'analytics.read',
     path: (i) => `/api/w/${i.slug}/analytics/export.csv`,
+  },
+  {
+    method: 'get',
+    route: '/api/w/:ws/x-browser',
+    permission: 'workspace.read',
+    path: (i) => `/api/w/${i.slug}/x-browser`,
+  },
+  {
+    // A wrong password: allowed roles get 422, the others 403.
+    method: 'post',
+    route: '/api/w/:ws/x-browser/activation',
+    permission: 'x_browser.enable',
+    path: (i) => `/api/w/${i.slug}/x-browser/activation`,
+    body: () => ({
+      version: X_BROWSER_RISK.version,
+      locale: 'de',
+      accepted: true,
+      password: 'not-the-password',
+    }),
+  },
+  {
+    method: 'delete',
+    route: '/api/w/:ws/x-browser/activation',
+    permission: 'x_browser.enable',
+    path: (i) => `/api/w/${i.slug}/x-browser/activation`,
   },
   // Destructive for everyone who may leave: last.
   {

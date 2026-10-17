@@ -61,3 +61,4 @@ export {
   type MockPlatformStore,
   type MockPost,
 } from './mock/mock-platform-store';
+export { RedisXBrowserKillSignal } from './x-browser/kill-signal';

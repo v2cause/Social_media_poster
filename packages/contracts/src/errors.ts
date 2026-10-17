@@ -74,6 +74,7 @@ export const ERROR_CODES = [
   'RISK_TEXT_OUTDATED',
   'XB_LOGIN_NOT_FOUND',
   'XB_LOGIN_NOT_AWAITING_CODE',
+  'TOO_MANY_ATTEMPTS',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

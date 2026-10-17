@@ -36,6 +36,9 @@ export const apiEnvSchema = z
     // Seal the tokens of the platforms; @smp/crypto checks the format at start.
     TOKEN_KEKS: z.string().min(1),
     TOKEN_KEK_ACTIVE: z.string().min(1),
+    // The deployment runs the browser worker of X (guide step 6.1); without it the X browser is
+    // off everywhere, whatever the flags say.
+    FEATURE_X_BROWSER_GLOBAL: z.preprocess(unsetIfEmpty, z.stringbool().default(false)),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true, DATABASE_SYSTEM_URL: true }).shape)
   .extend(storageEnvSchema.shape)
