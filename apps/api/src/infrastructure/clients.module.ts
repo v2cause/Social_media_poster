@@ -53,6 +53,30 @@ function producerQueue(name: string, env: ApiEnv): Queue {
   return queue;
 }
 
+/** How long a producer queue may still be starting when the application shuts down. */
+const QUEUE_SETTLE_MS = 2_000;
+
+/**
+ * Closes a producer queue once its start has settled. A queue closed while it still asks Redis
+ * for its version loses its listeners first, and the failed start then ends as an unhandled
+ * rejection inside BullMQ.
+ */
+async function closeQueue(queue: Queue): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  const settled = queue.waitUntilReady().then(
+    () => undefined,
+    () => undefined,
+  );
+  await Promise.race([
+    settled,
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, QUEUE_SETTLE_MS);
+    }),
+  ]);
+  clearTimeout(timer);
+  await queue.close();
+}
+
 /** Closes the connections when the application shuts down. */
 class ClientLifecycle implements OnApplicationShutdown {
   constructor(
@@ -70,8 +94,8 @@ class ClientLifecycle implements OnApplicationShutdown {
     await Promise.allSettled([
       this.prisma.$disconnect(),
       this.redis.quit(),
-      this.notifications.close(),
-      this.media.close(),
+      closeQueue(this.notifications),
+      closeQueue(this.media),
     ]);
   }
 }
