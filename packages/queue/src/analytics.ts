@@ -1,7 +1,7 @@
 import type { JobsOptions, Queue } from 'bullmq';
 import { z } from 'zod';
 
-import { postMetricsJobId } from './job-id';
+import { accountMetricsJobId, postMetricsJobId } from './job-id';
 
 // Queue "analytics" (architecture 7.4 and 8), processed by the worker role "analytics" from
 // phase 5: the metrics of posts, batched per account and time bucket, the daily account metrics
@@ -63,8 +63,14 @@ export class AnalyticsProducer {
     });
   }
 
-  async accountMetrics(job: MetricsAccount): Promise<void> {
-    await this.queue.add(METRICS_ACCOUNT, metricsAccountSchema.parse(job), ANALYTICS_JOB_OPTIONS);
+  /** Once per account and day; the delay spreads the accounts of a tick over the hour. */
+  async accountMetrics(job: MetricsAccount, delayMs = 0): Promise<void> {
+    const payload = metricsAccountSchema.parse(job);
+    await this.queue.add(METRICS_ACCOUNT, payload, {
+      ...ANALYTICS_JOB_OPTIONS,
+      jobId: accountMetricsJobId(payload.accountId, payload.day),
+      delay: delayMs,
+    });
   }
 
   async rollup(job: MetricsRollup): Promise<void> {

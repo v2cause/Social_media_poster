@@ -27,13 +27,16 @@ export const workerEnvSchema = z
     PUBLISH_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(5),
     PUBLISH_LOCK_MS: z.coerce.number().int().min(1_000).max(600_000).default(30_000),
     PUBLISH_LEASE_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(300_000),
+    // Speeds the polling cascade of the post metrics up for time-lapse tests: 60 turns an hour
+    // into a minute (architecture 16). Read by the roles "publisher" and "analytics".
+    ANALYTICS_CADENCE_SCALE: z.coerce.number().int().min(1).max(3_600).default(1),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true }).shape)
   // Needed by the role "scheduler" for its scans across workspaces (app_system).
   .extend(dbEnvSchema.pick({ DATABASE_SYSTEM_URL: true }).partial().shape)
   // Needed by the roles "media" and "publisher"; WorkerModule checks them when one is active.
   .extend(storageEnvSchema.partial().shape)
-  // Mock or live per platform and PUBLISH_DRY_RUN, for the role "publisher".
+  // Mock or live per platform and PUBLISH_DRY_RUN, for the roles "publisher" and "analytics".
   .extend(platformEnvSchema.shape)
   .extend(observabilityEnvSchema.shape);
 

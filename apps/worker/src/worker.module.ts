@@ -12,14 +12,23 @@ import { ProcessAsset, RenderAttachedMedia, systemClock, uuidV7Ids } from '@smp/
 import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@smp/db';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
 import { createLogger } from '@smp/observability';
-import { MEDIA_QUEUE, NOTIFICATIONS_QUEUE, PUBLISH_QUEUE, SCHEDULER_QUEUE, TOKENS_QUEUE } from '@smp/queue';
+import {
+  ANALYTICS_QUEUE,
+  MEDIA_QUEUE,
+  NOTIFICATIONS_QUEUE,
+  PUBLISH_QUEUE,
+  SCHEDULER_QUEUE,
+  TOKENS_QUEUE,
+} from '@smp/queue';
 import Redis from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 
 import { HealthServer } from './health/health.server';
+import { analyticsPipeline } from './infrastructure/analytics.providers';
 import { notifyPipeline } from './infrastructure/notify.providers';
 import { publisherPipeline } from './infrastructure/publisher.providers';
 import { schedulerTicks } from './infrastructure/scheduler.providers';
+import { AnalyticsProcessor } from './processors/analytics.processor';
 import { MediaProcessor } from './processors/media.processor';
 import { NotifyProcessor } from './processors/notify.processor';
 import { SchedulerProcessor } from './processors/scheduler.processor';
@@ -100,6 +109,7 @@ const WIRING_BY_ROLE: Partial<Record<WorkerRole, RoleWiring>> = {
     processors: [PublishWorker, TokenRefreshProcessor],
     providers: publisherPipeline,
   },
+  analytics: { queues: [ANALYTICS_QUEUE], processors: [AnalyticsProcessor], providers: analyticsPipeline },
   media: { queues: [MEDIA_QUEUE], processors: [MediaProcessor], providers: mediaPipeline },
   notify: { queues: [NOTIFICATIONS_QUEUE], processors: [NotifyProcessor], providers: notifyPipeline },
 };

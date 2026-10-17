@@ -2,6 +2,7 @@
 // the Redis lock.
 
 export {
+  accountMetricsJobId,
   gdprJobId,
   jobIdOf,
   notifyEmailJobId,

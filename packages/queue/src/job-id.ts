@@ -28,6 +28,9 @@ export const tokenRefreshJobId = (connectionId: string): string => jobIdOf('tok'
 export const postMetricsJobId = (accountId: string, bucket: string): string =>
   jobIdOf('mp', accountId, bucket);
 
+/** ma.{accountId}.{day}: the daily numbers of an account, once per local day. */
+export const accountMetricsJobId = (accountId: string, day: string): string => jobIdOf('ma', accountId, day);
+
 /** ntf.{outboxId}: one notification per outbox event. */
 export const notifyJobId = (outboxId: string): string => jobIdOf('ntf', outboxId);
 

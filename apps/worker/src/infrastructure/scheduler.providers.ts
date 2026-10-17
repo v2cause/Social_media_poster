@@ -5,6 +5,7 @@ import {
   createPrismaClient,
   createSystemPrismaClient,
   PrismaExpiringConnectionScanner,
+  PrismaMetricsPlanScanner,
   PrismaOutboxRelay,
   PrismaPublishScheduler,
   PrismaSealedSecretStore,
@@ -13,6 +14,8 @@ import {
   type SystemPrismaClient,
 } from '@smp/db';
 import {
+  ANALYTICS_QUEUE,
+  AnalyticsProducer,
   LiveEventPublisher,
   NOTIFICATIONS_QUEUE,
   NotificationProducer,
@@ -25,6 +28,7 @@ import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
 import type { TickHandlers } from '../processors/scheduler.processor';
+import { AnalyticsTick } from '../scheduler/analytics-tick';
 import { Maintenance } from '../scheduler/maintenance';
 import { OutboxDispatcher } from '../scheduler/outbox-dispatcher';
 import { PublishTick } from '../scheduler/publish-tick';
@@ -32,7 +36,7 @@ import { Sweeper } from '../scheduler/sweeper';
 import type { WorkerEnv } from '../worker-env';
 import { TICK_HANDLERS } from '../worker.tokens';
 
-// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7 and 4.9): the system client
+// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9 and 5.2): the system client
 // for the scans across workspaces, app_user for the changes of the token monitor in the tenant of
 // each connection, the producers of the jobs the ticks add, and the tick handlers.
 
@@ -81,6 +85,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
   const publishQueue = new Queue(PUBLISH_QUEUE, { connection: producers });
   const notificationsQueue = new Queue(NOTIFICATIONS_QUEUE, { connection: producers });
   const tokensQueue = new Queue(TOKENS_QUEUE, { connection: producers });
+  const analyticsQueue = new Queue(ANALYTICS_QUEUE, { connection: producers });
   // Live events go out on a plain connection that fails fast as well.
   const live = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1, enableOfflineQueue: false });
   const outbox = new PrismaOutboxRelay(system);
@@ -109,11 +114,18 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
     refreshes: { request: (job) => tokenProducer.refresh(job) },
     clock: systemClock,
   });
+  const analytics = new AnalyticsTick({
+    scanner: new PrismaMetricsPlanScanner(system),
+    producer: new AnalyticsProducer(analyticsQueue),
+    now: () => systemClock.now(),
+  });
   const handlers: TickHandlers = {
     'tick.publish': () => publishTick.run(),
     'tick.sweep-queued': () => sweeper.run(),
     'tick.outbox-relay': async () => ({ ...(await outbox.relay((event) => dispatcher.dispatch(event))) }),
     'tick.tokens': async () => ({ ...(await tokens.execute()) }),
+    'tick.analytics': () => analytics.postMetrics(),
+    'tick.account-metrics': () => analytics.accountMetrics(),
     'tick.maintenance': async () => {
       const { secrets, outboxPurged } = await maintenance.run();
       return { ...secrets, outboxPurged };
@@ -125,7 +137,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
       useValue: {
         system,
         database,
-        queues: [publishQueue, notificationsQueue, tokensQueue],
+        queues: [publishQueue, notificationsQueue, tokensQueue, analyticsQueue],
         producers,
         live,
       } satisfies SchedulerClients,

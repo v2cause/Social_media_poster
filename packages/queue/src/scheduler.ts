@@ -26,8 +26,9 @@ export const TICK_SCHEDULES: Readonly<Record<Tick, TickSchedule>> = {
   'tick.outbox-relay': { every: 1_000 },
   'tick.analytics': { every: 5 * 60_000 },
   'tick.tokens': { every: 60 * 60_000 },
-  // Once a day; the job spreads the accounts over the following hours.
-  'tick.account-metrics': { pattern: '17 2 * * *', tz: 'UTC' },
+  // Every hour: the accounts of the workspaces where it is past 03:00 and the numbers of the day
+  // before are missing, spread over the hour (architecture 8).
+  'tick.account-metrics': { pattern: '17 * * * *', tz: 'UTC' },
   // Nightly: re-wrap of the secrets, later the rollups and the clean-up.
   'tick.maintenance': { pattern: '41 3 * * *', tz: 'UTC' },
 };

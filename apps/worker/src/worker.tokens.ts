@@ -5,3 +5,4 @@ export const PROCESS_ASSET = Symbol('PROCESS_ASSET');
 export const RENDER_ATTACHED_MEDIA = Symbol('RENDER_ATTACHED_MEDIA');
 export const TICK_HANDLERS = Symbol('TICK_HANDLERS');
 export const PUBLISH_PIPELINE = Symbol('PUBLISH_PIPELINE');
+export const ANALYTICS_PIPELINE = Symbol('ANALYTICS_PIPELINE');

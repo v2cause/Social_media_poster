@@ -182,6 +182,8 @@ describe('outbox relay of the worker', () => {
     expect(await queue.getJob(jobId)).toBeDefined();
     const schedulers = await queueOf(SCHEDULER_QUEUE).getJobSchedulers();
     expect(schedulers.map((scheduler) => scheduler.key).sort()).toEqual([
+      'tick.account-metrics',
+      'tick.analytics',
       'tick.maintenance',
       'tick.outbox-relay',
       'tick.publish',

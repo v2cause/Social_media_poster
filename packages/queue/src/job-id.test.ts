@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import {
+  accountMetricsJobId,
   gdprJobId,
   jobIdOf,
   mediaProcessJobId,
@@ -29,6 +30,7 @@ describe('job ids', () => {
       publishDeadLetterId(id, 3),
       tokenRefreshJobId(id),
       postMetricsJobId(id, '202610161500'),
+      accountMetricsJobId(id, '2026-10-16'),
       notifyJobId(id),
       notifyEmailJobId(id, id),
       stripeJobId('evt_1Abc'),
@@ -46,6 +48,7 @@ describe('job ids', () => {
     expect(publishDeadLetterId(id, 3)).toBe(`dead.pub.${id}.3`);
     expect(tokenRefreshJobId(id)).toBe(`tok.${id}`);
     expect(postMetricsJobId(id, 'b1')).toBe(`mp.${id}.b1`);
+    expect(accountMetricsJobId(id, '2026-10-16')).toBe(`ma.${id}.2026-10-16`);
     expect(notifyJobId(id)).toBe(`ntf.${id}`);
     expect(notifyEmailJobId(id, 'u1')).toBe(`ntf.${id}.u1`);
     expect(xbJobId('login.start', id, 1)).toBe(`xb.login.start.${id}.1`);

@@ -147,6 +147,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
       ids: uuidV7Ids,
       dryRunLive: env.PUBLISH_DRY_RUN,
       leaseMs: env.PUBLISH_LEASE_MS,
+      metricsCadenceScale: env.ANALYTICS_CADENCE_SCALE,
     },
     tokenRefresh: {
       unitOfWork: new PrismaTokenMaintenanceUnitOfWork(database),
