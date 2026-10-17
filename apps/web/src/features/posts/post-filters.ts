@@ -1,20 +1,26 @@
 import type { PublishingListParams } from '@smp/api-client';
-import type { VariantListItemDto } from '@smp/contracts';
+import { VARIANT_STATUSES, type VariantListItemDto } from '@smp/contracts';
+import { PLATFORMS } from '@smp/platform-rules';
+import { z } from 'zod';
 
 import { CANCELABLE_STATUSES } from '@/features/publishing/statuses';
 import { addDays, startOfLocalDay } from '@/features/publishing/zoned-time';
 
-// The filters of the post list (guide step 4.11) and what a selection of rows allows. The period
-// is a span of local days in the time zone of the workspace; the API takes its instants.
+// The filters of the post list (guide step 4.11) and what a selection of rows allows. The filters
+// live in the query string; each one is empty when it is missing or invalid. The period is a span
+// of local days in the time zone of the workspace; the API takes its instants.
 
-export interface PostFilters {
-  status: string;
-  platform: string;
-  accountId: string;
-  /** First and last planned day, YYYY-MM-DD; empty for open. */
-  from: string;
-  to: string;
-}
+const none = z.literal('');
+
+export const postFiltersSchema = z.object({
+  status: z.union([z.enum(VARIANT_STATUSES), none]).catch(''),
+  platform: z.union([z.enum(PLATFORMS), none]).catch(''),
+  accountId: z.union([z.uuid(), none]).catch(''),
+  /** First and last planned day, YYYY-MM-DD. */
+  from: z.union([z.iso.date(), none]).catch(''),
+  to: z.union([z.iso.date(), none]).catch(''),
+});
+export type PostFilters = z.infer<typeof postFiltersSchema>;
 
 export const NO_FILTERS: PostFilters = { status: '', platform: '', accountId: '', from: '', to: '' };
 
@@ -30,7 +36,7 @@ export function listParamsOf(filters: PostFilters, timeZone: string): Publishing
     order: 'recent',
     limit: PAGE_SIZE,
     ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.platform ? { platform: filters.platform as PublishingListParams['platform'] } : {}),
+    ...(filters.platform ? { platform: filters.platform } : {}),
     ...(filters.accountId ? { accountId: filters.accountId } : {}),
     ...(filters.from ? { from: startOfLocalDay(filters.from, timeZone).toISOString() } : {}),
     // The last day counts in full: the period ends where the next day starts.

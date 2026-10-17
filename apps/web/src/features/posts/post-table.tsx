@@ -49,8 +49,16 @@ import { PlatformMark } from '@/features/publishing/platform-mark';
 import { CANCELABLE_STATUSES } from '@/features/publishing/statuses';
 import { VariantStatusBadge } from '@/features/publishing/variant-status';
 import { useErrorMessage } from '@/lib/use-error-message';
+import { useSearchState } from '@/lib/use-search-state';
 
-import { isInvertedPeriod, listParamsOf, NO_FILTERS, selectionOf, type PostFilters } from './post-filters';
+import {
+  isInvertedPeriod,
+  listParamsOf,
+  NO_FILTERS,
+  postFiltersSchema,
+  selectionOf,
+  type PostFilters,
+} from './post-filters';
 
 // The post list of guide step 4.11: one row per variant with preview, account, status, plan and
 // publication, filters by status, platform, account and planned period, and the bulk actions
@@ -68,7 +76,7 @@ export function PostTable(props: {
   const actions = useTranslations('actions');
   const errorMessage = useErrorMessage();
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState<PostFilters>(NO_FILTERS);
+  const [filters, setFilters] = useSearchState(postFiltersSchema);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [deleting, setDeleting] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -90,7 +98,7 @@ export function PostTable(props: {
   const selectable = props.canSchedule || props.canDelete;
 
   const change = (patch: Partial<PostFilters>) => {
-    setFilters((current) => ({ ...current, ...patch }));
+    setFilters(patch);
     setSelected(new Set());
   };
   const toggle = (id: string, checked: boolean) => {
@@ -323,7 +331,7 @@ export function PostTable(props: {
               {...control}
               value={filters.status}
               onChange={(event) => {
-                change({ status: event.target.value });
+                change({ status: postFiltersSchema.shape.status.parse(event.target.value) });
               }}
             >
               <option value="">{t('filters.allStatuses')}</option>
@@ -341,7 +349,7 @@ export function PostTable(props: {
               {...control}
               value={filters.platform}
               onChange={(event) => {
-                change({ platform: event.target.value });
+                change({ platform: postFiltersSchema.shape.platform.parse(event.target.value) });
               }}
             >
               <option value="">{t('filters.allPlatforms')}</option>
@@ -357,7 +365,7 @@ export function PostTable(props: {
               {...control}
               value={filters.accountId}
               onChange={(event) => {
-                change({ accountId: event.target.value });
+                change({ accountId: postFiltersSchema.shape.accountId.parse(event.target.value) });
               }}
             >
               <option value="">{t('filters.allAccounts')}</option>
@@ -376,7 +384,7 @@ export function PostTable(props: {
               type="date"
               value={filters.from}
               onChange={(event) => {
-                change({ from: event.target.value });
+                change({ from: postFiltersSchema.shape.from.parse(event.target.value) });
               }}
             />
           )}
@@ -392,7 +400,7 @@ export function PostTable(props: {
               type="date"
               value={filters.to}
               onChange={(event) => {
-                change({ to: event.target.value });
+                change({ to: postFiltersSchema.shape.to.parse(event.target.value) });
               }}
             />
           )}

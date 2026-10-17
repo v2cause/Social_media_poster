@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   byDay,
+  calendarQuerySchema,
   daysOf,
   isMovable,
   moveTo,
@@ -93,6 +94,20 @@ describe('calendar', () => {
     });
     expect(isMovable(planned)).toBe(true);
     expect(isMovable(item('b', '2026-10-20T07:30:00Z', 'PUBLISHED'))).toBe(false);
+  });
+
+  it('reads the view from the query string and falls back to this month in the workspace zone', () => {
+    expect(calendarQuerySchema.parse({})).toEqual({ view: 'month', date: '', zone: 'workspace' });
+    expect(calendarQuerySchema.parse({ view: 'week', date: '2026-10-19', zone: 'own' })).toEqual({
+      view: 'week',
+      date: '2026-10-19',
+      zone: 'own',
+    });
+    expect(calendarQuerySchema.parse({ view: 'year', date: '19.10.2026', zone: 'Mars/Olympus' })).toEqual({
+      view: 'month',
+      date: '',
+      zone: 'workspace',
+    });
   });
 
   it('cuts the preview after 40 characters', () => {

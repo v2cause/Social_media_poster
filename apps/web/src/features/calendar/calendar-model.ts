@@ -1,4 +1,5 @@
 import type { VariantListItemDto } from '@smp/contracts';
+import { z } from 'zod';
 
 import type { VariantStatusDto } from '@/features/publishing/statuses';
 import {
@@ -16,6 +17,16 @@ import {
 
 export const CALENDAR_VIEWS = ['month', 'week', 'list'] as const;
 export type CalendarView = (typeof CALENDAR_VIEWS)[number];
+
+/**
+ * The view in the query string: month, week or list; the day it shows, empty for today; the time
+ * zone of the workspace or the own one. Anything else falls back to the default.
+ */
+export const calendarQuerySchema = z.object({
+  view: z.enum(CALENDAR_VIEWS).catch('month'),
+  date: z.union([z.iso.date(), z.literal('')]).catch(''),
+  zone: z.enum(['workspace', 'own']).catch('workspace'),
+});
 
 /** A planned variant can move; once it is on its way or done, it stays. */
 const MOVABLE: readonly VariantStatusDto[] = ['SCHEDULED', 'QUEUED'];

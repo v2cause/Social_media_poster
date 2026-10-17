@@ -39,9 +39,11 @@ import { PlatformMark } from '@/features/publishing/platform-mark';
 import { VariantStatusIcon } from '@/features/publishing/variant-status';
 import { localDateOf, localDateTimeOf } from '@/features/publishing/zoned-time';
 import { useErrorMessage } from '@/lib/use-error-message';
+import { useSearchState } from '@/lib/use-search-state';
 
 import {
   byDay,
+  calendarQuerySchema,
   CALENDAR_VIEWS,
   daysOf,
   isMovable,
@@ -50,7 +52,6 @@ import {
   periodOf,
   shiftAnchor,
   shortPreview,
-  type CalendarView,
   type Move,
 } from './calendar-model';
 
@@ -63,8 +64,6 @@ import {
 /** The most variants a day of the month shows before "n more". */
 const MONTH_DAY_LIMIT = 3;
 const PAGE_LIMIT = 500;
-
-type Zone = 'workspace' | 'own';
 
 const noSubscription = () => () => undefined;
 const browserTimeZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -82,13 +81,13 @@ export function CalendarPage(props: { ws: string; timeZone: string; canSchedule:
   const errorMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const now = useNow({ updateInterval: 60_000 });
-  const [view, setView] = useState<CalendarView>('month');
-  const [zoneChoice, setZoneChoice] = useState<Zone>('workspace');
+  // View, day and time zone live in the query string (architecture 11).
+  const [{ view, date, zone: zoneChoice }, setSearch] = useSearchState(calendarQuerySchema);
   // The zone of the browser is known only in the browser.
   const ownZone = useSyncExternalStore(noSubscription, browserTimeZone, () => null);
   const zone = zoneChoice === 'own' && ownZone ? ownZone : props.timeZone;
   const today = localDateOf(now, zone);
-  const [anchor, setAnchor] = useState(() => localDateOf(new Date(), props.timeZone));
+  const anchor = date === '' ? today : date;
   const [rescheduling, setRescheduling] = useState<VariantListItemDto | null>(null);
   const [dragged, setDragged] = useState<VariantListItemDto | null>(null);
   // A drag ends with a click on the dragged link, which must not open the composer.
@@ -264,8 +263,7 @@ export function CalendarPage(props: { ws: string; timeZone: string; canSchedule:
                     type="button"
                     className="mt-1 text-xs text-muted-foreground hover:underline"
                     onClick={() => {
-                      setView('week');
-                      setAnchor(day);
+                      setSearch({ view: 'week', date: day });
                     }}
                   >
                     {t('more', { count: dayItems.length - shown.length })}
@@ -293,7 +291,7 @@ export function CalendarPage(props: { ws: string; timeZone: string; canSchedule:
             size="icon"
             aria-label={t('previous')}
             onClick={() => {
-              setAnchor((current) => shiftAnchor(view, current, -1));
+              setSearch({ date: shiftAnchor(view, anchor, -1) });
             }}
           >
             <ChevronLeft aria-hidden="true" />
@@ -302,7 +300,7 @@ export function CalendarPage(props: { ws: string; timeZone: string; canSchedule:
             type="button"
             variant="outline"
             onClick={() => {
-              setAnchor(today);
+              setSearch({ date: '' });
             }}
           >
             {t('today')}
@@ -313,7 +311,7 @@ export function CalendarPage(props: { ws: string; timeZone: string; canSchedule:
             size="icon"
             aria-label={t('next')}
             onClick={() => {
-              setAnchor((current) => shiftAnchor(view, current, 1));
+              setSearch({ date: shiftAnchor(view, anchor, 1) });
             }}
           >
             <ChevronRight aria-hidden="true" />
@@ -337,7 +335,7 @@ export function CalendarPage(props: { ws: string; timeZone: string; canSchedule:
                 view === candidate ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
               )}
               onClick={() => {
-                setView(candidate);
+                setSearch({ view: candidate });
               }}
             >
               {t(`views.${candidate}`)}
@@ -351,7 +349,7 @@ export function CalendarPage(props: { ws: string; timeZone: string; canSchedule:
               className="w-auto"
               value={zoneChoice}
               onChange={(event) => {
-                setZoneChoice(event.target.value === 'own' ? 'own' : 'workspace');
+                setSearch({ zone: event.target.value === 'own' ? 'own' : 'workspace' });
               }}
             >
               <option value="workspace">{t('timeZone.workspace', { zone: props.timeZone })}</option>
