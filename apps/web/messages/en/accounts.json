@@ -48,7 +48,8 @@
     "cost": "API costs so far: {amount}",
     "connectedAt": "Connected on {date}",
     "reconnect": "Reconnect",
-    "disconnect": "Disconnect"
+    "disconnect": "Disconnect",
+    "analytics": "Analytics"
   },
   "disconnect": {
     "title": "Disconnect {name}?",

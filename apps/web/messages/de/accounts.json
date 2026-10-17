@@ -48,7 +48,8 @@
     "cost": "Bisherige API-Kosten: {amount}",
     "connectedAt": "Verbunden am {date}",
     "reconnect": "Neu verbinden",
-    "disconnect": "Trennen"
+    "disconnect": "Trennen",
+    "analytics": "Analytics"
   },
   "disconnect": {
     "title": "{name} trennen?",

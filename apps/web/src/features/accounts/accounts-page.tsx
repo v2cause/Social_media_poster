@@ -27,7 +27,8 @@ import {
   LoadingState,
 } from '@smp/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { RefreshCw, Unlink } from 'lucide-react';
+import { BarChart3, RefreshCw, Unlink } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
@@ -297,33 +298,41 @@ function AccountRow(props: { ws: string; account: SocialAccountDto; canManage: b
             ) : null}
           </div>
         </div>
-        {props.canManage ? (
-          <div className="flex shrink-0 gap-2">
-            <Button
-              type="button"
-              variant={attention ? 'default' : 'outline'}
-              size="sm"
-              disabled={reconnect.isPending}
-              onClick={() => {
-                reconnect.mutate({ ws: props.ws, accountId: account.id });
-              }}
-            >
-              <RefreshCw aria-hidden="true" />
-              {t('list.reconnect')}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setConfirming(true);
-              }}
-            >
-              <Unlink aria-hidden="true" />
-              {t('list.disconnect')}
-            </Button>
-          </div>
-        ) : null}
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button asChild variant="ghost" size="sm">
+            <Link href={`/w/${props.ws}/analytics/accounts/${account.id}`}>
+              <BarChart3 aria-hidden="true" />
+              {t('list.analytics')}
+            </Link>
+          </Button>
+          {props.canManage ? (
+            <>
+              <Button
+                type="button"
+                variant={attention ? 'default' : 'outline'}
+                size="sm"
+                disabled={reconnect.isPending}
+                onClick={() => {
+                  reconnect.mutate({ ws: props.ws, accountId: account.id });
+                }}
+              >
+                <RefreshCw aria-hidden="true" />
+                {t('list.reconnect')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setConfirming(true);
+                }}
+              >
+                <Unlink aria-hidden="true" />
+                {t('list.disconnect')}
+              </Button>
+            </>
+          ) : null}
+        </div>
       </CardContent>
       <Dialog open={confirming} onOpenChange={setConfirming}>
         <DialogContent closeLabel={actions('close')}>
