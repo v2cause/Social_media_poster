@@ -21,7 +21,7 @@
     "activatedToast": "The kill switch is active.",
     "deactivatedToast": "The kill switch is lifted.",
     "organizations": "Allowed organizations",
-    "organizationsHint": "Until billing arrives in phase 7, platform admins allow organizations.",
+    "organizationsHint": "Pro and Agency include X without the API. Platform admins allow organizations on other plans here one by one.",
     "none": "No organization is allowed yet.",
     "since": "since {date}",
     "remove": "Remove",

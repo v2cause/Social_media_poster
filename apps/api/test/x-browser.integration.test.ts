@@ -18,9 +18,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { startApiTestApp, type ApiTestApp } from './support/api-app';
 import { signIn, type Browser } from './support/browser';
+import { onPlan } from './support/plan';
 
-// Guide steps 6.1 and 6.4 through the API: the X browser stays closed until a platform admin
-// allows the organization, an owner switches it on with the current risk text and the password
+// Guide steps 6.1 and 6.4 through the API: the X browser stays closed until the plan of the
+// organization includes it or a platform admin allows the organization (guide step 7.4), an
+// owner switches it on with the current risk text and the password
 // again, and the kill switch closes it for everyone at once, in the database and for the browser
 // worker. A login of X hands the credentials and the codes to the browser worker sealed with the
 // session keyring; Redis never holds them in plain text.
@@ -101,6 +103,8 @@ describe('X browser API', () => {
     } finally {
       await prisma.$disconnect();
     }
+    // Starter does not include the X browser, so the switch of the platform admins decides.
+    await onPlan(api, organizationId, 'starter');
     system = await api.database.connectAs('app_system');
     // Only platform operators set the flag; here the admin of the demo is one as well.
     await system.query(`UPDATE users SET is_platform_admin = true WHERE email = $1`, [emailOf('ADMIN')]);
@@ -127,6 +131,15 @@ describe('X browser API', () => {
     });
     const refused = await as('OWNER').post(`${ws}/activation`).send(enableBody()).expect(409);
     expect(refused.body).toMatchObject({ code: 'X_BROWSER_UNAVAILABLE' });
+
+    // Pro includes it: only the switch of the workspace and the acknowledgement are left.
+    await onPlan(started(), organizationId, 'pro');
+    try {
+      const withPlan = await as('VIEWER').get(ws).expect(200);
+      expect((withPlan.body as XBrowserStatusDto).blocks).toEqual(['workspace', 'acknowledgement']);
+    } finally {
+      await onPlan(started(), organizationId, 'starter');
+    }
   });
 
   it('keeps the switches of the platform admins to the platform admins', async () => {

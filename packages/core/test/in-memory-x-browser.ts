@@ -55,6 +55,8 @@ export class InMemoryXBrowser implements XBrowserUnitOfWork {
   /** The organization of each workspace slug. */
   readonly workspaceSlugs = new Map<string, XBrowserOrganization>();
   readonly runs: XBrowserScope[] = [];
+  /** The organizations whose plan includes the X browser. */
+  readonly plansWithXBrowser = new Set<string>();
 
   async run<T>(scope: XBrowserScope, work: (store: XBrowserStore) => Promise<T>): Promise<T> {
     this.runs.push(scope);
@@ -93,6 +95,7 @@ export class InMemoryXBrowser implements XBrowserUnitOfWork {
           workspace: state().workspaces.get(workspaceId) ?? null,
         });
       },
+      planAllows: (organizationId) => Promise.resolve(this.plansWithXBrowser.has(organizationId)),
       setWorkspaceFlag: (_organizationId, workspaceId, enabled) => {
         assertScope(workspaceId);
         state().workspaces.set(workspaceId, enabled);

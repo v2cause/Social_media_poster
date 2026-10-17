@@ -1,13 +1,21 @@
-import { X_BROWSER_FLAG, type XBrowserFlags, type XBrowserScope, type XBrowserStore } from '@smp/core';
+import {
+  effectiveLimits,
+  X_BROWSER_FLAG,
+  type XBrowserFlags,
+  type XBrowserScope,
+  type XBrowserStore,
+} from '@smp/core';
 
 import { prismaAuditTrail, type RequestOrigin } from '../audit/prisma-audit-trail';
+import { toSubscription } from '../billing/prisma-subscriptions';
 import { bytesOf } from '../channels/mappers';
 import type { TenantTransaction } from '../tenant-context';
 import { setFlag } from './feature-flags';
 
 // The flags and risk acknowledgements of the X browser in one workspace (guide step 6.1). The
 // policies of feature_flag show the global row, the row of the organization and the rows of the
-// workspace, and let the workspace write its own row only.
+// workspace, and let the workspace write its own row only. The plan of the organization comes from
+// its subscription, which the tenant reads (guide step 7.4).
 
 export function createPrismaXBrowserStore(
   tx: TenantTransaction,
@@ -39,6 +47,15 @@ export function createPrismaXBrowserStore(
         }
       }
       return flags;
+    },
+
+    async planAllows(organizationId) {
+      const row = await tx.subscription.findUnique({ where: { organizationId }, include: { plan: true } });
+      if (!row) {
+        return false;
+      }
+      const subscription = toSubscription(row);
+      return effectiveLimits(subscription.plan.limits, subscription.limitOverrides).xBrowserAllowed;
     },
 
     async setWorkspaceFlag(organizationId, workspaceId, enabled) {

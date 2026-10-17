@@ -33,6 +33,8 @@ export interface NewRiskAcknowledgement {
 export interface XBrowserStore {
   /** The global, organization and workspace flags of the X browser. */
   flags(organizationId: string, workspaceId: string): Promise<XBrowserFlags>;
+  /** Whether the plan of the organization includes the X browser (guide step 7.4). */
+  planAllows(organizationId: string): Promise<boolean>;
   setWorkspaceFlag(organizationId: string, workspaceId: string, enabled: boolean): Promise<void>;
   /** The newest acknowledgement of the subject that is not revoked, or null. */
   acknowledgement(workspaceId: string, subject: string): Promise<RiskAcknowledgement | null>;

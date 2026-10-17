@@ -1,10 +1,10 @@
 // The conditions of the X browser (architecture 4.3, guide step 6.1). It runs in a workspace
-// only when the deployment offers it (FEATURE_X_BROWSER_GLOBAL), the kill switch is off, the plan
-// of the organization allows it (until phase 7 a switch of the platform admins), the workspace
-// switched it on, and an owner or admin acknowledged the risk text of the current version. A new
-// version of the text needs a new acknowledgement.
+// only when the deployment offers it (FEATURE_X_BROWSER_GLOBAL), the kill switch is off, the
+// organization may use it (its plan allows it, or the platform admins let it, guide step 7.4),
+// the workspace switched it on, and an owner or admin acknowledged the risk text of the current
+// version. A new version of the text needs a new acknowledgement.
 
-/** The key of the flags: the global row is the kill switch, an organization row the plan gate. */
+/** The key of the flags: the global row is the kill switch, an organization row the admins' gate. */
 export const X_BROWSER_FLAG = 'x_browser_automation';
 /** The subject of the risk acknowledgements of the X browser. */
 export const X_BROWSER_RISK_SUBJECT = 'x_browser';
@@ -22,7 +22,7 @@ export type XBrowserBlock = (typeof X_BROWSER_BLOCKS)[number];
 export interface XBrowserFlags {
   /** false: the kill switch is on. No row: it is off. */
   global: boolean | null;
-  /** true: the organization may use the X browser. No row: it may not. */
+  /** true: the platform admins let the organization use the X browser. No row: its plan decides. */
   organization: boolean | null;
   /** true: the workspace switched the X browser on. No row: it is off. */
   workspace: boolean | null;
@@ -31,6 +31,8 @@ export interface XBrowserFlags {
 export interface XBrowserConditions {
   offered: boolean;
   flags: XBrowserFlags;
+  /** The plan of the organization includes the X browser (xBrowserAllowed). */
+  planAllows: boolean;
   /** The text version of the acknowledgement in force, or null. */
   acknowledgedVersion: string | null;
   currentVersion: string;
@@ -45,7 +47,7 @@ export function xBrowserBlocks(conditions: XBrowserConditions): XBrowserBlock[] 
   if (conditions.flags.global === false) {
     blocks.push('kill_switch');
   }
-  if (conditions.flags.organization !== true) {
+  if (conditions.flags.organization !== true && !conditions.planAllows) {
     blocks.push('plan');
   }
   if (conditions.flags.workspace !== true) {

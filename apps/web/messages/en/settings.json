@@ -12,7 +12,7 @@
     "unavailable": {
       "deployment": "This installation does not offer X without the API.",
       "kill_switch": "X without the API is switched off for all workspaces for the time being.",
-      "plan": "Your plan does not include X without the API. Please contact support."
+      "plan": "Your plan does not include X without the API. The owner of your organization can switch to Pro or Agency under Billing."
     },
     "enabled": "X without the API is switched on.",
     "enabledBy": "The risks were acknowledged on {date} by {name}.",

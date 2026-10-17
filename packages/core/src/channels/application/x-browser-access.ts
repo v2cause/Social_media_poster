@@ -60,10 +60,12 @@ async function statusIn(
   scope: XBrowserScope,
 ): Promise<XBrowserStatus> {
   const flags = await store.flags(scope.organizationId, scope.workspaceId);
+  const planAllows = await store.planAllows(scope.organizationId);
   const acknowledgement = await store.acknowledgement(scope.workspaceId, X_BROWSER_RISK_SUBJECT);
   const blocks = xBrowserBlocks({
     offered: deps.offered,
     flags,
+    planAllows,
     acknowledgedVersion: acknowledgement?.textVersion ?? null,
     currentVersion: deps.riskText.version,
   });

@@ -38,8 +38,8 @@ import { toast } from 'sonner';
 import { useErrorMessage } from '@/lib/use-error-message';
 
 // The page of the platform admins (guide step 6.1): the global kill switch of the X browser and
-// the organizations allowed to use it until the plans of phase 7. Everyone else gets no access;
-// the API checks the flag isPlatformAdmin on every call.
+// the organizations allowed to use it beyond their plan (guide step 7.4). Everyone else gets no
+// access; the API checks the flag isPlatformAdmin on every call.
 
 export function AdminPage() {
   const t = useTranslations('admin');

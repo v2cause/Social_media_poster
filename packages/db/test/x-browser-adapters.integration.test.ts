@@ -135,6 +135,33 @@ describe('X browser adapters', () => {
     await expect(store.allowedOrganizations()).resolves.toEqual([]);
   });
 
+  it('reads whether the plan of the organization includes the X browser (guide step 7.4)', async () => {
+    const owner = await database?.connectAs('app_system');
+    const planAllows = (scope: typeof scopeA | typeof scopeB, organizationId: string) =>
+      unitOfWork().run(scope, (store) => store.planAllows(organizationId));
+    try {
+      // Without a subscription, and in the trial, it does not.
+      await expect(planAllows(scopeA, orgA)).resolves.toBe(false);
+      await owner?.query(
+        `INSERT INTO subscription (id, organization_id, plan_key, status, updated_at)
+         VALUES (gen_random_uuid(), $1, 'pro', 'ACTIVE', now()), (gen_random_uuid(), $2, 'starter', 'ACTIVE', now())`,
+        [orgA, orgB],
+      );
+      await expect(planAllows(scopeA, orgA)).resolves.toBe(true);
+      await expect(planAllows(scopeB, orgB)).resolves.toBe(false);
+      await owner?.query(
+        `UPDATE subscription SET limit_overrides = '{"xBrowserAllowed": true}' WHERE organization_id = $1`,
+        [orgB],
+      );
+      await expect(planAllows(scopeB, orgB)).resolves.toBe(true);
+      // Another organization stays invisible.
+      await expect(planAllows(scopeB, orgA)).resolves.toBe(false);
+    } finally {
+      await owner?.query('DELETE FROM subscription WHERE organization_id = ANY($1)', [[orgA, orgB]]);
+      await owner?.end();
+    }
+  });
+
   it('lets the circuit breaker switch the global flag off once, also when two drifts come at once', async () => {
     const store = admin();
     await store.setGlobalFlag(true);

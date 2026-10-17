@@ -63,12 +63,19 @@ describe('xBrowserBlocks', () => {
   it('names every condition that does not hold, in a fixed order', () => {
     const flags = { global: null, organization: null, workspace: null };
     expect(
-      xBrowserBlocks({ offered: false, flags, acknowledgedVersion: null, currentVersion: 'v2' }),
+      xBrowserBlocks({
+        offered: false,
+        flags,
+        planAllows: false,
+        acknowledgedVersion: null,
+        currentVersion: 'v2',
+      }),
     ).toEqual(['deployment', 'plan', 'workspace', 'acknowledgement']);
     expect(
       xBrowserBlocks({
         offered: true,
         flags: { global: false, organization: true, workspace: true },
+        planAllows: false,
         acknowledgedVersion: 'v1',
         currentVersion: 'v2',
       }),
@@ -77,6 +84,17 @@ describe('xBrowserBlocks', () => {
       xBrowserBlocks({
         offered: true,
         flags: { global: true, organization: true, workspace: true },
+        planAllows: false,
+        acknowledgedVersion: 'v2',
+        currentVersion: 'v2',
+      }),
+    ).toEqual([]);
+    // A plan with the X browser needs no switch of the platform admins (guide step 7.4).
+    expect(
+      xBrowserBlocks({
+        offered: true,
+        flags: { global: null, organization: null, workspace: true },
+        planAllows: true,
         acknowledgedVersion: 'v2',
         currentVersion: 'v2',
       }),
@@ -85,6 +103,17 @@ describe('xBrowserBlocks', () => {
 });
 
 describe('switching the X browser on and off', () => {
+  it('opens for an organization whose plan includes it, without the platform admins', async () => {
+    const { deps, unitOfWork } = setup();
+    unitOfWork.plansWithXBrowser.add('org-1');
+
+    expect((await new GetXBrowserStatus(deps).execute(owner)).blocks).toEqual([
+      'workspace',
+      'acknowledgement',
+    ]);
+    await expect(enable(deps)).resolves.toMatchObject({ available: true, blocks: [] });
+  });
+
   it('stays closed until the organization may use it, then opens with the acknowledgement', async () => {
     const { deps, admin, unitOfWork } = setup();
     const status = new GetXBrowserStatus(deps);

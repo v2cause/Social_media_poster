@@ -21,7 +21,7 @@
     "activatedToast": "Der Kill-Switch ist aktiv.",
     "deactivatedToast": "Der Kill-Switch ist aufgehoben.",
     "organizations": "Freigeschaltete Organisationen",
-    "organizationsHint": "Bis zur Abrechnung in Phase 7 schalten Plattform-Admins Organisationen frei.",
+    "organizationsHint": "Pro und Agency enthalten X ohne API. Organisationen mit anderen Tarifen schalten Plattform-Admins hier einzeln frei.",
     "none": "Noch keine Organisation ist freigeschaltet.",
     "since": "seit {date}",
     "remove": "Entfernen",
