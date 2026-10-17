@@ -42,6 +42,10 @@ export const TENANT_FILTERS: Readonly<Record<string, TenantFilterRule>> = {
   PublishAttempt: { field: 'workspaceId', scope: 'workspaceId' },
   OutboxEvent: { field: 'workspaceId', scope: 'workspaceId' },
   ApiCostRecord: { field: 'organizationId', scope: 'organizationId' },
+  MetricSnapshot: { field: 'workspaceId', scope: 'workspaceId' },
+  PostMetricLatest: { field: 'workspaceId', scope: 'workspaceId' },
+  AccountMetricSnapshot: { field: 'workspaceId', scope: 'workspaceId' },
+  AnalyticsDaily: { field: 'workspaceId', scope: 'workspaceId' },
 };
 
 const FILTERED_OPERATIONS = new Set([

@@ -173,7 +173,7 @@ model Workspace {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization         Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   settings             WorkspaceSettings?
   membershipWorkspaces MembershipWorkspace[]
   postStyles           PostStyle[]
@@ -192,6 +192,10 @@ model Workspace {
   publishAttempts      PublishAttempt[]
   outboxEvents         OutboxEvent[]
   apiCostRecords       ApiCostRecord[]
+  metricSnapshots      MetricSnapshot[]
+  postMetricsLatest    PostMetricLatest[]
+  accountMetrics       AccountMetricSnapshot[]
+  analyticsDaily       AnalyticsDaily[]
 
   @@index([organizationId])
   @@map("workspace")
@@ -512,7 +516,8 @@ enum VariantStatus {
 }
 
 // One variant per target. Carries every field of architecture 6.2, including the scheduling and
-// publishing fields of phases 4 and 5, so that those phases need no migration of this table.
+// publishing fields of phases 4 and 5, so that phase 4 needed no migration of this table; phase 5
+// adds the mark of a post the platform no longer knows.
 model PostVariant {
   id                String        @id @default(uuid(7)) @db.Uuid
   workspaceId       String        @map("workspace_id") @db.Uuid
@@ -548,15 +553,19 @@ model PostVariant {
   contentHash       String?       @map("content_hash")
   metricsNextAt     DateTime?     @map("metrics_next_at") @db.Timestamptz(3)
   metricsStep       Int           @default(0) @map("metrics_step")
+  // The platform no longer knows the post (guide step 5.2): its metrics are not polled again.
+  externalDeletedAt DateTime?     @map("external_deleted_at") @db.Timestamptz(3)
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  post          Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  post          Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
   // Accounts are disconnected, not deleted; only deleting the workspace removes them.
-  socialAccount SocialAccount?   @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  socialAccount SocialAccount?    @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
   media         PostMedia[]
   attempts      PublishAttempt[]
+  snapshots     MetricSnapshot[]
+  latestMetrics PostMetricLatest?
 
   @@unique([postId, targetKey])
   // The calendar asks for the variants of a workspace in a period (guide step 4.11).
@@ -885,10 +894,14 @@ model SocialAccount {
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  workspace      Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  connection     SocialConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  workspace      Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  connection     SocialConnection        @relation(fields: [connectionId], references: [id], onDelete: Cascade)
   variants       PostVariant[]
   apiCostRecords ApiCostRecord[]
+  snapshots      MetricSnapshot[]
+  latestMetrics  PostMetricLatest[]
+  accountMetrics AccountMetricSnapshot[]
+  daily          AnalyticsDaily[]
 
   @@unique([workspaceId, platform, externalId])
   @@index([connectionId])
@@ -1006,4 +1019,128 @@ model ApiCostRecord {
   @@index([organizationId, createdAt])
   @@index([workspaceId, createdAt])
   @@map("api_cost_record")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Analytics (guide step 5.1, architecture 6.2 and 8): the snapshots of the post metrics, the
+// latest of them per variant, the daily numbers of the accounts and the rollup per account and
+// day. Counters are cumulative and normalized across platforms; a metric the platform does not
+// report is null, never 0.
+// ---------------------------------------------------------------------------------------------
+
+// One poll of the metrics of a published variant. Append-only for app_user: the raw answer and
+// the version of its mapping stay, so the counters can be computed again when a mapping changes.
+model MetricSnapshot {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  variantId       String   @map("variant_id") @db.Uuid
+  socialAccountId String   @map("social_account_id") @db.Uuid
+  platform        Platform
+  // The step of the polling cascade; null for a manual refresh.
+  step            Int?
+  impressions     Int?
+  reach           Int?
+  views           Int?
+  likes           Int?
+  comments        Int?
+  shares          Int?
+  clicks          Int?
+  saves           Int?
+  raw             Json
+  mappingVersion  Int      @map("mapping_version")
+  capturedAt      DateTime @map("captured_at") @db.Timestamptz(3)
+
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  variant       PostVariant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  // The history of a variant, and the snapshots of a period for the rollup.
+  @@index([variantId, capturedAt])
+  @@index([workspaceId, capturedAt])
+  @@map("metric_snapshot")
+}
+
+// The latest snapshot of each variant, for lists and top posts. Replaced only by a newer one.
+model PostMetricLatest {
+  variantId       String   @id @map("variant_id") @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  socialAccountId String   @map("social_account_id") @db.Uuid
+  platform        Platform
+  // Copied from the variant, so a period needs no join.
+  publishedAt     DateTime @map("published_at") @db.Timestamptz(3)
+  capturedAt      DateTime @map("captured_at") @db.Timestamptz(3)
+  impressions     Int?
+  reach           Int?
+  views           Int?
+  likes           Int?
+  comments        Int?
+  shares          Int?
+  clicks          Int?
+  saves           Int?
+  // The sum of likes, comments, shares, saves and clicks; null when none of them is reported.
+  engagements     Int?
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  variant       PostVariant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, publishedAt])
+  @@map("post_metric_latest")
+}
+
+// The daily numbers of an account (architecture 8), polled around 03:00 in the time zone of the
+// workspace for the day before. One row per account and day; another poll of the day replaces it.
+model AccountMetricSnapshot {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  socialAccountId String   @map("social_account_id") @db.Uuid
+  platform        Platform
+  // The day in the time zone of the workspace the numbers describe.
+  day             DateTime @db.Date
+  followers       Int?
+  reach           Int?
+  profileViews    Int?     @map("profile_views")
+  raw             Json
+  mappingVersion  Int      @map("mapping_version")
+  capturedAt      DateTime @map("captured_at") @db.Timestamptz(3)
+
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([socialAccountId, day])
+  @@index([workspaceId, day])
+  @@map("account_metric_snapshot")
+}
+
+// The rollup per account and day in the time zone of the workspace (guide step 5.3): what the
+// post counters grew between consecutive snapshots, the posts published that day and the daily
+// numbers of the account. postReach adds up the reach of single posts, which overlaps; the
+// dashboard names it so and prefers the reach of the account.
+model AnalyticsDaily {
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  socialAccountId String   @map("social_account_id") @db.Uuid
+  platform        Platform
+  day             DateTime @db.Date
+  impressions     Int?
+  postReach       Int?     @map("post_reach")
+  views           Int?
+  likes           Int?
+  comments        Int?
+  shares          Int?
+  clicks          Int?
+  saves           Int?
+  engagements     Int?
+  postsPublished  Int      @default(0) @map("posts_published")
+  followers       Int?
+  accountReach    Int?     @map("account_reach")
+  profileViews    Int?     @map("profile_views")
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@id([socialAccountId, day])
+  @@index([workspaceId, day])
+  @@map("analytics_daily")
 }
