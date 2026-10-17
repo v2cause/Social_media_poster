@@ -2,6 +2,7 @@ import deAccount from '../../messages/de/account.json';
 import deAccounts from '../../messages/de/accounts.json';
 import deAuth from '../../messages/de/auth.json';
 import deBrand from '../../messages/de/brand.json';
+import deCalendar from '../../messages/de/calendar.json';
 import deCommon from '../../messages/de/common.json';
 import deComposer from '../../messages/de/composer.json';
 import deErrors from '../../messages/de/errors.json';
@@ -15,6 +16,7 @@ import enAccount from '../../messages/en/account.json';
 import enAccounts from '../../messages/en/accounts.json';
 import enAuth from '../../messages/en/auth.json';
 import enBrand from '../../messages/en/brand.json';
+import enCalendar from '../../messages/en/calendar.json';
 import enCommon from '../../messages/en/common.json';
 import enComposer from '../../messages/en/composer.json';
 import enErrors from '../../messages/en/errors.json';
@@ -38,6 +40,7 @@ const MESSAGES = {
     accounts: deAccounts,
     composer: deComposer,
     posts: dePosts,
+    calendar: deCalendar,
     ideas: deIdeas,
     media: deMedia,
     notifications: deNotifications,
@@ -53,6 +56,7 @@ const MESSAGES = {
     accounts: enAccounts,
     composer: enComposer,
     posts: enPosts,
+    calendar: enCalendar,
     ideas: enIdeas,
     media: enMedia,
     notifications: enNotifications,

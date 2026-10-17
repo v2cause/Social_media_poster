@@ -1,0 +1,40 @@
+{
+  "title": "Calendar",
+  "description": "Scheduled and published variants. Drag a scheduled variant to another day to reschedule it.",
+  "views": {
+    "label": "View",
+    "month": "Month",
+    "week": "Week",
+    "list": "List"
+  },
+  "previous": "Previous period",
+  "next": "Next period",
+  "today": "Today",
+  "timeZone": {
+    "label": "Time zone",
+    "workspace": "Workspace ({zone})",
+    "own": "Own ({zone})"
+  },
+  "empty": "Nothing is scheduled in this period.",
+  "more": "{count, plural, one {# more} other {# more}}",
+  "noText": "No text",
+  "event": "{time}, {platform}: {preview}, {status}",
+  "reschedule": {
+    "action": "Reschedule {preview}",
+    "title": "Reschedule",
+    "description": "The new time in the time zone {zone}.",
+    "date": "Date",
+    "time": "Time",
+    "confirm": "Reschedule",
+    "done": "Rescheduled to {time}.",
+    "past": "The new time lies in the past.",
+    "failed": "Rescheduling failed: {reason}"
+  },
+  "drag": {
+    "hint": "Drag to another day with the mouse; with the keyboard use the Reschedule button.",
+    "start": "Picked up {preview}.",
+    "over": "Over {day}.",
+    "end": "Dropped {preview} on {day}.",
+    "cancel": "Moving canceled."
+  }
+}

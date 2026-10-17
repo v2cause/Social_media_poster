@@ -1,0 +1,40 @@
+{
+  "title": "Kalender",
+  "description": "Geplante und veröffentlichte Varianten. Ziehen Sie eine geplante Variante auf einen anderen Tag, um sie umzuplanen.",
+  "views": {
+    "label": "Ansicht",
+    "month": "Monat",
+    "week": "Woche",
+    "list": "Liste"
+  },
+  "previous": "Vorheriger Zeitraum",
+  "next": "Nächster Zeitraum",
+  "today": "Heute",
+  "timeZone": {
+    "label": "Zeitzone",
+    "workspace": "Workspace ({zone})",
+    "own": "Eigene ({zone})"
+  },
+  "empty": "In diesem Zeitraum ist nichts geplant.",
+  "more": "{count, plural, one {# weitere} other {# weitere}}",
+  "noText": "Ohne Text",
+  "event": "{time}, {platform}: {preview}, {status}",
+  "reschedule": {
+    "action": "{preview} umplanen",
+    "title": "Umplanen",
+    "description": "Der neue Zeitpunkt in der Zeitzone {zone}.",
+    "date": "Datum",
+    "time": "Uhrzeit",
+    "confirm": "Umplanen",
+    "done": "Umgeplant auf {time}.",
+    "past": "Der neue Zeitpunkt liegt in der Vergangenheit.",
+    "failed": "Das Umplanen ist fehlgeschlagen: {reason}"
+  },
+  "drag": {
+    "hint": "Mit der Maus auf einen anderen Tag ziehen; mit der Tastatur über die Schaltfläche Umplanen.",
+    "start": "{preview} aufgenommen.",
+    "over": "Über {day}.",
+    "end": "{preview} auf {day} abgelegt.",
+    "cancel": "Verschieben abgebrochen."
+  }
+}
