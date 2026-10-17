@@ -37,6 +37,14 @@ function idsOf(event: Stripe.Event): { subscriptionId: string | null; customerId
   }
 }
 
+/** What billing keeps of an event of Stripe: its ids, never the customer data of its payload. */
+export const billingEventOf = (event: Stripe.Event): BillingWebhookEvent => ({
+  id: event.id,
+  type: event.type,
+  createdAt: new Date(event.created * 1000),
+  ...idsOf(event),
+});
+
 export class StripeWebhookVerifier implements BillingWebhookVerifier {
   constructor(
     private readonly stripe: Stripe,
@@ -50,6 +58,6 @@ export class StripeWebhookVerifier implements BillingWebhookVerifier {
     } catch {
       throw new WebhookSignatureInvalidError();
     }
-    return { id: event.id, type: event.type, createdAt: new Date(event.created * 1000), ...idsOf(event) };
+    return billingEventOf(event);
   }
 }

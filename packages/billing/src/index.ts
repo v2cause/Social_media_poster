@@ -18,4 +18,4 @@ export {
 } from './stripe-client';
 export { PORTAL_CONFIGURATION_MARK, StripeBillingGateway, statusOf } from './stripe-gateway';
 export { syncCatalog, type SyncOptions, type SyncReport } from './sync-catalog';
-export { StripeWebhookVerifier } from './webhook-verifier';
+export { billingEventOf, StripeWebhookVerifier } from './webhook-verifier';

@@ -25,7 +25,7 @@
     "test:integration": {
       "dependsOn": ["^build"],
       "cache": false,
-      "passThroughEnv": ["PLAYWRIGHT_CHROMIUM_EXECUTABLE"]
+      "passThroughEnv": ["PLAYWRIGHT_CHROMIUM_EXECUTABLE", "STRIPE_TEST_CLOCK_SECRET_KEY"]
     },
     "test:e2e": {
       "cache": false,
