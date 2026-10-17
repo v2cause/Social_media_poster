@@ -102,5 +102,20 @@ export async function seedDemoData(prisma: PrismaClient, password: string): Prom
     });
   }
 
+  // The demo organization is on the largest plan, without Stripe, so every feature can be tried
+  // (guide step 7.1); an organization created in the app starts with the trial instead.
+  const agency = {
+    planKey: 'agency',
+    status: 'ACTIVE',
+    trialEndsAt: null,
+    readOnlyAt: null,
+    pastDueSince: null,
+  } as const;
+  await prisma.subscription.upsert({
+    where: { organizationId: workspace.organizationId },
+    create: { organizationId: workspace.organizationId, ...agency },
+    update: agency,
+  });
+
   return { organizationId: workspace.organizationId, workspaceId: workspace.id, userIds };
 }

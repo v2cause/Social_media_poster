@@ -72,6 +72,9 @@ describe('demo seed', () => {
     await seedDemoData(client(), 'test-seed-password');
 
     expect(await client().organization.count()).toBe(1);
+    expect(await client().subscription.findMany({ select: { planKey: true, status: true } })).toEqual([
+      { planKey: 'agency', status: 'ACTIVE' },
+    ]);
     expect(await client().user.count()).toBe(DEMO_USERS.length + 1);
     expect(await client().membership.count()).toBe(DEMO_USERS.length);
     expect(await client().account.count()).toBe(DEMO_USERS.length + 1);

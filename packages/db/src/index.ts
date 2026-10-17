@@ -52,6 +52,7 @@ export {
   type MediaThumbnailView,
 } from './media/media-read-model';
 export { PrismaQuotaStore } from './usage/prisma-quota-store';
+export { PrismaSubscriptionReader, toPlan, toSubscription } from './billing/prisma-subscriptions';
 export { PrismaSealedSecretStore } from './channels/prisma-sealed-secret-store';
 export { PrismaChannelUnitOfWork } from './channels/prisma-channel-unit-of-work';
 export { createPrismaChannelStore } from './channels/prisma-channel-store';

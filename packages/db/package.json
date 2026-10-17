@@ -45,6 +45,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "@smp/contracts": "workspace:*",
     "@smp/core": "workspace:*",
     "uuidv7": "^1.2.1",
     "zod": "^4.6.7"

@@ -153,6 +153,7 @@ model Organization {
   usageCounters        UsageCounter[]
   usageRecords         UsageRecord[]
   apiCostRecords       ApiCostRecord[]
+  subscription         Subscription?
 
   @@map("organization")
 }
@@ -689,7 +690,9 @@ model UsageRecord {
   sourceId           String    @map("source_id") @db.Uuid
   quantity           BigInt
   periodStart        DateTime  @map("period_start") @db.Date
-  // Set by the billing job of phase 7 after reporting to Stripe.
+  // The meter event of the daily report that carries the record (guide step 7.3).
+  stripeReportId     String?   @map("stripe_report_id")
+  // Set by the billing job after Stripe took the meter event.
   reportedToStripeAt DateTime? @map("reported_to_stripe_at") @db.Timestamptz(3)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -1021,19 +1024,22 @@ model WebhookEvent {
 // The cost of a paid platform call (X) in micro-USD, booked once per source and operation like
 // the usage ledger. The accounts page shows it per workspace; the spend cap adds it up.
 model ApiCostRecord {
-  id              String   @id @default(uuid(7)) @db.Uuid
-  organizationId  String   @map("organization_id") @db.Uuid
-  workspaceId     String?  @map("workspace_id") @db.Uuid
-  socialAccountId String?  @map("social_account_id") @db.Uuid
-  platform        Platform
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  workspaceId        String?   @map("workspace_id") @db.Uuid
+  socialAccountId    String?   @map("social_account_id") @db.Uuid
+  platform           Platform
   // The price key, for example x.post_create or x.media_upload.
-  operation       String
-  units           Int      @default(1)
-  costMicros      BigInt   @map("cost_micros")
+  operation          String
+  units              Int       @default(1)
+  costMicros         BigInt    @map("cost_micros")
   // For example publish_attempt with its id.
-  sourceType      String   @map("source_type")
-  sourceId        String   @map("source_id") @db.Uuid
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  sourceType         String    @map("source_type")
+  sourceId           String    @map("source_id") @db.Uuid
+  // The meter event of the daily report that passes the cost on (guide step 7.3).
+  stripeReportId     String?   @map("stripe_report_id")
+  reportedToStripeAt DateTime? @map("reported_to_stripe_at") @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   workspace     Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
@@ -1167,4 +1173,73 @@ model AnalyticsDaily {
   @@id([socialAccountId, day])
   @@index([workspaceId, day])
   @@map("analytics_daily")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Billing (guide steps 7.1 to 7.3, architecture 6.2, ADR 0033): the plans of the price list and
+// the subscription of every organization. Stripe owns the state of a paid subscription; the role
+// "billing" copies it after every webhook.
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAUSED
+}
+
+// A plan of the price list. Reference data from a migration, like the price book: the limits are
+// JSON that @smp/contracts checks wherever it is read; the price lives in Stripe under the lookup
+// key.
+model Plan {
+  key            String   @id
+  limits         Json
+  // The lookup key of its monthly price in Stripe; null for the trial.
+  priceLookupKey String?  @unique @map("price_lookup_key")
+  // The order of the price list.
+  position       Int
+  // A retired plan keeps its subscriptions, but nobody buys it anymore.
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  subscriptions Subscription[]
+
+  @@map("plan")
+}
+
+// The subscription of an organization: one per organization, from its start with the trial.
+model Subscription {
+  id                   String             @id @default(uuid(7)) @db.Uuid
+  organizationId       String             @unique @map("organization_id") @db.Uuid
+  planKey              String             @map("plan_key")
+  status               SubscriptionStatus
+  // Single limits the operators set on top of the plan (LimitOverrides of @smp/contracts).
+  limitOverrides       Json?              @map("limit_overrides")
+  trialEndsAt          DateTime?          @map("trial_ends_at") @db.Timestamptz(3)
+  stripeCustomerId     String?            @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
+  currentPeriodStart   DateTime?          @map("current_period_start") @db.Timestamptz(3)
+  currentPeriodEnd     DateTime?          @map("current_period_end") @db.Timestamptz(3)
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  // Since when a payment is overdue; the grace period counts from here.
+  pastDueSince         DateTime?          @map("past_due_since") @db.Timestamptz(3)
+  // From when the organization is read-only; in the future while a trial or grace period runs.
+  readOnlyAt           DateTime?          @map("read_only_at") @db.Timestamptz(3)
+  // When the owners heard that the organization is read-only, so they hear it once.
+  readOnlyNotifiedAt   DateTime?          @map("read_only_notified_at") @db.Timestamptz(3)
+  // The start of the paid subscription; usage before it is not billed.
+  billingStartedAt     DateTime?          @map("billing_started_at") @db.Timestamptz(3)
+  // When the state was last copied from Stripe.
+  syncedAt             DateTime?          @map("synced_at") @db.Timestamptz(3)
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planKey], references: [key])
+
+  @@index([readOnlyAt])
+  @@map("subscription")
 }
