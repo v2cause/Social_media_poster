@@ -426,6 +426,7 @@ function DayCell(props: {
   return (
     <div
       ref={setNodeRef}
+      data-day={props.day}
       className={cn(
         'flex flex-col gap-1 border-b border-r border-border p-1',
         props.tall ? 'min-h-72' : 'min-h-28',

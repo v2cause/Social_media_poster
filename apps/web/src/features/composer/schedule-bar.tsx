@@ -225,9 +225,11 @@ export function ScheduleBar(props: {
   const timeValid = shared.date !== '' && shared.time !== '';
 
   return (
-    <Card>
+    <Card role="region" aria-labelledby="schedule-title">
       <CardHeader>
-        <CardTitle className="text-base">{t('title')}</CardTitle>
+        <CardTitle id="schedule-title" className="text-base">
+          {t('title')}
+        </CardTitle>
         <CardDescription>{t('description')}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
