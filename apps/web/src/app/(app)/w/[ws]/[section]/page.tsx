@@ -5,7 +5,6 @@ import { getTranslations } from 'next-intl/server';
 // Sections of the navigation that arrive with later phases. Each one gets its own route then,
 // which takes precedence over this placeholder.
 const UPCOMING = {
-  analytics: 'analytics',
   settings: 'settings',
 } as const;
 
