@@ -1,0 +1,77 @@
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Inject } from '@nestjs/common';
+import { parseXbReport, XB_REPORT, XB_RESULTS_QUEUE, type XbReport } from '@smp/x-browser';
+import { type Job, UnrecoverableError } from 'bullmq';
+import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
+
+import type { PublishPipeline } from '../infrastructure/publisher.providers';
+import { jobsTotal } from '../metrics';
+import { PUBLISH_PIPELINE } from '../worker.tokens';
+
+/**
+ * The reports of the browser worker on xb-results, in the role "publisher" (guide step 6.2): a new
+ * session replaces the sealed one of its connection, a drift and the canary go to the logs (the
+ * circuit breaker counts them, guide step 6.5). Logs carry ids and selectors, never sessions.
+ */
+@Processor(XB_RESULTS_QUEUE, { concurrency: 4 })
+export class XbResultsProcessor extends WorkerHost {
+  constructor(
+    @Inject(PUBLISH_PIPELINE) private readonly pipeline: PublishPipeline,
+    @InjectPinoLogger(XbResultsProcessor.name) private readonly logger: PinoLogger,
+  ) {
+    super();
+  }
+
+  async process(job: Job): Promise<string> {
+    if (job.name !== XB_REPORT) {
+      throw new UnrecoverableError(`unknown job ${job.name}`);
+    }
+    let report: XbReport;
+    try {
+      report = parseXbReport(job.data);
+    } catch {
+      this.logger.error({ jobId: job.id }, 'xb.report_invalid');
+      jobsTotal.inc({ queue: XB_RESULTS_QUEUE, status: 'invalid' });
+      throw new UnrecoverableError('invalid xb.result payload');
+    }
+    const outcome = await this.handle(report);
+    jobsTotal.inc({ queue: XB_RESULTS_QUEUE, status: 'completed' });
+    return outcome;
+  }
+
+  private async handle(report: XbReport): Promise<string> {
+    switch (report.kind) {
+      case 'session.updated': {
+        const stored = await this.pipeline.browserSessions.execute({
+          organizationId: report.organizationId,
+          workspaceId: report.workspaceId,
+          connectionId: report.connectionId,
+          externalUserId: report.externalUserId,
+          sessionSealed: Buffer.from(report.session, 'base64'),
+        });
+        this.logger.info({ connectionId: report.connectionId, stored }, 'xb.session_stored');
+        return stored ? 'session_stored' : 'session_without_connection';
+      }
+      case 'drift':
+        this.logger.warn(
+          { flow: report.flow, selector: report.selector, selectorsVersion: report.selectorsVersion },
+          'xb.drift',
+        );
+        return 'drift';
+      case 'canary':
+        if (report.ok) {
+          this.logger.info({ selectorsVersion: report.selectorsVersion }, 'xb.canary_passed');
+        } else {
+          this.logger.warn(
+            { missing: report.missing, selectorsVersion: report.selectorsVersion },
+            'xb.canary_failed',
+          );
+        }
+        return 'canary';
+      default:
+        // The steps of the interactive login (guide step 6.4).
+        this.logger.warn({ kind: report.kind }, 'xb.report_unhandled');
+        return 'unhandled';
+    }
+  }
+}

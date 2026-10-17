@@ -20,6 +20,7 @@ import Redis from 'ioredis';
 
 import type { WorkerEnv } from '../worker-env';
 import { ANALYTICS_PIPELINE } from '../worker.tokens';
+import { xBrowserWiring, type XBrowserWiring } from './x-browser.providers';
 
 // The adapters of the role "analytics" (guide step 5.2): the database as app_user in the tenant
 // of each job, the token keyring, the platform adapters of PLATFORM_MODE_* (the mock platforms
@@ -40,6 +41,7 @@ interface AnalyticsClients {
   redis: Redis;
   rollupQueue: Queue;
   producers: Redis;
+  xBrowser: XBrowserWiring;
 }
 
 const ANALYTICS_CLIENTS = Symbol('ANALYTICS_CLIENTS');
@@ -49,6 +51,7 @@ class AnalyticsClientsLifecycle implements OnApplicationShutdown {
   constructor(@Inject(ANALYTICS_CLIENTS) private readonly clients: AnalyticsClients) {}
 
   async onApplicationShutdown(): Promise<void> {
+    await this.clients.xBrowser.close();
     await this.clients.rollupQueue.close();
     // A queue leaves a connection it was given open.
     this.clients.producers.disconnect();
@@ -64,9 +67,11 @@ export function analyticsPipeline(env: WorkerEnv): Provider[] {
   const database = createPrismaClient(env.DATABASE_URL);
   // Locks and the mock platforms; a command fails instead of waiting while Redis is away.
   const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1 });
+  const xBrowser = xBrowserWiring(env, database);
   const registry = createAdapterRegistry({
     env,
     mock: { store: new RedisMockPlatformStore(redis), clock: systemClock },
+    ...(xBrowser.browser ? { browser: xBrowser.browser } : {}),
   });
   const adapters: AdapterResolver = {
     resolve: async (account) => {
@@ -107,7 +112,7 @@ export function analyticsPipeline(env: WorkerEnv): Provider[] {
   return [
     {
       provide: ANALYTICS_CLIENTS,
-      useValue: { database, redis, rollupQueue, producers } satisfies AnalyticsClients,
+      useValue: { database, redis, rollupQueue, producers, xBrowser } satisfies AnalyticsClients,
     },
     AnalyticsClientsLifecycle,
     { provide: ANALYTICS_PIPELINE, useValue: pipeline },

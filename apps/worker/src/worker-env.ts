@@ -4,6 +4,8 @@ import { observabilityEnvSchema } from '@smp/observability';
 import { platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
+const unsetIfEmpty = (value: unknown): unknown => (value === '' ? undefined : value);
+
 export const workerEnvSchema = z
   .object({
     WORKER_ROLES: z.string().min(1),
@@ -30,6 +32,9 @@ export const workerEnvSchema = z
     // Speeds the polling cascade of the post metrics up for time-lapse tests: 60 turns an hour
     // into a minute (architecture 16). Read by the roles "publisher" and "analytics".
     ANALYTICS_CADENCE_SCALE: z.coerce.number().int().min(1).max(3_600).default(1),
+    // The deployment runs the browser worker: the roles "publisher" and "analytics" then reach X
+    // without the API through xb-commands, where the gate of the workspace allows it (phase 6).
+    FEATURE_X_BROWSER_GLOBAL: z.preprocess(unsetIfEmpty, z.stringbool().default(false)),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true }).shape)
   // Needed by the role "scheduler" for its scans across workspaces (app_system).

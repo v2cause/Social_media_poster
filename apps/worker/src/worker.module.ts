@@ -20,6 +20,7 @@ import {
   SCHEDULER_QUEUE,
   TOKENS_QUEUE,
 } from '@smp/queue';
+import { XB_RESULTS_QUEUE } from '@smp/x-browser';
 import Redis from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 
@@ -33,6 +34,7 @@ import { MediaProcessor } from './processors/media.processor';
 import { NotifyProcessor } from './processors/notify.processor';
 import { SchedulerProcessor } from './processors/scheduler.processor';
 import { TokenRefreshProcessor } from './processors/token-refresh.processor';
+import { XbResultsProcessor } from './processors/xb-results.processor';
 import { PublishWorker } from './publisher/publish-worker';
 import type { WorkerRole } from './roles';
 import type { WorkerEnv } from './worker-env';
@@ -104,9 +106,10 @@ function mediaPipeline(env: WorkerEnv): Provider[] {
 const WIRING_BY_ROLE: Partial<Record<WorkerRole, RoleWiring>> = {
   scheduler: { queues: [SCHEDULER_QUEUE], processors: [SchedulerProcessor], providers: schedulerTicks },
   // token.refresh shares the adapters and the lock of a connection with the publish job.
+  // The reports of the browser worker belong to the publisher, which stores their sessions.
   publisher: {
-    queues: [PUBLISH_QUEUE, TOKENS_QUEUE],
-    processors: [PublishWorker, TokenRefreshProcessor],
+    queues: [PUBLISH_QUEUE, TOKENS_QUEUE, XB_RESULTS_QUEUE],
+    processors: [PublishWorker, TokenRefreshProcessor, XbResultsProcessor],
     providers: publisherPipeline,
   },
   analytics: { queues: [ANALYTICS_QUEUE], processors: [AnalyticsProcessor], providers: analyticsPipeline },

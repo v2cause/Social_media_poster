@@ -406,6 +406,9 @@ importers:
       '@nestjs/core':
         specifier: ^11.2.7
         version: 11.2.7(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.2.7)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@smp/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@smp/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -430,6 +433,9 @@ importers:
       '@smp/queue':
         specifier: workspace:*
         version: link:../../packages/queue
+      '@smp/x-browser':
+        specifier: workspace:*
+        version: link:../../packages/x-browser
       bullmq:
         specifier: ^5.81.5
         version: 5.81.5

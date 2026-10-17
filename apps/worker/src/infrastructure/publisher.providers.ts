@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import {
+  StoreBrowserSession,
   systemClock,
   uuidV7Ids,
   type AdapterResolver,
@@ -14,6 +15,7 @@ import {
   createPrismaClient,
   PrismaPublishJobUnitOfWork,
   PrismaTokenMaintenanceUnitOfWork,
+  PrismaXBrowserUnitOfWork,
   type PrismaClient,
 } from '@smp/db';
 import { S3Storage, storageConfigOf } from '@smp/media';
@@ -29,6 +31,7 @@ import Redis from 'ioredis';
 
 import type { WorkerEnv } from '../worker-env';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
+import { xBrowserWiring, type XBrowserWiring } from './x-browser.providers';
 
 // The adapters of the role "publisher" (guide steps 4.8 and 4.9): the database as app_user in
 // the tenant of each job, the token keyring, the platform adapters of PLATFORM_MODE_* (the mock
@@ -49,6 +52,8 @@ export interface PublishPipeline {
   workerConnection: Redis;
   /** Copies of the jobs that failed for good (architecture 7.1). */
   deadLetters: PublishDeadLetters;
+  /** The sessions the browser worker reports on xb-results (guide step 6.2). */
+  browserSessions: StoreBrowserSession;
 }
 
 /** The connections of the publisher, closed when the worker shuts down. */
@@ -59,6 +64,7 @@ interface PublisherClients {
   workerConnection: Redis;
   deadLetterQueue: Queue;
   deadLetterConnection: Redis;
+  xBrowser: XBrowserWiring;
 }
 
 const PUBLISHER_CLIENTS = Symbol('PUBLISHER_CLIENTS');
@@ -70,6 +76,7 @@ class PublisherClientsLifecycle implements OnApplicationShutdown {
   // The publish worker stops earlier, in onModuleDestroy, so no run uses these any more.
   async onApplicationShutdown(): Promise<void> {
     this.clients.storage.destroy();
+    await this.clients.xBrowser.close();
     await this.clients.deadLetterQueue.close();
     this.clients.deadLetterConnection.disconnect();
     this.clients.workerConnection.disconnect();
@@ -109,10 +116,12 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
     enableOfflineQueue: false,
   });
   const deadLetterQueue = new Queue(PUBLISH_DEAD_LETTER_QUEUE, { connection: deadLetterConnection });
+  const xBrowser = xBrowserWiring(env, database);
   // Fails at the start when a platform is live without its adapter.
   const registry = createAdapterRegistry({
     env,
     mock: { store: new RedisMockPlatformStore(redis), clock: systemClock },
+    ...(xBrowser.browser ? { browser: xBrowser.browser } : {}),
   });
   const adapters: AdapterResolver = {
     resolve: async (account) => {
@@ -158,6 +167,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
     },
     workerConnection,
     deadLetters: new PublishDeadLetters(deadLetterQueue),
+    browserSessions: new StoreBrowserSession({ unitOfWork: new PrismaXBrowserUnitOfWork(database) }),
   };
   return [
     {
@@ -169,6 +179,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
         workerConnection,
         deadLetterQueue,
         deadLetterConnection,
+        xBrowser,
       } satisfies PublisherClients,
     },
     PublisherClientsLifecycle,
