@@ -3,7 +3,13 @@ import { randomUUID } from 'node:crypto';
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createSystemPrismaClient, PrismaPlanUsage, type SystemPrismaClient } from '../src';
+import {
+  createPrismaClient,
+  createSystemPrismaClient,
+  PrismaApiCostReader,
+  PrismaPlanUsage,
+  type SystemPrismaClient,
+} from '../src';
 
 // Guide step 7.4 on PostgreSQL: what an organization uses of its plan across all its workspaces,
 // and nothing of another organization.
@@ -127,5 +133,19 @@ describe('plan usage on PostgreSQL', () => {
     await expect(usage().storageBytes(org)).resolves.toBe(3_000);
     await expect(usage().xApiSpendMicros(org, new Date('2026-10-15T00:00:00Z'))).resolves.toBe(20_000);
     await expect(usage().xApiSpendMicros(org, new Date('2026-09-15T00:00:00Z'))).resolves.toBe(15_000);
+  });
+
+  it('gives the workers the X costs of the month as app_user, in the tenant only', async () => {
+    if (!database) {
+      throw new Error('not started');
+    }
+    const app = createPrismaClient(database.url('app_user'));
+    try {
+      const reader = new PrismaApiCostReader(app);
+      await expect(reader.xApiSpendMicros(org, new Date('2026-10-15T00:00:00Z'))).resolves.toBe(20_000);
+      await expect(reader.xApiSpendMicros(other, new Date('2026-10-15T00:00:00Z'))).resolves.toBe(15_000);
+    } finally {
+      await app.$disconnect();
+    }
   });
 });

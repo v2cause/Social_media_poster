@@ -24,7 +24,6 @@ import {
 } from '@smp/db';
 import { S3Storage, storageConfigOf } from '@smp/media';
 import {
-  AdapterNotAvailableError,
   createAdapterRegistry,
   operationPriceMicros,
   RedisBrowserLoginStore,
@@ -42,6 +41,7 @@ import Redis from 'ioredis';
 
 import type { WorkerEnv } from '../worker-env';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
+import { spendCappedResolver } from './spend-cap';
 import {
   xBrowserBreakerOf,
   xBrowserWiring,
@@ -146,18 +146,8 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
     mock: { store: new RedisMockPlatformStore(redis), clock: systemClock },
     ...(xBrowser.browser ? { browser: xBrowser.browser } : {}),
   });
-  const adapters: AdapterResolver = {
-    resolve: async (account) => {
-      try {
-        return await registry.resolve(account);
-      } catch (error) {
-        if (error instanceof AdapterNotAvailableError) {
-          return null;
-        }
-        throw error;
-      }
-    },
-  };
+  // The X API stays within the spending cap of the plan (guide step 7.4).
+  const adapters: AdapterResolver = spendCappedResolver(registry, database);
 
   const locks: ConnectionLock = {
     withConnectionLock: (connectionId, work) =>

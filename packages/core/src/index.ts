@@ -859,11 +859,13 @@ export {
   planMediaLimits,
   planPostLimits,
   planQuotaLimits,
+  planXSpendCap,
   unlimitedAccounts,
   unlimitedPosts,
   type AccountLimits,
   type PlanEntitlements,
   type PostLimits,
+  type XSpendCap,
 } from './billing/application/plan-limits';
 export {
   ReportUsage,

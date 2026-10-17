@@ -1,5 +1,7 @@
 import type { AnalyticsHistory } from '../../analytics/application/analytics-period';
+import { PlatformError } from '../../channels/domain/platform-error';
 import type { MediaLimits } from '../../media/application/dependencies';
+import type { Clock } from '../../shared/ports/clock';
 import type { QuotaLimits } from '../../usage/ports/quota-store';
 import { assertWithinLimit } from '../domain/limits';
 import { aiCapMicros } from '../domain/plan';
@@ -7,8 +9,8 @@ import type { PlanUsage } from '../ports/plan-usage';
 import type { EntitlementsService } from './entitlements';
 
 // The limits of the plan where the other modules check them (guide step 7.4, ADR 0035): the AI
-// quota, the analytics history, the storage, the posts per month and the connected accounts, read
-// from the subscription of the organization through the entitlements.
+// quota, the analytics history, the storage, the posts per month, the connected accounts and the
+// X API costs, read from the subscription of the organization through the entitlements.
 
 export type PlanEntitlements = Pick<EntitlementsService, 'of'>;
 
@@ -77,3 +79,34 @@ export const planAccountLimits = (
 
 /** No limit: for tests that connect accounts without a subscription. */
 export const unlimitedAccounts: AccountLimits = { assertRoom: () => Promise.resolve() };
+
+/** The X API costs the plan of an organization allows per calendar month (UTC). */
+export interface XSpendCap {
+  /**
+   * Throws PlatformError SPEND_CAP_REACHED when a call that costs this much would pass the cap of
+   * the month; nothing is sent then.
+   */
+  assertRoom(organizationId: string, costMicros: number): Promise<void>;
+}
+
+export const planXSpendCap = (
+  entitlements: PlanEntitlements,
+  usage: Pick<PlanUsage, 'xApiSpendMicros'>,
+  clock: Clock,
+): XSpendCap => ({
+  async assertRoom(organizationId, costMicros) {
+    if (costMicros <= 0) {
+      return;
+    }
+    const [{ limits }, spent] = await Promise.all([
+      entitlements.of(organizationId),
+      usage.xApiSpendMicros(organizationId, clock.now()),
+    ]);
+    if (spent + costMicros > limits.xApiSpendCapMicros) {
+      throw new PlatformError(
+        'SPEND_CAP_REACHED',
+        'The X API costs of this month reached the cap of the plan.',
+      );
+    }
+  },
+});

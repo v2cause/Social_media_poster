@@ -31,6 +31,7 @@ export {
   type PlatformMode,
 } from './env';
 export { operationPriceMicros, PLATFORM_OPERATION_PRICES_MICROS } from './prices';
+export { isSpendCapped, spendCappedAdapter } from './spend-capped-adapter';
 export { PLATFORM_SCOPES } from './scopes';
 export {
   decodeMockCode,

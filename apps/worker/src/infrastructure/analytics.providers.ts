@@ -8,18 +8,14 @@ import {
 } from '@smp/core';
 import { sealerFromEnv } from '@smp/crypto';
 import { createPrismaClient, PrismaAnalyticsUnitOfWork, type PrismaClient } from '@smp/db';
-import {
-  AdapterNotAvailableError,
-  createAdapterRegistry,
-  operationPriceMicros,
-  RedisMockPlatformStore,
-} from '@smp/platform-adapters';
+import { createAdapterRegistry, operationPriceMicros, RedisMockPlatformStore } from '@smp/platform-adapters';
 import { ANALYTICS_QUEUE, AnalyticsProducer, withLock } from '@smp/queue';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
 import type { WorkerEnv } from '../worker-env';
 import { ANALYTICS_PIPELINE } from '../worker.tokens';
+import { spendCappedResolver } from './spend-cap';
 import { xBrowserWiring, type XBrowserWiring } from './x-browser.providers';
 
 // The adapters of the role "analytics" (guide step 5.2): the database as app_user in the tenant
@@ -73,18 +69,8 @@ export function analyticsPipeline(env: WorkerEnv): Provider[] {
     mock: { store: new RedisMockPlatformStore(redis), clock: systemClock },
     ...(xBrowser.browser ? { browser: xBrowser.browser } : {}),
   });
-  const adapters: AdapterResolver = {
-    resolve: async (account) => {
-      try {
-        return await registry.resolve(account);
-      } catch (error) {
-        if (error instanceof AdapterNotAvailableError) {
-          return null;
-        }
-        throw error;
-      }
-    },
-  };
+  // The X API stays within the spending cap of the plan (guide step 7.4).
+  const adapters: AdapterResolver = spendCappedResolver(registry, database);
   // The producer fails fast instead of queueing commands while Redis is away; the nightly
   // rollup fills the days of a lost request.
   const producers = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false });

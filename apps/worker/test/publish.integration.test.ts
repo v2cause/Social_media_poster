@@ -294,6 +294,61 @@ describe('the publisher role', () => {
     }
   });
 
+  it('sends no post to X beyond the spending cap of the plan (guide step 7.4)', async () => {
+    // Starter with 10 000 micro-USD of X API costs a month; a post costs 15 000.
+    await query(
+      `INSERT INTO subscription (id, organization_id, plan_key, status, limit_overrides, updated_at)
+       VALUES (gen_random_uuid(), $1, 'starter', 'ACTIVE', '{"xApiSpendCapMicros": 10000}', now())
+       ON CONFLICT (organization_id) DO UPDATE SET limit_overrides = EXCLUDED.limit_overrides`,
+      [org],
+    );
+    const connectionId = randomUUID();
+    const accountId = randomUUID();
+    const postId = randomUUID();
+    const variantId = randomUUID();
+    const token = await sealer.seal(
+      'mock-access',
+      connectionSecretAad(workspace, connectionId, 'access_token'),
+    );
+    await query(
+      `INSERT INTO social_connection (id, workspace_id, platform, method, external_user_id, display_name,
+                                      access_token_sealed, access_token_expires_at, updated_at)
+       VALUES ($1, $2, 'X', 'MOCK', $3, 'Mira', $4, now() + interval '30 days', now())`,
+      [connectionId, workspace, `mock-user-${connectionId}`, Buffer.from(token)],
+    );
+    await query(
+      `INSERT INTO social_account (id, workspace_id, connection_id, platform, type, external_id, name, updated_at)
+       VALUES ($1, $2, $3, 'X', 'PROFILE', $4, 'Mira', now())`,
+      [accountId, workspace, connectionId, `x-${accountId}`],
+    );
+    await query(
+      `INSERT INTO post (id, workspace_id, brief, language, updated_at) VALUES ($1, $2, 'Brief', 'de', now())`,
+      [postId, workspace],
+    );
+    await query(
+      `INSERT INTO post_variant (id, workspace_id, post_id, platform, target_key, text, social_account_id,
+                                 status, version, schedule_version, queued_at, updated_at)
+       VALUES ($1, $2, $3, 'X', 'tx', 'Kurz und knapp.', $4, 'QUEUED', 2, 1, now(), now())`,
+      [variantId, workspace, postId, accountId],
+    );
+    const worker = await startPublisher();
+    try {
+      await enqueue({ variantId, accountId });
+      await waitFor('the refused post', async () => (await statusOf(variantId)) === 'FAILED');
+
+      expect(await query('SELECT failure_code FROM post_variant WHERE id = $1', [variantId])).toEqual([
+        { failure_code: 'SPEND_CAP' },
+      ]);
+      expect(await calls('created', accountId)).toBe(0);
+      expect(await query('SELECT id FROM api_cost_record WHERE social_account_id = $1', [accountId])).toEqual(
+        [],
+      );
+    } finally {
+      await worker.close();
+      await query('DELETE FROM subscription WHERE organization_id = $1', [org]);
+    }
+  });
+
   it('posts once when the worker is stopped in the middle of the publish and started again', async () => {
     const slow = await seed({ failMode: 'slow' });
     await enqueue(slow);
