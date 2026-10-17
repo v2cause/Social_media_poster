@@ -1,6 +1,8 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, EmptyState } from '@smp/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@smp/ui';
 import { getTranslations } from 'next-intl/server';
 
+import { ConnectedAccounts } from '@/features/dashboard/connected-accounts';
+import { NextPosts } from '@/features/dashboard/next-posts';
 import { getWorkspaceContext } from '@/lib/server/api';
 
 export async function generateMetadata() {
@@ -8,7 +10,7 @@ export async function generateMetadata() {
   return { title: t('title') };
 }
 
-/** Phase 1 dashboard: welcome and the empty states of what the next phases fill. */
+/** The dashboard: welcome, the next planned posts with a countdown and the connected accounts. */
 export default async function DashboardPage({ params }: { params: Promise<{ ws: string }> }) {
   const { ws } = await params;
   const context = await getWorkspaceContext(ws);
@@ -32,7 +34,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ ws: 
             <CardDescription>{context.workspace.timezone}</CardDescription>
           </CardHeader>
           <CardContent>
-            <EmptyState title={t('dashboard.noPosts')} description={t('dashboard.noPostsHint')} />
+            <NextPosts ws={ws} timeZone={context.workspace.timezone} />
           </CardContent>
         </Card>
         <Card>
@@ -40,7 +42,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ ws: 
             <CardTitle>{t('dashboard.accounts')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <EmptyState title={t('dashboard.noAccounts')} description={t('dashboard.noAccountsHint')} />
+            <ConnectedAccounts ws={ws} />
           </CardContent>
         </Card>
       </div>

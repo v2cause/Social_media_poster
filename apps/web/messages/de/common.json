@@ -57,14 +57,21 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Willkommen in {workspace}",
-    "intro": "Hier sehen Sie bald Kennzahlen, Top-Posts und Ihre nächsten geplanten Beiträge.",
+    "intro": "Ihre nächsten geplanten Beiträge und die verbundenen Accounts. Kennzahlen folgen mit Analytics.",
     "nextPosts": "Nächste geplante Posts",
     "noPosts": "Noch keine Posts geplant.",
-    "noPostsHint": "Beiträge erstellen Sie unter \"Erstellen\"; das Planen folgt mit Phase 4.",
+    "noPostsHint": "Planen Sie einen Beitrag im Composer oder verschieben Sie ihn im Kalender.",
     "accounts": "Verbundene Accounts",
     "noAccounts": "Noch keine Accounts verbunden.",
     "noAccountsHint": "Verbinden Sie LinkedIn, Instagram, Facebook und X unter Accounts.",
-    "role": "Ihre Rolle: {role}"
+    "role": "Ihre Rolle: {role}",
+    "toCompose": "Beitrag erstellen",
+    "toCalendar": "Zum Kalender",
+    "toAccounts": "Zu den Accounts",
+    "countdown": {
+      "due": "jetzt fällig",
+      "clock": "in {minutes}:{seconds}"
+    }
   },
   "section": {
     "upcoming": "Dieser Bereich folgt",

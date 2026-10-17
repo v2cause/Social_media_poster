@@ -57,14 +57,21 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Welcome to {workspace}",
-    "intro": "Key figures, top posts and your next scheduled posts will appear here soon.",
+    "intro": "Your next scheduled posts and the connected accounts. Metrics follow with analytics.",
     "nextPosts": "Next scheduled posts",
     "noPosts": "No posts scheduled yet.",
-    "noPostsHint": "Create posts under \"Create\"; scheduling follows with phase 4.",
+    "noPostsHint": "Schedule a post in the composer or move it in the calendar.",
     "accounts": "Connected accounts",
     "noAccounts": "No accounts connected yet.",
     "noAccountsHint": "Connect LinkedIn, Instagram, Facebook and X under Accounts.",
-    "role": "Your role: {role}"
+    "role": "Your role: {role}",
+    "toCompose": "Create a post",
+    "toCalendar": "Go to the calendar",
+    "toAccounts": "Go to the accounts",
+    "countdown": {
+      "due": "due now",
+      "clock": "in {minutes}:{seconds}"
+    }
   },
   "section": {
     "upcoming": "Coming soon",
