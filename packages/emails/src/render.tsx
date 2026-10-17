@@ -72,6 +72,16 @@ export const emailTemplateSchema = z.discriminatedUnion('template', [
     missing: z.array(z.string().trim().min(1).max(100)).max(20),
     selectorsVersion: z.string().trim().min(1).max(20),
   }),
+  // To the owners of an organization (guide step 7.4); the link leads to its billing page.
+  z.object({
+    template: z.literal('billing-payment-failed'),
+    locale: localeSchema,
+    name,
+    url: httpUrl,
+    organizationName: z.string().trim().min(1).max(200),
+    graceEndsAt: z.iso.datetime(),
+    timeZone: timezoneSchema,
+  }),
 ]);
 
 export type EmailTemplateInput = z.input<typeof emailTemplateSchema>;
@@ -220,6 +230,27 @@ function compose(email: EmailTemplate): ActionEmailText {
         intro: [format(email.missing.length > 0 ? text.intro : text.introWithout, values)],
         action: text.action,
         notes: [text.next],
+      };
+    }
+    case 'billing-payment-failed': {
+      // The moment the organization becomes read-only, in the time zone of the owner.
+      const values = {
+        organization: email.organizationName,
+        date: new Intl.DateTimeFormat(email.locale, {
+          dateStyle: 'long',
+          timeStyle: 'short',
+          timeZone: email.timeZone,
+        }).format(new Date(email.graceEndsAt)),
+      };
+      const text = locale.billingPaymentFailed;
+      return {
+        ...base,
+        subject: format(text.subject, values),
+        preview: format(text.preview, values),
+        greeting,
+        intro: [format(text.intro, values), format(text.grace, values)],
+        action: text.action,
+        notes: [],
       };
     }
   }

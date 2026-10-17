@@ -66,6 +66,8 @@ export interface EmailMessages {
     next: string;
     action: string;
   };
+  /** To the owners of an organization (guide step 7.4). Placeholders: {organization}, {date}. */
+  billingPaymentFailed: { subject: string; preview: string; intro: string; grace: string; action: string };
 }
 
 export const messages: Record<Locale, EmailMessages> = {
@@ -176,6 +178,15 @@ export const messages: Record<Locale, EmailMessages> = {
       next: 'X ohne API läuft weiter. Drei Abweichungen innerhalb einer Stunde stoppen es automatisch.',
       action: 'Plattform-Administration öffnen',
     },
+    billingPaymentFailed: {
+      subject: 'Die Zahlung für {organization} ist fehlgeschlagen',
+      preview: 'Bitte prüfen Sie Ihre Zahlungsdaten bis {date}.',
+      intro:
+        'die letzte Zahlung für das Abonnement von {organization} ist fehlgeschlagen. Bitte prüfen Sie Ihre Zahlungsdaten unter Abrechnung.',
+      grace:
+        'Bis {date} können Sie wie gewohnt weiterarbeiten. Geht die Zahlung bis dahin nicht ein, kann {organization} nur noch lesen: Geplante Posts werden pausiert, und Neues lässt sich nicht mehr anlegen.',
+      action: 'Abrechnung öffnen',
+    },
   },
   en: {
     common: {
@@ -279,6 +290,15 @@ export const messages: Record<Locale, EmailMessages> = {
       introWithout: 'the daily canary failed without naming missing entries of the selector map {version}.',
       next: 'X without the API keeps running. Three drifts within an hour stop it automatically.',
       action: 'Open the platform admin page',
+    },
+    billingPaymentFailed: {
+      subject: 'The payment for {organization} failed',
+      preview: 'Please check your payment details by {date}.',
+      intro:
+        'the last payment for the subscription of {organization} failed. Please check your payment details under Billing.',
+      grace:
+        'Until {date} you can keep working as usual. If the payment has not arrived by then, {organization} becomes read-only: scheduled posts are paused, and nothing new can be created.',
+      action: 'Open billing',
     },
   },
 };

@@ -217,3 +217,30 @@ describe('the notification emails of guide step 4.9', () => {
     ).rejects.toThrow();
   });
 });
+
+describe('the billing emails of guide step 7.4', () => {
+  const failed = {
+    template: 'billing-payment-failed' as const,
+    url: 'http://localhost:3000/org/0192f000-0000-7000-8000-000000000001/billing',
+    organizationName: 'Acme GmbH',
+    graceEndsAt: '2026-10-24T12:00:00.000Z',
+  };
+
+  it('tells the owners until when the organization stays writable, in their time zone', async () => {
+    const de = await renderEmail({ ...failed, locale: 'de', name: 'Olga', timeZone: 'Europe/Berlin' });
+    const en = await renderEmail({ ...failed, locale: 'en', timeZone: 'America/New_York' });
+
+    expect(de.subject).toBe('Die Zahlung für Acme GmbH ist fehlgeschlagen');
+    expect(de.text).toContain('Hallo Olga,');
+    expect(de.text).toContain('Bis 24. Oktober 2026 um 14:00 können Sie wie gewohnt weiterarbeiten.');
+    expect(de.text).toContain('kann Acme GmbH nur noch lesen: Geplante Posts werden pausiert');
+    expect(de.text).toContain(failed.url);
+    expect(en.subject).toBe('The payment for Acme GmbH failed');
+    expect(en.text).toContain('Until October 24, 2026 at 8:00');
+    expect(en.text).toContain('Open billing');
+  });
+
+  it('rejects an unknown time zone', async () => {
+    await expect(renderEmail({ ...failed, locale: 'de', timeZone: 'Mars/Olympus' })).rejects.toThrow();
+  });
+});
