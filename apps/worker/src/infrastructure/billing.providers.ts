@@ -1,10 +1,11 @@
 import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import { createStripeClient, StripeBillingGateway } from '@smp/billing';
-import { ProcessStripeWebhook, systemClock, type BillingLock } from '@smp/core';
+import { ProcessStripeWebhook, ReportUsage, systemClock, type BillingLock } from '@smp/core';
 import {
   createSystemPrismaClient,
   PrismaBillingDirectory,
   PrismaSubscriptionSync,
+  PrismaUsageReportStore,
   PrismaWebhookInbox,
   type SystemPrismaClient,
 } from '@smp/db';
@@ -16,18 +17,20 @@ import type { WorkerEnv } from '../worker-env';
 import { BILLING_PIPELINE } from '../worker.tokens';
 import { EmailBillingNotifier } from './billing-notifier';
 
-// The adapters of the role "billing" (guide step 7.2, ADR 0034): Stripe, from which every webhook
-// reads the subscription again; the database as app_system, because Stripe names a customer, not
-// a tenant; the lock of a customer in Redis; and the queue of the role "notify" for the emails to
-// the owners, whose links lead into the web app at APP_URL.
+// The adapters of the role "billing" (guide steps 7.2 and 7.3, ADR 0034 and 0035): Stripe, from
+// which every webhook reads the subscription again and which takes the daily usage reports; the
+// database as app_system, because Stripe names a customer, not a tenant, and the reports run for
+// one organization after another; the locks of a customer and of a report in Redis; and the queue
+// of the role "notify" for the emails to the owners, whose links lead into the web app at APP_URL.
 
-/** How long the lock of a customer lasts, and how long a webhook waits for it. */
-const CUSTOMER_LOCK_TTL_MS = 60_000;
-const CUSTOMER_LOCK_WAIT_MS = 30_000;
+/** How long the lock of a customer or a report lasts, and how long a job waits for it. */
+const BILLING_LOCK_TTL_MS = 60_000;
+const BILLING_LOCK_WAIT_MS = 30_000;
 
 /** What the processor of the queue "billing" runs. */
 export interface BillingPipeline {
   webhooks: ProcessStripeWebhook;
+  usage: ReportUsage;
 }
 
 /** The connections of the role, closed when the worker shuts down. */
@@ -70,13 +73,14 @@ export function billingPipeline(env: WorkerEnv): Provider[] {
   });
   const lock: BillingLock = {
     run: (key, work) =>
-      withLock(redis, `lock:${key}`, CUSTOMER_LOCK_TTL_MS, () => work(), { waitMs: CUSTOMER_LOCK_WAIT_MS }),
+      withLock(redis, `lock:${key}`, BILLING_LOCK_TTL_MS, () => work(), { waitMs: BILLING_LOCK_WAIT_MS }),
   };
+  const gateway = new StripeBillingGateway(stripe);
   const sync = new PrismaSubscriptionSync(system);
   const pipeline: BillingPipeline = {
     webhooks: new ProcessStripeWebhook({
       inbox: new PrismaWebhookInbox(system),
-      gateway: new StripeBillingGateway(stripe),
+      gateway,
       subscriptions: sync,
       sync,
       lock,
@@ -87,6 +91,7 @@ export function billingPipeline(env: WorkerEnv): Provider[] {
       }),
       clock: systemClock,
     }),
+    usage: new ReportUsage({ store: new PrismaUsageReportStore(system), gateway, lock, clock: systemClock }),
   };
   return [
     { provide: BILLING_CLIENTS, useValue: { system, redis, notifications } satisfies BillingClients },

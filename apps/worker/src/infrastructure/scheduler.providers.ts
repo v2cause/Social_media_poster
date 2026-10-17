@@ -10,6 +10,7 @@ import {
   PrismaPublishScheduler,
   PrismaSealedSecretStore,
   PrismaTokenMaintenanceUnitOfWork,
+  PrismaUsageReportStore,
   PrismaXBrowserOperations,
   type PrismaClient,
   type SystemPrismaClient,
@@ -18,6 +19,8 @@ import { BullXbCommandBus } from '@smp/platform-adapters';
 import {
   ANALYTICS_QUEUE,
   AnalyticsProducer,
+  BILLING_QUEUE,
+  BillingProducer,
   LiveEventPublisher,
   NOTIFICATIONS_QUEUE,
   NotificationProducer,
@@ -36,14 +39,16 @@ import { Maintenance } from '../scheduler/maintenance';
 import { OutboxDispatcher } from '../scheduler/outbox-dispatcher';
 import { PublishTick } from '../scheduler/publish-tick';
 import { Sweeper } from '../scheduler/sweeper';
+import { UsageReportTick } from '../scheduler/usage-report-tick';
 import { XBrowserCanaryTick } from '../scheduler/x-browser-canary';
 import type { WorkerEnv } from '../worker-env';
 import { TICK_HANDLERS } from '../worker.tokens';
 
-// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9, 5.2 and 6.5): the system
-// client for the scans across workspaces, app_user for the changes of the token monitor in the
-// tenant of each connection, the producers of the jobs the ticks add, the commands of the daily
-// canary of the X browser, and the tick handlers.
+// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9, 5.2, 6.5 and 7.3): the
+// system client for the scans across workspaces, app_user for the changes of the token monitor in
+// the tenant of each connection, the producers of the jobs the ticks add, the commands of the
+// daily canary of the X browser, and the tick handlers. The daily usage reports run where Stripe
+// is set up (STRIPE_SECRET_KEY).
 
 const SCHEDULER_CLIENTS = Symbol('SCHEDULER_CLIENTS');
 /** Variants per claim of tick.publish and per scan of the sweeper. */
@@ -145,6 +150,14 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
         now: () => systemClock.now(),
       })
     : null;
+  const billingQueue = env.STRIPE_SECRET_KEY ? new Queue(BILLING_QUEUE, { connection: producers }) : null;
+  const usageTick = billingQueue
+    ? new UsageReportTick({
+        store: new PrismaUsageReportStore(system),
+        producer: new BillingProducer(billingQueue),
+        now: () => systemClock.now(),
+      })
+    : null;
   const handlers: TickHandlers = {
     'tick.publish': () => publishTick.run(),
     'tick.sweep-queued': () => sweeper.run(),
@@ -157,6 +170,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
       return { ...secrets, outboxPurged, ...(await analytics.nightlyRollups()) };
     },
     ...(canaryTick ? { 'tick.xb-canary': () => canaryTick.run() } : {}),
+    ...(usageTick ? { 'tick.usage-report': () => usageTick.run() } : {}),
   };
   return [
     {
@@ -170,6 +184,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
           tokensQueue,
           analyticsQueue,
           ...(canary ? [canary.queue] : []),
+          ...(billingQueue ? [billingQueue] : []),
         ],
         events: canary ? [canary.events] : [],
         producers,

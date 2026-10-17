@@ -10,7 +10,13 @@ import { NestFactory } from '@nestjs/core';
 import { createStripeClient, StripeBillingGateway, StripeWebhookVerifier, syncCatalog } from '@smp/billing';
 import { RecordStripeWebhook } from '@smp/core';
 import { createPrismaClient, PrismaWebhookRecorder, type PrismaClient } from '@smp/db';
-import { BILLING_QUEUE, BillingProducer, NOTIFICATIONS_QUEUE, parseNotifyDispatch } from '@smp/queue';
+import {
+  BILLING_QUEUE,
+  BillingProducer,
+  NOTIFICATIONS_QUEUE,
+  parseNotifyDispatch,
+  usageReportJobId,
+} from '@smp/queue';
 import {
   FakeStripe,
   startRedis,
@@ -24,10 +30,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
 
-// Guide step 7.2 through the worker role "billing" against the fake Stripe: the webhooks of a
-// paid checkout, a failed renewal and a cancellation are recorded the way the API records them,
-// and the role reads each subscription from Stripe and takes plan and status over. A failed
-// payment tells the owners once, with the end of the grace period.
+// Guide steps 7.2 and 7.3 through the worker role "billing" against the fake Stripe: the
+// webhooks of a paid checkout, a failed renewal and a cancellation are recorded the way the API
+// records them, and the role reads each subscription from Stripe and takes plan and status over.
+// A failed payment tells the owners once, with the end of the grace period. The daily report
+// sends the AI usage beyond the credits of the plan and the X API costs to the meters, once.
 
 const WEBHOOK_SECRET = 'whsec_test_billing_worker';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -221,6 +228,67 @@ describe('billing worker', () => {
     });
     expect(row?.billing_started_at).not.toBeNull();
     expect(row?.current_period_end?.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('reports the AI overage and the X API costs of the paid plan to the meters, once', async () => {
+    const { fake } = started();
+    if (!billingQueue) {
+      throw new Error('not started');
+    }
+    // Pro includes 30 USD of AI usage a month; 31 USD were used since the plan was bought.
+    for (const quantity of [20_000_000, 11_000_000]) {
+      await query(
+        `INSERT INTO usage_record (id, organization_id, meter, source_type, source_id, quantity, period_start)
+         VALUES (gen_random_uuid(), $1, 'ai_micros', 'ai_generation', gen_random_uuid(), $2,
+                 date_trunc('month', now() AT TIME ZONE 'UTC')::date)`,
+        [org, quantity],
+      );
+    }
+    await query(
+      `INSERT INTO api_cost_record (id, organization_id, platform, operation, cost_micros, source_type, source_id)
+       VALUES (gen_random_uuid(), $1, 'X', 'x.post_create', 15000, 'publish_attempt', gen_random_uuid())`,
+      [org],
+    );
+    // The report of the next day takes everything from before its midnight.
+    const until = new Date(Date.now() + DAY_MS).toISOString().slice(0, 10);
+    const month = new Date().toISOString().slice(0, 7);
+    const producer = new BillingProducer(billingQueue);
+
+    await producer.usageReport({ organizationId: org, until });
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const job = await billingQueue.getJob(usageReportJobId(org, until));
+      if (job?.finishedOn) {
+        break;
+      }
+      await sleep(100);
+    }
+    // A second report of the day is the same job; the records are marked anyway.
+    await producer.usageReport({ organizationId: org, until });
+
+    const [customerId] = [...fake.customers.keys()];
+    expect(fake.meterEvents).toEqual([
+      {
+        eventName: 'smp_ai_overage',
+        identifier: `ai.${org}.${month}.${until}`,
+        customerId,
+        value: '1000000',
+        timestamp: expect.any(Number) as unknown,
+      },
+      {
+        eventName: 'smp_x_api_cost',
+        identifier: `x.${org}.${month}.${until}`,
+        customerId,
+        value: '15000',
+        timestamp: expect.any(Number) as unknown,
+      },
+    ]);
+    const open = await query<{ open: number }>(
+      `SELECT (SELECT count(*) FROM usage_record WHERE organization_id = $1 AND reported_to_stripe_at IS NULL)::int
+            + (SELECT count(*) FROM api_cost_record WHERE organization_id = $1 AND reported_to_stripe_at IS NULL)::int
+              AS open`,
+      [org],
+    );
+    expect(open).toEqual([{ open: 0 }]);
   });
 
   it('starts the grace period of a failed renewal and tells the owners once', async () => {
