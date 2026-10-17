@@ -196,7 +196,7 @@ interface SocialPlatformAdapter {
 
 - **Implementierungen**: `LinkedInApiAdapter` (Person + Organisation), `MetaFacebookAdapter`, `MetaInstagramAdapter`, `XApiAdapter` und `MockPlatformAdapter`, der die echten Capability-Tabellen nutzt. Dazu kommt `XBrowserRemoteAdapter`: ein Proxy, der Befehle an `xb-commands` schickt; die Playwright-Logik liegt in `packages/x-browser`.
 - **HTTP-Clients**: schlank und selbstgebaut (undici fetch), mit zod-validierten Antworten und gepinnten API-Versionen (`LINKEDIN_VERSION=YYYYMM`, `META_GRAPH_VERSION=vNN.0`). Keine schweren Vendor-SDKs.
-- **AdapterRegistry**: wählt den Adapter nach der Verbindungsmethode des Accounts. Für BROWSER prüft sie zusätzlich den globalen Kill-Switch, das Workspace-Flag, den Tarif und eine gültige Risikobestätigung. Es gibt keinen stillen Wechsel zwischen X-API und X-Browser.
+- **AdapterRegistry**: wählt den Adapter nach der Verbindungsmethode des Accounts. Für BROWSER prüft sie zusätzlich den globalen Kill-Switch, das Workspace-Flag, den Tarif (oder die Freischaltung der Organisation durch die Plattform-Admins) und eine gültige Risikobestätigung. Es gibt keinen stillen Wechsel zwischen X-API und X-Browser.
 - **Fehler-Taxonomie** (`PlatformError` mit `code`, `retryable`, `retryAfterMs`): `AUTH_EXPIRED`, `PERMISSION_DENIED`, `RATE_LIMITED`, `VALIDATION_REJECTED`, `DUPLICATE`, `MEDIA_PROCESSING`, `TRANSIENT`, `OUTCOME_UNKNOWN`, `CHALLENGE_REQUIRED`, `SELECTOR_DRIFT`, `SPEND_CAP_REACHED`.
 
 ### 4.2 Plattformen im Überblick
@@ -219,7 +219,7 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
 
 ### 4.3 X-Browser-Adapter (optional, Feature-Flag)
 
-- **Aktivierung**: nur durch Owner/Admin pro Workspace, nach ausdrücklicher Risikobestätigung (Verstoß gegen die X-Nutzungsbedingungen, mögliche Sperre). Die Bestätigung wird versioniert gespeichert (`RiskAcknowledgement`: Text-Version, Hash, Zeit, IP) und im Audit-Log festgehalten. Zusätzlich gibt es einen Tarif-Gate und einen globalen Kill-Switch, beide in der Hand der Plattform-Admins ([ADR 0029](adr/0029-x-browser-freischaltung-und-kill-switch.md)).
+- **Aktivierung**: nur durch Owner/Admin pro Workspace, nach ausdrücklicher Risikobestätigung (Verstoß gegen die X-Nutzungsbedingungen, mögliche Sperre). Die Bestätigung wird versioniert gespeichert (`RiskAcknowledgement`: Text-Version, Hash, Zeit, IP) und im Audit-Log festgehalten. Zusätzlich gibt es ein Tarif-Gate (Pro und Agency; andere Organisationen schalten die Plattform-Admins frei, [ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)) und einen globalen Kill-Switch der Plattform-Admins ([ADR 0029](adr/0029-x-browser-freischaltung-und-kill-switch.md)).
 - **Keine Passwörter speichern**: Das Login läuft interaktiv.
   1. Der browser-worker füllt die Zugangsdaten aus, die der Nutzer einmalig eingibt.
   2. Fragt X nach einem 2FA-Code, geht der Status auf `AWAITING_2FA`, und die UI reicht den Code über Redis an den browser-worker durch.
@@ -291,8 +291,8 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md`. `PROM
 - **Kosten**:
   - Jeder Aufruf wird in `AiGeneration` gespeichert: Prompt-Version, Modell angefragt und geliefert, Effort, Input-Snapshot, Output, Ergebnis, Tokens inkl. Cache, Kosten, Latenz, Time-to-first-token.
   - Die Preise stehen versioniert in einem `PriceBook` (keine fest einprogrammierten Zahlen), auch für die Modelle, auf die der Server-Fallback ausweichen kann.
-  - Vor dem Aufruf wird eine Quote reserviert und danach abgerechnet. Ohne Guthaben antwortet die API mit 402.
-  - Die Reservierung ist ein bedingtes `UPDATE` auf dem Monatszähler der Organisation (UTC-Kalendermonat bis zur Abrechnung in Phase 7), parallel sicher. `finalize` bucht danach im `finally` den tatsächlichen Betrag: einen Ledger-Eintrag pro Quelle und die Differenz zur Reservierung am Zähler, nie unter null. Bricht ein Prozess dazwischen ab, bleibt die Reservierung stehen, bis ein Abgleich mit dem Ledger sie korrigiert.
+  - Vor dem Aufruf wird eine Quote reserviert und danach abgerechnet. Die Quote ist das KI-Guthaben des Tarifs plus sein Mehrverbrauch (Abschnitt 6.4). Ohne Guthaben antwortet die API mit 402.
+  - Die Reservierung ist ein bedingtes `UPDATE` auf dem Monatszähler der Organisation (UTC-Kalendermonat), parallel sicher. `finalize` bucht danach im `finally` den tatsächlichen Betrag: einen Ledger-Eintrag pro Quelle und die Differenz zur Reservierung am Zähler, nie unter null. Bricht ein Prozess dazwischen ab, bleibt die Reservierung stehen, bis ein Abgleich mit dem Ledger sie korrigiert.
   - Fehlt im PriceBook der Preis eines Modells, gilt der Preis des angefragten Modells, sonst der höchste bekannte Preis je Token-Art; ein fehlender Preis macht einen Aufruf nie billiger.
   - Grobe Schätzung: wenige US-Cent pro Generierung mit 4 Varianten. Die Eval-Suite (`pnpm eval:ai`, ADR 0018) misst die echten Kosten; ihre obere Schätzung aus dem PriceBook liegt bei 0,17 USD pro Generierung, die gemessene Baseline steht noch aus.
 
@@ -325,7 +325,7 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md`. `PROM
 - **Publishing**: `PublishAttempt` (Protokoll jedes Versuchs inkl. Fehlercode und IG-Container-IDs), `OutboxEvent`, `WebhookEvent` (idempotent).
 - **Analytics**: `MetricSnapshot` (append-only, kumulative Zähler plus Rohdaten und Mapping-Version), `PostMetricLatest` (für schnelle Listen und Top-Posts), `AccountMetricSnapshot` (ein Eintrag pro Account und lokalem Tag: Follower, Reichweite, Profilaufrufe), `AnalyticsDaily` (Rollup pro Account und lokalem Tag; Reichweite der Accounts und Summe der Post-Reichweiten getrennt; [ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)).
 - **KI und Kosten**: `AiGeneration`, `UsageRecord` (Ledger, idempotent pro Quelle), `UsageCounter` (atomare Quoten-Zähler), `ApiCostRecord` (X-Kosten pro Operation), `PriceBook`.
-- **Billing**: `Plan` (Limits als zod-validiertes JSON: Workspaces, Accounts, Mitglieder, KI-Guthaben, Posts pro Monat, Speicher, Analytics-Historie, X-Browser erlaubt, X-Ausgabenlimit), `Subscription`.
+- **Billing**: `Plan` (Limits als zod-validiertes JSON: Workspaces, Accounts, Mitglieder, KI-Guthaben und Mehrverbrauch, Posts pro Monat, Speicher, Analytics-Historie, X-Browser erlaubt, X-Ausgabenlimit; dazu der Lookup-Key des Stripe-Preises), `Subscription` (eine pro Organisation: Tarif, Status, Testphase, Beginn des Zahlungsverzugs, Nur-Lesen ab, Overrides der Limits, Stripe-IDs). `UsageRecord` und `ApiCostRecord` tragen `reportedToStripeAt`.
 - **Querschnitt**: `FeatureFlag` (global, pro Organisation oder pro Workspace, inkl. Kill-Switches), `RiskAcknowledgement`, `AuditLog` (append-only), `Notification` und `NotificationPreference`, `WorkspaceSettings` (Dry-Run, Verhalten bei verpasstem Zeitfenster, Effort-Overrides), `GdprRequest`.
 
 **Kernfelder von `PostVariant`**:
@@ -353,6 +353,20 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
 - **Unveränderliche und globale Tabellen**: `brand_voice_version`, `ai_generation` und `usage_record` sind für `app_user` append-only (kein UPDATE, kein DELETE). Das `price_book` ist zur Laufzeit nur lesbar; Preise und Stil-Presets kommen als Referenzdaten mit den Migrationen (ADR 0014).
 - **Keine Materialized Views für Mandantendaten**, weil RLS dort nicht greift. Rollups sind normale Tabellen.
 
+### 6.4 Tarife, Abo und Limits
+
+- **Tarife** (`plan`): Referenzdaten der Migrationen mit Limits als zod-geprüftem JSON und dem Lookup-Key des Monatspreises in Stripe. Pro Organisation können die Betreiber einzelne Limits überschreiben ([ADR 0033](adr/0033-tarife-abo-und-nur-lesen.md)).
+- **Abo** (`subscription`, eines pro Organisation): Tarif, Status wie in Stripe, 14 Tage Testphase ab Anlage der Organisation, Beginn des Zahlungsverzugs, Nur-Lesen ab, Stripe-Kunde und -Abo. Nur die Webhooks von Stripe ändern Tarif und Status; die Worker-Rolle `billing` lädt dazu das Abo frisch von Stripe ([ADR 0034](adr/0034-stripe-integration.md)).
+- **Nur-Lesen**: nach der Testphase ohne Kauf, 7 Tage nach Beginn eines Zahlungsverzugs und sofort nach dem Ende eines Abos.
+  - Die API lehnt dann Änderungen mit 402 `SUBSCRIPTION_INACTIVE` ab; Bezahlen und Reduzieren bleiben möglich.
+  - Der Scheduler übergeht geplante Posts der Organisation.
+  - Owner bekommen E-Mails, alle Mitglieder einen Hinweis in der App.
+- **Limits**: Neun Stellen in API und Worker prüfen sie.
+  - Workspaces, Mitglieder und Speicher zählt die API exakt unter Advisory-Sperren, Accounts und Posts pro Monat über bestätigte Daten als `app_system`.
+  - Der Ausgaben-Deckel der X-API sitzt um deren Adapter.
+  - Nach einem Downgrade bleibt Bestehendes, nur Neues wird blockiert ([ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)).
+- **Nutzungsabrechnung**: Täglich gehen der KI-Mehrverbrauch und die X-Kosten des Vortags als Meter-Events an Stripe, jeder Batch einmal dank fester Identifier und `reportedToStripeAt`.
+
 ---
 
 ## 7. Scheduling und Publishing
@@ -360,7 +374,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
 **Postgres ist die Quelle der Wahrheit, nicht Redis.** Reine Delayed Jobs in BullMQ werden aus drei Gründen nicht verwendet: Redis ist nicht dauerhaft verlässlich, DB und Redis können ohne Outbox auseinanderlaufen, und Umplanen oder Abbrechen würde Job-Jonglage bedeuten.
 
 1. **Planen** (Use Case `ScheduleVariant`):
-   - Prüfen: `validatePost`, Account aktiv, Token bis `scheduledAt` gültig (sonst Warnung, etwa bei LinkedIn), Quote.
+   - Prüfen: `validatePost`, Account aktiv, Token bis `scheduledAt` gültig (sonst Warnung, etwa bei LinkedIn), Posts pro Monat des Tarifs (Abschnitt 6.4).
    - In einer Transaktion: `status=SCHEDULED`, `scheduleVersion++`, `OutboxEvent` und Audit-Eintrag.
 2. **Scheduler-Tick** (alle 15 s):
    ```sql
@@ -428,7 +442,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 | Queue | Jobs | Dedupe (Job-ID) | Verarbeitet von (`WORKER_ROLES`) |
 |---|---|---|---|
-| `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (stündlich; pro Workspace einmal am Tag ab 03:00 Ortszeit, gestaffelt), `tick.maintenance` (nachts), `tick.xb-canary` (täglich, nur mit Test-Account) | Job-Scheduler-ID | `scheduler` |
+| `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (stündlich; pro Workspace einmal am Tag ab 03:00 Ortszeit, gestaffelt), `tick.maintenance` (nachts), `tick.xb-canary` (täglich, nur mit Test-Account), `tick.usage-report` (täglich 00:07 UTC, nur mit Stripe), `tick.read-only` (15 min, mit `APP_URL`) | Job-Scheduler-ID | `scheduler` |
 | `publish` | `publish.variant { workspaceId, variantId, scheduleVersion, trigger, traceparent }` | `pub.{variantId}.{scheduleVersion}` | `publisher` |
 | `publish-dead` | `publish.dead` (Kopie eines endgültig gescheiterten Publish-Jobs, nur zum Ansehen in Bull Board) | `dead.pub.{variantId}.{scheduleVersion}` | - |
 | `xb-commands` / `xb-results` | `xb.publish`, `xb.reconcile`, `xb.metrics`, `xb.account-metrics`, `xb.verify-session`, `xb.delete`, `xb.login.start`, `xb.canary` / `xb.result` (Sitzung, Drift, Canary, Login-Schritte) | `xb.{op}.{commandId}`, `xb.login.start.{loginId}` | browser-worker / `publisher` |
@@ -437,7 +451,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | `tokens` | `token.refresh` | `tok.{connectionId}` | `publisher` |
 | `ai` | `ai.topic-ideas`, `ai.alt-text` (für Vorschläge im Hintergrund; auf Knopfdruck laufen beide synchron, ADR 0016 und 0021) | - | `ai` |
 | `notifications` | `notify.dispatch`: ein Outbox-Ereignis (in der App und per E-Mail an seine Empfänger) oder eine E-Mail an eine Adresse | `ntf.{outboxId}` für das Ereignis, `ntf.{outboxId}.{userId}` für seine E-Mails | `notify` |
-| `billing` | `stripe.webhook`, `usage.report` | `stripe.{eventId}` | `billing` |
+| `billing` | `stripe.webhook`, `usage.report` | `stripe.{eventId}`, `usage.{organizationId}.{Tag}` | `billing` |
 | `gdpr` | `gdpr.export`, `gdpr.erase` | `gdpr.{requestId}` | `gdpr` |
 
 - **Job-IDs ohne Doppelpunkt**: BullMQ lehnt eigene Job-IDs mit `:` ab (`Custom Id cannot contain :`; geduldet wird nur eine Altform mit genau drei Segmenten). Deshalb trennt der Punkt die Bestandteile. Redis-Schlüssel für Locks und Pub/Sub (`lock:conn:{id}`, `ws:{workspaceId}:events`) sind davon nicht betroffen.
@@ -461,7 +475,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | +30 d | ja | ja | optional je Tarif | nein |
 
 - **Nach dem letzten Zeitpunkt**: Schluss. Ein manueller Aktualisieren-Button ist auf einmal pro Stunde begrenzt und zeigt bei X die Kosten an (noch nicht umgesetzt; der Leitfaden sieht ihn in Phase 5 nicht vor).
-- **Konfiguration**: global, pro Tarif und pro Workspace. Batch-Abrufe wo möglich: X bis 100 IDs, Meta Batch bis 50, LinkedIn Share-Listen. Umgesetzt ist die Kaskade der Tabelle; die Abfrage nach 30 Tagen bei X und Einstellungen pro Tarif kommen mit Phase 7.
+- **Konfiguration**: global, pro Tarif und pro Workspace. Batch-Abrufe wo möglich: X bis 100 IDs, Meta Batch bis 50, LinkedIn Share-Listen. Umgesetzt ist die Kaskade der Tabelle. Die Abfrage nach 30 Tagen bei X und Einstellungen der Abfragen pro Tarif sind nicht umgesetzt; der Tarif begrenzt die Historie der Analytics (Abschnitt 6.4).
 - **Planung**: `tick.analytics` reiht pro Account einen Job ein. Der Job beansprucht die fälligen Varianten mit `FOR UPDATE SKIP LOCKED` und 15 Minuten Sperrzeit, sodass zwei Läufe nie dieselben Posts abfragen. Verpasste Stufen werden übersprungen. Fehler verschieben die Abfragen: Rate-Limit `Retry-After` oder 15 Minuten, Zugang 6 Stunden, sonst 30 Minuten. Ein Post, den die Plattform nicht mehr kennt, bekommt `externalDeletedAt` und keine weiteren Abfragen ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)).
 - **Account-Metriken**: täglich um ca. 03:00 Workspace-Zeit, gestaffelt (Follower, Reichweite, Profil- bzw. Seitenaufrufe). `tick.account-metrics` läuft stündlich und holt den Vortag für jeden Account, in dessen Workspace es 03:00 Uhr oder später ist und dem der Tag fehlt; die Jobs verteilen sich über 50 Minuten.
 
@@ -479,7 +493,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 - **Reichweite**: ist über Posts nicht addierbar. Das Dashboard benennt das ehrlich und nutzt Account-Reichweite, wo vorhanden. Die API nennt die Basis (`account`, `posts` oder `mixed`).
 - **Speicherung**: Snapshots (append-only), ein Upsert in `PostMetricLatest` und ein Rollup in `AnalyticsDaily` (zeitnah plus nächtlicher Komplettlauf). Ab ca. 50 Mio. Zeilen werden die Snapshots monatlich partitioniert.
 - **Rollup**: zählt pro Account und lokalem Tag der Workspace-Zone die Zuwächse zwischen aufeinanderfolgenden Snapshots, die veröffentlichten Posts und die Tageszahlen der Accounts. Der zeitnahe Lauf rechnet die Tage, die eine Abfrage berührt hat, der nächtliche in `tick.maintenance` die letzten 35 Tage. Eine Advisory-Sperre pro Workspace hält zwei Läufe auseinander.
-- **API**: sieben Endpunkte unter `/api/w/:ws/analytics` (`analytics.read`). Zeiträume sind lokale Tage, höchstens 366 pro Anfrage, und durch die Analytics-Historie begrenzt (bis Phase 7 `ANALYTICS_HISTORY_DAYS`). Die Übersicht liegt 5 Minuten in Redis, der CSV-Export ist gestreamt.
+- **API**: sieben Endpunkte unter `/api/w/:ws/analytics` (`analytics.read`). Zeiträume sind lokale Tage, höchstens 366 pro Anfrage, und durch die Analytics-Historie des Tarifs begrenzt (`analyticsHistoryDays`). Die Übersicht liegt 5 Minuten in Redis, der CSV-Export ist gestreamt.
 - **Dashboard**:
   - KPI-Kacheln mit Vergleich zum Vorzeitraum: Impressions, Reach, Engagements, Engagement-Rate, Follower-Wachstum, Anzahl Posts.
   - Zeitreihen pro Tag, Plattform und Account.
@@ -496,7 +510,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 ## 9. Medien-Pipeline
 
-1. **Upload anfordern**: `POST /api/w/:ws/media/uploads` prüft Speicher-Quote, Größe (max. 20 MB) und MIME-Whitelist (JPEG, PNG, WebP, statisches GIF; kein SVG). Die API legt `MediaAsset(PENDING_UPLOAD)` an und liefert eine Presigned-PUT-URL (5 min gültig, Content-Type signiert). Die Quote gilt bis Phase 7 pro Workspace (`MEDIA_STORAGE_LIMIT_BYTES`, Standard 5 GiB) und wird unter einer Advisory-Sperre pro Workspace geprüft ([ADR 0019](adr/0019-medien-upload-und-verarbeitung.md)).
+1. **Upload anfordern**: `POST /api/w/:ws/media/uploads` prüft Speicher-Quote, Größe (max. 20 MB) und MIME-Whitelist (JPEG, PNG, WebP, statisches GIF; kein SVG). Die API legt `MediaAsset(PENDING_UPLOAD)` an und liefert eine Presigned-PUT-URL (5 min gültig, Content-Type signiert). Die Quote ist der Speicher des Tarifs über alle Workspaces der Organisation und wird unter einer Advisory-Sperre pro Organisation geprüft ([ADR 0019](adr/0019-medien-upload-und-verarbeitung.md), [ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)).
 2. **Upload**: Der Browser lädt direkt in den S3-Speicher hoch, mit Fortschrittsanzeige, und meldet dann `complete`. Die API prüft dabei per `HeadObject` die tatsächliche Größe und den Content-Type und löscht Objekte, die gegen die Regeln verstoßen.
 3. **`media.process`**:
    - Magic-Byte-Prüfung mit eigener Signaturprüfung (`sniffImageType` in `@smp/core`; `file-type` ist nur ESM, ADR 0019). HEIC wird mit eigenem Grund abgelehnt.
@@ -597,6 +611,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   - Planen: Datum und Uhrzeit in der Workspace-Zeitzone, Account und Zeitpunkt pro Variante überschreibbar, "Jetzt posten", Kostenhinweis bei X, Hinweis auf ablaufende Zugänge. Planungen laufen in der Warteschlange des Auto-Speicherns nach den offenen Speicherungen; der Status folgt den Live-Events, und eine Variante, die veröffentlicht wird oder wurde, ist gesperrt ([ADR 0026](adr/0026-planen-im-web.md)).
   - Entwürfe werden automatisch gespeichert: 800 ms nach der letzten Änderung, nacheinander und mit Optimistic Locking; ein neuer Beitrag entsteht, sobald Briefing und eine Plattform da sind ([ADR 0017](adr/0017-composer-zustand-und-auto-speichern.md)).
 - **Kalender**: eigener Kalender (CSS-Grid, `dnd-kit`) mit Varianten als Plattform-Kürzel, Uhrzeit, Textanfang und Status-Icon. Umplanen per Drag & Drop auf einen anderen Tag mit optimistischem Update und Rollback; vergangene Tage nehmen nichts an. Für Tastaturnutzer und neue Uhrzeiten gibt es einen Umplanen-Dialog ([ADR 0026](adr/0026-planen-im-web.md)).
+- **Abrechnung** (nur Owner): Tarif mit Status und Terminen, ein Verbrauchsbalken pro Limit (über dem Limit rot, mit der Bitte zu reduzieren), die Tarife mit Checkout oder Wechsel (der Dialog nennt, was nach einem Downgrade über den Limits läge), Kundenportal und Rechnungen. Über jeder Seite der Organisation steht für alle Mitglieder ein Hinweis bei Nur-Lesen, Zahlungsverzug und endender Testphase ([ADR 0033](adr/0033-tarife-abo-und-nur-lesen.md)).
 - **Analytics**: eigene SVG-Diagramme (Liniendiagramm, Balkenliste, Sparklines). Jede Plattform hat feste Farbe, Strichmuster und Marker. Das Liniendiagramm lässt sich mit den Pfeiltasten bedienen und hat eine Tabelle derselben Zahlen. Fehlende Werte erscheinen als "n. v.", nie als 0 ([ADR 0028](adr/0028-analytics-im-web.md)).
 - **Bibliotheken**: TanStack Query (Orval-Hooks), react-hook-form + zodResolver (dieselben Schemas wie die API), der URL-State über einen kleinen Hook mit zod-Schema, der Composer-State als getesteter Reducer unter `useReducer` (Zustand-Stores nur für State, den mehrere Seiten teilen; ADR 0017), shadcn/ui + Tailwind 4, lucide, sonner, `dnd-kit`, Datum und Zeitzonen über `Intl` (ADR 0026); für Analytics die Tabellen von `@smp/ui` und eigene Diagramme statt TanStack Table und Recharts (ADR 0028).
 - **i18n**: next-intl mit ICU-Nachrichten, eine Datei pro Namespace und Sprache (`apps/web/messages/{de,en}/<namespace>.json`), typisierte Keys. Deutsch ist die Referenz; `pnpm check:i18n` prüft in der CI, dass jede Sprache dieselben Keys mit denselben Argumenten hat und jede Nachricht gültiges ICU ist. Plural über ICU (`{count, plural, one {...} other {...}}`), Datum und Zahlen über `useFormatter`. API-Fehlercodes werden im Client unter `errors.codes.<CODE>` übersetzt.
@@ -638,9 +653,9 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 | Unit (Application) | Use Cases mit In-Memory-Fakes für die Ports | Vitest |
 | Prompts | Snapshot-Tests der gerenderten Prompts (byte-stabil wegen Caching), Schema-Konformität | Vitest |
 | Adapter-Contract | eine gemeinsame Suite, die jeder Adapter inkl. Mock bestehen muss: Fehler-Mapping 401/403/429/5xx, Normalisierung, Reconcile; aufgezeichnete und bereinigte Fixtures pro API-Version | msw v2 |
-| Integration | RLS-Isolation (zwei Mandanten), Scheduler-Tick mit 2 parallelen Workern (kein doppeltes Einreihen), Absturz während des Publishings führt zu Reconcile ohne Duplikat, Outbox, Token-Refresh-Lock, Medien mit SeaweedFS | Testcontainers |
+| Integration | RLS-Isolation (zwei Mandanten), Scheduler-Tick mit 2 parallelen Workern (kein doppeltes Einreihen), Absturz während des Publishings führt zu Reconcile ohne Duplikat, Outbox, Token-Refresh-Lock, Medien mit SeaweedFS, Abrechnung gegen den Fake-Stripe (optional gegen die Test Clocks von Stripe) | Testcontainers |
 | API-E2E | Auth-Flows, Rechte-Matrix (Rolle x Endpunkt), Quoten, Webhook-Signaturen | supertest |
-| Web-E2E | Registrieren, Onboarding, Mock-Account verbinden, KI-Post (Mock), Bild hochladen, für +1 min planen, veröffentlicht, Analytics gefüllt; Kalender-Drag & Drop; Einladung; Viewer nur lesend | Playwright |
+| Web-E2E | Registrieren, Onboarding, Mock-Account verbinden, KI-Post (Mock), Bild hochladen, für +1 min planen, veröffentlicht, Analytics gefüllt; Kalender-Drag & Drop; Einladung; Viewer nur lesend; Abrechnung mit dem Fake-Stripe (Checkout, Downgrade, past_due, Kündigung) | Playwright |
 | Browser-Adapter | lokale, bereinigte DOM-Fixtures von Login, Composer und Challenge-Seite plus aufgezeichnete JSON-Antworten; Challenge führt zur Pause; Drift-Fehlerpfad | Playwright |
 | KI-Eval (optional) | Golden Briefs (DE/EN x Stile x Plattformen): Schema, Längen, verbotene Wörter, Sprache, Refusal-Quote, Kosten; Pflicht vor Prompt- oder Modellwechseln | Vitest + echte API mit Budget |
 | Last | 10.000 fällige Varianten in derselben Minute, Durchsatz der Analytics-Batches | k6 |

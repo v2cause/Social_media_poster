@@ -123,14 +123,14 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - **DB**: `DATABASE_URL` (app_user), `DATABASE_SYSTEM_URL` (app_system), `MIGRATION_DATABASE_URL` (app_migrator)
   - **Redis, S3, Mail**: `REDIS_URL`; `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE`, `PUBLIC_MEDIA_BASE_URL`; `SMTP_URL`, `MAIL_FROM`
   - **Auth und Verschlüsselung**: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`; `TOKEN_KEKS`, `TOKEN_KEK_ACTIVE`, `SESSION_KEKS`, `SESSION_KEK_ACTIVE`
-  - **KI**: `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `AI_EFFORT_GENERATE`, `AI_EFFORT_REFINE`, `AI_EFFORT_IDEAS`, `AI_EFFORT_ALT_TEXT`, `AI_REFUSAL_FALLBACK`, `AI_MONTHLY_CAP_MICROS`
+  - **KI**: `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `AI_EFFORT_GENERATE`, `AI_EFFORT_REFINE`, `AI_EFFORT_IDEAS`, `AI_EFFORT_ALT_TEXT`, `AI_REFUSAL_FALLBACK` (`AI_MONTHLY_CAP_MICROS` galt bis Phase 7; seitdem bestimmt der Tarif die Quote)
   - **Plattformen**:
     - Modus und Dry-Run: `PLATFORM_MODE_LINKEDIN`, `PLATFORM_MODE_META`, `PLATFORM_MODE_X` (mock oder live), `PUBLISH_DRY_RUN`
     - LinkedIn: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_CM_CLIENT_ID`, `LINKEDIN_CM_CLIENT_SECRET`, `LINKEDIN_VERSION`
     - Meta: `META_APP_ID`, `META_APP_SECRET`, `META_GRAPH_VERSION`, `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`
     - X: `X_CLIENT_ID`, `X_CLIENT_SECRET`
   - **Worker**: `WORKER_ROLES`, `SCHEDULER_TICK_MS`, `ANALYTICS_CADENCE_SCALE`, `FEATURE_X_BROWSER_GLOBAL`
-  - **Billing und Betrieb**: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT`
+  - **Billing und Betrieb**: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_API_BASE` (nur Tests und Fake-Stripe), `SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT`
 - **Darauf achten**:
   - Bei ungültiger Konfiguration bricht der Start mit einer lesbaren Fehlermeldung ab, ohne Werte auszugeben.
   - Secrets nie mit dem Präfix `NEXT_PUBLIC_`; das Web bekommt nur öffentliche Werte.
@@ -1220,6 +1220,11 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 
 #### 7.1 Pläne
 - **Erstellen**: Seed mit `Plan`-Einträgen (z.B. Trial, Starter, Pro, Agency) und Limits als zod-validiertes JSON. Die Preise legst du fest; im Code sind es nur Platzhalter.
+- **Umgesetzt** ([ADR 0033](adr/0033-tarife-abo-und-nur-lesen.md)):
+  - Tabellen `plan` und `subscription` (Migration `0017_billing`); die Tarife `trial`, `starter`, `pro` und `agency` kommen als Referenzdaten mit `0018_rls_billing`, mit Limits als JSON, die `planLimitsSchema` bei jedem Lesen prüft. Pro Organisation können Overrides einzelne Limits ersetzen.
+  - Eine neue Organisation startet in derselben Transaktion 14 Tage Testphase; bestehende Organisationen bekamen sie mit der Migration. Der Demo-Seed setzt die Demo-Organisation auf `agency`.
+  - Tests: `packages/contracts/src/billing.test.ts`, `packages/core/test/billing/subscription.test.ts`, `packages/core/test/tenancy/create-organization.test.ts`, `packages/db/test/rls-billing.integration.test.ts`, `packages/db/test/seed.integration.test.ts`.
+- **Stand**: Die Preise im Stripe-Katalog sind Platzhalter (19, 49 und 149 EUR netto pro Monat).
 
 #### 7.2 Stripe-Integration
 - **Erstellen**:
@@ -1234,10 +1239,28 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Nur Webhooks ändern den Status, nie die Erfolgsseite nach dem Checkout.
   - Die Signatur wird mit dem Raw Body geprüft.
   - Steuern laufen über Stripe Tax.
+- **Umgesetzt** ([ADR 0034](adr/0034-stripe-integration.md)):
+  - `tools/stripe-sync.ts` (`pnpm stripe:sync`): Produkte, Preise mit Lookup-Keys, Meter und die Konfiguration des Kundenportals.
+  - Endpunkte: Checkout, Kundenportal, Tarifwechsel in einem laufenden Abo (`POST /api/org/:org/billing/plan`), Rechnungen und `POST /api/webhooks/stripe`; jedes Event landet einmal in `WebhookEvent` und als Job `stripe.{eventId}` in der Queue.
+  - Prozessor `stripe.webhook` in der Worker-Rolle `billing`: lädt das Abo frisch von Stripe, unter einer Sperre pro Kunde, und benachrichtigt die Owner bei fehlgeschlagener Zahlung einmal pro Event. `EntitlementsService` liefert Tarif, wirksame Limits und Zustand.
+  - Fake-Stripe in `@smp/testing` mit gehostetem Checkout und Portal; er prüft jeden Parameter gegen einen Auszug der offiziellen OpenAPI-Spezifikation.
+  - Tests:
+    - `packages/core/test/billing/checkout.test.ts`, `webhooks.test.ts`, `sync.test.ts`, `entitlements.test.ts`
+    - `packages/billing/src/stripe-gateway.test.ts`, `packages/testing/src/stripe/fake-stripe.test.ts`
+    - `packages/db/test/billing-adapters.integration.test.ts`, `apps/api/test/billing.integration.test.ts`, `apps/worker/test/billing.integration.test.ts`
+- **Stand**:
+  - Geprüft gegen die OpenAPI-Spezifikation von Stripe (GitHub `stripe/openapi`, API-Version `2026-09-30.endive`) und die README von stripe-node; docs.stripe.com, stripe.com und api.stripe.com sind aus dieser Umgebung nicht erreichbar.
+  - Tarifwechsel laufen über die API, nicht über das Kundenportal: Wie das Portal sie mit den Meter-Preisen umsetzt, ließ sich nicht prüfen (ADR 0034).
+  - Die Produkte haben keinen eigenen `tax_code`; es gilt der Standard des Stripe-Kontos (nicht geprüft).
 
 #### 7.3 Nutzungsabrechnung
 - **Erstellen**: `usage.report` (täglich) über Stripe Billing Meters für KI-Mehrverbrauch und die weiterberechneten X-Kosten.
 - **Darauf achten**: Meter-Events werden mit einem Idempotenz-Identifier gesendet. `UsageRecord.reportedToStripeAt` verhindert Doppelmeldungen.
+- **Umgesetzt** ([ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)):
+  - `tick.usage-report` täglich um 00:07 UTC (nur mit Stripe): ein Job `usage.report` pro Organisation und Tag (`usage.{organizationId}.{Tag}`), über 30 Minuten verteilt.
+  - `ReportUsage` beansprucht pro Meter und Monat einen Batch mit festem Identifier, meldet nur den KI-Verbrauch jenseits des Guthabens des Monats und die X-Kosten, und setzt `reportedToStripeAt` erst nach dem Senden.
+  - Tests: `packages/core/test/billing/usage-report.test.ts`, `packages/db/test/usage-report.integration.test.ts`, `apps/worker/src/scheduler/usage-report-tick.test.ts`, `apps/worker/test/billing.integration.test.ts`.
+- **Stand**: Gegen die Meter des echten Stripe nicht gelaufen. Akzeptiertes Risiko: Scheitert die Bestätigung eines gemeldeten Batches länger als 24 Stunden, kann Stripe ihn doppelt zählen (ADR 0035).
 
 #### 7.4 Durchsetzung der Limits
 
@@ -1256,10 +1279,40 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Darauf achten**:
   - `past_due`: 7 Tage Kulanzfrist, danach Nur-Lesen; geplante Posts werden pausiert und der Nutzer wird benachrichtigt.
   - Downgrade mit zu vielen Ressourcen: Bestehendes bleibt, Neues wird blockiert, und es gibt einen Hinweis zum Reduzieren.
+- **Umgesetzt** ([ADR 0033](adr/0033-tarife-abo-und-nur-lesen.md), [ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)):
+  - Alle Stellen der Tabelle. Workspaces und Mitglieder zählt die API exakt unter der Advisory-Sperre `plan.{organizationId}`, den Speicher exakt nach der Sperre `media.storage.{organizationId}`. Accounts und Posts pro Monat zählt sie als `app_system` über alle Workspaces. Die KI-Quote ist Guthaben plus Mehrverbrauch des Tarifs. Die Historie der Analytics begrenzt der Tarif. Den X-Browser erlaubt der Tarif oder die Freischaltung durch die Plattform-Admins. Den Ausgaben-Deckel der X-API setzt ein Wrapper um deren Adapter durch.
+  - `past_due`: Die Organisation kann 7 Tage nach Beginn des Zahlungsverzugs nur noch lesen, nach dem Ende eines Abos sofort.
+    - Der `ReadOnlyGuard` lehnt Änderungen mit 402 `SUBSCRIPTION_INACTIVE` ab; Bezahlen und Reduzieren bleiben erlaubt.
+    - Der Scheduler übergeht die geplanten Posts.
+    - Die Owner bekommen eine E-Mail bei fehlgeschlagener Zahlung und eine, wenn Nur-Lesen beginnt (`tick.read-only`, alle 15 Minuten).
+    - Alle Mitglieder sehen einen Hinweis über jeder Seite der Organisation.
+  - Downgrade: Geprüft wird nur, was neu hinzukommt; den Hinweis zum Reduzieren zeigen die Abrechnungsseite und der Dialog des Tarifwechsels (Schritt 7.5).
+  - Entfallen: `AI_MONTHLY_CAP_MICROS`, `ANALYTICS_HISTORY_DAYS`, `MEDIA_STORAGE_LIMIT_BYTES`.
+  - Tests:
+    - `packages/core/test/billing/plan-limits.test.ts`, `packages/core/test/tenancy/plan-limits.test.ts`, `packages/core/test/billing/read-only-notices.test.ts`
+    - `packages/db/test/plan-usage.integration.test.ts`, `packages/platform-adapters/src/spend-capped-adapter.test.ts`
+    - `apps/api/test/read-only.integration.test.ts` und die Limits in den Integrationstests von Tenancy, Channels, Content, Media, Publishing, Analytics und X-Browser
+    - `apps/worker/test/scheduler.integration.test.ts` (Pause), `apps/worker/test/publish.integration.test.ts` (Ausgaben-Deckel), `apps/worker/test/read-only.integration.test.ts`
+- **Stand**: Akzeptierte Risiken (ADR 0035):
+  - Zwei gleichzeitige Anfragen können die Limits für Accounts und Posts pro Monat um eins überschreiten.
+  - Der Abgleich nach unklarem Ausgang ist vom Ausgaben-Deckel der X-API ausgenommen.
 
 #### 7.5 Web: Billing
 - **So sieht es aus**: aktueller Plan, Verbrauchsbalken pro Limit, Buttons "Upgrade" (führt zum Checkout) und "Verwalten" (führt zum Kundenportal), Liste der Rechnungen.
 - **Fertig, wenn**: Ein Stripe-Test-Clock-E2E Upgrade, Downgrade, Kündigung und `past_due` korrekt abbildet.
+- **Umgesetzt**:
+  - Seite `/org/:org/billing` (nur Owner, in der Navigation der Organisation und im Benutzermenü):
+    - aktueller Tarif mit Status und Terminen,
+    - ein Verbrauchsbalken pro Limit, über dem Limit rot mit der Bitte zu reduzieren,
+    - die Tarife mit "Tarif wählen" (Checkout) oder "Wechseln" (Bestätigungsdialog, der nennt, was nach dem Wechsel über den Limits läge),
+    - "Verwalten" (Kundenportal) und die Rechnungen.
+
+    Nach Zahlung oder Wechsel fragt die Seite bis zu einer Minute nach, bis der Webhook angekommen ist.
+  - `GET /api/org/:org/billing` mit Tarif, Verbrauch und Preisen; die Kontexte von Organisation und Workspace tragen den Zustand des Abos für den Hinweis der App-Shell.
+  - E2E-Test `apps/web/e2e/billing.spec.ts` gegen den Fake-Stripe (in CI): Kauf von Pro im Checkout, zweiter Workspace, Downgrade auf Starter mit Hinweis zum Reduzieren, fehlgeschlagene Verlängerung mit E-Mail an den Owner, Kündigung mit Nur-Lesen und 402.
+  - Test mit Test Clocks `apps/worker/test/stripe-test-clock.integration.test.ts`: Starter, Upgrade auf Pro, Downgrade, `past_due` durch das Vorstellen der Uhr über das Periodenende, Kündigung; läuft nur mit `STRIPE_TEST_CLOCK_SECRET_KEY`.
+  - Weitere Tests: `packages/core/test/billing/overview.test.ts`, `apps/web/src/features/billing/billing-model.test.ts`, `apps/api/test/billing.integration.test.ts`.
+- **Stand**: Der Test gegen die Test Clocks von Stripe ist geschrieben und typgeprüft, aber nicht gelaufen: Es gibt keinen Testschlüssel, und api.stripe.com ist aus dieser Umgebung nicht erreichbar. Mit dem Fake-Stripe ist das Kriterium erfüllt; der Lauf gegen Stripe steht aus.
 
 ---
 
