@@ -196,6 +196,7 @@ model Workspace {
   postMetricsLatest    PostMetricLatest[]
   accountMetrics       AccountMetricSnapshot[]
   analyticsDaily       AnalyticsDaily[]
+  riskAcknowledgements RiskAcknowledgement[]
 
   @@index([organizationId])
   @@map("workspace")
@@ -348,6 +349,29 @@ model FeatureFlag {
 
   @@index([key])
   @@map("feature_flag")
+}
+
+// The acknowledgement of a risk text (guide step 6.1, architecture 4.3), for now only the one of
+// the X browser: the version and hash of the text the user read, the time, the user and the IP
+// address. Rows stay for the record; switching the X browser off sets revoked_at, and a new
+// version of the text needs a new row.
+model RiskAcknowledgement {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  // The user who confirmed; no foreign key, like audit_log.actor_user_id.
+  userId      String    @map("user_id") @db.Uuid
+  subject     String
+  textVersion String    @map("text_version")
+  textHash    String    @map("text_hash")
+  locale      String
+  ipAddress   String?   @map("ip_address")
+  acceptedAt  DateTime  @map("accepted_at") @db.Timestamptz(3)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, subject, acceptedAt])
+  @@map("risk_acknowledgement")
 }
 
 // ---------------------------------------------------------------------------------------------

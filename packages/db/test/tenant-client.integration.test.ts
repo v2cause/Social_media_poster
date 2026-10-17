@@ -222,7 +222,7 @@ describe('tenant client, tenant transactions and system client', () => {
           WHERE table_schema = 'public' AND column_name IN ('organization_id', 'workspace_id')
           ORDER BY table_name`,
       );
-      // feature_flag is read-only at runtime and scoped by its policy alone.
+      // feature_flag is scoped by its policies alone: global and organization rows have no workspace.
       const covered = new Set(
         Object.keys(TENANT_FILTERS).map((model) => model.replace(/(?<!^)([A-Z])/g, '_$1').toLowerCase()),
       );

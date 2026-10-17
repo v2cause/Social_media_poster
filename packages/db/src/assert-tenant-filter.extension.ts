@@ -46,6 +46,7 @@ export const TENANT_FILTERS: Readonly<Record<string, TenantFilterRule>> = {
   PostMetricLatest: { field: 'workspaceId', scope: 'workspaceId' },
   AccountMetricSnapshot: { field: 'workspaceId', scope: 'workspaceId' },
   AnalyticsDaily: { field: 'workspaceId', scope: 'workspaceId' },
+  RiskAcknowledgement: { field: 'workspaceId', scope: 'workspaceId' },
 };
 
 const FILTERED_OPERATIONS = new Set([
