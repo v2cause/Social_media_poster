@@ -6,7 +6,11 @@ import type { Request } from 'express';
 import { ZodResponse } from 'nestjs-zod';
 
 import { RequestOriginService } from '../../common/cls/tenant-context';
-import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
+import {
+  AllowWhenReadOnly,
+  RequirePermission,
+  WorkspaceScope,
+} from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
 import { actorOf } from '../content/content.mappers';
 import { PasswordCheck } from '../identity/password-check';
@@ -76,6 +80,7 @@ export class XBrowserController {
 
   @Delete('activation')
   @RequirePermission('x_browser.enable')
+  @AllowWhenReadOnly()
   @ZodResponse({ type: XBrowserStatusDto })
   async disable(@Access() access: RequestAccess): Promise<XBrowserStatusDto> {
     return toStatusDto(await this.disableXBrowser.execute(actorOf(access)));

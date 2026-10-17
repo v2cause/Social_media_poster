@@ -15,7 +15,11 @@ import {
 import type { ContentReadModel, VariantListReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
 
-import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
+import {
+  AllowWhenReadOnly,
+  RequirePermission,
+  WorkspaceScope,
+} from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
 import { MEDIA_STORAGE } from '../../infrastructure/clients.module';
 import { actorOf, refOf, toVariantDto } from '../content/content.mappers';
@@ -122,6 +126,7 @@ export class PublishingController {
 
   @Post(':variantId/cancel')
   @RequirePermission('post.schedule')
+  @AllowWhenReadOnly()
   @HttpCode(200)
   @ZodResponse({ status: 200, type: PlanResultDto })
   async cancel(

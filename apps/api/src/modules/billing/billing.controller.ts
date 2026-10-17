@@ -10,7 +10,7 @@ import {
 } from '@smp/core';
 import { ZodResponse } from 'nestjs-zod';
 
-import { OrgScope, RequirePermission } from '../../common/decorators/access.decorators';
+import { AllowWhenReadOnly, OrgScope, RequirePermission } from '../../common/decorators/access.decorators';
 import { Access, Actor, type RequestAccess } from '../../common/guards/request-access';
 import type { AuthSession } from '../identity/auth';
 import { CurrentUser } from '../identity/current-user.decorator';
@@ -23,6 +23,8 @@ import { BillingRedirectDto, ChangePlanRequestDto, CheckoutRequestDto, InvoiceLi
  */
 @ApiTags('billing')
 @OrgScope()
+// Paying is how a read-only organization becomes writable again.
+@AllowWhenReadOnly()
 @Controller('org/:org/billing')
 export class BillingController {
   constructor(

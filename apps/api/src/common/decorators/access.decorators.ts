@@ -8,6 +8,7 @@ import type { Permission } from '@smp/contracts';
 export const USER_SCOPE = 'smp:user-scope';
 export const TENANT_SCOPE = 'smp:tenant-scope';
 export const REQUIRED_PERMISSION = 'smp:required-permission';
+export const ALLOW_WHEN_READ_ONLY = 'smp:allow-when-read-only';
 
 export type TenantScopeKind = 'organization' | 'workspace';
 
@@ -31,3 +32,11 @@ export const WorkspaceScope = (): ClassDecorator =>
 /** The permission the caller's role must grant (permission matrix in @smp/contracts). */
 export const RequirePermission = (permission: Permission): MethodDecorator =>
   applyDecorators(SetMetadata(REQUIRED_PERMISSION, permission));
+
+/**
+ * A change an organization may still make while it is read-only (guide step 7.4): the billing
+ * that makes it writable again, and what reduces its usage, such as removing a member or
+ * deleting media.
+ */
+export const AllowWhenReadOnly = (): MethodDecorator & ClassDecorator =>
+  SetMetadata(ALLOW_WHEN_READ_ONLY, true);

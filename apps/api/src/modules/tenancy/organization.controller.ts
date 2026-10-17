@@ -26,7 +26,7 @@ import {
 import type { TenancyReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
 
-import { OrgScope, RequirePermission } from '../../common/decorators/access.decorators';
+import { AllowWhenReadOnly, OrgScope, RequirePermission } from '../../common/decorators/access.decorators';
 import { AccessCache } from '../../common/guards/access-cache';
 import { Access, Actor, type RequestAccess } from '../../common/guards/request-access';
 import { TENANCY_READ_MODEL } from '../../infrastructure/clients.module';
@@ -94,6 +94,7 @@ export class OrganizationController {
 
   @Delete('members/:membershipId')
   @RequirePermission('member.manage')
+  @AllowWhenReadOnly()
   @HttpCode(204)
   async removeMember(
     @Actor() actor: OrganizationActor,
@@ -105,6 +106,7 @@ export class OrganizationController {
 
   @Post('leave')
   @RequirePermission('org.read')
+  @AllowWhenReadOnly()
   @HttpCode(204)
   async leave(@Actor() actor: OrganizationActor): Promise<void> {
     await this.leaveOrganization.execute({ actor });
@@ -155,6 +157,7 @@ export class OrganizationController {
 
   @Delete('invitations/:invitationId')
   @RequirePermission('member.manage')
+  @AllowWhenReadOnly()
   @HttpCode(204)
   async revokeInvitation(
     @Actor() actor: OrganizationActor,

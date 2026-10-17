@@ -24,7 +24,11 @@ import {
 import type { MediaReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
 
-import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
+import {
+  AllowWhenReadOnly,
+  RequirePermission,
+  WorkspaceScope,
+} from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
 import { MEDIA_STORAGE } from '../../infrastructure/clients.module';
 import { actorOf, refOf } from '../content/content.mappers';
@@ -126,6 +130,7 @@ export class MediaController {
 
   @Delete(':assetId')
   @RequirePermission('media.write')
+  @AllowWhenReadOnly()
   @HttpCode(204)
   async remove(@Access() access: RequestAccess, @Param('assetId', id) assetId: string): Promise<void> {
     await this.deleteMedia.execute({ actor: actorOf(access), assetId });

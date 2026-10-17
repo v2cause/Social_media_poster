@@ -15,7 +15,11 @@ import type { ChannelReadModel } from '@smp/db';
 import type { AdapterRegistry } from '@smp/platform-adapters';
 import { ZodResponse } from 'nestjs-zod';
 
-import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
+import {
+  AllowWhenReadOnly,
+  RequirePermission,
+  WorkspaceScope,
+} from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
 import { actorOf, refOf } from '../content/content.mappers';
 import { AuthorizationUrlDto, SocialAccountListDto } from './channels.dto';
@@ -86,6 +90,7 @@ export class AccountsController {
 
   @Delete(':accountId')
   @RequirePermission('account.manage')
+  @AllowWhenReadOnly()
   @HttpCode(204)
   async disconnect(
     @Access() access: RequestAccess,

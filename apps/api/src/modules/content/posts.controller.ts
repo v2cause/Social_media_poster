@@ -27,7 +27,11 @@ import {
 import type { ContentReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
 
-import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
+import {
+  AllowWhenReadOnly,
+  RequirePermission,
+  WorkspaceScope,
+} from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
 import { MEDIA_STORAGE } from '../../infrastructure/clients.module';
 import {
@@ -112,6 +116,7 @@ export class PostsController {
 
   @Delete(':postId')
   @RequirePermission('post.delete')
+  @AllowWhenReadOnly()
   @HttpCode(204)
   async remove(@Access() access: RequestAccess, @Param('postId', id) postId: string): Promise<void> {
     await this.deletePost.execute({ actor: actorOf(access), postId });
