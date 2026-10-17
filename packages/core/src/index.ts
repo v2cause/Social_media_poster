@@ -424,6 +424,36 @@ export {
   type XBrowserAdminDependencies,
   type XBrowserAdminView,
 } from './channels/application/x-browser-admin';
+export {
+  BROWSER_LOGIN_FAILURES,
+  BROWSER_LOGIN_STATUSES,
+  OPEN_BROWSER_LOGIN_STATUSES,
+  type BrowserLogin,
+  type BrowserLoginAad,
+  type BrowserLoginCommand,
+  type BrowserLoginEvents,
+  type BrowserLoginFailure,
+  type BrowserLoginQueue,
+  type BrowserLoginStatus,
+  type BrowserLoginStore,
+} from './channels/ports/browser-login';
+export {
+  BROWSER_LOGIN_START_WINDOW_MS,
+  BROWSER_LOGIN_TTL_MS,
+  BROWSER_LOGINS_PER_HOUR,
+  CompleteBrowserLogin,
+  GetBrowserLogin,
+  RecordBrowserLoginStep,
+  StartBrowserLogin,
+  SubmitBrowserLoginCode,
+  type BrowserLoginCompletion,
+  type BrowserLoginDependencies,
+  type BrowserLoginStep,
+  type CompleteBrowserLoginInput,
+  type RecordBrowserLoginStepInput,
+  type StartBrowserLoginInput,
+  type SubmitBrowserLoginCodeInput,
+} from './channels/application/browser-login';
 
 // Tenancy
 export * from './tenancy/domain/errors';
