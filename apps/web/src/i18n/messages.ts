@@ -3,6 +3,7 @@ import deAccounts from '../../messages/de/accounts.json';
 import deAdmin from '../../messages/de/admin.json';
 import deAnalytics from '../../messages/de/analytics.json';
 import deAuth from '../../messages/de/auth.json';
+import deBilling from '../../messages/de/billing.json';
 import deBrand from '../../messages/de/brand.json';
 import deCalendar from '../../messages/de/calendar.json';
 import deCommon from '../../messages/de/common.json';
@@ -20,6 +21,7 @@ import enAccounts from '../../messages/en/accounts.json';
 import enAdmin from '../../messages/en/admin.json';
 import enAnalytics from '../../messages/en/analytics.json';
 import enAuth from '../../messages/en/auth.json';
+import enBilling from '../../messages/en/billing.json';
 import enBrand from '../../messages/en/brand.json';
 import enCalendar from '../../messages/en/calendar.json';
 import enCommon from '../../messages/en/common.json';
@@ -42,6 +44,7 @@ const MESSAGES = {
     auth: deAuth,
     onboarding: deOnboarding,
     team: deTeam,
+    billing: deBilling,
     account: deAccount,
     accounts: deAccounts,
     analytics: deAnalytics,
@@ -61,6 +64,7 @@ const MESSAGES = {
     auth: enAuth,
     onboarding: enOnboarding,
     team: enTeam,
+    billing: enBilling,
     account: enAccount,
     accounts: enAccounts,
     analytics: enAnalytics,

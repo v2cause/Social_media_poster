@@ -1,0 +1,126 @@
+{
+  "title": "Abrechnung",
+  "description": "Tarif, Verbrauch und Rechnungen von {organization}.",
+  "ownersOnly": "Nur Owner verwalten die Abrechnung. Wenden Sie sich an den Owner Ihrer Organisation.",
+  "loading": "Abrechnung wird geladen ...",
+  "unavailable": "Die Abrechnung ist in dieser Installation nicht eingerichtet. Tarife lassen sich hier nicht kaufen.",
+  "plans": {
+    "trial": "Testphase",
+    "starter": "Starter",
+    "pro": "Pro",
+    "agency": "Agency"
+  },
+  "status": {
+    "TRIALING": "Testphase",
+    "ACTIVE": "Aktiv",
+    "PAST_DUE": "Zahlung ausstehend",
+    "CANCELED": "Beendet",
+    "UNPAID": "Unbezahlt",
+    "INCOMPLETE": "Unvollständig",
+    "INCOMPLETE_EXPIRED": "Abgelaufen",
+    "PAUSED": "Pausiert"
+  },
+  "price": "{interval, select, day {{amount} pro Tag} week {{amount} pro Woche} month {{amount} pro Monat} year {{amount} pro Jahr} other {{amount}}}",
+  "current": {
+    "title": "Aktueller Tarif",
+    "net": "Netto; Stripe Tax berechnet die Steuer Ihres Landes.",
+    "trialEnds": "Die Testphase endet am {date}. Danach kann Ihre Organisation nur noch lesen, bis Sie einen Tarif wählen.",
+    "renews": "Verlängert sich am {date}.",
+    "ends": "Endet am {date}. Danach kann Ihre Organisation nur noch lesen.",
+    "manage": "Verwalten",
+    "manageHint": "Zahlungsmethode, Rechnungsadresse und Kündigung verwalten Sie im Kundenportal von Stripe."
+  },
+  "readOnly": {
+    "title": "Ihre Organisation kann nur noch lesen",
+    "body": "Seit {date} lassen sich keine Inhalte mehr anlegen oder ändern, und geplante Posts sind pausiert. Ihre Daten bleiben erhalten. Wählen Sie einen Tarif, um wieder wie gewohnt zu arbeiten."
+  },
+  "pastDue": {
+    "title": "Die letzte Zahlung ist fehlgeschlagen",
+    "body": "Bitte prüfen Sie die Zahlungsmethode im Kundenportal. Geht die Zahlung bis {date} nicht ein, kann Ihre Organisation nur noch lesen."
+  },
+  "checkout": {
+    "success": "Danke für Ihre Zahlung. Ihr Tarif wird in wenigen Sekunden umgestellt.",
+    "canceled": "Der Checkout wurde abgebrochen. Ihr Tarif bleibt unverändert.",
+    "pending": "Ihr Tarif wird umgestellt ..."
+  },
+  "usage": {
+    "title": "Verbrauch",
+    "description": "Monatliche Limits zählen ab dem {date} (UTC).",
+    "labels": {
+      "workspaces": "Workspaces",
+      "members": "Mitglieder und offene Einladungen",
+      "socialAccounts": "Verbundene Accounts",
+      "scheduledPosts": "Posts in diesem Monat",
+      "storageBytes": "Medienspeicher",
+      "ai": "KI-Nutzung in diesem Monat",
+      "xApi": "Kosten der X-API in diesem Monat"
+    },
+    "of": "{used} von {limit}",
+    "near": "Fast erreicht.",
+    "full": "Limit erreicht: Neues ist erst nach einem Upgrade möglich.",
+    "fullMonthly": "Limit für diesen Monat erreicht: Neues ist erst im nächsten Monat oder nach einem Upgrade möglich.",
+    "over": "Über dem Limit Ihres Tarifs: Bestehendes bleibt erhalten, Neues ist blockiert. Reduzieren Sie auf {limit} oder wählen Sie einen größeren Tarif.",
+    "overMonthly": "Über dem Limit Ihres Tarifs: Bereits Geplantes bleibt, Neues lässt sich erst im nächsten Monat planen, oder Sie wählen einen größeren Tarif.",
+    "aiIncluded": "{included} inklusive, darüber bis {limit} als Mehrverbrauch gegen Aufpreis.",
+    "aiOverage": "Mehrverbrauch in diesem Monat: {amount}. Er wird mit der nächsten Rechnung abgerechnet.",
+    "aiFull": "Das KI-Budget dieses Monats ist aufgebraucht.",
+    "xApiFull": "Das Budget der X-API ist für diesen Monat aufgebraucht. Posts über die X-API warten bis zum nächsten Monat."
+  },
+  "offer": {
+    "title": "Tarife",
+    "description": "Preise pro Monat, netto. Ein Wechsel gilt sofort, Stripe verrechnet die Differenz anteilig.",
+    "noPrice": "Kein Preis hinterlegt",
+    "features": {
+      "workspaces": "{count, plural, one {# Workspace} other {# Workspaces}}",
+      "accounts": "{count, plural, one {# verbundener Account} other {# verbundene Accounts}}",
+      "members": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+      "posts": "{count, plural, one {# Post pro Monat} other {# Posts pro Monat}}",
+      "storage": "{size} Medienspeicher",
+      "ai": "{amount} KI-Guthaben pro Monat",
+      "history": "{days, plural, one {# Tag} other {# Tage}} Analytics-Historie",
+      "xBrowser": "X ohne API über den Browser"
+    },
+    "actions": {
+      "current": "Aktueller Tarif",
+      "checkout": "Tarif wählen",
+      "change": "Wechseln",
+      "unavailable": "Nicht verfügbar"
+    }
+  },
+  "change": {
+    "title": "Zu {plan} wechseln?",
+    "description": "Der Wechsel gilt sofort. Stripe verrechnet die Differenz anteilig mit der nächsten Rechnung.",
+    "beyond": "Nach dem Wechsel liegen Sie über diesen Limits. Bestehendes bleibt erhalten, aber Neues ist blockiert, bis Sie reduziert haben:",
+    "beyondItem": "{label}: {used} von {limit}",
+    "confirm": "Wechseln",
+    "done": "Der Tarif wird umgestellt."
+  },
+  "invoices": {
+    "title": "Rechnungen",
+    "caption": "Die letzten Rechnungen Ihrer Organisation",
+    "empty": "Noch keine Rechnungen.",
+    "loading": "Rechnungen werden geladen ...",
+    "number": "Nummer",
+    "date": "Datum",
+    "total": "Betrag",
+    "status": "Status",
+    "links": "Dokumente",
+    "view": "Ansehen",
+    "pdf": "PDF",
+    "statuses": {
+      "draft": "Entwurf",
+      "open": "Offen",
+      "paid": "Bezahlt",
+      "uncollectible": "Uneinbringlich",
+      "void": "Storniert",
+      "unknown": "Unbekannt"
+    }
+  },
+  "notice": {
+    "readOnly": "Ihre Organisation kann nur noch lesen, weil kein Tarif aktiv ist. Geplante Posts sind pausiert.",
+    "pastDue": "Die letzte Zahlung ist fehlgeschlagen. Ohne Zahlung bis {date} kann Ihre Organisation nur noch lesen.",
+    "trialEnding": "Die Testphase endet am {date}.",
+    "action": "Zur Abrechnung",
+    "askOwner": "Der Owner Ihrer Organisation kann das unter Abrechnung ändern."
+  }
+}

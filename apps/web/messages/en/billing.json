@@ -1,0 +1,126 @@
+{
+  "title": "Billing",
+  "description": "Plan, usage and invoices of {organization}.",
+  "ownersOnly": "Only owners manage billing. Please ask the owner of your organization.",
+  "loading": "Loading billing ...",
+  "unavailable": "Billing is not set up in this installation. Plans cannot be bought here.",
+  "plans": {
+    "trial": "Trial",
+    "starter": "Starter",
+    "pro": "Pro",
+    "agency": "Agency"
+  },
+  "status": {
+    "TRIALING": "Trial",
+    "ACTIVE": "Active",
+    "PAST_DUE": "Payment due",
+    "CANCELED": "Ended",
+    "UNPAID": "Unpaid",
+    "INCOMPLETE": "Incomplete",
+    "INCOMPLETE_EXPIRED": "Expired",
+    "PAUSED": "Paused"
+  },
+  "price": "{interval, select, day {{amount} per day} week {{amount} per week} month {{amount} per month} year {{amount} per year} other {{amount}}}",
+  "current": {
+    "title": "Current plan",
+    "net": "Net; Stripe Tax adds the tax of your country.",
+    "trialEnds": "The trial ends on {date}. After that your organization is read-only until you choose a plan.",
+    "renews": "Renews on {date}.",
+    "ends": "Ends on {date}. After that your organization is read-only.",
+    "manage": "Manage",
+    "manageHint": "Payment method, billing address and cancellation are managed in the customer portal of Stripe."
+  },
+  "readOnly": {
+    "title": "Your organization is read-only",
+    "body": "Since {date} no content can be created or changed, and scheduled posts are paused. Your data is kept. Choose a plan to work as usual again."
+  },
+  "pastDue": {
+    "title": "The last payment failed",
+    "body": "Please check the payment method in the customer portal. If the payment has not arrived by {date}, your organization becomes read-only."
+  },
+  "checkout": {
+    "success": "Thank you for your payment. Your plan changes in a few seconds.",
+    "canceled": "The checkout was canceled. Your plan stays as it is.",
+    "pending": "Your plan is being changed ..."
+  },
+  "usage": {
+    "title": "Usage",
+    "description": "Monthly limits count from {date} (UTC).",
+    "labels": {
+      "workspaces": "Workspaces",
+      "members": "Members and open invitations",
+      "socialAccounts": "Connected accounts",
+      "scheduledPosts": "Posts this month",
+      "storageBytes": "Media storage",
+      "ai": "AI usage this month",
+      "xApi": "X API costs this month"
+    },
+    "of": "{used} of {limit}",
+    "near": "Almost reached.",
+    "full": "Limit reached: anything new needs an upgrade.",
+    "fullMonthly": "Limit of this month reached: anything new waits for next month or an upgrade.",
+    "over": "Beyond the limit of your plan: what exists is kept, anything new is blocked. Reduce to {limit} or choose a larger plan.",
+    "overMonthly": "Beyond the limit of your plan: what is planned stays, anything new can be planned next month, or you choose a larger plan.",
+    "aiIncluded": "{included} included, beyond that up to {limit} as billed overage.",
+    "aiOverage": "Overage this month: {amount}. It is billed with the next invoice.",
+    "aiFull": "The AI budget of this month is used up.",
+    "xApiFull": "The X API budget of this month is used up. Posts through the X API wait for next month."
+  },
+  "offer": {
+    "title": "Plans",
+    "description": "Prices per month, net. A change applies at once; Stripe prorates the difference.",
+    "noPrice": "No price set",
+    "features": {
+      "workspaces": "{count, plural, one {# workspace} other {# workspaces}}",
+      "accounts": "{count, plural, one {# connected account} other {# connected accounts}}",
+      "members": "{count, plural, one {# member} other {# members}}",
+      "posts": "{count, plural, one {# post per month} other {# posts per month}}",
+      "storage": "{size} media storage",
+      "ai": "{amount} AI credit per month",
+      "history": "{days, plural, one {# day} other {# days}} of analytics history",
+      "xBrowser": "X without the API through the browser"
+    },
+    "actions": {
+      "current": "Current plan",
+      "checkout": "Choose plan",
+      "change": "Switch",
+      "unavailable": "Not available"
+    }
+  },
+  "change": {
+    "title": "Switch to {plan}?",
+    "description": "The change applies at once. Stripe prorates the difference with the next invoice.",
+    "beyond": "After the change you are beyond these limits. What exists is kept, but anything new is blocked until you have reduced it:",
+    "beyondItem": "{label}: {used} of {limit}",
+    "confirm": "Switch",
+    "done": "The plan is being changed."
+  },
+  "invoices": {
+    "title": "Invoices",
+    "caption": "The latest invoices of your organization",
+    "empty": "No invoices yet.",
+    "loading": "Loading invoices ...",
+    "number": "Number",
+    "date": "Date",
+    "total": "Amount",
+    "status": "Status",
+    "links": "Documents",
+    "view": "View",
+    "pdf": "PDF",
+    "statuses": {
+      "draft": "Draft",
+      "open": "Open",
+      "paid": "Paid",
+      "uncollectible": "Uncollectible",
+      "void": "Void",
+      "unknown": "Unknown"
+    }
+  },
+  "notice": {
+    "readOnly": "Your organization is read-only because no plan is active. Scheduled posts are paused.",
+    "pastDue": "The last payment failed. Without a payment by {date}, your organization becomes read-only.",
+    "trialEnding": "The trial ends on {date}.",
+    "action": "Go to billing",
+    "askOwner": "The owner of your organization can change this under Billing."
+  }
+}
