@@ -6,6 +6,7 @@ import {
   CallCosts,
   contextOf,
   requestRollup,
+  stopUntilSignIn,
   unitOf,
   type AccountAccess,
   type AnalyticsJobDependencies,
@@ -69,6 +70,7 @@ export class CollectAccountMetrics {
       if (input.signal.aborted || !refused) {
         throw error;
       }
+      await stopUntilSignIn(deps, input, access.target.connection.id, error);
       deps.logger.warn(
         { accountId: input.accountId, day: input.day, err: error },
         'analytics.account_refused',

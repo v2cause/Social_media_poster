@@ -1,3 +1,4 @@
+import { browserContextOf } from '../../channels/application/browser-context';
 import { ConnectionTokens, ReauthRequiredError } from '../../channels/application/connection-tokens';
 import { isPlatformError } from '../../channels/domain/platform-error';
 import type {
@@ -71,6 +72,39 @@ export function pollWaitAfter(error: unknown): number | null {
   }
 }
 
+/**
+ * A challenge of the browser of X, or its lost session, stops every poll of the connection until
+ * the user signs in again (architecture 4.3): NEEDS_REAUTH and a notification, never another try
+ * on its own. Returns true when the error was one of them.
+ */
+export async function stopUntilSignIn(
+  deps: AnalyticsJobDependencies,
+  input: AnalyticsJobInput,
+  connectionId: string,
+  error: unknown,
+): Promise<boolean> {
+  const reason =
+    isPlatformError(error) && error.code === 'CHALLENGE_REQUIRED'
+      ? 'CHALLENGE_REQUIRED'
+      : error instanceof ReauthRequiredError && error.reason === 'SESSION_EXPIRED'
+        ? 'SESSION_EXPIRED'
+        : null;
+  if (reason === null) {
+    return false;
+  }
+  await unitOf(deps, input, async (store) => {
+    const mark = await store.connections.markNeedsReauth(input.workspaceId, connectionId, reason);
+    if (mark.changed) {
+      await store.outbox.add(input.workspaceId, {
+        type: 'notification.requested',
+        payload: { type: 'reauth-required', connectionId, reason, scheduledVariants: mark.scheduledVariants },
+      });
+    }
+  });
+  deps.logger.warn({ accountId: input.accountId, connectionId, reason }, 'analytics.sign_in_required');
+  return true;
+}
+
 /** The account of a job, ready to call its platform, or why it cannot be polled now. */
 export type AccountAccess =
   | { kind: 'ready'; target: PublishJobTarget; adapter: SocialPlatformAdapter; tokens: ConnectionTokens }
@@ -103,6 +137,7 @@ export async function accessAccount(
   const adapter = await deps.adapters.resolve({
     platform: target.account.platform,
     method: target.connection.method,
+    organizationId: input.organizationId,
     workspaceId: input.workspaceId,
   });
   if (!adapter) {
@@ -163,6 +198,7 @@ export function contextOf(
   return {
     account: access.target.account,
     credentials: access.tokens.credentials(),
+    ...browserContextOf(access.target, input.organizationId),
     costs: {
       record: ({ operation, units }) => {
         costs.record(operation, units);

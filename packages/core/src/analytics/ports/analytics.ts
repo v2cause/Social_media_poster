@@ -1,8 +1,12 @@
 import type { Platform } from '@smp/platform-rules';
 
 import type { NormalizedPostMetrics } from '../../channels/ports/platform-adapter';
-import type { TokenConnectionRepository } from '../../channels/ports/token-maintenance';
-import type { ApiCostRepository, PublishJobTargetRepository } from '../../publishing/ports/publish-job';
+import type {
+  ApiCostRepository,
+  PublishJobConnectionRepository,
+  PublishJobTargetRepository,
+} from '../../publishing/ports/publish-job';
+import type { OutboxWriter } from '../../publishing/ports/publishing-store';
 
 // The ports of the analytics jobs (guide steps 5.2 and 5.3): the collector of post metrics and
 // the daily account metrics run as app_user in the tenant of their account, the planner scans
@@ -103,7 +107,8 @@ export interface AnalyticsRollupRepository {
 /** The repositories of one transaction of an analytics job. */
 export interface AnalyticsStore {
   targets: PublishJobTargetRepository;
-  connections: TokenConnectionRepository;
+  /** The tokens of a refresh; NEEDS_REAUTH after a challenge of the browser of X. */
+  connections: PublishJobConnectionRepository;
   workspaces: {
     /** The IANA time zone of the workspace. */
     timeZoneOf(workspaceId: string): Promise<string | null>;
@@ -112,6 +117,8 @@ export interface AnalyticsStore {
   accountMetrics: AccountMetricsRepository;
   rollups: AnalyticsRollupRepository;
   costs: ApiCostRepository;
+  /** The notification that a connection needs a new sign-in. */
+  outbox: OutboxWriter;
 }
 
 export interface AnalyticsUnitOfWork {

@@ -9,6 +9,7 @@ import type {
   ApiCostEntry,
   ConnectionMethod,
   NormalizedPostMetrics,
+  OutboxEventInput,
   PublishJobTarget,
   RollupRequest,
   SocialConnection,
@@ -65,8 +66,9 @@ interface State {
   daily: AccountDailyMetrics[];
   costs: ApiCostEntry[];
   targets: Map<string, PublishJobTarget>;
-  connections: Map<string, SocialConnection>;
+  connections: Map<string, SocialConnection & { statusReason?: string | null }>;
   timeZones: Map<string, string>;
+  outbox: (OutboxEventInput & { workspaceId: string })[];
 }
 
 const isDue = (variant: MetricsVariantRow, accountId: string, now: Date): boolean =>
@@ -87,6 +89,7 @@ export class InMemoryAnalytics implements AnalyticsUnitOfWork {
     targets: new Map(),
     connections: new Map(),
     timeZones: new Map([['ws-1', 'Europe/Berlin']]),
+    outbox: [],
   };
 
   async run<T>(scope: AnalyticsScope, work: (store: AnalyticsStore) => Promise<T>): Promise<T> {
@@ -155,6 +158,27 @@ export class InMemoryAnalytics implements AnalyticsUnitOfWork {
             version: version + 1,
           });
           return Promise.resolve(true);
+        },
+        markNeedsReauth(workspaceId, connectionId, reason) {
+          assertScope(workspaceId);
+          const connection = state().connections.get(connectionId);
+          if (connection?.status !== 'ACTIVE' && connection?.status !== 'EXPIRING') {
+            return Promise.resolve({ changed: false, scheduledVariants: 0 });
+          }
+          state().connections.set(connectionId, {
+            ...connection,
+            status: 'NEEDS_REAUTH',
+            statusReason: reason,
+            version: connection.version + 1,
+          });
+          return Promise.resolve({ changed: true, scheduledVariants: 0 });
+        },
+      },
+      outbox: {
+        add(workspaceId, event) {
+          assertScope(workspaceId);
+          state().outbox.push({ ...event, workspaceId });
+          return Promise.resolve();
         },
       },
       workspaces: {
@@ -330,6 +354,7 @@ export function createAnalyticsTestbed(
     displayName: 'Mira',
     accessTokenSealed: sealed('access-1', aad('access_token')),
     refreshTokenSealed: sealed('refresh-1', aad('refresh_token')),
+    sessionSealed: null,
     accessTokenExpiresAt: new Date(NOW + 60 * 60 * 1000),
     refreshTokenExpiresAt: new Date(NOW + 30 * 24 * 60 * 60 * 1000),
     scopes: [],

@@ -8,6 +8,7 @@ import {
   contextOf,
   POLL_RETRY_MS,
   pollWaitAfter,
+  stopUntilSignIn,
   requestRollup,
   unitOf,
   type AccountAccess,
@@ -120,6 +121,7 @@ export class CollectPostMetrics {
         // Not an answer of the platform: the claim runs out and a later tick tries again.
         throw error;
       }
+      await stopUntilSignIn(deps, input, access.target.connection.id, error);
       const at = new Date(deps.clock.now().getTime() + wait);
       await unitOf(deps, input, async (store) => {
         await store.postMetrics.postpone(

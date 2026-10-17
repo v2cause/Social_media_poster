@@ -18,6 +18,7 @@ export const toSocialConnection = (row: SocialConnectionRow): SocialConnection =
   displayName: row.displayName,
   accessTokenSealed: row.accessTokenSealed,
   refreshTokenSealed: row.refreshTokenSealed,
+  sessionSealed: row.sessionSealed,
   accessTokenExpiresAt: row.accessTokenExpiresAt,
   refreshTokenExpiresAt: row.refreshTokenExpiresAt,
   scopes: row.scopes,

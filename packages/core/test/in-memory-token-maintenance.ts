@@ -190,6 +190,7 @@ export function seedConnection(
     displayName: 'Mira',
     accessTokenSealed: new TextEncoder().encode('ws-1:connection-1:access_token|access-1'),
     refreshTokenSealed: null,
+    sessionSealed: null,
     accessTokenExpiresAt: new Date(now + expiresInDays * DAY_MS),
     refreshTokenExpiresAt: null,
     scopes: ['w_member_social'],

@@ -85,9 +85,20 @@ export interface AdapterLogger {
   warn(fields: Record<string, unknown>, message: string): void;
 }
 
+/**
+ * What the browser adapter of X needs on top (method BROWSER): the organization for its reports
+ * and the session, which stays sealed until the browser worker opens it.
+ */
+export interface BrowserContext {
+  organizationId: string;
+  sessionSealed: Uint8Array | null;
+}
+
 export interface AdapterContext {
   account: AdapterAccount;
   credentials: CredentialsAccessor;
+  /** Only for the method BROWSER. */
+  browser?: BrowserContext;
   costs: ApiCostRecorder;
   logger: AdapterLogger;
   signal: AbortSignal;

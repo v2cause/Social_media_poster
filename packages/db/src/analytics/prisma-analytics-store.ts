@@ -39,6 +39,7 @@ export function createPrismaAnalyticsStore(tx: TenantTransaction): AnalyticsStor
     targets: publishJob.targets,
     connections: publishJob.connections,
     costs: publishJob.costs,
+    outbox: publishJob.outbox,
 
     workspaces: {
       async timeZoneOf(workspaceId) {

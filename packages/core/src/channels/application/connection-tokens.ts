@@ -100,6 +100,10 @@ export class ConnectionTokens {
       if (!isPlatformError(error) || error.code !== 'AUTH_EXPIRED' || this.refreshedAfterRefusal) {
         throw error;
       }
+      if (this.adapter.method === 'BROWSER') {
+        // Only the user renews a session of the browser, by signing in again.
+        throw new ReauthRequiredError('SESSION_EXPIRED');
+      }
       this.refreshedAfterRefusal = true;
       if ((await this.refresh(context, true)) === 'not_supported') {
         throw new ReauthRequiredError('REFRESH_NOT_SUPPORTED');

@@ -1,6 +1,7 @@
 import { composePostText, renditionProfileFor } from '@smp/platform-rules';
 
 import { metricsDueAt } from '../../analytics/domain/cadence';
+import { browserContextOf } from '../../channels/application/browser-context';
 import { ConnectionTokens, ReauthRequiredError } from '../../channels/application/connection-tokens';
 import { isPlatformError } from '../../channels/domain/platform-error';
 import type { ConnectionMethod, SocialAccountType } from '../../channels/domain/types';
@@ -118,6 +119,7 @@ export class PublishRun {
     const adapter = await this.deps.adapters.resolve({
       platform: variant.platform,
       method: target.connection.method,
+      organizationId: this.job.organizationId,
       workspaceId: variant.workspaceId,
     });
     if (!adapter) {
@@ -398,6 +400,7 @@ export class PublishRun {
     return {
       account: target.account,
       credentials: tokens.credentials(),
+      ...browserContextOf(target, this.job.organizationId),
       costs: {
         record: ({ operation, units = 1 }) => {
           this.costs.set(operation, (this.costs.get(operation) ?? 0) + units);

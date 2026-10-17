@@ -60,6 +60,7 @@ export class RefreshConnection {
     const adapter = await this.deps.adapters.resolve({
       platform: connection.platform,
       method: connection.method,
+      organizationId: input.organizationId,
       workspaceId: input.workspaceId,
     });
     if (!adapter) {

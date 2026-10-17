@@ -25,6 +25,8 @@ export interface SocialConnection {
   displayName: string;
   accessTokenSealed: Uint8Array | null;
   refreshTokenSealed: Uint8Array | null;
+  /** The browser session of X (method BROWSER), sealed with the session keyring; only the browser worker opens it. */
+  sessionSealed: Uint8Array | null;
   accessTokenExpiresAt: Date | null;
   refreshTokenExpiresAt: Date | null;
   /** The scopes the platform granted. */

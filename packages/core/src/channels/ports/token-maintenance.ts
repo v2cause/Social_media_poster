@@ -111,9 +111,11 @@ export interface TokenRefreshRequests {
 
 /** The adapter of an account (architecture 4.1); null when none is available or its gate is closed. */
 export interface AdapterResolver {
+  /** The organization decides, with the workspace, whether the browser adapter of X may run. */
   resolve(account: {
     platform: Platform;
     method: ConnectionMethod;
+    organizationId: string;
     workspaceId: string;
   }): Promise<SocialPlatformAdapter | null>;
 }

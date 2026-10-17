@@ -153,6 +153,50 @@ describe('CollectPostMetrics', () => {
     expect(bed.warnings).toEqual(['analytics.poll_postponed']);
   });
 
+  it('stops the polls of a browser connection at a challenge until the user signs in again', async () => {
+    const bed = createAnalyticsTestbed({ platform: 'X', method: 'BROWSER' });
+    const seen: unknown[] = [];
+    bed.adapter.duringMetrics = (ctx) => {
+      seen.push(ctx.browser);
+      return Promise.resolve();
+    };
+    bed.adapter.metricsAnswers = [new PlatformError('CHALLENGE_REQUIRED', 'X asks for a check')];
+
+    await expect(collect(bed)).resolves.toEqual({ polled: 0, deleted: 0, postponed: 2, ended: 0 });
+    // The session stays sealed on its way to the browser worker.
+    expect(seen).toEqual([{ organizationId: 'org-1', sessionSealed: null }]);
+    expect(bed.unitOfWork.state.connections.get('connection-1')).toMatchObject({
+      status: 'NEEDS_REAUTH',
+      statusReason: 'CHALLENGE_REQUIRED',
+    });
+    expect(bed.unitOfWork.state.outbox).toEqual([
+      expect.objectContaining({
+        workspaceId: 'ws-1',
+        type: 'notification.requested',
+        payload: expect.objectContaining({
+          type: 'reauth-required',
+          reason: 'CHALLENGE_REQUIRED',
+        }) as unknown,
+      }),
+    ]);
+    expect(bed.warnings).toEqual(['analytics.sign_in_required', 'analytics.poll_postponed']);
+    expect(bed.adapter.metricsCalls).toHaveLength(1);
+  });
+
+  it('asks the user to sign in again when the session of the browser expired, without a second try', async () => {
+    const bed = createAnalyticsTestbed({ platform: 'X', method: 'BROWSER' });
+    bed.adapter.metricsAnswers = [new PlatformError('AUTH_EXPIRED', 'signed out')];
+
+    await expect(collect(bed)).resolves.toMatchObject({ polled: 0, postponed: 2 });
+    expect(bed.adapter.metricsCalls).toHaveLength(1);
+    expect(bed.adapter.tokens).not.toContain('refresh:refresh-1');
+    expect(bed.unitOfWork.state.connections.get('connection-1')).toMatchObject({
+      status: 'NEEDS_REAUTH',
+      statusReason: 'SESSION_EXPIRED',
+    });
+    expect(bed.unitOfWork.state.outbox).toHaveLength(1);
+  });
+
   it('renews a refused token once and polls again', async () => {
     const bed = createAnalyticsTestbed();
     bed.adapter.metricsAnswers = [

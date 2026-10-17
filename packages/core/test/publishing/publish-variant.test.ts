@@ -430,6 +430,34 @@ describe('PublishVariant', () => {
       });
     });
 
+    it('hands the browser adapter the sealed session and asks for a new login when it expired', async () => {
+      const bed = createPublishJobTestbed({ platform: 'X', method: 'BROWSER' });
+      const seen: unknown[] = [];
+      bed.adapter.duringPublish = (ctx) => {
+        seen.push(ctx.browser);
+        return Promise.resolve();
+      };
+      bed.adapter.publishAnswers = [new PlatformError('AUTH_EXPIRED', 'signed out')];
+
+      await expect(publish(bed)).resolves.toMatchObject({ kind: 'failed', code: 'REAUTH_REQUIRED' });
+      expect(seen).toEqual([{ organizationId: expect.any(String) as string, sessionSealed: null }]);
+      // A session cannot be renewed: no refresh and no second post.
+      expect(bed.adapter.calls.publish).toBe(1);
+      expect(bed.unitOfWork.connection()).toMatchObject({
+        status: 'NEEDS_REAUTH',
+        statusReason: 'SESSION_EXPIRED',
+      });
+
+      const api = createPublishJobTestbed();
+      const apiSeen: unknown[] = [];
+      api.adapter.duringPublish = (ctx) => {
+        apiSeen.push(ctx.browser);
+        return Promise.resolve();
+      };
+      await publish(api);
+      expect(apiSeen).toEqual([undefined]);
+    });
+
     it('retries an unexpected error before sending, and fails it on the last attempt', async () => {
       const bed = createPublishJobTestbed();
       bed.storage.signedGetUrl = () => Promise.reject(new TypeError('storage down'));

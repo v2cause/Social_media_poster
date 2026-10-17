@@ -292,6 +292,7 @@ export type {
   AdapterLogger,
   ApiCostRecorder,
   AuthorizationRequest,
+  BrowserContext,
   ConnectableAccount,
   CredentialsAccessor,
   DateRange,

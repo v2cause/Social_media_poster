@@ -633,6 +633,7 @@ export function createPublishJobTestbed(
     displayName: 'Mira',
     accessTokenSealed: sealed('access-1', aad('access_token')),
     refreshTokenSealed: sealed('refresh-1', aad('refresh_token')),
+    sessionSealed: null,
     accessTokenExpiresAt: new Date(NOW + 60 * 60 * 1000),
     refreshTokenExpiresAt: new Date(NOW + 30 * 24 * 60 * 60 * 1000),
     scopes: ['w_member_social'],

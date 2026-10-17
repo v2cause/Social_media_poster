@@ -90,6 +90,7 @@ export class InMemoryChannels implements ChannelUnitOfWork {
             displayName: connection.displayName,
             accessTokenSealed: connection.accessTokenSealed,
             refreshTokenSealed: connection.refreshTokenSealed,
+            sessionSealed: null,
             accessTokenExpiresAt: connection.accessTokenExpiresAt,
             refreshTokenExpiresAt: connection.refreshTokenExpiresAt,
             scopes: connection.scopes,
