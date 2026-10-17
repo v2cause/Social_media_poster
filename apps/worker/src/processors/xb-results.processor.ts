@@ -12,8 +12,8 @@ import { PUBLISH_PIPELINE } from '../worker.tokens';
 /**
  * The reports of the browser worker on xb-results, in the role "publisher" (guide step 6.2): a new
  * session replaces the sealed one of its connection, the steps of a login of X move it on and its
- * success stores the browser connection with its account (guide step 6.4), a drift and the canary
- * go to the logs (the circuit breaker counts them, guide step 6.5). Logs carry ids, statuses and
+ * success stores the browser connection with its account (guide step 6.4), and the circuit
+ * breaker counts every drift and failed canary (guide step 6.5). Logs carry ids, statuses and
  * selectors, never sessions.
  */
 @Processor(XB_RESULTS_QUEUE, { concurrency: 4 })
@@ -55,22 +55,34 @@ export class XbResultsProcessor extends WorkerHost {
         this.logger.info({ connectionId: report.connectionId, stored }, 'xb.session_stored');
         return stored ? 'session_stored' : 'session_without_connection';
       }
-      case 'drift':
-        this.logger.warn(
-          { flow: report.flow, selector: report.selector, selectorsVersion: report.selectorsVersion },
-          'xb.drift',
-        );
-        return 'drift';
-      case 'canary':
+      case 'drift': {
+        const drift = {
+          flow: report.flow,
+          selector: report.selector,
+          selectorsVersion: report.selectorsVersion,
+        };
+        const breaker = (await this.pipeline.breaker?.drift(drift)) ?? null;
+        this.logger.warn({ ...drift, breaker }, 'xb.drift');
+        if (breaker?.status === 'opened') {
+          this.logger.error({ drifts: breaker.drifts }, 'xb.breaker_opened');
+        }
+        return `drift_${breaker?.status ?? 'logged'}`;
+      }
+      case 'canary': {
+        const breaker = (await this.pipeline.breaker?.canary(report)) ?? null;
         if (report.ok) {
           this.logger.info({ selectorsVersion: report.selectorsVersion }, 'xb.canary_passed');
         } else {
           this.logger.warn(
-            { missing: report.missing, selectorsVersion: report.selectorsVersion },
+            { missing: report.missing, selectorsVersion: report.selectorsVersion, breaker },
             'xb.canary_failed',
           );
         }
-        return 'canary';
+        if (breaker?.status === 'opened') {
+          this.logger.error({ drifts: breaker.drifts }, 'xb.breaker_opened');
+        }
+        return report.ok ? 'canary_passed' : 'canary_failed';
+      }
       case 'login.status':
         return this.loginStep(report, { kind: 'awaiting_code' });
       case 'login.failed':

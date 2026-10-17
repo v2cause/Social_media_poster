@@ -1,11 +1,26 @@
 import { riskTextOf, X_BROWSER_RISK } from '@smp/contracts';
-import { systemClock, XBrowserGate, type SocialPlatformAdapter } from '@smp/core';
-import { PrismaXBrowserUnitOfWork, type PrismaClient } from '@smp/db';
-import { BullXbCommandBus, XBrowserRemoteAdapter, type BrowserGate } from '@smp/platform-adapters';
+import { systemClock, XBrowserBreaker, XBrowserGate, type SocialPlatformAdapter } from '@smp/core';
+import {
+  createSystemPrismaClient,
+  PrismaXBrowserAdminStore,
+  PrismaXBrowserOperations,
+  PrismaXBrowserUnitOfWork,
+  type PrismaClient,
+} from '@smp/db';
+import {
+  BullXbCommandBus,
+  RedisSelectorDriftCounter,
+  RedisXBrowserKillSignal,
+  XBrowserRemoteAdapter,
+  type BrowserGate,
+} from '@smp/platform-adapters';
+import { NOTIFICATIONS_QUEUE, NotificationProducer } from '@smp/queue';
 import { XB_COMMANDS_QUEUE } from '@smp/x-browser';
 import { Queue, QueueEvents } from 'bullmq';
+import type Redis from 'ioredis';
 
 import type { WorkerEnv } from '../worker-env';
+import { EmailXBrowserAlerts } from './x-browser-alerts';
 
 // The X browser of the roles "publisher" and "analytics" (guide step 6.3): the browser adapter of
 // X, which sends its commands to xb-commands, and its gate, read in the tenant of the workspace
@@ -65,6 +80,51 @@ export function xBrowserWiring(env: WorkerEnv, database: PrismaClient): XBrowser
     close: async () => {
       await events.close();
       await queue.close();
+    },
+  };
+}
+
+export interface BreakerWiring {
+  breaker: XBrowserBreaker;
+  close(): Promise<void>;
+}
+
+/**
+ * The circuit breaker of the role "publisher" (guide step 6.5), which reads the drifts and the
+ * canary on xb-results. As app_system it switches the global flag off and finds the platform
+ * admins, whom it alerts by email with a link to the admin page at APP_URL. Without
+ * FEATURE_X_BROWSER_GLOBAL no browser worker runs and nothing reports.
+ */
+export function xBrowserBreakerOf(env: WorkerEnv, redis: Redis): BreakerWiring | null {
+  if (!env.FEATURE_X_BROWSER_GLOBAL) {
+    return null;
+  }
+  if (!env.DATABASE_SYSTEM_URL || !env.APP_URL) {
+    throw new Error(
+      'Invalid configuration:\n  DATABASE_SYSTEM_URL and APP_URL are required for the role "publisher" when FEATURE_X_BROWSER_GLOBAL is true',
+    );
+  }
+  const system = createSystemPrismaClient(env.DATABASE_SYSTEM_URL);
+  // The producer fails fast instead of queueing commands while Redis is away; the report retries.
+  const notifications = new Queue(NOTIFICATIONS_QUEUE, {
+    connection: { url: env.REDIS_URL, maxRetriesPerRequest: null, enableOfflineQueue: false },
+  });
+  const breaker = new XBrowserBreaker({
+    drifts: new RedisSelectorDriftCounter(redis),
+    store: new PrismaXBrowserAdminStore(system),
+    killSignal: new RedisXBrowserKillSignal(redis),
+    alerts: new EmailXBrowserAlerts({
+      admins: new PrismaXBrowserOperations(system),
+      notifications: new NotificationProducer(notifications),
+      adminUrl: new URL('/admin', env.APP_URL).toString(),
+    }),
+    clock: systemClock,
+  });
+  return {
+    breaker,
+    close: async () => {
+      await notifications.close();
+      await system.$disconnect();
     },
   };
 }

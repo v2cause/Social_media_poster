@@ -8,11 +8,12 @@ import { NestFactory } from '@nestjs/core';
 import { X_BROWSER_RISK } from '@smp/contracts';
 import type { BrowserLogin } from '@smp/core';
 import { RedisBrowserLoginStore } from '@smp/platform-adapters';
-import { liveEventChannel, PUBLISH_QUEUE, PublishProducer } from '@smp/queue';
+import { liveEventChannel, NOTIFICATIONS_QUEUE, PUBLISH_QUEUE, PublishProducer } from '@smp/queue';
 import { startRedis, startTestDatabase, type StartedRedis, type TestDatabase } from '@smp/testing';
 import {
   parseXbCommand,
   XB_COMMANDS_QUEUE,
+  XB_KEYS,
   XB_REPORT,
   XB_RESULTS_QUEUE,
   type XbCommand,
@@ -26,12 +27,14 @@ import { parseRoles } from '../src/roles';
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
 
-// Guide steps 6.3, 6.4 and 6.6 through the role "publisher": a post of a browser connection of X
-// goes to xb-commands with the sealed session and comes back as the return value of its job, the
-// new session of the report replaces the old one, a challenge pauses the variant and asks for a
-// new login, and with the kill switch on no command leaves at all. The reports of a login move it
-// on, tell the browser of its user, and its success stores the browser connection with its
-// account. The browser worker is a stand-in on the queue; its own tests run the browser.
+// Guide steps 6.3 to 6.6 through the role "publisher": a post of a browser connection of X goes
+// to xb-commands with the sealed session and comes back as the return value of its job, the new
+// session of the report replaces the old one, a challenge pauses the variant and asks for a new
+// login, and with the kill switch on no command leaves at all. The reports of a login move it on,
+// tell the browser of its user, and its success stores the browser connection with its account.
+// Three drifts of the selector map pause their variants and open the circuit breaker, which
+// switches X without the API off and emails the platform admins. The browser worker is a stand-in
+// on the queue; its own tests run the browser.
 
 const SESSION = Buffer.from('sealed-session-of-the-test');
 const NEW_SESSION = Buffer.from('sealed-session-after-the-task');
@@ -172,6 +175,15 @@ describe('X without the API in the role "publisher"', () => {
         const command = parseXbCommand('publish', job.data);
         commands.push(command);
         const outcome = answer(command);
+        if (!outcome.ok && outcome.error.code === 'SELECTOR_DRIFT') {
+          // As the command runner does: the drift goes out as a report as well.
+          await reports.add(XB_REPORT, {
+            kind: 'drift',
+            flow: 'publish',
+            selector: 'composer.textbox',
+            selectorsVersion: 'x-v1',
+          });
+        }
         if (outcome.ok) {
           await reports.add(XB_REPORT, {
             kind: 'session.updated',
@@ -193,6 +205,9 @@ describe('X without the API in the role "publisher"', () => {
       WORKER_HEALTH_PORT: String(40_000 + Math.floor(Math.random() * 10_000)),
       REDIS_URL: redis.url,
       DATABASE_URL: database.url('app_user'),
+      // The circuit breaker switches the global flag as app_system and links to the admin page.
+      DATABASE_SYSTEM_URL: database.url('app_system'),
+      APP_URL: 'http://localhost:3000',
       TOKEN_KEKS: `kek-test:${Buffer.alloc(32, 7).toString('base64')}`,
       TOKEN_KEK_ACTIVE: 'kek-test',
       S3_ENDPOINT: 'http://127.0.0.1:9',
@@ -376,6 +391,63 @@ describe('X without the API in the role "publisher"', () => {
       ]);
     } finally {
       live.disconnect();
+      client.disconnect();
+    }
+  });
+
+  it('pauses the variants of three drifts, opens the circuit breaker and emails the platform admins', async () => {
+    // The kill switch of an earlier test is lifted, and a platform admin waits for the alert.
+    await query(
+      `DELETE FROM feature_flag WHERE key = 'x_browser_automation' AND organization_id IS NULL AND workspace_id IS NULL`,
+    );
+    const client = new Redis(started().redis.url);
+    const notifications = new Queue(NOTIFICATIONS_QUEUE, { connection: { url: started().redis.url } });
+    try {
+      await client.del(XB_KEYS.kill);
+      await query(
+        `INSERT INTO users (id, email, name, email_verified, locale, is_platform_admin, created_at, updated_at)
+         VALUES ($1, 'ops@example.test', 'Ops', true, 'en', true, now(), now())`,
+        [randomUUID()],
+      );
+      answer = () => ({ ok: false, error: { code: 'SELECTOR_DRIFT', message: 'composer.textbox is gone' } });
+      const variants: string[] = [];
+      for (let drift = 0; drift < 3; drift += 1) {
+        const scope = await seedWorkspace();
+        const seeded = await seedVariant(scope);
+        variants.push(seeded.variantId);
+        await enqueue(scope, seeded.variantId);
+      }
+
+      for (const variantId of variants) {
+        await waitFor(
+          'the paused variant',
+          async () => (await variantOf(variantId))?.status === 'NEEDS_ATTENTION',
+        );
+        expect(await variantOf(variantId)).toMatchObject({ failure_code: 'SELECTOR_DRIFT' });
+      }
+      await waitFor('the kill switch', async () => (await client.exists(XB_KEYS.kill)) === 1);
+      expect(
+        await query(
+          `SELECT enabled FROM feature_flag
+            WHERE key = 'x_browser_automation' AND organization_id IS NULL AND workspace_id IS NULL`,
+        ),
+      ).toEqual([{ enabled: false }]);
+      await waitFor('the email', async () => (await notifications.getWaitingCount()) >= 1);
+      const [email] = await notifications.getJobs(['waiting']);
+      expect(email?.data).toMatchObject({
+        channel: 'email',
+        to: 'ops@example.test',
+        email: {
+          template: 'x-browser-breaker',
+          locale: 'en',
+          url: 'http://localhost:3000/admin',
+          drifts: 3,
+          flow: 'publish',
+          selector: 'composer.textbox',
+        },
+      });
+    } finally {
+      await notifications.close();
       client.disconnect();
     }
   });

@@ -5,6 +5,7 @@ import {
   CompleteBrowserLogin,
   RecordBrowserLoginStep,
   StoreBrowserSession,
+  type XBrowserBreaker,
   systemClock,
   uuidV7Ids,
   type AdapterResolver,
@@ -41,7 +42,12 @@ import Redis from 'ioredis';
 
 import type { WorkerEnv } from '../worker-env';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
-import { xBrowserWiring, type XBrowserWiring } from './x-browser.providers';
+import {
+  xBrowserBreakerOf,
+  xBrowserWiring,
+  type BreakerWiring,
+  type XBrowserWiring,
+} from './x-browser.providers';
 
 // The adapters of the role "publisher" (guide steps 4.8 and 4.9): the database as app_user in
 // the tenant of each job, the token keyring, the platform adapters of PLATFORM_MODE_* (the mock
@@ -66,6 +72,8 @@ export interface PublishPipeline {
   browserSessions: StoreBrowserSession;
   /** The steps of the logins of X it reports there, up to the connected account (guide step 6.4). */
   browserLogins: { steps: RecordBrowserLoginStep; completion: CompleteBrowserLogin };
+  /** The circuit breaker of its drifts and canaries (guide step 6.5); null without the X browser. */
+  breaker: XBrowserBreaker | null;
 }
 
 /** The connections of the publisher, closed when the worker shuts down. */
@@ -77,6 +85,7 @@ interface PublisherClients {
   deadLetterQueue: Queue;
   deadLetterConnection: Redis;
   xBrowser: XBrowserWiring;
+  breaker: BreakerWiring | null;
 }
 
 const PUBLISHER_CLIENTS = Symbol('PUBLISHER_CLIENTS');
@@ -89,6 +98,7 @@ class PublisherClientsLifecycle implements OnApplicationShutdown {
   async onApplicationShutdown(): Promise<void> {
     this.clients.storage.destroy();
     await this.clients.xBrowser.close();
+    await this.clients.breaker?.close();
     await this.clients.deadLetterQueue.close();
     this.clients.deadLetterConnection.disconnect();
     this.clients.workerConnection.disconnect();
@@ -129,6 +139,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
   });
   const deadLetterQueue = new Queue(PUBLISH_DEAD_LETTER_QUEUE, { connection: deadLetterConnection });
   const xBrowser = xBrowserWiring(env, database);
+  const breaker = xBrowserBreakerOf(env, redis);
   // Fails at the start when a platform is live without its adapter.
   const registry = createAdapterRegistry({
     env,
@@ -191,6 +202,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
       steps: new RecordBrowserLoginStep(browserLogins),
       completion: new CompleteBrowserLogin(browserLogins),
     },
+    breaker: breaker?.breaker ?? null,
   };
   return [
     {
@@ -203,6 +215,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
         deadLetterQueue,
         deadLetterConnection,
         xBrowser,
+        breaker,
       } satisfies PublisherClients,
     },
     PublisherClientsLifecycle,
