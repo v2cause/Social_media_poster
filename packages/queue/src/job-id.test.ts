@@ -16,7 +16,6 @@ import {
   rollupKey,
   stripeJobId,
   tokenRefreshJobId,
-  XB_OPERATIONS,
   xbJobId,
 } from './index';
 
@@ -39,7 +38,7 @@ describe('job ids', () => {
       gdprJobId(id),
       mediaProcessJobId(id),
       mediaRenderJobId({ assetId: id, profile: 'instagram_feed', cropHash: 'x0y120w1080h1350-lb' }),
-      ...XB_OPERATIONS.map((operation) => xbJobId(operation, id, 2)),
+      ...['publish', 'metrics', 'login.start'].map((operation) => xbJobId(operation, id, id)),
     ];
 
     for (const jobId of ids) {

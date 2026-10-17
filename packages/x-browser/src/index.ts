@@ -1,3 +1,3 @@
-// Versioned selector maps and flows for the optional X browser adapter.
+// Versioned selector maps, flows and the protocol of the optional X browser adapter.
 
-export {};
+export * from './protocol';

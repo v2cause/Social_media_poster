@@ -48,6 +48,6 @@ export const stripeJobId = (eventId: string): string => jobIdOf('stripe', eventI
 /** gdpr.{requestId}: one job per export or erasure request. */
 export const gdprJobId = (requestId: string): string => jobIdOf('gdpr', requestId);
 
-/** xb.{op}.{id}.{v}: a command to the browser worker per target and version. */
-export const xbJobId = (operation: string, targetId: string, version: number): string =>
+/** xb.{op}.{id}.{v}: a command to the browser worker per target and call (guide step 6.2). */
+export const xbJobId = (operation: string, targetId: string, version: string | number): string =>
   jobIdOf('xb', operation, targetId, version);

@@ -11,8 +11,6 @@ import {
   parseStripeWebhook,
   publishDeadLetterSchema,
   parseTokenRefresh,
-  parseXbCommand,
-  parseXbResult,
   TICK_SCHEDULES,
   TICKS,
 } from './index';
@@ -60,7 +58,7 @@ describe('queue payloads', () => {
     expect(() => publishDeadLetterSchema.parse({ ...letter, failedAt: 'yesterday' })).toThrow();
   });
 
-  it('carries ids only, except for the browser worker', () => {
+  it('carries ids only', () => {
     expect(() =>
       parseTokenRefresh({ ...ids, connectionId: randomUUID(), accessToken: 'secret' }),
     ).not.toThrow();
@@ -68,26 +66,6 @@ describe('queue payloads', () => {
     expect(
       parseTokenRefresh({ ...ids, connectionId: randomUUID(), accessToken: 'secret' }),
     ).not.toHaveProperty('accessToken');
-    const command = {
-      workspaceId: ids.workspaceId,
-      accountId: randomUUID(),
-      session: Buffer.from('sealed').toString('base64'),
-      variantId: randomUUID(),
-      scheduleVersion: 1,
-      text: 'Hallo',
-      media: [{ url: 'https://storage.example/a.jpg', altText: null }],
-    };
-    expect(parseXbCommand('publish', command)).toEqual(command);
-    expect(() => parseXbCommand('publish', { ...command, session: 'not base64!' })).toThrow();
-    expect(
-      parseXbResult({
-        operation: 'publish',
-        targetId: command.variantId,
-        version: 1,
-        ok: false,
-        error: { code: 'CHALLENGE_REQUIRED', message: 'Login challenge' },
-      }),
-    ).toHaveProperty('error.code', 'CHALLENGE_REQUIRED');
     expect(() => parseStripeWebhook({ eventId: 'evt_123' })).not.toThrow();
     expect(() => parseStripeWebhook({ eventId: 'ch_123' })).toThrow();
   });
