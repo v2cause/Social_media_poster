@@ -1,5 +1,5 @@
-import { egressEntriesOf, egressPolicy } from '@smp/x-browser';
 import { observabilityEnvSchema } from '@smp/observability';
+import { egressHostsEnvSchema } from '@smp/x-browser';
 import { z } from 'zod';
 
 // The browser worker holds no database credentials and no S3 credentials (guide step 6.2). It
@@ -17,20 +17,7 @@ export const browserWorkerEnvSchema = z
     SESSION_KEK_ACTIVE: z.preprocess(unsetIfEmpty, z.string().optional()),
     // The origins of the media storage on top of the hosts of X, comma-separated, for example
     // the origin of S3_PUBLIC_ENDPOINT.
-    XB_EGRESS_HOSTS: z
-      .preprocess(unsetIfEmpty, z.string().optional())
-      .transform(egressEntriesOf)
-      .refine(
-        (entries) => {
-          try {
-            egressPolicy(entries);
-            return true;
-          } catch {
-            return false;
-          }
-        },
-        { message: 'Entries are hosts, *.subdomains or origins like https://media.example.com' },
-      ),
+    XB_EGRESS_HOSTS: z.preprocess(unsetIfEmpty, egressHostsEnvSchema),
     // The egress proxy of the network, for example http://egress-proxy:3128; unset in development.
     XB_EGRESS_PROXY: z.preprocess(unsetIfEmpty, z.url({ protocol: /^https?$/ }).optional()),
     // Commands at the same time, each in its own browser context (architecture 4.3).

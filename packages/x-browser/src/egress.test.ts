@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { egressEntriesOf, egressPolicy, X_WEB_HOSTS } from './egress';
+import { egressEntriesOf, egressHostsEnvSchema, egressPolicy, X_WEB_HOSTS } from './egress';
 
 // Guide step 6.2: the browser reaches the web app of X and the storage of the media, nothing
 // else, and the proxy of the network applies the same list.
@@ -87,5 +87,8 @@ describe('egress policy', () => {
       'https://media.example.com',
     ]);
     expect(egressEntriesOf(undefined)).toEqual([]);
+    expect(egressHostsEnvSchema.parse('http://s3:8333,')).toEqual(['http://s3:8333']);
+    expect(egressHostsEnvSchema.parse(undefined)).toEqual([]);
+    expect(egressHostsEnvSchema.safeParse('https://media.example.com/path').success).toBe(false);
   });
 });

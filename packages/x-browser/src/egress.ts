@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 // The hosts the browser of the X adapter may reach (guide step 6.2): the web app of X and the
 // storage of the media. The same policy runs twice, in the route of every browser context and in
 // the egress proxy of the network, so a request that slips past one still meets the other.
@@ -114,3 +116,17 @@ export const egressEntriesOf = (value: string | undefined): string[] =>
     .split(',')
     .map((entry) => entry.trim())
     .filter((entry) => entry !== '');
+
+const readable = (entries: readonly string[]): boolean => {
+  try {
+    egressPolicy(entries);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** XB_EGRESS_HOSTS of the browser worker and the egress proxy: entries the policy can read. */
+export const egressHostsEnvSchema = z.string().optional().transform(egressEntriesOf).refine(readable, {
+  message: 'Entries are hosts, *.subdomains or origins like https://media.example.com',
+});
