@@ -57,7 +57,7 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Welcome to {workspace}",
-    "intro": "Your next scheduled posts and the connected accounts. Metrics follow with analytics.",
+    "intro": "Your key figures of the last 30 days, the next scheduled posts and the connected accounts.",
     "nextPosts": "Next scheduled posts",
     "noPosts": "No posts scheduled yet.",
     "noPostsHint": "Schedule a post in the composer or move it in the calendar.",

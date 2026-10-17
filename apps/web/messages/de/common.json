@@ -57,7 +57,7 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Willkommen in {workspace}",
-    "intro": "Ihre nächsten geplanten Beiträge und die verbundenen Accounts. Kennzahlen folgen mit Analytics.",
+    "intro": "Ihre Kennzahlen der letzten 30 Tage, die nächsten geplanten Beiträge und die verbundenen Accounts.",
     "nextPosts": "Nächste geplante Posts",
     "noPosts": "Noch keine Posts geplant.",
     "noPostsHint": "Planen Sie einen Beitrag im Composer oder verschieben Sie ihn im Kalender.",
