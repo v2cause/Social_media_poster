@@ -54,9 +54,10 @@ function decodeCursor(value: string): Cursor {
   }
 }
 
+/** The start of a text in a list: one line of up to 140 characters. */
 const PREVIEW_LENGTH = 140;
 
-const previewOf = (text: string): string => {
+export const previewOf = (text: string): string => {
   const line = text.replace(/\s+/g, ' ').trim();
   return line.length > PREVIEW_LENGTH ? `${line.slice(0, PREVIEW_LENGTH - 3).trimEnd()}...` : line;
 };

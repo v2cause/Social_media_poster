@@ -62,6 +62,16 @@ export { createPrismaAnalyticsStore } from './analytics/prisma-analytics-store';
 export { PrismaAnalyticsUnitOfWork } from './analytics/prisma-analytics-unit-of-work';
 export { PrismaMetricsPlanScanner } from './analytics/prisma-metrics-plan-scanner';
 export {
+  AnalyticsReadModel,
+  type AnalyticsAccountView,
+  type AnalyticsFilter,
+  type AnalyticsPostView,
+  type ExportRow,
+  type PostMetricsView,
+  type PostPeriodFilter,
+  type TopPostsSort,
+} from './analytics/analytics-read-model';
+export {
   VariantListReadModel,
   type VariantListFilter,
   type VariantListItemView,
