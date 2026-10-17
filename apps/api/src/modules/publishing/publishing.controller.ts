@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Inject, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import {
   CancelVariant,
@@ -12,7 +12,7 @@ import {
   type PlanResult,
   type StoragePort,
 } from '@smp/core';
-import type { ContentReadModel } from '@smp/db';
+import type { ContentReadModel, VariantListReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
 
 import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
@@ -26,15 +26,18 @@ import {
   ResolveVariantDto,
   RetryVariantDto,
   ScheduleVariantDto,
+  VariantListQueryDto,
+  VariantPageDto,
 } from './publishing.dto';
-import { PUBLISHING_READ_MODEL } from './publishing.providers';
+import { PUBLISHING_READ_MODEL, VARIANT_LIST_READ_MODEL } from './publishing.providers';
 
 const id = new ParseUUIDPipe();
 
 /**
  * Planning a variant (guide step 4.6, architecture 7): plan, move, cancel, post now, try again,
  * and decide about an unclear publish. Times arrive as local date and time with their zone;
- * every answer carries the variant as it is now and the hints of the plan.
+ * every answer carries the variant as it is now and the hints of the plan. The list of the
+ * variants feeds the calendar, the post list and the dashboard (guide step 4.11).
  */
 @ApiTags('publishing')
 @WorkspaceScope()
@@ -42,6 +45,7 @@ const id = new ParseUUIDPipe();
 export class PublishingController {
   constructor(
     @Inject(PUBLISHING_READ_MODEL) private readonly readModel: ContentReadModel,
+    @Inject(VARIANT_LIST_READ_MODEL) private readonly listModel: VariantListReadModel,
     @Inject(MEDIA_STORAGE) private readonly storage: StoragePort,
     private readonly scheduleVariant: ScheduleVariant,
     private readonly rescheduleVariant: RescheduleVariant,
@@ -50,6 +54,31 @@ export class PublishingController {
     private readonly retryVariant: RetryVariant,
     private readonly resolveNeedsAttention: ResolveNeedsAttention,
   ) {}
+
+  @Get()
+  @RequirePermission('post.read')
+  @ZodResponse({ type: VariantPageDto })
+  async list(@Access() access: RequestAccess, @Query() query: VariantListQueryDto): Promise<VariantPageDto> {
+    const page = await this.listModel.list(refOf(actorOf(access)), {
+      order: query.order,
+      limit: query.limit,
+      ...(query.status ? { statuses: query.status } : {}),
+      ...(query.platform ? { platform: query.platform } : {}),
+      ...(query.accountId ? { accountId: query.accountId } : {}),
+      ...(query.from ? { from: new Date(query.from) } : {}),
+      ...(query.to ? { to: new Date(query.to) } : {}),
+      ...(query.cursor ? { cursor: query.cursor } : {}),
+    });
+    return {
+      items: page.items.map((item) => ({
+        ...item,
+        scheduledAt: item.scheduledAt?.toISOString() ?? null,
+        publishedAt: item.publishedAt?.toISOString() ?? null,
+        updatedAt: item.updatedAt.toISOString(),
+      })),
+      nextCursor: page.nextCursor,
+    };
+  }
 
   @Post(':variantId/schedule')
   @RequirePermission('post.schedule')

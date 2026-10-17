@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { formatLocalTime } from '@smp/core';
-import type { PlanResultDto, PostDto, VariantDto } from '@smp/contracts';
+import type { PlanResultDto, PostDto, VariantDto, VariantPageDto } from '@smp/contracts';
 import { createPrismaClient, DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from '@smp/db';
 import type { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -11,7 +11,7 @@ import { signIn, type Browser } from './support/browser';
 
 // Guide step 4.6 through the API: plan, move, cancel and post a variant now, with local times
 // and their zone, the checks of time, account and content, and the outbox events the worker
-// picks up.
+// picks up. Guide step 4.11: the list of the variants for the calendar and the post list.
 
 const SEED_PASSWORD = 'seed-password-for-the-publishing-test';
 const ws = `/api/w/${DEMO_WORKSPACE_SLUG}`;
@@ -236,5 +236,41 @@ describe('publishing API', () => {
       code: 'INVALID_STATUS_TRANSITION',
       params: { from: 'DRAFT', to: 'QUEUED' },
     });
+  });
+
+  it('lists the planned variants by time and every variant page by page, also to viewers', async () => {
+    const list = (query: Record<string, string | number>) =>
+      as(viewer).get(`${ws}/variants`).query(query).expect(200);
+
+    // The variant posted now first, then the one planned in three days.
+    const planned = (await list({ order: 'schedule', status: 'SCHEDULED,QUEUED' })).body as VariantPageDto;
+    expect(planned.items.map((item) => item.status)).toEqual(['QUEUED', 'SCHEDULED']);
+    expect(planned.items[1]).toMatchObject({
+      platform: 'LINKEDIN',
+      preview: 'Am Samstag öffnen wir unsere Werkstatt.',
+      account: { id: accountId, name: 'Mock', handle: null, type: 'PROFILE' },
+      scheduledTimezone: ZONE,
+      publishedAt: null,
+      failureCode: null,
+    });
+    expect(planned.nextCursor).toBeNull();
+
+    const all = (await list({})).body as VariantPageDto;
+    const paged: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const page = (await list({ limit: 2, ...(cursor ? { cursor } : {}) })).body as VariantPageDto;
+      paged.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor;
+    } while (cursor);
+    expect(paged).toEqual(all.items.map((item) => item.id));
+    expect(new Set(paged).size).toBe(4);
+
+    const invalid = (query: Record<string, string>) => as(viewer).get(`${ws}/variants`).query(query);
+    expect((await invalid({ status: 'SCHEDULED,LOST' }).expect(400)).body).toMatchObject({
+      code: 'VALIDATION_FAILED',
+    });
+    await invalid({ from: '2026-11-01T00:00:00Z', to: '2026-10-01T00:00:00Z' }).expect(400);
+    expect((await invalid({ cursor: 'forged' }).expect(422)).body).toMatchObject({ code: 'INVALID_CURSOR' });
   });
 });

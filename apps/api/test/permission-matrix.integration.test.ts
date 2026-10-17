@@ -342,6 +342,13 @@ const ENDPOINTS: Endpoint[] = [
     permission: 'account.manage',
     path: (i) => `/api/w/${i.slug}/accounts/${unknownId}`,
   },
+  // The variants for the calendar and the post list (guide step 4.11).
+  {
+    method: 'get',
+    route: '/api/w/:ws/variants',
+    permission: 'post.read',
+    path: (i) => `/api/w/${i.slug}/variants?order=schedule`,
+  },
   // Planning and publishing (guide step 4.6): an unknown variant.
   {
     method: 'post',
