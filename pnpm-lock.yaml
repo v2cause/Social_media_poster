@@ -370,9 +370,15 @@ importers:
       '@playwright/test':
         specifier: 1.64.0
         version: 1.64.0
+      '@smp/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@smp/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@smp/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
       '@smp/x-browser':
         specifier: workspace:*
         version: link:../../packages/x-browser
