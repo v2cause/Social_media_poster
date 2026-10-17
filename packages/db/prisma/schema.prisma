@@ -45,6 +45,7 @@ model User {
   sentInvitations         Invitation[]             @relation("InvitationInvitedBy")
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
+  gdprRequests            GdprRequest[]
 
   // "user" is a reserved word in PostgreSQL; raw SQL would need quotes everywhere.
   @@map("users")
@@ -1245,4 +1246,49 @@ model Subscription {
 
   @@index([readOnlyAt])
   @@map("subscription")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Data protection (guide steps 8.1 and 8.2, ADR 0036): the export of an organization and its
+// erasure, which the worker role "gdpr" runs. A request has no foreign key to the organization,
+// so that the record of an erasure can outlive it.
+// ---------------------------------------------------------------------------------------------
+
+model GdprRequest {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  kind           GdprRequestKind
+  status         GdprRequestStatus @default(PENDING)
+  requestedById  String?           @map("requested_by_id") @db.Uuid
+  // The request is not run before this moment.
+  runAfter       DateTime          @default(now()) @map("run_after") @db.Timestamptz(3)
+  startedAt      DateTime?         @map("started_at") @db.Timestamptz(3)
+  completedAt    DateTime?         @map("completed_at") @db.Timestamptz(3)
+  // The archive of an export in the object storage, and until when it and its link exist.
+  objectKey      String?           @map("object_key")
+  expiresAt      DateTime?         @map("expires_at") @db.Timestamptz(3)
+  // What a run did and why it failed, as counts and codes; never personal data.
+  details        Json              @default("{}")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  requestedBy User? @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, kind], map: "gdpr_request_open_key", where: raw("status IN ('PENDING', 'RUNNING')"))
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([status, runAfter])
+  @@map("gdpr_request")
+}
+
+enum GdprRequestKind {
+  EXPORT
+  ERASURE
+}
+
+enum GdprRequestStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELED
 }

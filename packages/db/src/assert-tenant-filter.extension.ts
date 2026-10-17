@@ -48,6 +48,7 @@ export const TENANT_FILTERS: Readonly<Record<string, TenantFilterRule>> = {
   AnalyticsDaily: { field: 'workspaceId', scope: 'workspaceId' },
   RiskAcknowledgement: { field: 'workspaceId', scope: 'workspaceId' },
   Subscription: { field: 'organizationId', scope: 'organizationId' },
+  GdprRequest: { field: 'organizationId', scope: 'organizationId' },
 };
 
 const FILTERED_OPERATIONS = new Set([

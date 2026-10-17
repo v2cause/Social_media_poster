@@ -141,3 +141,5 @@ export {
   type AuditLogEntryView,
   type AuditLogFilter,
 } from './audit/audit-log-read-model';
+export { PrismaGdprRequestRunner, PrismaGdprUnitOfWork, toGdprRequest } from './gdpr/prisma-gdpr-requests';
+export { EXPORT_TABLES, PrismaOrganizationDataSource } from './gdpr/prisma-organization-data-source';
