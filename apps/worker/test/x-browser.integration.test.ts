@@ -6,7 +6,9 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { X_BROWSER_RISK } from '@smp/contracts';
-import { PUBLISH_QUEUE, PublishProducer } from '@smp/queue';
+import type { BrowserLogin } from '@smp/core';
+import { RedisBrowserLoginStore } from '@smp/platform-adapters';
+import { liveEventChannel, PUBLISH_QUEUE, PublishProducer } from '@smp/queue';
 import { startRedis, startTestDatabase, type StartedRedis, type TestDatabase } from '@smp/testing';
 import {
   parseXbCommand,
@@ -17,20 +19,23 @@ import {
   type XbOutcome,
 } from '@smp/x-browser';
 import { Queue, Worker, type Job } from 'bullmq';
+import Redis from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseRoles } from '../src/roles';
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
 
-// Guide steps 6.3 and 6.6 through the role "publisher": a post of a browser connection of X goes
-// to xb-commands with the sealed session and comes back as the return value of its job, the new
-// session of the report replaces the old one, a challenge pauses the variant and asks for a new
-// login, and with the kill switch on no command leaves at all. The browser worker is a stand-in
-// on the queue; its own tests run the browser.
+// Guide steps 6.3, 6.4 and 6.6 through the role "publisher": a post of a browser connection of X
+// goes to xb-commands with the sealed session and comes back as the return value of its job, the
+// new session of the report replaces the old one, a challenge pauses the variant and asks for a
+// new login, and with the kill switch on no command leaves at all. The reports of a login move it
+// on, tell the browser of its user, and its success stores the browser connection with its
+// account. The browser worker is a stand-in on the queue; its own tests run the browser.
 
 const SESSION = Buffer.from('sealed-session-of-the-test');
 const NEW_SESSION = Buffer.from('sealed-session-after-the-task');
+const LOGIN_SESSION = Buffer.from('sealed-session-of-a-login');
 
 interface Workspace {
   organizationId: string;
@@ -283,5 +288,95 @@ describe('X without the API in the role "publisher"', () => {
 
     expect(await variantOf(seeded.variantId)).toMatchObject({ failure_code: 'ADAPTER_UNAVAILABLE' });
     expect(commands.length).toBe(before);
+  });
+
+  it('moves a login of X along its reports and stores the connected account', async () => {
+    const scope = await seedWorkspace();
+    const client = new Redis(started().redis.url);
+    const live = new Redis(started().redis.url);
+    const events: unknown[] = [];
+    live.on('message', (_channel: string, message: string) => {
+      events.push(JSON.parse(message));
+    });
+    await live.subscribe(liveEventChannel(scope.workspaceId));
+    try {
+      const logins = new RedisBrowserLoginStore(client);
+      const userId = randomUUID();
+      const login: BrowserLogin = {
+        id: randomUUID(),
+        ...scope,
+        userId,
+        status: 'STARTING',
+        failure: null,
+        accountId: null,
+        reconnectAccountId: null,
+        locale: 'en',
+        startedAt: new Date(),
+        expiresAt: new Date(Date.now() + 5 * 60_000),
+      };
+      const failing: BrowserLogin = { ...login, id: randomUUID() };
+      await logins.create(login);
+      await logins.create(failing);
+      const statusOf = async (id: string) => (await logins.find(id))?.status;
+      const report = { ...scope, loginSessionId: login.id };
+
+      await started().results.add(XB_REPORT, { kind: 'login.status', ...report, status: 'AWAITING_2FA' });
+      await waitFor('the question for a code', async () => (await statusOf(login.id)) === 'AWAITING_2FA');
+      await started().results.add(XB_REPORT, {
+        kind: 'login.succeeded',
+        ...report,
+        user: { id: '2222222222', handle: 'smp_login', name: 'SMP Login', avatarUrl: null },
+        session: LOGIN_SESSION.toString('base64'),
+      });
+      await waitFor('the connected account', async () => (await statusOf(login.id)) === 'SUCCEEDED');
+
+      const [connection] = await query<{
+        id: string;
+        method: string;
+        status: string;
+        access_token_sealed: Buffer | null;
+        session_sealed: Buffer;
+        connected_by_id: string;
+      }>(
+        `SELECT id, method, status, access_token_sealed, session_sealed, connected_by_id FROM social_connection
+          WHERE workspace_id = $1 AND external_user_id = '2222222222'`,
+        [scope.workspaceId],
+      );
+      expect(connection).toMatchObject({
+        method: 'BROWSER',
+        status: 'ACTIVE',
+        access_token_sealed: null,
+        connected_by_id: userId,
+      });
+      expect(connection?.session_sealed.equals(LOGIN_SESSION)).toBe(true);
+      const accounts = await query<{ id: string; handle: string; settings: unknown }>(
+        'SELECT id, handle, settings FROM social_account WHERE connection_id = $1',
+        [connection?.id],
+      );
+      expect(accounts).toEqual([
+        { id: (await logins.find(login.id))?.accountId, handle: 'smp_login', settings: { locale: 'en' } },
+      ]);
+      expect(
+        await query('SELECT action, actor_user_id FROM audit_log WHERE target_id = $1', [connection?.id]),
+      ).toEqual([{ action: 'channel.connect', actor_user_id: userId }]);
+
+      await started().results.add(XB_REPORT, {
+        kind: 'login.failed',
+        ...scope,
+        loginSessionId: failing.id,
+        failure: 'CHALLENGE_REQUIRED',
+      });
+      await waitFor('the failed login', async () => (await statusOf(failing.id)) === 'FAILED');
+      expect(await logins.find(failing.id)).toMatchObject({ failure: 'CHALLENGE_REQUIRED' });
+      await waitFor('the live events', () => Promise.resolve(events.length >= 3));
+      expect(events).toEqual([
+        { type: 'xb.login', loginSessionId: login.id, status: 'AWAITING_2FA', userId },
+        { type: 'xb.login', loginSessionId: login.id, status: 'SUCCEEDED', userId },
+        { type: 'xb.login', loginSessionId: failing.id, status: 'FAILED', userId },
+      ]);
+    } finally {
+      live.disconnect();
+      client.disconnect();
+    }
   });
 });

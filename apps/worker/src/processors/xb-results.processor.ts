@@ -1,5 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject } from '@nestjs/common';
+import type { BrowserLoginStep } from '@smp/core';
 import { parseXbReport, XB_REPORT, XB_RESULTS_QUEUE, type XbReport } from '@smp/x-browser';
 import { type Job, UnrecoverableError } from 'bullmq';
 import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
@@ -10,8 +11,10 @@ import { PUBLISH_PIPELINE } from '../worker.tokens';
 
 /**
  * The reports of the browser worker on xb-results, in the role "publisher" (guide step 6.2): a new
- * session replaces the sealed one of its connection, a drift and the canary go to the logs (the
- * circuit breaker counts them, guide step 6.5). Logs carry ids and selectors, never sessions.
+ * session replaces the sealed one of its connection, the steps of a login of X move it on and its
+ * success stores the browser connection with its account (guide step 6.4), a drift and the canary
+ * go to the logs (the circuit breaker counts them, guide step 6.5). Logs carry ids, statuses and
+ * selectors, never sessions.
  */
 @Processor(XB_RESULTS_QUEUE, { concurrency: 4 })
 export class XbResultsProcessor extends WorkerHost {
@@ -68,10 +71,52 @@ export class XbResultsProcessor extends WorkerHost {
           );
         }
         return 'canary';
-      default:
-        // The steps of the interactive login (guide step 6.4).
-        this.logger.warn({ kind: report.kind }, 'xb.report_unhandled');
-        return 'unhandled';
+      case 'login.status':
+        return this.loginStep(report, { kind: 'awaiting_code' });
+      case 'login.failed':
+        return this.loginStep(report, { kind: 'failed', failure: report.failure });
+      case 'login.succeeded': {
+        const completion = await this.pipeline.browserLogins.completion.execute({
+          organizationId: report.organizationId,
+          workspaceId: report.workspaceId,
+          loginSessionId: report.loginSessionId,
+          user: report.user,
+          sessionSealed: Buffer.from(report.session, 'base64'),
+        });
+        this.logger.info(
+          {
+            loginSessionId: report.loginSessionId,
+            outcome: completion.status,
+            ...(completion.status === 'connected'
+              ? { connectionId: completion.connectionId, accountId: completion.accountId }
+              : {}),
+          },
+          'xb.login_completed',
+        );
+        return `login_${completion.status}`;
+      }
     }
+  }
+
+  private async loginStep(
+    report: Extract<XbReport, { kind: 'login.status' | 'login.failed' }>,
+    step: BrowserLoginStep,
+  ): Promise<string> {
+    const recorded = await this.pipeline.browserLogins.steps.execute({
+      organizationId: report.organizationId,
+      workspaceId: report.workspaceId,
+      loginSessionId: report.loginSessionId,
+      step,
+    });
+    this.logger.info(
+      {
+        loginSessionId: report.loginSessionId,
+        step: step.kind,
+        ...(step.kind === 'failed' ? { failure: step.failure } : {}),
+        recorded,
+      },
+      'xb.login_step',
+    );
+    return recorded ? 'login_step' : 'login_step_ignored';
   }
 }

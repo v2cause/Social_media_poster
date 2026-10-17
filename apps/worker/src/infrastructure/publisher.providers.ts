@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 
 import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import {
+  CompleteBrowserLogin,
+  RecordBrowserLoginStep,
   StoreBrowserSession,
   systemClock,
   uuidV7Ids,
@@ -13,6 +15,7 @@ import {
 import { sealerFromEnv } from '@smp/crypto';
 import {
   createPrismaClient,
+  PrismaChannelUnitOfWork,
   PrismaPublishJobUnitOfWork,
   PrismaTokenMaintenanceUnitOfWork,
   PrismaXBrowserUnitOfWork,
@@ -23,9 +26,16 @@ import {
   AdapterNotAvailableError,
   createAdapterRegistry,
   operationPriceMicros,
+  RedisBrowserLoginStore,
   RedisMockPlatformStore,
 } from '@smp/platform-adapters';
-import { PUBLISH_DEAD_LETTER_QUEUE, PublishDeadLetters, withLock } from '@smp/queue';
+import {
+  LiveBrowserLoginEvents,
+  LiveEventPublisher,
+  PUBLISH_DEAD_LETTER_QUEUE,
+  PublishDeadLetters,
+  withLock,
+} from '@smp/queue';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
@@ -54,6 +64,8 @@ export interface PublishPipeline {
   deadLetters: PublishDeadLetters;
   /** The sessions the browser worker reports on xb-results (guide step 6.2). */
   browserSessions: StoreBrowserSession;
+  /** The steps of the logins of X it reports there, up to the connected account (guide step 6.4). */
+  browserLogins: { steps: RecordBrowserLoginStep; completion: CompleteBrowserLogin };
 }
 
 /** The connections of the publisher, closed when the worker shuts down. */
@@ -143,6 +155,13 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
       }),
   };
 
+  const browserLogins = {
+    logins: new RedisBrowserLoginStore(redis),
+    events: new LiveBrowserLoginEvents(new LiveEventPublisher(redis)),
+    unitOfWork: new PrismaChannelUnitOfWork(database),
+    clock: systemClock,
+    ids: uuidV7Ids,
+  };
   const pipeline: PublishPipeline = {
     deps: {
       unitOfWork: new PrismaPublishJobUnitOfWork(database),
@@ -168,6 +187,10 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
     workerConnection,
     deadLetters: new PublishDeadLetters(deadLetterQueue),
     browserSessions: new StoreBrowserSession({ unitOfWork: new PrismaXBrowserUnitOfWork(database) }),
+    browserLogins: {
+      steps: new RecordBrowserLoginStep(browserLogins),
+      completion: new CompleteBrowserLogin(browserLogins),
+    },
   };
   return [
     {
