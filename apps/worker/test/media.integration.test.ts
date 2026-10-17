@@ -27,7 +27,6 @@ import {
   type TestDatabase,
 } from '@smp/testing';
 import { Queue, QueueEvents } from 'bullmq';
-import Redis from 'ioredis';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -179,10 +178,8 @@ describe('media worker', () => {
 
     base = createPrismaClient(database.url('app_user'));
     storage = new S3Storage(config);
-    queue = new Queue(MEDIA_QUEUE, { connection: new Redis(redis.url, { maxRetriesPerRequest: null }) });
-    events = new QueueEvents(MEDIA_QUEUE, {
-      connection: new Redis(redis.url, { maxRetriesPerRequest: null }),
-    });
+    queue = new Queue(MEDIA_QUEUE, { connection: { url: redis.url } });
+    events = new QueueEvents(MEDIA_QUEUE, { connection: { url: redis.url } });
     await events.waitUntilReady();
   });
 

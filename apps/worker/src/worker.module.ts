@@ -21,7 +21,6 @@ import {
   TOKENS_QUEUE,
 } from '@smp/queue';
 import { XB_RESULTS_QUEUE } from '@smp/x-browser';
-import Redis from 'ioredis';
 import { LoggerModule } from 'nestjs-pino';
 
 import { HealthServer } from './health/health.server';
@@ -126,14 +125,15 @@ export class WorkerModule {
     });
 
     const logger = createLogger({ service: 'worker', environment: env.NODE_ENV, level: env.LOG_LEVEL });
-    // BullMQ workers block on their connection, so a failed command must not be retried forever.
-    const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 
     return {
       module: WorkerModule,
       imports: [
         LoggerModule.forRoot({ pinoHttp: { logger } }),
-        BullModule.forRoot({ connection }),
+        // Options instead of a shared client: every queue and worker opens its own connection and
+        // closes it on shutdown (BullMQ never closes a client it was handed). Blocking worker
+        // connections get maxRetriesPerRequest null from BullMQ itself.
+        BullModule.forRoot({ connection: { url: env.REDIS_URL } }),
         ...wiring.flatMap(({ queues }) => queues.map((name) => BullModule.registerQueue({ name }))),
       ],
       providers: [
