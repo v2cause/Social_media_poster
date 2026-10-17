@@ -61,6 +61,7 @@ export {
   PrismaWebhookRecorder,
   type BillingContact,
 } from './billing/prisma-billing-stores';
+export { PrismaUsageReportStore } from './billing/prisma-usage-report-store';
 export { PrismaSealedSecretStore } from './channels/prisma-sealed-secret-store';
 export { PrismaChannelUnitOfWork } from './channels/prisma-channel-unit-of-work';
 export { createPrismaChannelStore } from './channels/prisma-channel-store';

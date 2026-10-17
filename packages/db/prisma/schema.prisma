@@ -701,6 +701,8 @@ model UsageRecord {
 
   @@unique([sourceType, sourceId, meter])
   @@index([organizationId, periodStart])
+  // What the daily usage report has not passed to Stripe yet (guide step 7.3).
+  @@index([organizationId, createdAt], map: "usage_record_unreported_idx", where: raw("reported_to_stripe_at IS NULL"))
   @@map("usage_record")
 }
 
@@ -1048,6 +1050,7 @@ model ApiCostRecord {
   @@unique([sourceType, sourceId, operation])
   @@index([organizationId, createdAt])
   @@index([workspaceId, createdAt])
+  @@index([organizationId, createdAt], map: "api_cost_record_unreported_idx", where: raw("reported_to_stripe_at IS NULL"))
   @@map("api_cost_record")
 }
 
