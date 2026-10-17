@@ -18,6 +18,7 @@ import { DevModule } from './modules/dev/dev.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { MediaModule } from './modules/media/media.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PublishingModule } from './modules/publishing/publishing.module';
 import { TenancyModule } from './modules/tenancy/tenancy.module';
 
@@ -53,6 +54,7 @@ export class AppModule {
         MediaModule,
         ChannelsModule,
         PublishingModule,
+        NotificationsModule,
         // The fake OAuth page of the mock platforms never exists in production (guide step 4.4).
         ...(env.NODE_ENV === 'production' ? [] : [DevModule]),
       ],

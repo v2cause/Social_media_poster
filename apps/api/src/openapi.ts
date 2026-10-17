@@ -8,6 +8,7 @@ import * as channelDtos from './modules/channels/channels.dto';
 import * as contentDtos from './modules/content/content.dto';
 import { MeDto } from './modules/identity/me.controller';
 import * as mediaDtos from './modules/media/media.dto';
+import * as notificationDtos from './modules/notifications/notifications.dto';
 import * as publishingDtos from './modules/publishing/publishing.dto';
 import * as tenancyDtos from './modules/tenancy/tenancy.dto';
 
@@ -24,6 +25,7 @@ export const OPENAPI_DTOS: { name: string; schema: z.ZodType }[] = [
   ...Object.values(mediaDtos),
   ...Object.values(channelDtos),
   ...Object.values(publishingDtos),
+  ...Object.values(notificationDtos),
 ];
 
 const capitalize = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);
