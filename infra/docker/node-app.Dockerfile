@@ -1,8 +1,11 @@
 # syntax=docker/dockerfile:1
 #
-# Backend images for the api and the worker. Build from the repository root:
+# Backend images for the api, the worker and the egress proxy of the browser worker. Build from
+# the repository root:
 #   docker build -f infra/docker/node-app.Dockerfile --build-arg APP=api -t smp-api .
 #   docker build -f infra/docker/node-app.Dockerfile --build-arg APP=worker -t smp-worker .
+#   docker build -f infra/docker/node-app.Dockerfile --build-arg APP=egress-proxy \
+#     --build-arg HEALTH_URL=http://127.0.0.1:3128/health -t smp-egress-proxy .
 #
 # Stages: prune (turbo) -> deps (pnpm, frozen lockfile) -> build (turbo) -> runtime (production deps only).
 

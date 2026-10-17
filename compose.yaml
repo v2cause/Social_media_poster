@@ -7,7 +7,9 @@
 #   (default)      postgres, redis, s3 (+ bucket init), mailpit
 #   app            api, worker and web, built from their Dockerfiles, behind the proxy on
 #                  http://localhost:8080 (routes /api to the API like production)
-#   xb             browser-worker (isolated Playwright host, consumes xb-commands only)
+#   xb             browser-worker (isolated Playwright host, consumes xb-commands only) in the
+#                  internal network "xb", which reaches Redis and the egress proxy only; the
+#                  egress proxy lets it out to the X web app and the storage, nowhere else
 #   observability  grafana/otel-lgtm (Grafana on host port 3003, OTLP on 4317/4318)
 #   clamav         optional virus scan on 127.0.0.1:3310
 #
@@ -76,6 +78,8 @@ services:
       - '+@all'
       - '-@dangerous'
       - '+info'
+    # Also in the internal network of the browser worker.
+    networks: [default, xb]
     ports:
       - '127.0.0.1:6379:6379'
     volumes:
@@ -263,11 +267,16 @@ services:
       dockerfile: apps/browser-worker/Dockerfile
     profiles: ['xb']
     restart: unless-stopped
+    <<: *hardened
     # Chromium needs shared memory, and init reaps its child processes.
     init: true
     shm_size: 1gb
+    # Only the internal network: Redis and the egress proxy, no database, no API, no internet.
+    networks: [xb]
     depends_on:
       redis:
+        condition: service_healthy
+      egress-proxy:
         condition: service_healthy
     # No env_file: the container gets only what it needs, never database or storage credentials.
     environment:
@@ -279,6 +288,33 @@ services:
       SESSION_KEKS: ${SESSION_KEKS:-}
       SESSION_KEK_ACTIVE: ${SESSION_KEK_ACTIVE:-}
       # The media are signed for S3_PUBLIC_ENDPOINT; inside the network the storage is s3:8333.
+      XB_EGRESS_HOSTS: http://s3:8333
+      # Chromium and the media downloads of Node leave through the egress proxy.
+      XB_EGRESS_PROXY: http://egress-proxy:3128
+      NODE_USE_ENV_PROXY: '1'
+      HTTP_PROXY: http://egress-proxy:3128
+      HTTPS_PROXY: http://egress-proxy:3128
+      NO_PROXY: redis
+      # Chromium keeps its profile below HOME; the root filesystem is read-only.
+      HOME: /tmp
+
+  egress-proxy:
+    build:
+      context: .
+      dockerfile: infra/docker/node-app.Dockerfile
+      args:
+        APP: egress-proxy
+        HEALTH_URL: http://127.0.0.1:3128/health
+    profiles: ['xb']
+    restart: unless-stopped
+    <<: *hardened
+    # Between the internal network of the browser worker and the outside.
+    networks: [default, xb]
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      EGRESS_PORT: '3128'
+      # The hosts of X come with the selector map; on top the storage of the media.
       XB_EGRESS_HOSTS: http://s3:8333
 
   otel-lgtm:
@@ -297,6 +333,12 @@ services:
     restart: unless-stopped
     ports:
       - '127.0.0.1:3310:3310'
+
+networks:
+  default: {}
+  # No route out: the browser worker reaches Redis and the egress proxy only.
+  xb:
+    internal: true
 
 volumes:
   postgres-data:
