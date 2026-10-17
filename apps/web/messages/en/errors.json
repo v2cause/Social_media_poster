@@ -75,7 +75,13 @@
     "RISK_TEXT_OUTDATED": "The risk text has changed in the meantime. Please read and confirm the new version.",
     "XB_LOGIN_NOT_FOUND": "The sign-in to X has expired. Please start it again.",
     "XB_LOGIN_NOT_AWAITING_CODE": "X is not waiting for a code right now.",
-    "TOO_MANY_ATTEMPTS": "Too many attempts. Please wait a few minutes."
+    "TOO_MANY_ATTEMPTS": "Too many attempts. Please wait a few minutes.",
+    "PLAN_LIMIT_REACHED": "Your plan does not allow more here. The owner of your organization can choose a larger plan under Billing.",
+    "SUBSCRIPTION_INACTIVE": "Your organization is read-only because its subscription is not active. The owner can reactivate it under Billing.",
+    "SUBSCRIPTION_EXISTS": "Your organization already has a subscription. Change the plan in the customer portal.",
+    "BILLING_UNAVAILABLE": "Billing is not set up in this environment.",
+    "BILLING_CUSTOMER_MISSING": "Your organization is not a customer yet. Choose a plan first.",
+    "WEBHOOK_SIGNATURE_INVALID": "The signature of the webhook is invalid."
   },
   "validation": {
     "required": "Please fill in this field.",

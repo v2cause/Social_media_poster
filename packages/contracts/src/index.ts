@@ -2,6 +2,7 @@
 
 export * from './ai';
 export * from './analytics';
+export * from './billing';
 export {
   auditLogEntrySchema,
   auditLogPageSchema,
