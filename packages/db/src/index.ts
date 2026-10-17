@@ -58,6 +58,9 @@ export { createPrismaChannelStore } from './channels/prisma-channel-store';
 export { ChannelReadModel, type SocialAccountView } from './channels/channel-read-model';
 export { PrismaPublishingUnitOfWork } from './publishing/prisma-publishing-unit-of-work';
 export { PrismaPublishJobUnitOfWork } from './publishing/prisma-publish-job-unit-of-work';
+export { createPrismaAnalyticsStore } from './analytics/prisma-analytics-store';
+export { PrismaAnalyticsUnitOfWork } from './analytics/prisma-analytics-unit-of-work';
+export { PrismaMetricsPlanScanner } from './analytics/prisma-metrics-plan-scanner';
 export {
   VariantListReadModel,
   type VariantListFilter,
