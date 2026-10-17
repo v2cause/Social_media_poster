@@ -73,10 +73,6 @@
       "clock": "in {minutes}:{seconds}"
     }
   },
-  "section": {
-    "upcoming": "Coming soon",
-    "upcomingDescription": "{section} is not available yet and arrives with one of the next phases."
-  },
   "notFound": {
     "title": "Page not found",
     "description": "The page does not exist, or you have no access to it.",

@@ -1,0 +1,34 @@
+{
+  "title": "Platform administration",
+  "description": "Switches that apply to every organization.",
+  "denied": {
+    "title": "No access",
+    "description": "This page is reserved for platform admins."
+  },
+  "xBrowser": {
+    "title": "X without the API",
+    "description": "The browser adapter for X. Workspaces switch it on themselves once their organization is allowed.",
+    "notOffered": "This installation runs no browser worker: FEATURE_X_BROWSER_GLOBAL is switched off.",
+    "killSwitch": "Kill switch",
+    "active": "Active",
+    "inactive": "Not active",
+    "activeSince": "Since {date} X without the API is switched off for all workspaces.",
+    "inactiveHint": "Allowed workspaces can use X without the API.",
+    "activate": "Activate the kill switch",
+    "deactivate": "Lift the kill switch",
+    "activateTitle": "Activate the kill switch?",
+    "activateDescription": "Every task of the browser worker stops at once, in all workspaces. Posts in progress are marked for review.",
+    "activatedToast": "The kill switch is active.",
+    "deactivatedToast": "The kill switch is lifted.",
+    "organizations": "Allowed organizations",
+    "organizationsHint": "Until billing arrives in phase 7, platform admins allow organizations.",
+    "none": "No organization is allowed yet.",
+    "since": "since {date}",
+    "remove": "Remove",
+    "removeNamed": "Remove the permission of {name}",
+    "workspaceSlug": "Slug of a workspace of the organization",
+    "allow": "Allow",
+    "allowedToast": "{name} is allowed.",
+    "removedToast": "The permission is removed."
+  }
+}

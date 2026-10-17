@@ -1,5 +1,6 @@
 import deAccount from '../../messages/de/account.json';
 import deAccounts from '../../messages/de/accounts.json';
+import deAdmin from '../../messages/de/admin.json';
 import deAnalytics from '../../messages/de/analytics.json';
 import deAuth from '../../messages/de/auth.json';
 import deBrand from '../../messages/de/brand.json';
@@ -12,9 +13,11 @@ import deMedia from '../../messages/de/media.json';
 import deNotifications from '../../messages/de/notifications.json';
 import deOnboarding from '../../messages/de/onboarding.json';
 import dePosts from '../../messages/de/posts.json';
+import deSettings from '../../messages/de/settings.json';
 import deTeam from '../../messages/de/team.json';
 import enAccount from '../../messages/en/account.json';
 import enAccounts from '../../messages/en/accounts.json';
+import enAdmin from '../../messages/en/admin.json';
 import enAnalytics from '../../messages/en/analytics.json';
 import enAuth from '../../messages/en/auth.json';
 import enBrand from '../../messages/en/brand.json';
@@ -27,6 +30,7 @@ import enMedia from '../../messages/en/media.json';
 import enNotifications from '../../messages/en/notifications.json';
 import enOnboarding from '../../messages/en/onboarding.json';
 import enPosts from '../../messages/en/posts.json';
+import enSettings from '../../messages/en/settings.json';
 import enTeam from '../../messages/en/team.json';
 import type { Locale } from './locale';
 
@@ -48,6 +52,8 @@ const MESSAGES = {
     media: deMedia,
     notifications: deNotifications,
     brand: deBrand,
+    settings: deSettings,
+    admin: deAdmin,
     errors: deErrors,
   },
   en: {
@@ -65,6 +71,8 @@ const MESSAGES = {
     media: enMedia,
     notifications: enNotifications,
     brand: enBrand,
+    settings: enSettings,
+    admin: enAdmin,
     errors: enErrors,
   },
 } as const;

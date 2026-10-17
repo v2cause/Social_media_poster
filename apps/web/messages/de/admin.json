@@ -1,0 +1,34 @@
+{
+  "title": "Plattform-Administration",
+  "description": "Schalter, die für alle Organisationen gelten.",
+  "denied": {
+    "title": "Kein Zugriff",
+    "description": "Diese Seite ist Plattform-Admins vorbehalten."
+  },
+  "xBrowser": {
+    "title": "X ohne API",
+    "description": "Der Browser-Adapter für X. Workspaces schalten ihn selbst ein, sobald ihre Organisation freigeschaltet ist.",
+    "notOffered": "Diese Installation betreibt keinen Browser-Worker: FEATURE_X_BROWSER_GLOBAL ist ausgeschaltet.",
+    "killSwitch": "Kill-Switch",
+    "active": "Aktiv",
+    "inactive": "Nicht aktiv",
+    "activeSince": "Seit {date} ist X ohne API für alle Workspaces abgeschaltet.",
+    "inactiveHint": "Freigeschaltete Workspaces können X ohne API nutzen.",
+    "activate": "Kill-Switch aktivieren",
+    "deactivate": "Kill-Switch aufheben",
+    "activateTitle": "Kill-Switch aktivieren?",
+    "activateDescription": "Alle Aufgaben des Browser-Workers stoppen sofort, in allen Workspaces. Laufende Veröffentlichungen werden zur Prüfung markiert.",
+    "activatedToast": "Der Kill-Switch ist aktiv.",
+    "deactivatedToast": "Der Kill-Switch ist aufgehoben.",
+    "organizations": "Freigeschaltete Organisationen",
+    "organizationsHint": "Bis zur Abrechnung in Phase 7 schalten Plattform-Admins Organisationen frei.",
+    "none": "Noch keine Organisation ist freigeschaltet.",
+    "since": "seit {date}",
+    "remove": "Entfernen",
+    "removeNamed": "Freischaltung von {name} entfernen",
+    "workspaceSlug": "Slug eines Workspace der Organisation",
+    "allow": "Freischalten",
+    "allowedToast": "{name} ist freigeschaltet.",
+    "removedToast": "Die Freischaltung ist entfernt."
+  }
+}

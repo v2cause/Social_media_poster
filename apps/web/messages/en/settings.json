@@ -1,0 +1,35 @@
+{
+  "title": "Settings",
+  "description": "The settings of this workspace.",
+  "xBrowser": {
+    "title": "X without the API (experimental)",
+    "description": "Publishes on X through the web interface of X instead of the official API. Switched off by default.",
+    "badge": {
+      "on": "On",
+      "blocked": "Blocked",
+      "off": "Off"
+    },
+    "unavailable": {
+      "deployment": "This installation does not offer X without the API.",
+      "kill_switch": "X without the API is switched off for all workspaces for the time being.",
+      "plan": "Your plan does not include X without the API. Please contact support."
+    },
+    "enabled": "X without the API is switched on.",
+    "enabledBy": "The risks were acknowledged on {date} by {name}.",
+    "enabledAt": "The risks were acknowledged on {date}.",
+    "renew": "The risk text has changed. Please read and acknowledge the new version; until then X without the API stays blocked.",
+    "riskTitle": "Risks",
+    "version": "Version of {date}",
+    "accept": "I have understood the risks",
+    "password": "Password",
+    "passwordHint": "Please enter your password again to confirm.",
+    "enable": "Switch on",
+    "confirmRenew": "Acknowledge the new version",
+    "enabledToast": "X without the API is switched on.",
+    "disable": "Switch off",
+    "disableTitle": "Switch X without the API off?",
+    "disableDescription": "Accounts connected through the browser no longer publish then. Switching X without the API on again needs a new acknowledgement of the risks.",
+    "disabledToast": "X without the API is switched off.",
+    "managersOnly": "Only owners and admins can switch X without the API on and off."
+  }
+}

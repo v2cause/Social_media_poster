@@ -1,0 +1,35 @@
+{
+  "title": "Einstellungen",
+  "description": "Die Einstellungen dieses Workspace.",
+  "xBrowser": {
+    "title": "X ohne API (experimentell)",
+    "description": "Veröffentlicht auf X über die Web-Oberfläche von X statt über die offizielle API. Standardmäßig ausgeschaltet.",
+    "badge": {
+      "on": "Eingeschaltet",
+      "blocked": "Gesperrt",
+      "off": "Ausgeschaltet"
+    },
+    "unavailable": {
+      "deployment": "Diese Installation bietet X ohne API nicht an.",
+      "kill_switch": "X ohne API ist für alle Workspaces vorübergehend abgeschaltet.",
+      "plan": "Ihr Tarif enthält X ohne API nicht. Bitte wenden Sie sich an den Support."
+    },
+    "enabled": "X ohne API ist eingeschaltet.",
+    "enabledBy": "Die Risiken wurden am {date} von {name} bestätigt.",
+    "enabledAt": "Die Risiken wurden am {date} bestätigt.",
+    "renew": "Der Risikotext wurde geändert. Bitte lesen und bestätigen Sie die neue Fassung; bis dahin bleibt X ohne API gesperrt.",
+    "riskTitle": "Risiken",
+    "version": "Fassung vom {date}",
+    "accept": "Ich habe die Risiken verstanden",
+    "password": "Passwort",
+    "passwordHint": "Bitte geben Sie zur Bestätigung Ihr Passwort erneut ein.",
+    "enable": "Einschalten",
+    "confirmRenew": "Neue Fassung bestätigen",
+    "enabledToast": "X ohne API ist eingeschaltet.",
+    "disable": "Ausschalten",
+    "disableTitle": "X ohne API ausschalten?",
+    "disableDescription": "Accounts, die über den Browser verbunden sind, veröffentlichen dann nicht mehr. Wer X ohne API wieder einschaltet, muss die Risiken erneut bestätigen.",
+    "disabledToast": "X ohne API ist ausgeschaltet.",
+    "managersOnly": "Nur Owner und Admins können X ohne API ein- und ausschalten."
+  }
+}
