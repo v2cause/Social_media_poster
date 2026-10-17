@@ -134,13 +134,30 @@ describe('the webhooks of Stripe', () => {
     await process.execute('evt_3');
 
     expect(notifier.paymentsFailed).toEqual([
-      { organizationId: ORG, graceEndsAt: new Date('2026-10-24T12:00:00Z') },
+      { eventId: 'evt_2', organizationId: ORG, graceEndsAt: new Date('2026-10-24T12:00:00Z') },
     ]);
     expect(subscriptions.rows.get(ORG)).toMatchObject({
       status: 'PAST_DUE',
       pastDueSince: new Date(NOW),
       readOnlyAt: new Date('2026-10-24T12:00:00Z'),
     });
+  });
+
+  it('keeps the state until the owners could be told, so the event tells them when it runs again', async () => {
+    const { subscriptions, record, process, gateway, notifier } = testbed();
+    gateway.subscriptions.set('sub_1', subscription({}));
+    await record.execute(event('evt_1', 'customer.subscription.created'));
+    await process.execute('evt_1');
+
+    gateway.subscriptions.set('sub_1', subscription({ status: 'PAST_DUE' }));
+    await record.execute(event('evt_2', 'invoice.payment_failed'));
+    notifier.failNext = true;
+    await expect(process.execute('evt_2')).rejects.toThrow('queue away');
+    expect(subscriptions.rows.get(ORG)).toMatchObject({ status: 'ACTIVE', pastDueSince: null });
+
+    await expect(process.execute('evt_2')).resolves.toBe('synced');
+    expect(notifier.paymentsFailed).toEqual([expect.objectContaining({ eventId: 'evt_2' })]);
+    expect(subscriptions.rows.get(ORG)).toMatchObject({ status: 'PAST_DUE' });
   });
 
   it('leaves the organization alone for unknown customers, subscriptions and checkouts that did not go through', async () => {

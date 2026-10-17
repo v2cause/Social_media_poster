@@ -45,6 +45,9 @@ export interface BillingLock {
 
 /** Tells the owners of an organization about its billing. */
 export interface BillingNotifier {
-  /** A payment failed: the organization stays writable until the end of the grace period. */
-  paymentFailed(notice: { organizationId: string; graceEndsAt: Date }): Promise<void>;
+  /**
+   * A payment failed: the organization stays writable until the end of the grace period. Once
+   * per event and owner, however often the event runs.
+   */
+  paymentFailed(notice: { eventId: string; organizationId: string; graceEndsAt: Date }): Promise<void>;
 }

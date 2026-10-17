@@ -280,9 +280,15 @@ export class MemoryBillingStores implements BillingCustomers, WebhookInbox, Bill
 }
 
 export class RecordingBillingNotifier implements BillingNotifier {
-  readonly paymentsFailed: { organizationId: string; graceEndsAt: Date }[] = [];
+  readonly paymentsFailed: { eventId: string; organizationId: string; graceEndsAt: Date }[] = [];
+  /** Fails the next notice, as a queue that is away would. */
+  failNext = false;
 
-  paymentFailed(notice: { organizationId: string; graceEndsAt: Date }): Promise<void> {
+  paymentFailed(notice: { eventId: string; organizationId: string; graceEndsAt: Date }): Promise<void> {
+    if (this.failNext) {
+      this.failNext = false;
+      return Promise.reject(new Error('queue away'));
+    }
     this.paymentsFailed.push(notice);
     return Promise.resolve();
   }

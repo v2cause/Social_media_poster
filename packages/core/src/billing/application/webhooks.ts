@@ -94,13 +94,13 @@ export class ProcessStripeWebhook {
       subscriptionId === null
         ? 'no_subscription'
         : await deps.lock.run(`billing.${event.customerId ?? subscriptionId}`, () =>
-            this.sync(subscriptionId),
+            this.sync(eventId, subscriptionId),
           );
     await deps.inbox.markProcessed(eventId, deps.clock.now());
     return result;
   }
 
-  private async sync(subscriptionId: string): Promise<ProcessStripeWebhookResult> {
+  private async sync(eventId: string, subscriptionId: string): Promise<ProcessStripeWebhookResult> {
     const { deps } = this;
     const reported = await deps.gateway.fetchSubscription(subscriptionId);
     if (!reported) {
@@ -118,13 +118,16 @@ export class ProcessStripeWebhook {
     if (outcome.kind === 'ignored') {
       return outcome.reason;
     }
-    await deps.sync.save(local.organizationId, outcome.state);
+    // The owners hear of it before the state is saved: when that fails, the event runs again and
+    // finds the start of past_due again, and the notifier keeps it to one email per event.
     if (outcome.pastDueStarted && outcome.state.pastDueSince) {
       await deps.notifier.paymentFailed({
+        eventId,
         organizationId: local.organizationId,
         graceEndsAt: graceEndOf(outcome.state.pastDueSince),
       });
     }
+    await deps.sync.save(local.organizationId, outcome.state);
     return 'synced';
   }
 }
