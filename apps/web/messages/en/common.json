@@ -28,7 +28,8 @@
     "backToWorkspace": "Back to the workspace",
     "organizationArea": "Organization {name}",
     "accountArea": "Your account",
-    "billing": "Billing"
+    "billing": "Billing",
+    "data": "Data and deletion"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -44,7 +45,8 @@
     "members": "Members",
     "security": "Security",
     "notifications": "Notifications",
-    "billing": "Billing"
+    "billing": "Billing",
+    "data": "Data and deletion"
   },
   "languages": {
     "de": "Deutsch",

@@ -7,6 +7,7 @@ import deBilling from '../../messages/de/billing.json';
 import deBrand from '../../messages/de/brand.json';
 import deCalendar from '../../messages/de/calendar.json';
 import deCommon from '../../messages/de/common.json';
+import deData from '../../messages/de/data.json';
 import deComposer from '../../messages/de/composer.json';
 import deErrors from '../../messages/de/errors.json';
 import deIdeas from '../../messages/de/ideas.json';
@@ -25,6 +26,7 @@ import enBilling from '../../messages/en/billing.json';
 import enBrand from '../../messages/en/brand.json';
 import enCalendar from '../../messages/en/calendar.json';
 import enCommon from '../../messages/en/common.json';
+import enData from '../../messages/en/data.json';
 import enComposer from '../../messages/en/composer.json';
 import enErrors from '../../messages/en/errors.json';
 import enIdeas from '../../messages/en/ideas.json';
@@ -45,6 +47,7 @@ const MESSAGES = {
     onboarding: deOnboarding,
     team: deTeam,
     billing: deBilling,
+    data: deData,
     account: deAccount,
     accounts: deAccounts,
     analytics: deAnalytics,
@@ -65,6 +68,7 @@ const MESSAGES = {
     onboarding: enOnboarding,
     team: enTeam,
     billing: enBilling,
+    data: enData,
     account: enAccount,
     accounts: enAccounts,
     analytics: enAnalytics,

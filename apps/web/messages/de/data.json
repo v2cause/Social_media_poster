@@ -1,0 +1,35 @@
+{
+  "title": "Daten und Löschung",
+  "intro": "Hier exportieren Sie alle Daten Ihrer Organisation.",
+  "ownersOnly": "Nur Owner der Organisation können ihre Daten exportieren.",
+  "loading": "Exporte werden geladen",
+  "loadError": "Die Exporte konnten nicht geladen werden.",
+  "export": {
+    "title": "Datenexport",
+    "description": "Der Export enthält alle Daten von {organization} als ZIP-Archiv: eine JSON-Datei pro Tabelle und die Originale der Medienbibliothek. Geheimnisse wie die Tokens verbundener Accounts sind nicht enthalten.",
+    "request": "Export anfordern",
+    "requested": "Der Export wurde angefordert. Sie erhalten eine E-Mail, sobald er bereit ist.",
+    "inProgress": "Ein Export wird gerade erstellt. Je nach Datenmenge dauert das einige Minuten.",
+    "availability": "Ein fertiger Export lässt sich 24 Stunden lang herunterladen und wird danach gelöscht. Jeder Download erzeugt einen Link, der fünf Minuten gilt, und wird im Audit-Log festgehalten.",
+    "download": "Herunterladen",
+    "empty": "Noch keine Exporte.",
+    "requesting": "Export wird angefordert",
+    "working": "Export wird erstellt"
+  },
+  "table": {
+    "caption": "Die letzten Exporte",
+    "requestedAt": "Angefordert",
+    "status": "Status",
+    "size": "Größe",
+    "expiresAt": "Verfügbar bis",
+    "action": "Aktion"
+  },
+  "states": {
+    "waiting": "Wartet",
+    "running": "Wird erstellt",
+    "ready": "Bereit",
+    "expired": "Abgelaufen",
+    "failed": "Fehlgeschlagen",
+    "canceled": "Abgebrochen"
+  }
+}

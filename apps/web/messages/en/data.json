@@ -1,0 +1,35 @@
+{
+  "title": "Data and deletion",
+  "intro": "Export all data of your organization here.",
+  "ownersOnly": "Only owners of the organization can export its data.",
+  "loading": "Loading exports",
+  "loadError": "The exports could not be loaded.",
+  "export": {
+    "title": "Data export",
+    "description": "The export holds all data of {organization} as a ZIP archive: one JSON file per table and the originals of the media library. Secrets such as the tokens of connected accounts are left out.",
+    "request": "Request export",
+    "requested": "The export was requested. You will get an email as soon as it is ready.",
+    "inProgress": "An export is being created. Depending on the amount of data this takes a few minutes.",
+    "availability": "A finished export can be downloaded for 24 hours and is deleted after that. Every download creates a link that works for five minutes and is recorded in the audit log.",
+    "download": "Download",
+    "empty": "No exports yet.",
+    "requesting": "Requesting the export",
+    "working": "Creating the export"
+  },
+  "table": {
+    "caption": "The latest exports",
+    "requestedAt": "Requested",
+    "status": "Status",
+    "size": "Size",
+    "expiresAt": "Available until",
+    "action": "Action"
+  },
+  "states": {
+    "waiting": "Waiting",
+    "running": "Being created",
+    "ready": "Ready",
+    "expired": "Expired",
+    "failed": "Failed",
+    "canceled": "Canceled"
+  }
+}

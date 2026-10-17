@@ -24,6 +24,7 @@ import {
   CalendarDays,
   ChevronsUpDown,
   CreditCard,
+  DatabaseBackup,
   FileText,
   Image as ImageIcon,
   LayoutDashboard,
@@ -65,6 +66,7 @@ type NavKey =
   | 'settings'
   | 'members'
   | 'billing'
+  | 'data'
   | 'security'
   | 'notifications';
 
@@ -125,6 +127,12 @@ function navItems(area: ShellArea): NavItem[] {
           href: `/org/${area.organizationId}/billing`,
           icon: CreditCard,
           permission: 'billing.manage',
+        },
+        {
+          key: 'data',
+          href: `/org/${area.organizationId}/data`,
+          icon: DatabaseBackup,
+          permission: 'org.export',
         },
       ];
     case 'account':
