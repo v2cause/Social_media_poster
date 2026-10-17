@@ -14,6 +14,8 @@ import {
 import { S3Storage, storageConfigOf } from '@smp/media';
 import {
   BILLING_QUEUE,
+  GDPR_QUEUE,
+  GdprProducer,
   MEDIA_QUEUE,
   MediaProducer,
   NOTIFICATIONS_QUEUE,
@@ -46,6 +48,8 @@ export const MEDIA_JOBS_QUEUE = Symbol('MEDIA_JOBS_QUEUE');
 /** The commands of the browser worker of X; null where the deployment does not run it. */
 export const XB_COMMANDS_JOBS_QUEUE = Symbol('XB_COMMANDS_JOBS_QUEUE');
 export const BILLING_JOBS_QUEUE = Symbol('BILLING_JOBS_QUEUE');
+/** The exports of the owners for the role "gdpr" (guide step 8.1). */
+export const GDPR_JOBS_QUEUE = Symbol('GDPR_JOBS_QUEUE');
 export const TENANCY_UNIT_OF_WORK = Symbol('TENANCY_UNIT_OF_WORK');
 export const TENANCY_READ_MODEL = Symbol('TENANCY_READ_MODEL');
 export const AUDIT_LOG_READ_MODEL = Symbol('AUDIT_LOG_READ_MODEL');
@@ -107,6 +111,7 @@ class ClientLifecycle implements OnApplicationShutdown {
     @Inject(MEDIA_JOBS_QUEUE) private readonly media: Queue,
     @Inject(XB_COMMANDS_JOBS_QUEUE) private readonly xbCommands: Queue | null,
     @Inject(BILLING_JOBS_QUEUE) private readonly billing: Queue | null,
+    @Inject(GDPR_JOBS_QUEUE) private readonly gdpr: Queue,
   ) {}
 
   async onApplicationShutdown(): Promise<void> {
@@ -118,6 +123,7 @@ class ClientLifecycle implements OnApplicationShutdown {
       this.redis.quit(),
       closeQueue(this.notifications),
       closeQueue(this.media),
+      closeQueue(this.gdpr),
       ...(this.xbCommands ? [closeQueue(this.xbCommands)] : []),
       ...(this.billing ? [closeQueue(this.billing)] : []),
     ]);
@@ -221,6 +227,16 @@ class ClientLifecycle implements OnApplicationShutdown {
       useFactory: (env: ApiEnv): Queue | null =>
         env.STRIPE_SECRET_KEY ? producerQueue(BILLING_QUEUE, env) : null,
     },
+    {
+      provide: GDPR_JOBS_QUEUE,
+      inject: [API_ENV],
+      useFactory: (env: ApiEnv): Queue => producerQueue(GDPR_QUEUE, env),
+    },
+    {
+      provide: GdprProducer,
+      inject: [GDPR_JOBS_QUEUE],
+      useFactory: (queue: Queue) => new GdprProducer(queue),
+    },
     ClientLifecycle,
   ],
   exports: [
@@ -234,6 +250,7 @@ class ClientLifecycle implements OnApplicationShutdown {
     MediaProducer,
     XB_COMMANDS_JOBS_QUEUE,
     BILLING_JOBS_QUEUE,
+    GdprProducer,
     TENANCY_UNIT_OF_WORK,
     TENANCY_READ_MODEL,
     AUDIT_LOG_READ_MODEL,

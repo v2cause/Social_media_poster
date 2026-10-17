@@ -78,6 +78,8 @@ describe('read-only organizations', () => {
       `/api/org/${organizationId}/invitations/0192f000-0000-7000-8000-000000000001`,
     );
     expect(revoke.status).toBe(404);
+    // The data belong to the organization, paid or not (guide step 8.1).
+    await owner.post(`/api/org/${organizationId}/data-exports`).expect(202);
   });
 
   it('writes again while the end of the trial lies ahead', async () => {

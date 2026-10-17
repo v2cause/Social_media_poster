@@ -151,6 +151,25 @@ const ENDPOINTS: Endpoint[] = [
     permission: 'billing.manage',
     path: (i) => `/api/org/${i.organizationId}/billing/invoices`,
   },
+  // Data exports (guide step 8.1): owners only; an unknown export cannot be downloaded.
+  {
+    method: 'get',
+    route: '/api/org/:org/data-exports',
+    permission: 'org.export',
+    path: (i) => `/api/org/${i.organizationId}/data-exports`,
+  },
+  {
+    method: 'post',
+    route: '/api/org/:org/data-exports',
+    permission: 'org.export',
+    path: (i) => `/api/org/${i.organizationId}/data-exports`,
+  },
+  {
+    method: 'post',
+    route: '/api/org/:org/data-exports/:exportId/download',
+    permission: 'org.export',
+    path: (i) => `/api/org/${i.organizationId}/data-exports/${unknownId}/download`,
+  },
   // Content and AI (guide step 2.7): unknown ids where possible; the creating calls create.
   {
     method: 'get',
