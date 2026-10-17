@@ -6,6 +6,8 @@ describe('permission matrix', () => {
   it('matches the table of the architecture', () => {
     expect(can('OWNER', 'billing.manage')).toBe(true);
     expect(can('ADMIN', 'billing.manage')).toBe(false);
+    expect(can('OWNER', 'org.export')).toBe(true);
+    expect(can('ADMIN', 'org.export')).toBe(false);
     expect(can('ADMIN', 'member.manage')).toBe(true);
     expect(can('EDITOR', 'member.manage')).toBe(false);
     expect(can('EDITOR', 'post.publish')).toBe(true);

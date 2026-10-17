@@ -81,6 +81,7 @@ export const ERROR_CODES = [
   'BILLING_UNAVAILABLE',
   'BILLING_CUSTOMER_MISSING',
   'WEBHOOK_SIGNATURE_INVALID',
+  'DATA_EXPORT_UNAVAILABLE',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

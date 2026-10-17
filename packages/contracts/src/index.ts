@@ -27,6 +27,7 @@ export {
 } from './auth';
 export * from './content';
 export { ERROR_CODES, type ErrorCode } from './errors';
+export * from './gdpr';
 export { meSchema, type Me } from './identity';
 export { riskTextOf, X_BROWSER_RISK, type LegalText } from './legal';
 export { DEFAULT_LOCALE, LOCALES, localeSchema, toLocale, type Locale } from './locale';

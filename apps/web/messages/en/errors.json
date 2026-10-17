@@ -81,7 +81,8 @@
     "SUBSCRIPTION_EXISTS": "Your organization already has a subscription. Change the plan in the customer portal.",
     "BILLING_UNAVAILABLE": "Billing is not set up in this environment.",
     "BILLING_CUSTOMER_MISSING": "Your organization is not a customer yet. Choose a plan first.",
-    "WEBHOOK_SIGNATURE_INVALID": "The signature of the webhook is invalid."
+    "WEBHOOK_SIGNATURE_INVALID": "The signature of the webhook is invalid.",
+    "DATA_EXPORT_UNAVAILABLE": "The export is no longer available. Please request a new one."
   },
   "validation": {
     "required": "Please fill in this field.",

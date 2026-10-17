@@ -33,7 +33,7 @@ const MANAGE = [
   'x_browser.enable',
   'audit.read',
 ] as const;
-const OWN = ['billing.manage', 'org.delete', 'ownership.transfer'] as const;
+const OWN = ['billing.manage', 'org.export', 'org.delete', 'ownership.transfer'] as const;
 
 export const PERMISSIONS = [...READ, ...WRITE, ...MANAGE, ...OWN] as const;
 export type Permission = (typeof PERMISSIONS)[number];
