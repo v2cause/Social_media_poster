@@ -62,3 +62,11 @@ export {
   type MockPost,
 } from './mock/mock-platform-store';
 export { RedisXBrowserKillSignal } from './x-browser/kill-signal';
+export {
+  BullXbCommandBus,
+  CommandNotAnsweredError,
+  type SendOptions,
+  type XbCommandBus,
+} from './x-browser/command-bus';
+export { normalizeXBrowserPostMetrics, X_BROWSER_MAP_VERSION } from './x-browser/metrics-map';
+export { XB_START_WINDOW_MS, XBrowserRemoteAdapter } from './x-browser/remote-adapter';

@@ -13,8 +13,8 @@ export class AdapterNotAvailableError extends Error {
   }
 }
 
-/** Decides whether the browser adapter may run for a workspace. */
-export type BrowserGate = (workspaceId: string) => Promise<boolean>;
+/** Decides whether the browser adapter may run for a workspace of an organization. */
+export type BrowserGate = (scope: { organizationId: string; workspaceId: string }) => Promise<boolean>;
 
 const DENY_BROWSER: BrowserGate = () => Promise.resolve(false);
 
@@ -38,10 +38,12 @@ export class AdapterRegistry implements ChannelConnectors {
   async resolve(account: {
     platform: Platform;
     method: ConnectionMethod;
+    organizationId: string;
     workspaceId: string;
   }): Promise<SocialPlatformAdapter> {
     const adapter = this.adapters.get(`${account.platform}:${account.method}`);
-    if (!adapter || (account.method === 'BROWSER' && !(await this.browserGate(account.workspaceId)))) {
+    const scope = { organizationId: account.organizationId, workspaceId: account.workspaceId };
+    if (!adapter || (account.method === 'BROWSER' && !(await this.browserGate(scope)))) {
       throw new AdapterNotAvailableError(account.platform, account.method);
     }
     return adapter;

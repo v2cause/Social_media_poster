@@ -4,7 +4,7 @@ import { PLATFORMS, type Platform } from '@smp/platform-rules';
 import { PLATFORM_MODE_VARIABLES, platformModeOf, usesMockPlatform, type PlatformEnv } from './env';
 import { MockPlatformAdapter } from './mock/mock-platform-adapter';
 import type { MockPlatformStore } from './mock/mock-platform-store';
-import { AdapterRegistry } from './registry';
+import { AdapterRegistry, type BrowserGate } from './registry';
 
 // Builds the registry from the platform settings (guide step 4.4). A platform in mock mode gets
 // the mock adapter outside production and no adapter in production. A live platform needs its
@@ -30,6 +30,8 @@ export interface AdapterRegistryOptions {
   };
   /** The real adapters by platform, built with the credentials of the app. */
   live?: Partial<Record<Platform, () => SocialPlatformAdapter>>;
+  /** The browser adapter of X with its gate, where the deployment offers it (phase 6). */
+  browser?: { adapter: SocialPlatformAdapter; gate: BrowserGate };
 }
 
 export function createAdapterRegistry(options: AdapterRegistryOptions): AdapterRegistry {
@@ -47,5 +49,8 @@ export function createAdapterRegistry(options: AdapterRegistryOptions): AdapterR
       adapters.push(new MockPlatformAdapter(platform, options.mock));
     }
   }
-  return new AdapterRegistry(adapters);
+  if (options.browser) {
+    adapters.push(options.browser.adapter);
+  }
+  return new AdapterRegistry(adapters, options.browser?.gate);
 }

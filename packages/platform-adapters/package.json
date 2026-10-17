@@ -25,6 +25,7 @@
     "@smp/core": "workspace:*",
     "@smp/platform-rules": "workspace:*",
     "@smp/x-browser": "workspace:*",
+    "bullmq": "^5.81.5",
     "ioredis": "^5.11.1",
     "rate-limiter-flexible": "^11.2.2",
     "zod": "^4.6.7"
