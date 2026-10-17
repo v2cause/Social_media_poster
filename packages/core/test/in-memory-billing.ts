@@ -1,4 +1,23 @@
-import type { Plan, Subscription, SubscriptionReader, TrialStarter } from '../src';
+import type {
+  BillingCustomers,
+  BillingGateway,
+  BillingJobs,
+  BillingLock,
+  BillingNotifier,
+  BillingState,
+  CheckoutRequest,
+  InvoiceSummary,
+  Plan,
+  PlanPrice,
+  PortalRequest,
+  ProviderSubscription,
+  StoredWebhook,
+  Subscription,
+  SubscriptionReader,
+  SubscriptionSync,
+  TrialStarter,
+  WebhookInbox,
+} from '../src';
 
 // The price list of migration 0018 and an in-memory store of subscriptions for the use cases of
 // billing.
@@ -140,5 +159,135 @@ export class MemorySubscriptions implements SubscriptionReader, TrialStarter {
 
   put(subscription: Subscription): void {
     this.rows.set(subscription.organizationId, subscription);
+  }
+}
+
+/** The provider as the use cases see it: it remembers what they asked for. */
+export class FakeBillingGateway implements BillingGateway {
+  readonly customers: { organizationId: string; name: string; email: string; locale: 'de' | 'en' }[] = [];
+  readonly checkouts: CheckoutRequest[] = [];
+  readonly portals: PortalRequest[] = [];
+  readonly usage: Parameters<BillingGateway['reportUsage']>[0][] = [];
+  readonly subscriptions = new Map<string, ProviderSubscription>();
+  invoices: InvoiceSummary[] = [];
+
+  createCustomer(customer: {
+    organizationId: string;
+    name: string;
+    email: string;
+    locale: 'de' | 'en';
+  }): Promise<string> {
+    this.customers.push(customer);
+    return Promise.resolve(`cus_${String(this.customers.length)}`);
+  }
+
+  createCheckout(request: CheckoutRequest): Promise<string> {
+    this.checkouts.push(request);
+    return Promise.resolve(`https://checkout.example.test/c/${String(this.checkouts.length)}`);
+  }
+
+  createPortal(request: PortalRequest): Promise<string> {
+    this.portals.push(request);
+    return Promise.resolve(`https://portal.example.test/p/${String(this.portals.length)}`);
+  }
+
+  fetchSubscription(subscriptionId: string): Promise<ProviderSubscription | null> {
+    return Promise.resolve(this.subscriptions.get(subscriptionId) ?? null);
+  }
+
+  listInvoices(): Promise<InvoiceSummary[]> {
+    return Promise.resolve(this.invoices);
+  }
+
+  prices(lookupKeys: readonly string[]): Promise<PlanPrice[]> {
+    return Promise.resolve(
+      lookupKeys.map((lookupKey) => ({
+        lookupKey,
+        unitAmount: 4900,
+        currency: 'eur',
+        interval: 'month' as const,
+      })),
+    );
+  }
+
+  reportUsage(event: Parameters<BillingGateway['reportUsage']>[0]): Promise<void> {
+    this.usage.push(event);
+    return Promise.resolve();
+  }
+}
+
+/** The stores of billing on top of MemorySubscriptions. */
+export class MemoryBillingStores implements BillingCustomers, WebhookInbox, BillingJobs, SubscriptionSync {
+  readonly webhooks = new Map<string, StoredWebhook>();
+  readonly queued: string[] = [];
+
+  constructor(private readonly subscriptions: MemorySubscriptions) {}
+
+  saveCustomer(organizationId: string, customerId: string): Promise<string> {
+    const subscription =
+      this.subscriptions.rows.get(organizationId) ?? subscriptionOf(organizationId, 'trial');
+    const kept = subscription.stripeCustomerId ?? customerId;
+    this.subscriptions.put({ ...subscription, stripeCustomerId: kept });
+    return Promise.resolve(kept);
+  }
+
+  record(event: Omit<StoredWebhook, 'processedAt'>): Promise<{ processed: boolean }> {
+    const existing = this.webhooks.get(event.id);
+    if (!existing) {
+      this.webhooks.set(event.id, { ...event, processedAt: null });
+    }
+    return Promise.resolve({ processed: existing?.processedAt != null });
+  }
+
+  find(eventId: string): Promise<StoredWebhook | null> {
+    return Promise.resolve(this.webhooks.get(eventId) ?? null);
+  }
+
+  markProcessed(eventId: string, at: Date): Promise<void> {
+    const event = this.webhooks.get(eventId);
+    if (event) {
+      this.webhooks.set(eventId, { ...event, processedAt: at });
+    }
+    return Promise.resolve();
+  }
+
+  processWebhook(eventId: string): Promise<void> {
+    this.queued.push(eventId);
+    return Promise.resolve();
+  }
+
+  byCustomer(customerId: string): Promise<Subscription | null> {
+    return Promise.resolve(
+      [...this.subscriptions.rows.values()].find((row) => row.stripeCustomerId === customerId) ?? null,
+    );
+  }
+
+  save(organizationId: string, state: BillingState): Promise<void> {
+    const subscription = this.subscriptions.rows.get(organizationId);
+    if (!subscription) {
+      throw new Error(`No subscription of ${organizationId}`);
+    }
+    const { planKey, ...rest } = state;
+    this.subscriptions.put({ ...subscription, ...rest, plan: planOf(planKey) });
+    return Promise.resolve();
+  }
+}
+
+export class RecordingBillingNotifier implements BillingNotifier {
+  readonly paymentsFailed: { organizationId: string; graceEndsAt: Date }[] = [];
+
+  paymentFailed(notice: { organizationId: string; graceEndsAt: Date }): Promise<void> {
+    this.paymentsFailed.push(notice);
+    return Promise.resolve();
+  }
+}
+
+/** Runs the work at once and remembers the keys. */
+export class RecordingLock implements BillingLock {
+  readonly keys: string[] = [];
+
+  run<T>(key: string, work: () => Promise<T>): Promise<T> {
+    this.keys.push(key);
+    return work();
   }
 }

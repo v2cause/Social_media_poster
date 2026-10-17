@@ -49,3 +49,12 @@ export class BillingCustomerMissingError extends DomainError {
     super('The organization is not a customer of Stripe yet.');
   }
 }
+
+/** A webhook without a valid signature of the provider (HTTP 422); nothing of it is used. */
+export class WebhookSignatureInvalidError extends DomainError {
+  readonly code = 'WEBHOOK_SIGNATURE_INVALID';
+  readonly kind = 'invalid';
+  constructor() {
+    super('The signature of the webhook is invalid.');
+  }
+}

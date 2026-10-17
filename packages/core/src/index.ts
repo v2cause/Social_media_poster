@@ -793,9 +793,53 @@ export {
   type AccessState,
   type SubscriptionStatus,
 } from './billing/domain/subscription';
+export {
+  syncSubscription,
+  type BillingState,
+  type ReportedSubscription,
+  type SyncOutcome,
+} from './billing/domain/sync';
 export type { Subscription, SubscriptionReader, TrialStarter } from './billing/ports/subscription-store';
+export {
+  BILLING_WEBHOOK_TYPES,
+  INVOICE_STATUSES,
+  USAGE_METER_NAMES,
+  type BillingGateway,
+  type BillingWebhookEvent,
+  type BillingWebhookType,
+  type BillingWebhookVerifier,
+  type CheckoutRequest,
+  type InvoiceStatus,
+  type InvoiceSummary,
+  type PlanPrice,
+  type PortalRequest,
+  type ProviderSubscription,
+  type UsageMeterName,
+} from './billing/ports/billing-gateway';
+export type {
+  BillingCustomers,
+  BillingJobs,
+  BillingLock,
+  BillingNotifier,
+  StoredWebhook,
+  SubscriptionSync,
+  WebhookInbox,
+} from './billing/ports/billing-store';
 export {
   EntitlementsService,
   type Entitlements,
   type EntitlementsDependencies,
 } from './billing/application/entitlements';
+export {
+  ListInvoices,
+  OpenBillingPortal,
+  StartCheckout,
+  type BillingActor,
+  type BillingDependencies,
+} from './billing/application/checkout';
+export {
+  ProcessStripeWebhook,
+  RecordStripeWebhook,
+  type ProcessStripeWebhookDependencies,
+  type ProcessStripeWebhookResult,
+} from './billing/application/webhooks';
