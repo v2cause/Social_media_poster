@@ -68,7 +68,8 @@
     "SCHEDULE_TIME_IN_GAP": "Diese Uhrzeit gibt es an diesem Tag wegen der Zeitumstellung nicht. Bitte wählen Sie eine andere.",
     "SOCIAL_ACCOUNT_REQUIRED": "Bitte wählen Sie den Account, auf dem die Variante erscheinen soll.",
     "SOCIAL_ACCOUNT_NOT_READY": "Der Account ist nicht verbunden oder muss neu verbunden werden.",
-    "VARIANT_NOT_PUBLISHABLE": "Die Variante passt nicht zu den Regeln der Plattform oder ist leer."
+    "VARIANT_NOT_PUBLISHABLE": "Die Variante passt nicht zu den Regeln der Plattform oder ist leer.",
+    "ANALYTICS_HISTORY_EXCEEDED": "Der Zeitraum reicht weiter zurück, als Ihr Tarif Analytics aufbewahrt. Bitte wählen Sie einen späteren Beginn."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

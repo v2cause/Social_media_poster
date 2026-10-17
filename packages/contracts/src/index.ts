@@ -1,6 +1,7 @@
 // zod DTOs, enums, error codes, SSE events and the permission matrix.
 
 export * from './ai';
+export * from './analytics';
 export {
   auditLogEntrySchema,
   auditLogPageSchema,

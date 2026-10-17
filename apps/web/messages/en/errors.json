@@ -68,7 +68,8 @@
     "SCHEDULE_TIME_IN_GAP": "This time does not exist on that day because of the change of the clocks. Please pick another one.",
     "SOCIAL_ACCOUNT_REQUIRED": "Please choose the account the variant goes out to.",
     "SOCIAL_ACCOUNT_NOT_READY": "The account is not connected or needs to be connected again.",
-    "VARIANT_NOT_PUBLISHABLE": "The variant does not meet the rules of the platform, or it is empty."
+    "VARIANT_NOT_PUBLISHABLE": "The variant does not meet the rules of the platform, or it is empty.",
+    "ANALYTICS_HISTORY_EXCEEDED": "The period reaches back further than your plan keeps analytics. Please choose a later start."
   },
   "validation": {
     "required": "Please fill in this field.",

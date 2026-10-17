@@ -68,6 +68,7 @@ export const ERROR_CODES = [
   'SOCIAL_ACCOUNT_REQUIRED',
   'SOCIAL_ACCOUNT_NOT_READY',
   'VARIANT_NOT_PUBLISHABLE',
+  'ANALYTICS_HISTORY_EXCEEDED',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
