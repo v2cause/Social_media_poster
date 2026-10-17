@@ -103,7 +103,7 @@ export const billingOverviewSchema = z.object({
   cancelAtPeriodEnd: z.boolean(),
   /** Stripe is set up in this deployment; without it there is no checkout and no portal. */
   billingEnabled: z.boolean(),
-  /** Paid through Stripe: plans change in the customer portal, not in a new checkout. */
+  /** A paid subscription runs: plans change in place, not with a new checkout. */
   hasStripeSubscription: z.boolean(),
   /** The organization is a Stripe customer, so the customer portal can open. */
   hasCustomer: z.boolean(),
@@ -130,13 +130,12 @@ export type BillingOverviewDto = z.infer<typeof billingOverviewSchema>;
 export const checkoutRequestSchema = z.object({ plan: paidPlanKeySchema });
 export type CheckoutRequest = z.input<typeof checkoutRequestSchema>;
 
-/** The customer portal: everything, or straight to the change of plan. */
-export const portalRequestSchema = z.object({
-  flow: z.enum(['manage', 'change_plan']).default('manage'),
-});
-export type PortalRequest = z.input<typeof portalRequestSchema>;
+/** Moves a running paid subscription to another plan; Stripe prorates the difference. */
+export const changePlanRequestSchema = z.object({ plan: paidPlanKeySchema });
+export type ChangePlanRequest = z.input<typeof changePlanRequestSchema>;
 
-/** Where the browser goes next: the hosted checkout or the customer portal of Stripe. */
+/** Where the browser goes next: the hosted checkout or the customer portal of Stripe, where
+ * payment methods, invoices, addresses and the cancellation are managed. */
 export const billingRedirectSchema = z.object({ url: z.url() });
 export type BillingRedirectDto = z.infer<typeof billingRedirectSchema>;
 

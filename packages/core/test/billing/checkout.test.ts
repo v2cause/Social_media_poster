@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   BillingCustomerMissingError,
+  ChangePlan,
   BillingUnavailableError,
   ListInvoices,
   NotPermittedError,
@@ -112,28 +113,43 @@ describe('checkout', () => {
   });
 });
 
-describe('customer portal and invoices', () => {
-  it('opens the portal of the customer, straight to the change of plan when asked', async () => {
+describe('plan changes, customer portal and invoices', () => {
+  it('moves a running paid subscription to another plan and leaves the rest to the webhook', async () => {
     const { subscriptions, gateway, deps } = testbed();
-    const portal = new OpenBillingPortal(deps);
-    await expect(portal.execute({ actor: owner, locale: 'de', flow: 'manage' })).rejects.toBeInstanceOf(
+    const change = new ChangePlan(deps);
+    await expect(change.execute({ actor: owner, plan: 'agency' })).rejects.toBeInstanceOf(
       BillingCustomerMissingError,
     );
 
     subscriptions.put(
       subscriptionOf(ORG, 'pro', { stripeCustomerId: 'cus_9', stripeSubscriptionId: 'sub_9' }),
     );
-    await portal.execute({ actor: owner, locale: 'en', flow: 'change_plan' });
-    await portal.execute({ actor: owner, locale: 'de', flow: 'manage' });
+    await change.execute({ actor: owner, plan: 'starter' });
+    await change.execute({ actor: owner, plan: 'pro' });
+    await expect(
+      change.execute({ actor: { ...owner, role: 'ADMIN' }, plan: 'agency' }),
+    ).rejects.toBeInstanceOf(NotPermittedError);
+
+    expect(gateway.planChanges).toEqual([{ subscriptionId: 'sub_9', priceLookupKey: 'smp_starter_monthly' }]);
+    expect(subscriptions.rows.get(ORG)?.plan.key).toBe('pro');
+  });
+
+  it('opens the portal of a customer only', async () => {
+    const { subscriptions, gateway, deps } = testbed();
+    const portal = new OpenBillingPortal(deps);
+    await expect(portal.execute({ actor: owner, locale: 'de' })).rejects.toBeInstanceOf(
+      BillingCustomerMissingError,
+    );
+
+    subscriptions.put(
+      subscriptionOf(ORG, 'pro', { stripeCustomerId: 'cus_9', stripeSubscriptionId: 'sub_9' }),
+    );
+    await expect(portal.execute({ actor: owner, locale: 'en' })).resolves.toBe(
+      'https://portal.example.test/p/1',
+    );
 
     expect(gateway.portals).toEqual([
-      {
-        customerId: 'cus_9',
-        locale: 'en',
-        returnUrl: `https://app.example.test/org/${ORG}/billing`,
-        changePlanOf: 'sub_9',
-      },
-      { customerId: 'cus_9', locale: 'de', returnUrl: `https://app.example.test/org/${ORG}/billing` },
+      { customerId: 'cus_9', locale: 'en', returnUrl: `https://app.example.test/org/${ORG}/billing` },
     ]);
   });
 

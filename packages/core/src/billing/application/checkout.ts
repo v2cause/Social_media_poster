@@ -94,14 +94,11 @@ export class StartCheckout {
   }
 }
 
+/** The customer portal: payment methods, invoices, addresses and cancellation. */
 export class OpenBillingPortal {
   constructor(private readonly deps: BillingDependencies) {}
 
-  async execute(input: {
-    actor: OrganizationActor;
-    locale: 'de' | 'en';
-    flow: 'manage' | 'change_plan';
-  }): Promise<string> {
+  async execute(input: { actor: OrganizationActor; locale: 'de' | 'en' }): Promise<string> {
     assertOwner(input.actor);
     const gateway = gatewayOf(this.deps);
     const subscription = await this.deps.subscriptions.find(input.actor.organizationId);
@@ -112,9 +109,35 @@ export class OpenBillingPortal {
       customerId: subscription.stripeCustomerId,
       locale: input.locale,
       returnUrl: billingPage(this.deps, input.actor.organizationId),
-      ...(input.flow === 'change_plan' && runsPaid(subscription)
-        ? { changePlanOf: subscription.stripeSubscriptionId }
-        : {}),
+    });
+  }
+}
+
+/**
+ * Moves a running paid subscription to another plan, up or down; the provider prorates the
+ * difference. The plan of the organization changes with the webhook that follows, as always.
+ * Resources beyond a smaller plan stay; only new ones are blocked (guide step 7.4).
+ */
+export class ChangePlan {
+  constructor(private readonly deps: BillingDependencies) {}
+
+  async execute(input: { actor: OrganizationActor; plan: Exclude<PlanKey, 'trial'> }): Promise<void> {
+    assertOwner(input.actor);
+    const gateway = gatewayOf(this.deps);
+    const subscription = await this.deps.subscriptions.find(input.actor.organizationId);
+    if (!runsPaid(subscription)) {
+      throw new BillingCustomerMissingError();
+    }
+    if (subscription.plan.key === input.plan) {
+      return;
+    }
+    const plan = (await this.deps.subscriptions.plans()).find((entry) => entry.key === input.plan);
+    if (!plan?.active || plan.priceLookupKey === null) {
+      throw new BillingUnavailableError();
+    }
+    await gateway.changePlan({
+      subscriptionId: subscription.stripeSubscriptionId,
+      priceLookupKey: plan.priceLookupKey,
     });
   }
 }

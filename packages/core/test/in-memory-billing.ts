@@ -167,6 +167,7 @@ export class FakeBillingGateway implements BillingGateway {
   readonly customers: { organizationId: string; name: string; email: string; locale: 'de' | 'en' }[] = [];
   readonly checkouts: CheckoutRequest[] = [];
   readonly portals: PortalRequest[] = [];
+  readonly planChanges: { subscriptionId: string; priceLookupKey: string }[] = [];
   readonly usage: Parameters<BillingGateway['reportUsage']>[0][] = [];
   readonly subscriptions = new Map<string, ProviderSubscription>();
   invoices: InvoiceSummary[] = [];
@@ -189,6 +190,11 @@ export class FakeBillingGateway implements BillingGateway {
   createPortal(request: PortalRequest): Promise<string> {
     this.portals.push(request);
     return Promise.resolve(`https://portal.example.test/p/${String(this.portals.length)}`);
+  }
+
+  changePlan(change: { subscriptionId: string; priceLookupKey: string }): Promise<void> {
+    this.planChanges.push(change);
+    return Promise.resolve();
   }
 
   fetchSubscription(subscriptionId: string): Promise<ProviderSubscription | null> {

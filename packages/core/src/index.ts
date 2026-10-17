@@ -831,6 +831,7 @@ export {
   type EntitlementsDependencies,
 } from './billing/application/entitlements';
 export {
+  ChangePlan,
   ListInvoices,
   OpenBillingPortal,
   StartCheckout,

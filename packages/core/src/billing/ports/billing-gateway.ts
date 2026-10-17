@@ -59,8 +59,6 @@ export interface PortalRequest {
   customerId: string;
   locale: 'de' | 'en';
   returnUrl: string;
-  /** Opens the change of plan of this subscription right away. */
-  changePlanOf?: string;
 }
 
 export interface BillingGateway {
@@ -73,8 +71,10 @@ export interface BillingGateway {
   }): Promise<string>;
   /** The URL of the hosted checkout of a plan with its metered prices and automatic tax. */
   createCheckout(request: CheckoutRequest): Promise<string>;
-  /** The URL of the customer portal. */
+  /** The URL of the customer portal: payment methods, invoices, addresses and cancellation. */
   createPortal(request: PortalRequest): Promise<string>;
+  /** Moves the plan item of a subscription to another price; the provider prorates it. */
+  changePlan(change: { subscriptionId: string; priceLookupKey: string }): Promise<void>;
   /** Null when the provider does not know the subscription. */
   fetchSubscription(subscriptionId: string): Promise<ProviderSubscription | null>;
   /** The latest invoices of a customer, newest first. */

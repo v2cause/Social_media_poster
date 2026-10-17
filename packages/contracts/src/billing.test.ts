@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  changePlanRequestSchema,
   checkoutRequestSchema,
   limitOverridesSchema,
   planLimitsSchema,
-  portalRequestSchema,
 } from './billing';
 
 const limits = {
@@ -36,9 +36,10 @@ describe('billing contracts', () => {
     expect(limitOverridesSchema.safeParse({ seats: 3 }).success).toBe(false);
   });
 
-  it('sells only the paid plans and opens the portal for everything by default', () => {
+  it('sells and changes to the paid plans only', () => {
     expect(checkoutRequestSchema.safeParse({ plan: 'pro' }).success).toBe(true);
     expect(checkoutRequestSchema.safeParse({ plan: 'trial' }).success).toBe(false);
-    expect(portalRequestSchema.parse({})).toEqual({ flow: 'manage' });
+    expect(changePlanRequestSchema.safeParse({ plan: 'agency' }).success).toBe(true);
+    expect(changePlanRequestSchema.safeParse({}).success).toBe(false);
   });
 });
