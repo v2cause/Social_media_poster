@@ -2,11 +2,13 @@ import { sealerFromEnv } from '@smp/crypto';
 import { createLogger } from '@smp/observability';
 import {
   egressPolicy,
+  login,
   selectorsV1,
   XB_COMMANDS_QUEUE,
   XB_KEYS,
   XB_REPORT,
   XB_RESULTS_QUEUE,
+  type FlowContext,
   type XbReport,
 } from '@smp/x-browser';
 import { Queue, Worker } from 'bullmq';
@@ -18,12 +20,14 @@ import { launchChromium } from './chromium';
 import { CommandRunner } from './command-runner';
 import { loadBrowserWorkerEnv } from './env';
 import { flowsOf } from './flows';
+import { codeInbox, LoginRunner } from './login-runner';
 import { mediaFetcher } from './media';
 import { processCommand } from './processor';
 
-// The browser worker (guide step 6.2): one Chromium, the commands of xb-commands with one or two
-// at a time, the reports to xb-results. It reaches Redis as the user browser-worker and leaves
-// its network only through the egress proxy. It holds no database or storage credentials.
+// The browser worker (guide steps 6.2 and 6.4): one Chromium, the commands of xb-commands with one
+// or two at a time, the interactive logins of X, the reports to xb-results. It reaches Redis as
+// the user browser-worker and leaves its network only through the egress proxy. It holds no
+// database or storage credentials.
 function bootstrap(): void {
   const env = loadBrowserWorkerEnv(process.env);
   const logger = createLogger({ service: 'browser-worker', environment: env.NODE_ENV, level: env.LOG_LEVEL });
@@ -52,15 +56,28 @@ function bootstrap(): void {
     });
   };
   const now = (): Date => new Date();
+  const flowContext: FlowContext = { selectors: selectorsV1, timeoutMs: ACTION_TIMEOUT_MS, now };
+  const killed = async (): Promise<boolean> => (await redis.exists(XB_KEYS.kill)) === 1;
   const runner = new CommandRunner({
     host,
     guard: new AccountGuard(redis),
     sealer,
-    flows: flowsOf({ selectors: selectorsV1, timeoutMs: ACTION_TIMEOUT_MS, now }),
+    flows: flowsOf(flowContext),
     media: mediaFetcher(policy),
     report,
-    killed: async () => (await redis.exists(XB_KEYS.kill)) === 1,
+    killed,
     now,
+    logger,
+  });
+  const logins = new LoginRunner({
+    host,
+    sealer,
+    login: (page, credentials, hooks) => login(page, flowContext, credentials, hooks),
+    nextCode: codeInbox(redis, now),
+    report,
+    killed,
+    now,
+    selectorsVersion: selectorsV1.version,
     logger,
   });
 
@@ -72,12 +89,7 @@ function bootstrap(): void {
         token,
         {
           run: (operation, command) => runner.run(operation, command),
-          // The interactive login follows in guide step 6.4.
-          login: () =>
-            Promise.resolve({
-              ok: false,
-              error: { code: 'UNAVAILABLE', message: 'The login is not available yet.' },
-            }),
+          login: (command) => logins.run(command),
         },
         now,
       ),
