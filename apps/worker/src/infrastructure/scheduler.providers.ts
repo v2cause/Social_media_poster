@@ -1,13 +1,15 @@
 import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
-import { MonitorTokens, RewrapSecrets, systemClock } from '@smp/core';
+import { AnnounceReadOnly, MonitorTokens, RewrapSecrets, systemClock } from '@smp/core';
 import { sealerFromEnv } from '@smp/crypto';
 import {
   createPrismaClient,
   createSystemPrismaClient,
   PrismaExpiringConnectionScanner,
+  PrismaBillingDirectory,
   PrismaMetricsPlanScanner,
   PrismaOutboxRelay,
   PrismaPublishScheduler,
+  PrismaReadOnlyNotices,
   PrismaSealedSecretStore,
   PrismaTokenMaintenanceUnitOfWork,
   PrismaUsageReportStore,
@@ -43,12 +45,14 @@ import { UsageReportTick } from '../scheduler/usage-report-tick';
 import { XBrowserCanaryTick } from '../scheduler/x-browser-canary';
 import type { WorkerEnv } from '../worker-env';
 import { TICK_HANDLERS } from '../worker.tokens';
+import { EmailBillingNotifier } from './billing-notifier';
 
-// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9, 5.2, 6.5 and 7.3): the
+// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9, 5.2, 6.5, 7.3 and 7.4): the
 // system client for the scans across workspaces, app_user for the changes of the token monitor in
 // the tenant of each connection, the producers of the jobs the ticks add, the commands of the
 // daily canary of the X browser, and the tick handlers. The daily usage reports run where Stripe
-// is set up (STRIPE_SECRET_KEY).
+// is set up (STRIPE_SECRET_KEY); the notices of read-only access, whose links lead into the web
+// app, where APP_URL is set.
 
 const SCHEDULER_CLIENTS = Symbol('SCHEDULER_CLIENTS');
 /** Variants per claim of tick.publish and per scan of the sweeper. */
@@ -158,6 +162,18 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
         now: () => systemClock.now(),
       })
     : null;
+  // A trial ends without Stripe too, so the notice needs only the link into the web app.
+  const readOnly = env.APP_URL
+    ? new AnnounceReadOnly({
+        notices: new PrismaReadOnlyNotices(system),
+        notifier: new EmailBillingNotifier({
+          directory: new PrismaBillingDirectory(system),
+          notifications: new NotificationProducer(notificationsQueue),
+          appUrl: env.APP_URL.replace(/\/$/, ''),
+        }),
+        clock: systemClock,
+      })
+    : null;
   const handlers: TickHandlers = {
     'tick.publish': () => publishTick.run(),
     'tick.sweep-queued': () => sweeper.run(),
@@ -171,6 +187,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
     },
     ...(canaryTick ? { 'tick.xb-canary': () => canaryTick.run() } : {}),
     ...(usageTick ? { 'tick.usage-report': () => usageTick.run() } : {}),
+    ...(readOnly ? { 'tick.read-only': async () => ({ ...(await readOnly.execute()) }) } : {}),
   };
   return [
     {
