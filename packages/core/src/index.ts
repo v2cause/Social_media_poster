@@ -844,3 +844,15 @@ export {
   type ProcessStripeWebhookDependencies,
   type ProcessStripeWebhookResult,
 } from './billing/application/webhooks';
+export {
+  METER_EVENT_MAX_AGE_DAYS,
+  meterTimestampOf,
+  overageOf,
+  reportCutoffOf,
+} from './billing/domain/usage';
+export type { UsageBatch, UsageReportStore } from './billing/ports/usage-report-store';
+export {
+  ReportUsage,
+  type UsageReportDependencies,
+  type UsageReportResult,
+} from './billing/application/usage-report';

@@ -16,6 +16,9 @@ import type {
   SubscriptionReader,
   SubscriptionSync,
   TrialStarter,
+  UsageBatch,
+  UsageMeterName,
+  UsageReportStore,
   WebhookInbox,
 } from '../src';
 
@@ -216,7 +219,14 @@ export class FakeBillingGateway implements BillingGateway {
     );
   }
 
+  /** Fails the next usage report, as a provider that is away would. */
+  failUsage = false;
+
   reportUsage(event: Parameters<BillingGateway['reportUsage']>[0]): Promise<void> {
+    if (this.failUsage) {
+      this.failUsage = false;
+      return Promise.reject(new Error('provider away'));
+    }
     this.usage.push(event);
     return Promise.resolve();
   }
@@ -301,5 +311,103 @@ export class RecordingLock implements BillingLock {
   run<T>(key: string, work: () => Promise<T>): Promise<T> {
     this.keys.push(key);
     return work();
+  }
+}
+
+/** A record of the AI ledger or of the X API costs. */
+export interface MemoryUsageRecord {
+  organizationId: string;
+  meter: UsageMeterName;
+  quantity: bigint;
+  createdAt: Date;
+  reportId: string | null;
+  reportedAt: Date | null;
+}
+
+const monthOf = (at: Date): string => at.toISOString().slice(0, 7);
+
+/** The usage of the organizations as the daily report sees it, with the identifiers of the db. */
+export class MemoryUsageLedger implements UsageReportStore {
+  readonly records: MemoryUsageRecord[] = [];
+
+  constructor(private readonly subscriptions: MemorySubscriptions) {}
+
+  add(organizationId: string, meter: UsageMeterName, quantity: bigint, createdAt: string): void {
+    this.records.push({
+      organizationId,
+      meter,
+      quantity,
+      createdAt: new Date(createdAt),
+      reportId: null,
+      reportedAt: null,
+    });
+  }
+
+  organizationsToReport(until: Date): Promise<string[]> {
+    const organizations = new Set<string>();
+    for (const record of this.records) {
+      const started = this.subscriptions.rows.get(record.organizationId)?.billingStartedAt;
+      if (started && !record.reportedAt && record.createdAt >= started && record.createdAt < until) {
+        organizations.add(record.organizationId);
+      }
+    }
+    return Promise.resolve([...organizations]);
+  }
+
+  subscriptionOf(organizationId: string): Promise<Subscription | null> {
+    return Promise.resolve(this.subscriptions.rows.get(organizationId) ?? null);
+  }
+
+  claim(organizationId: string, window: { from: Date; until: Date }): Promise<UsageBatch[]> {
+    const day = window.until.toISOString().slice(0, 10);
+    const own = this.records.filter((record) => record.organizationId === organizationId);
+    for (const record of own) {
+      if (record.reportId === null && record.createdAt >= window.from && record.createdAt < window.until) {
+        const prefix = record.meter === 'ai_overage' ? 'ai' : 'x';
+        record.reportId = `${prefix}.${organizationId}.${monthOf(record.createdAt)}.${day}`;
+      }
+    }
+    const batches = new Map<string, UsageBatch>();
+    for (const record of own) {
+      if (record.reportId === null || record.reportedAt !== null) {
+        continue;
+      }
+      const batch = batches.get(record.reportId) ?? {
+        identifier: record.reportId,
+        meter: record.meter,
+        periodStart: new Date(`${monthOf(record.createdAt)}-01T00:00:00Z`),
+        quantity: 0n,
+        latestAt: record.createdAt,
+      };
+      batch.quantity += record.quantity;
+      batch.latestAt = record.createdAt > batch.latestAt ? record.createdAt : batch.latestAt;
+      batches.set(record.reportId, batch);
+    }
+    return Promise.resolve([...batches.values()].sort((a, b) => a.latestAt.getTime() - b.latestAt.getTime()));
+  }
+
+  creditedBefore(organizationId: string, batch: UsageBatch, billingStartedAt: Date): Promise<bigint> {
+    const month = monthOf(batch.periodStart);
+    return Promise.resolve(
+      this.records
+        .filter(
+          (record) =>
+            record.organizationId === organizationId &&
+            record.meter === 'ai_overage' &&
+            monthOf(record.createdAt) === month &&
+            record.reportId !== batch.identifier &&
+            (record.reportedAt !== null || record.createdAt < billingStartedAt),
+        )
+        .reduce((sum, record) => sum + record.quantity, 0n),
+    );
+  }
+
+  confirm(organizationId: string, batch: UsageBatch, at: Date): Promise<void> {
+    for (const record of this.records) {
+      if (record.organizationId === organizationId && record.reportId === batch.identifier) {
+        record.reportedAt ??= at;
+      }
+    }
+    return Promise.resolve();
   }
 }
