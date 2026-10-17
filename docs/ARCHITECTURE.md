@@ -211,6 +211,11 @@ interface SocialPlatformAdapter {
 
 LinkedIn verlangt für die Community Management API möglicherweise eine eigene App. Der Adapter akzeptiert deshalb zwei Credential-Sets.
 
+**Token-Monitor** (`tick.tokens`, stündlich, [ADR 0025](adr/0025-benachrichtigungen-und-token-monitor.md)): Er sieht die Verbindungen, deren Zugang in 14 Tagen endet (mit dem Refresh Token, wenn es eines gibt, sonst mit dem Access Token).
+- Eine aktive Verbindung bekommt den Job `token.refresh`, der unter `lock:conn:{id}` erneuert. Wo die Plattform keinen Refresh bietet, wird sie `EXPIRING`.
+- Owner und Admins einer `EXPIRING`-Verbindung bekommen 14, 7 und 1 Tag vorher eine Erinnerung, je Stufe höchstens eine.
+- Nach dem Ablauf wird die Verbindung `NEEDS_REAUTH`, und ihre geplanten Varianten werden markiert.
+
 ### 4.3 X-Browser-Adapter (optional, Feature-Flag)
 
 - **Aktivierung**: nur durch Owner/Admin pro Workspace, nach ausdrücklicher Risikobestätigung (Verstoß gegen die X-Nutzungsbedingungen, mögliche Sperre). Die Bestätigung wird versioniert gespeichert (`RiskAcknowledgement`: Text-Version, Hash, Zeit, IP) und im Audit-Log festgehalten. Zusätzlich gibt es einen Tarif-Gate und einen globalen Kill-Switch.
@@ -390,6 +395,8 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
 
 Sind alle Versuche erschöpft, geht eine Kopie in die Dead-Letter-Queue (einsehbar in Bull Board) und es wird alarmiert.
 
+**Benachrichtigungen** ([ADR 0025](adr/0025-benachrichtigungen-und-token-monitor.md)): Endet eine Variante auf `FAILED` oder `NEEDS_ATTENTION`, schreibt dieselbe Transaktion das Outbox-Ereignis `notification.requested`. Die Rolle `notify` benachrichtigt die Person, die den Post erstellt hat (ist sie kein Mitglied mehr oder darf den Workspace nicht öffnen: Owner und Admins), in der App und per E-Mail, wie sie es eingestellt hat. Muss eine Verbindung neu verbunden werden, hören Owner und Admins davon, und die geplanten Varianten ihrer Accounts tragen bis zum neuen Grant den Fehlercode `REAUTH_REQUIRED` als Markierung; ihr Status bleibt `SCHEDULED`.
+
 ### 7.2 Zustandsautomat einer PostVariant
 
 ```
@@ -426,12 +433,12 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | `analytics` | `metrics.post` (gebatcht pro Account), `metrics.account`, `metrics.rollup` | `mp.{accountId}.{bucket}` | `analytics` |
 | `tokens` | `token.refresh` | `tok.{connectionId}` | `publisher` |
 | `ai` | `ai.topic-ideas`, `ai.alt-text` (für Vorschläge im Hintergrund; auf Knopfdruck laufen beide synchron, ADR 0016 und 0021) | - | `ai` |
-| `notifications` | `notify.dispatch` (in der App und per E-Mail) | `ntf.{outboxId}` | `notify` |
+| `notifications` | `notify.dispatch`: ein Outbox-Ereignis (in der App und per E-Mail an seine Empfänger) oder eine E-Mail an eine Adresse | `ntf.{outboxId}` für das Ereignis, `ntf.{outboxId}.{userId}` für seine E-Mails | `notify` |
 | `billing` | `stripe.webhook`, `usage.report` | `stripe.{eventId}` | `billing` |
 | `gdpr` | `gdpr.export`, `gdpr.erase` | `gdpr.{requestId}` | `gdpr` |
 
 - **Job-IDs ohne Doppelpunkt**: BullMQ lehnt eigene Job-IDs mit `:` ab (`Custom Id cannot contain :`; geduldet wird nur eine Altform mit genau drei Segmenten). Deshalb trennt der Punkt die Bestandteile. Redis-Schlüssel für Locks und Pub/Sub (`lock:conn:{id}`, `ws:{workspaceId}:events`) sind davon nicht betroffen.
-- **Payloads**: enthalten nur IDs und werden im Job neu aus der DB gelesen. Ausnahmen sind die `xb-*`-Queues, weil der browser-worker keinen DB-Zugriff hat, und E-Mails mit Link in `notifications` (Verifizierung, Passwort-Reset, Einladung): Gespeichert ist nur der Hash des Tokens, also trägt der Job den Link. Solche Jobs verlassen Redis direkt nach dem Versand, fehlgeschlagene nach einem Tag (ADR 0012).
+- **Payloads**: enthalten nur IDs und werden im Job neu aus der DB gelesen. Ausnahmen sind die `xb-*`-Queues, weil der browser-worker keinen DB-Zugriff hat, und die E-Mails in `notifications`, die Adresse und Text tragen. E-Mails mit Link (Verifizierung, Passwort-Reset, Einladung) tragen den Link, weil nur der Hash des Tokens gespeichert ist; sie verlassen Redis direkt nach dem Versand, fehlgeschlagene nach einem Tag (ADR 0012). Die Jobs eines Outbox-Ereignisses und seine E-Mails bleiben nach dem Lauf einen Tag, damit ihre Job-ID einen zweiten Versand verhindert (ADR 0025).
 - **Redis-Betrieb**: `maxmemory-policy noeviction` (Voraussetzung für BullMQ) und AOF-Persistenz.
 - **Outbox-Relay**: läuft als `tick.outbox-relay` im 1-s-Takt mit `FOR UPDATE SKIP LOCKED`.
 - **`tick.maintenance`**: bündelt die nächtlichen Aufgaben: Rollup-Komplettlauf (Abschnitt 8), Aufräumen der Medien (Abschnitt 9) und Aufbewahrungsfristen (Leitfaden, Schritt 8.3).
