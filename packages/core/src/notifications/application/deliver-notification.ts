@@ -5,12 +5,14 @@ import type {
   NotificationInbox,
   NotificationMailer,
   NotificationScope,
+  NotificationSignals,
 } from '../ports/notification-store';
 
 // Delivers the notification of an outbox event (guide step 4.9, ADR 0025): reads what it is
 // about, finds its recipients and gives each the channels they want. Running it again after a
 // failure is harmless: the in-app notification exists once per user and event, the email job
-// once per event and recipient.
+// once per event and recipient. A new notification in the app is signalled to the open browsers
+// of its user (guide step 4.10).
 
 export interface DeliverNotificationInput {
   eventId: string;
@@ -31,6 +33,7 @@ export class DeliverNotification {
       directory: NotificationDirectory;
       inbox: NotificationInbox;
       mailer: NotificationMailer;
+      signals: NotificationSignals;
     },
   ) {}
 
@@ -44,16 +47,21 @@ export class DeliverNotification {
     const report: DeliveryReport = { recipients: recipients.length, inApp: 0, emails: 0 };
     for (const recipient of recipients) {
       const channels = await this.deps.inbox.channelsOf(recipient.userId, input.request.type);
-      if (
-        channels.inApp &&
-        (await this.deps.inbox.addOnce(recipient.userId, {
-          eventId: input.eventId,
-          organizationId: input.organizationId,
-          workspaceId: input.workspaceId,
-          content: described.content,
-        }))
-      ) {
+      const notificationId = channels.inApp
+        ? await this.deps.inbox.addOnce(recipient.userId, {
+            eventId: input.eventId,
+            organizationId: input.organizationId,
+            workspaceId: input.workspaceId,
+            content: described.content,
+          })
+        : null;
+      if (notificationId !== null) {
         report.inApp += 1;
+        await this.deps.signals.created({
+          workspaceId: input.workspaceId,
+          userId: recipient.userId,
+          notificationId,
+        });
       }
       if (channels.email) {
         await this.deps.mailer.send({

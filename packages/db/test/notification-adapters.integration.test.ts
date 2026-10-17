@@ -126,12 +126,19 @@ describe('notifications on PostgreSQL', () => {
       [users.admin],
     );
     const emails: NotificationEmail[] = [];
+    const signals: { userId: string; notificationId: string }[] = [];
     const deliver = new DeliverNotification({
       directory: new PrismaNotificationDirectory(ready().base),
       inbox: new PrismaNotificationInbox(ready().base),
       mailer: {
         send: (email) => {
           emails.push(email);
+          return Promise.resolve();
+        },
+      },
+      signals: {
+        created: ({ userId, notificationId }) => {
+          signals.push({ userId, notificationId });
           return Promise.resolve();
         },
       },
@@ -173,6 +180,14 @@ describe('notifications on PostgreSQL', () => {
       recipient: { userId: users.editor },
       content: { type: 'publish-failed', preview: 'Wir suchen Verstärkung im Kundendienst.' },
     });
+
+    // Each new notification in the app is signalled with its id, once.
+    const [stored] = await query<{ id: string }>(
+      `SELECT id FROM notification WHERE user_id = $1 AND type = 'publish-failed'`,
+      [users.editor],
+    );
+    expect(signals).toHaveLength(3);
+    expect(signals.at(-1)).toEqual({ userId: users.editor, notificationId: stored?.id });
 
     // Each user reads their own notifications only.
     const visibleTo = async (userId: string) => {

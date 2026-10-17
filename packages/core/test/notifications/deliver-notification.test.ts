@@ -60,6 +60,7 @@ const setup = (options: {
 }) => {
   const added: (InAppNotification & { userId: string })[] = [];
   const emails: NotificationEmail[] = [];
+  const signals: { workspaceId: string; userId: string; notificationId: string }[] = [];
   const deliver = new DeliverNotification({
     directory: {
       describe: () => Promise.resolve(options.content ? { workspace, content: options.content } : null),
@@ -70,10 +71,10 @@ const setup = (options: {
       channelsOf: (userId) => Promise.resolve(options.channels?.[userId] ?? { inApp: true, email: true }),
       addOnce: (userId, notification) => {
         if (added.some((row) => row.userId === userId && row.eventId === notification.eventId)) {
-          return Promise.resolve(false);
+          return Promise.resolve(null);
         }
         added.push({ ...notification, userId });
-        return Promise.resolve(true);
+        return Promise.resolve(`n-${String(added.length)}`);
       },
     },
     mailer: {
@@ -82,15 +83,21 @@ const setup = (options: {
         return Promise.resolve();
       },
     },
+    signals: {
+      created: (signal) => {
+        signals.push(signal);
+        return Promise.resolve();
+      },
+    },
   });
   const run = (request: NotificationRequest) =>
     deliver.execute({ eventId: 'event-1', organizationId: 'org-1', workspaceId: 'ws-1', request });
-  return { run, added, emails };
+  return { run, added, emails, signals };
 };
 
 describe('DeliverNotification', () => {
   it('tells the managers of a connection in the app and by email, each once', async () => {
-    const { run, added, emails } = setup({ content: expiring });
+    const { run, added, emails, signals } = setup({ content: expiring });
 
     await expect(
       run({
@@ -108,6 +115,11 @@ describe('DeliverNotification', () => {
     expect(emails.map((email) => [email.recipient.email, email.workspace.slug])).toEqual([
       ['owner@demo.local', 'nordlicht'],
       ['admin@demo.local', 'nordlicht'],
+    ]);
+    // Guide step 4.10: the open browsers of each recipient hear of the new notification.
+    expect(signals).toEqual([
+      { workspaceId: 'ws-1', userId: 'u-owner', notificationId: 'n-1' },
+      { workspaceId: 'ws-1', userId: 'u-admin', notificationId: 'n-2' },
     ]);
   });
 
@@ -144,7 +156,7 @@ describe('DeliverNotification', () => {
   });
 
   it('adds nothing twice when the job runs again, but hands the emails on again for their job ids', async () => {
-    const { run, added, emails } = setup({ content: failed, author: [editor] });
+    const { run, added, emails, signals } = setup({ content: failed, author: [editor] });
     const request: NotificationRequest = {
       type: 'needs-attention',
       variantId: 'variant-1',
@@ -155,6 +167,7 @@ describe('DeliverNotification', () => {
     await expect(run(request)).resolves.toEqual({ recipients: 1, inApp: 0, emails: 1 });
     expect(added).toHaveLength(1);
     expect(emails).toHaveLength(2);
+    expect(signals).toHaveLength(1);
   });
 
   it('delivers nothing when the subject is gone', async () => {

@@ -5,7 +5,14 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { NOTIFICATIONS_QUEUE, NOTIFY_DISPATCH, NotificationProducer } from '@smp/queue';
+import {
+  liveEventChannel,
+  NOTIFICATIONS_QUEUE,
+  NOTIFY_DISPATCH,
+  NotificationProducer,
+  parseLiveEvent,
+  type LiveEvent,
+} from '@smp/queue';
 import {
   startMailpit,
   startRedis,
@@ -24,7 +31,7 @@ import { WorkerModule } from '../src/worker.module';
 // Guide step 1.8, "Fertig, wenn": the invitation email arrives in Mailpit in both languages,
 // sent by the worker role "notify" from the queue "notifications". Guide step 4.9: an event of
 // the outbox reaches the managers of a connection in the app and by email, once, also when it
-// is dispatched again.
+// is dispatched again; guide step 4.10: the new notification is announced as a live event.
 
 const org = randomUUID();
 const workspace = randomUUID();
@@ -33,6 +40,8 @@ const owner = { id: randomUUID(), email: `owner-${randomUUID()}@demo.local` };
 describe('notify worker', () => {
   let database: TestDatabase | undefined;
   let redis: StartedRedis | undefined;
+  let subscriber: Redis | undefined;
+  const live: LiveEvent[] = [];
   let mailpit: StartedMailpit | undefined;
   let worker: INestApplicationContext | undefined;
   let connection: Redis | undefined;
@@ -101,9 +110,15 @@ describe('notify worker', () => {
       `INSERT INTO membership (id, organization_id, user_id, role, updated_at) VALUES ($1, $2, $3, 'OWNER', now())`,
       [randomUUID(), org, owner.id],
     );
+    subscriber = new Redis(redis.url);
+    subscriber.on('message', (_channel: string, message: string) => {
+      live.push(parseLiveEvent(JSON.parse(message)));
+    });
+    await subscriber.subscribe(liveEventChannel(workspace));
   }, 300_000);
 
   afterAll(async () => {
+    subscriber?.disconnect();
     await events?.close();
     await queue?.close();
     connection?.disconnect();
@@ -174,6 +189,11 @@ describe('notify worker', () => {
         payload: expect.objectContaining({ accounts: ['Mira Becker'], scheduledVariants: 2 }) as unknown,
       },
     ]);
+    const [stored] = await query<{ id: string }>(
+      'SELECT id FROM notification WHERE user_id = $1 AND event_id = $2',
+      [owner.id, event.eventId],
+    );
+    expect(live).toEqual([{ type: 'notification.created', id: stored?.id, userId: owner.id }]);
 
     // A second dispatch of the event, as after a failed commit of the relay, adds nothing.
     await producer.dispatchEvent(event);
@@ -182,6 +202,7 @@ describe('notify worker', () => {
     await sleep(1_000);
     expect(await emailsTo(owner.email)).toBe(1);
     expect(await inbox()).toHaveLength(1);
+    expect(live).toHaveLength(1);
   });
 
   it('fails an invalid payload at once instead of retrying it', async () => {

@@ -170,9 +170,9 @@ export class PrismaNotificationInbox implements NotificationInbox {
     });
   }
 
-  addOnce(userId: string, notification: InAppNotification): Promise<boolean> {
+  addOnce(userId: string, notification: InAppNotification): Promise<string | null> {
     return withTenantTx(this.base, { userId }, async (tx) => {
-      const { count } = await tx.notification.createMany({
+      const [created] = await tx.notification.createManyAndReturn({
         data: [
           {
             userId,
@@ -184,8 +184,9 @@ export class PrismaNotificationInbox implements NotificationInbox {
           },
         ],
         skipDuplicates: true,
+        select: { id: true },
       });
-      return count === 1;
+      return created?.id ?? null;
     });
   }
 }

@@ -40,8 +40,14 @@ export interface InAppNotification {
 export interface NotificationInbox {
   /** How the user wants this type; without a setting both channels are on. */
   channelsOf(userId: string, type: NotificationType): Promise<NotificationChannels>;
-  /** Adds the notification of an event for the user once; false when it is there already. */
-  addOnce(userId: string, notification: InAppNotification): Promise<boolean>;
+  /** Adds the notification of an event for the user once; its id, or null when it is there already. */
+  addOnce(userId: string, notification: InAppNotification): Promise<string | null>;
+}
+
+/** Tells the open browsers of a user about a new notification in the app (guide step 4.10). */
+export interface NotificationSignals {
+  /** Best effort: a lost signal costs a few seconds, the bell asks again. */
+  created(signal: { workspaceId: string; userId: string; notificationId: string }): Promise<void>;
 }
 
 export interface NotificationEmail {

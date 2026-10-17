@@ -220,6 +220,7 @@ export type {
   NotificationMailer,
   NotificationPreference,
   NotificationScope,
+  NotificationSignals,
   UserNotifications,
 } from './notifications/ports/notification-store';
 export {
