@@ -3,6 +3,10 @@
 // pass a limit by one, which a plan accepts like the resources that stay after a downgrade.
 
 export interface PlanUsage {
+  /** The workspaces of the organization. */
+  workspaces(organizationId: string): Promise<number>;
+  /** Its members and the invitations open at a moment, as the limit of members counts them. */
+  members(organizationId: string, at: Date): Promise<number>;
   /** The connected accounts in all workspaces. */
   socialAccounts(organizationId: string): Promise<number>;
   /**

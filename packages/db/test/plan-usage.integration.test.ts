@@ -11,8 +11,8 @@ import {
   type SystemPrismaClient,
 } from '../src';
 
-// Guide step 7.4 on PostgreSQL: what an organization uses of its plan across all its workspaces,
-// and nothing of another organization.
+// Guide steps 7.4 and 7.5 on PostgreSQL: what an organization uses of its plan across all its
+// workspaces, and nothing of another organization.
 
 const org = randomUUID();
 const other = randomUUID();
@@ -92,6 +92,29 @@ describe('plan usage on PostgreSQL', () => {
           [workspace, ...['a', 'b', 'c', 'd'].map((name) => `ws/${workspace}/${name}`)],
         );
       }
+      // Two members of the organization and one of the other; one invitation of four is open.
+      const [ada, ben, cleo] = [randomUUID(), randomUUID(), randomUUID()];
+      await query(
+        `INSERT INTO users (id, name, email, email_verified, updated_at)
+         VALUES ($1, 'Ada', 'ada@usage.test', true, now()), ($2, 'Ben', 'ben@usage.test', true, now()),
+                ($3, 'Cleo', 'cleo@usage.test', true, now())`,
+        [ada, ben, cleo],
+      );
+      await query(
+        `INSERT INTO membership (id, organization_id, user_id, role, updated_at)
+         VALUES (gen_random_uuid(), $1, $3, 'OWNER', now()), (gen_random_uuid(), $1, $4, 'EDITOR', now()),
+                (gen_random_uuid(), $2, $5, 'OWNER', now())`,
+        [org, other, ada, ben, cleo],
+      );
+      await query(
+        `INSERT INTO invitation (id, organization_id, email, role, token_hash, invited_by_id, expires_at,
+                                 accepted_at, revoked_at)
+         VALUES (gen_random_uuid(), $1, 'open@usage.test', 'EDITOR', 'hash-open', $2, '2026-10-20T00:00:00Z', NULL, NULL),
+                (gen_random_uuid(), $1, 'taken@usage.test', 'EDITOR', 'hash-taken', $2, '2026-10-20T00:00:00Z', '2026-10-10T00:00:00Z', NULL),
+                (gen_random_uuid(), $1, 'revoked@usage.test', 'EDITOR', 'hash-revoked', $2, '2026-10-20T00:00:00Z', NULL, '2026-10-10T00:00:00Z'),
+                (gen_random_uuid(), $1, 'expired@usage.test', 'EDITOR', 'hash-expired', $2, '2026-10-12T00:00:00Z', NULL, NULL)`,
+        [org, ada],
+      );
       await query(
         `INSERT INTO api_cost_record (id, organization_id, platform, operation, cost_micros, source_type, source_id,
                                       created_at)
@@ -111,6 +134,14 @@ describe('plan usage on PostgreSQL', () => {
   afterAll(async () => {
     await system?.$disconnect();
     await database?.stop();
+  });
+
+  it('counts the workspaces, and the members with the invitations open at a moment', async () => {
+    await expect(usage().workspaces(org)).resolves.toBe(2);
+    await expect(usage().workspaces(other)).resolves.toBe(1);
+    await expect(usage().members(org, new Date('2026-10-15T00:00:00Z'))).resolves.toBe(3);
+    await expect(usage().members(org, new Date('2026-10-11T00:00:00Z'))).resolves.toBe(4);
+    await expect(usage().members(other, new Date('2026-10-15T00:00:00Z'))).resolves.toBe(1);
   });
 
   it('counts the connected accounts of every workspace of the organization', async () => {

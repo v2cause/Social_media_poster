@@ -21,6 +21,22 @@ function monthOf(at: Date): { start: Date; end: Date } {
 export class PrismaPlanUsage implements PlanUsage {
   constructor(private readonly system: SystemPrismaClient) {}
 
+  workspaces(organizationId: string): Promise<number> {
+    return runInSystemScope(() => this.system.workspace.count({ where: { organizationId } }));
+  }
+
+  async members(organizationId: string, at: Date): Promise<number> {
+    const [members, invitations] = await runInSystemScope(() =>
+      Promise.all([
+        this.system.membership.count({ where: { organizationId } }),
+        this.system.invitation.count({
+          where: { organizationId, acceptedAt: null, revokedAt: null, expiresAt: { gt: at } },
+        }),
+      ]),
+    );
+    return members + invitations;
+  }
+
   async socialAccounts(organizationId: string): Promise<number> {
     const [row] = await runInSystemScope(
       () => this.system.$queryRaw<{ used: number }[]>`
