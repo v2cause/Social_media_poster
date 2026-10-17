@@ -588,7 +588,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 - **Kalender**: FullCalendar mit Varianten in Plattformfarben und Status-Icon. Umplanen per Drag & Drop mit optimistischem Update und Rollback. Vergangene Zeitpunkte sind gesperrt. Für Tastaturnutzer gibt es einen Umplanen-Dialog.
 - **Bibliotheken**: TanStack Query (Orval-Hooks), react-hook-form + zodResolver (dieselben Schemas wie die API), nuqs für den URL-State, der Composer-State als getesteter Reducer unter `useReducer` (Zustand-Stores nur für State, den mehrere Seiten teilen; ADR 0017), shadcn/ui + Tailwind 4, lucide, sonner, TanStack Table, Recharts, date-fns v4.
 - **i18n**: next-intl mit ICU-Nachrichten, eine Datei pro Namespace und Sprache (`apps/web/messages/{de,en}/<namespace>.json`), typisierte Keys. Deutsch ist die Referenz; `pnpm check:i18n` prüft in der CI, dass jede Sprache dieselben Keys mit denselben Argumenten hat und jede Nachricht gültiges ICU ist. Plural über ICU (`{count, plural, one {...} other {...}}`), Datum und Zahlen über `useFormatter`. API-Fehlercodes werden im Client unter `errors.codes.<CODE>` übersetzt.
-- **Live-Updates**: SSE `/api/w/:ws/events` invalidiert Query-Keys; als Fallback wird alle 30 s gepollt.
+- **Live-Updates**: SSE `/api/w/:ws/events` invalidiert Query-Keys; als Fallback wird alle 30 s gepollt. Jeder Tab öffnet höchstens einen Stream, für den offenen Workspace. Die API hört pro Prozess mit einer Redis-Verbindung auf die Kanäle der Workspaces mit offenen Streams. Eine neue Benachrichtigung (`notification.created`) erreicht nur die Streams ihres Nutzers. Nach einem verlorenen Stream gelten alle Abfragen, die ein Ereignis ändern könnte, als veraltet.
 - **Ziel**: WCAG 2.2 AA.
 
 ---

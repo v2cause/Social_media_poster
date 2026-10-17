@@ -899,6 +899,11 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
 - **Erstellen**: Redis Pub/Sub `ws:{workspaceId}:events` und `GET /api/w/:ws/events` (`@Sse()`, hier passt GET).
 - **So sieht es aus**: Events wie `{ type: 'variant.status', variantId, status }` und `{ type: 'notification.created', id }`. Das Web invalidiert daraufhin die passenden Query-Keys.
 - **Darauf achten**: Die Berechtigung wird beim Verbindungsaufbau geprüft. Pro Nutzer und Tab gibt es höchstens eine Verbindung; als Fallback wird alle 30 s gepollt.
+- **Umgesetzt**:
+  - Quellen: Der Outbox-Relay veröffentlicht `variant.status` (seit Schritt 4.3). Die Rolle `notify` meldet jede neue Benachrichtigung in der App als `notification.created` mit der ID der Benachrichtigung und des Nutzers. Das Melden ist Best Effort: Geht es verloren, fragt die Glocke nach.
+  - API: `GET /api/w/:ws/events` mit `workspace.read`. Der Guard prüft beim Öffnen. `LiveEventHub` abonniert pro API-Prozess mit einer Redis-Verbindung die Kanäle der Workspaces mit offenen Streams. Jeder Stream bekommt `retry: 5000` und alle 15 s einen Kommentar als Herzschlag. Ein Ereignis passiert das Schema `liveEventDtoSchema` aus `@smp/contracts`, und `notification.created` erreicht nur die Streams seines Nutzers, ohne die Nutzer-ID.
+  - Web: `LiveEventsProvider` im App-Shell öffnet einen `EventSource` pro Tab für den offenen Workspace. Er invalidiert bei `variant.status` die Posts und bei `notification.created` die Glocke. Nach einem verlorenen Stream gilt alles als veraltet, was ein Ereignis ändern könnte. Die Glocke fragt nur ohne Stream alle 30 s nach.
+  - Tests: `apps/api/test/live-events.integration.test.ts` (Status an alle Mitglieder, Benachrichtigung nur an ihren Nutzer, fremder Workspace still, 401 und 404), `apps/worker/test/notify.integration.test.ts` (das Live-Event einer neuen Benachrichtigung), Unit-Tests für den Filter der API und die Query-Keys im Web.
 
 #### 4.11 Web: Accounts, Kalender, Posts, Planen
 - **Erstellen**: Seiten `accounts` und `accounts/connect/select`, `calendar`, `posts`; `ScheduleBar` im Composer; Dashboard-Widget "Nächster Post".

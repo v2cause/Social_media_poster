@@ -45,4 +45,4 @@ Offen waren:
 - `docs/ARCHITECTURE.md` nennt in 7.4 die beiden Arten von `notify.dispatch` mit ihren Job-IDs und in 7.1 die Benachrichtigungen der Fehlertabelle.
 - Die Rolle `notify` braucht `APP_URL` für die Links der E-Mails und die Datenbank als `app_user`.
 - Tests: `packages/core/test/notifications/*`, `packages/core/test/channels/token-monitor.test.ts`, `packages/db/test/notification-adapters.integration.test.ts`, `packages/db/test/token-maintenance-adapters.integration.test.ts`, `apps/worker/test/notify.integration.test.ts` (Ereignis bis Mailpit und Glocke, ohne Doppelung), `apps/worker/test/publish.integration.test.ts` (`token.refresh`) und `apps/api/test/notifications.integration.test.ts`.
-- Mit Schritt 4.10 meldet die Rolle `notify` jede neue In-App-Benachrichtigung als Live-Event `notification.created`. Die Glocke fragt dann nur noch als Rückfall nach.
+- Seit Schritt 4.10 meldet die Rolle `notify` jede neue In-App-Benachrichtigung als Live-Event `notification.created` auf dem Kanal ihres Workspace. Die API reicht es nur an die Streams des Nutzers weiter, und die Glocke fragt nur noch ohne Stream nach.
