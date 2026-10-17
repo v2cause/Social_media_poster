@@ -1,4 +1,10 @@
-import type { BrandVoiceContent, Crop, IdeaStatus, VariantStatus } from '@smp/core';
+import {
+  variantIdOfSource,
+  type BrandVoiceContent,
+  type Crop,
+  type IdeaStatus,
+  type VariantStatus,
+} from '@smp/core';
 import { z } from 'zod';
 
 import { InvalidCursorError } from '../audit/audit-log-read-model';
@@ -7,6 +13,7 @@ import { withTenantTx, type WorkspaceRef } from '../tenant-context';
 import type { Prisma, PrismaClient } from '../generated/prisma/client';
 import { mediaAssetInclude, toMediaAssetView, type MediaAssetView } from '../media/media-read-model';
 import { toCrop } from '../media/mappers';
+import { previewOf } from '../publishing/variant-list-read-model';
 import { brandVoiceContentSchema, toLanguage } from './mappers';
 
 // The read side of the content context (guide step 2.7): what the composer, the post list and
@@ -102,7 +109,10 @@ export interface IdeaView {
   angle: string | null;
   pillar: string | null;
   whyNow: string | null;
+  /** The sources in words. */
   basedOn: string[];
+  /** The published posts among the sources (guide step 5.6), in their order. */
+  basedOnPosts: { variantId: string; postId: string; platform: Platform; preview: string }[];
   suggestedPlatforms: Platform[];
   suggestedStyleKey: string | null;
   format: string | null;
@@ -358,13 +368,39 @@ export class ContentReadModel {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: IDEA_LIST_LIMIT,
       });
+      // The posts the ideas build on, in one query; a post deleted since is left out.
+      const variantIds = [
+        ...new Set(rows.flatMap((row) => row.basedOn.map(variantIdOfSource).filter((id) => id !== null))),
+      ];
+      const variants =
+        variantIds.length > 0
+          ? await tx.postVariant.findMany({
+              where: { workspaceId: ref.workspaceId, id: { in: variantIds } },
+              select: { id: true, postId: true, platform: true, text: true },
+            })
+          : [];
+      const posts = new Map(
+        variants.map((variant) => [
+          variant.id,
+          {
+            variantId: variant.id,
+            postId: variant.postId,
+            platform: variant.platform,
+            preview: previewOf(variant.text),
+          },
+        ]),
+      );
       return rows.map((row) => ({
         id: row.id,
         title: row.title,
         angle: row.angle,
         pillar: row.pillar,
         whyNow: row.whyNow,
-        basedOn: row.basedOn,
+        basedOn: row.basedOn.filter((source) => variantIdOfSource(source) === null),
+        basedOnPosts: row.basedOn.flatMap((source) => {
+          const post = posts.get(variantIdOfSource(source) ?? '');
+          return post ? [post] : [];
+        }),
         suggestedPlatforms: row.suggestedPlatforms,
         suggestedStyleKey: row.suggestedStyleKey,
         format: row.format,

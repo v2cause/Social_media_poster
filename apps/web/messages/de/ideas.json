@@ -24,6 +24,8 @@
   },
   "whyNow": "Warum jetzt",
   "basedOn": "Grundlage: {items}",
+  "basedOnPosts": "Baut auf diesen Posts auf",
+  "topPost": "Top-Post: {preview}",
   "platforms": "Vorgeschlagene Plattformen",
   "manual": "Eigene Idee",
   "actions": "Aktionen für {title}",

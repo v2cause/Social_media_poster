@@ -93,3 +93,21 @@ test('the analytics of the demo workspace', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'Follower pro Tag' })).toBeVisible();
   await expect(page.getByRole('group', { name: 'Follower', exact: true })).toContainText(/\d/);
 });
+
+// Guide step 5.6: the topic ideas build on the top performers of 90 days and point at real posts.
+// A second run finds its ideas again as duplicates; the ones of the first run still lead to the post.
+test('ideas that build on the top posts of the demo workspace', async ({ page }) => {
+  await signInDemo(page, 'editor@demo.local');
+  await page.goto(`${DEMO_WORKSPACE}/ideas`);
+  await expect(page.getByRole('heading', { name: 'Ideen', level: 1 })).toBeVisible();
+  await page.getByRole('button', { name: 'Ideen generieren' }).click();
+
+  const posts = page.getByRole('list', { name: 'Baut auf diesen Posts auf' }).first();
+  await expect(posts).toBeVisible();
+  await posts
+    .getByRole('link', { name: /^Top-Post: / })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/analytics\/posts\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole('heading', { name: 'Letzte Abfrage' })).toBeVisible();
+});

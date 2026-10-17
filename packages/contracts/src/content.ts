@@ -267,7 +267,12 @@ export const ideaSchema = z.object({
   angle: z.string().nullable(),
   pillar: z.string().nullable(),
   whyNow: z.string().nullable(),
+  /** What inspired the idea in words, for example a content pillar. */
   basedOn: z.array(z.string()),
+  /** The published posts the idea builds on (guide step 5.6); a deleted post leaves the list. */
+  basedOnPosts: z.array(
+    z.object({ variantId: id, postId: id, platform: platformSchema, preview: z.string() }),
+  ),
   suggestedPlatforms: z.array(platformSchema),
   suggestedStyleKey: z.string().nullable(),
   format: z.string().nullable(),

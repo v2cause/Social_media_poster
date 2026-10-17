@@ -23,6 +23,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+import { PlatformMark } from '@/features/publishing/platform-mark';
 import { useErrorMessage } from '@/lib/use-error-message';
 
 // The ideas of a workspace (guide step 2.9): a grid of cards with a status filter. The AI suggests
@@ -199,6 +200,24 @@ function IdeaCard(props: IdeasPageProps & { idea: IdeaDto; onChanged: () => Prom
           <p className="text-xs text-muted-foreground">
             {t('ideas.basedOn', { items: idea.basedOn.join(', ') })}
           </p>
+        ) : null}
+        {idea.basedOnPosts.length > 0 ? (
+          <ul
+            aria-label={t('ideas.basedOnPosts')}
+            className="flex flex-col gap-1 text-xs text-muted-foreground"
+          >
+            {idea.basedOnPosts.map((post) => (
+              <li key={post.variantId} className="flex min-w-0 items-center gap-2">
+                <PlatformMark platform={post.platform} size="xs" />
+                <Link
+                  href={`/w/${props.ws}/analytics/posts/${post.variantId}`}
+                  className="truncate hover:text-foreground hover:underline"
+                >
+                  {t('ideas.topPost', { preview: post.preview === '' ? t('posts.noText') : post.preview })}
+                </Link>
+              </li>
+            ))}
+          </ul>
         ) : null}
         {idea.suggestedPlatforms.length > 0 ? (
           <ul aria-label={t('ideas.platforms')} className="flex flex-wrap gap-1">

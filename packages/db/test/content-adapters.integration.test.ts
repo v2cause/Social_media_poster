@@ -5,6 +5,7 @@ import {
   CreatePost,
   CreateStyle,
   PostNotFoundError,
+  postSourceOf,
   PresetStyleError,
   StyleNameTakenError,
   systemClock,
@@ -449,6 +450,35 @@ describe('content adapters on PostgreSQL', () => {
       (store) => store.posts.topPerformers(workspaceB, query),
     );
     expect(otherWorkspace).toEqual([]);
+
+    // An idea that builds on a top post names it; a post deleted since leaves the list.
+    const ideaId = uuidV7Ids.newId();
+    await unitOfWork.run({ userId: editor.userId, organizationId: orgA, workspaceId: workspaceA }, (store) =>
+      store.ideas.insertMany([
+        {
+          id: ideaId,
+          workspaceId: workspaceA,
+          title: 'Fortsetzung: Erfolg auf X',
+          angle: null,
+          pillar: null,
+          whyNow: null,
+          basedOn: [postSourceOf(ids['t2'] ?? ''), 'Content-Säule', postSourceOf(randomUUID())],
+          suggestedPlatforms: ['X'],
+          suggestedStyleKey: null,
+          format: null,
+          status: 'NEW',
+          source: 'AI',
+          aiGenerationId: null,
+          createdById: editor.userId,
+          version: 0,
+        },
+      ]),
+    );
+    const [idea] = await readModel().ideas(refA, { ids: [ideaId] });
+    expect(idea).toMatchObject({
+      basedOn: ['Content-Säule'],
+      basedOnPosts: [{ variantId: ids['t2'], postId, platform: 'X', preview: 'Erfolg auf X' }],
+    });
   });
 
   it('finds near-duplicate idea titles with pg_trgm', async () => {
