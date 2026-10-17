@@ -770,3 +770,32 @@ export type {
   RollupRequests,
   VariantPoll,
 } from './analytics/ports/analytics';
+
+// Billing (phase 7).
+export * from './billing/domain/errors';
+export {
+  aiCapMicros,
+  effectiveLimits,
+  PLAN_KEYS,
+  type CountedLimit,
+  type Plan,
+  type PlanKey,
+  type PlanLimits,
+} from './billing/domain/plan';
+export {
+  GRACE_DAYS,
+  graceEndOf,
+  isReadOnlyAt,
+  readOnlyAtOf,
+  SUBSCRIPTION_STATUSES,
+  TRIAL_DAYS,
+  trialFrom,
+  type AccessState,
+  type SubscriptionStatus,
+} from './billing/domain/subscription';
+export type { Subscription, SubscriptionReader, TrialStarter } from './billing/ports/subscription-store';
+export {
+  EntitlementsService,
+  type Entitlements,
+  type EntitlementsDependencies,
+} from './billing/application/entitlements';
