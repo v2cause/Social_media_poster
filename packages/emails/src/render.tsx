@@ -90,6 +90,16 @@ export const emailTemplateSchema = z.discriminatedUnion('template', [
     graceEndsAt: z.iso.datetime(),
     timeZone: timezoneSchema,
   }),
+  // To the owner who asked for an export (guide step 8.1); the link leads to the data page.
+  z.object({
+    template: z.literal('gdpr-export-ready'),
+    locale: localeSchema,
+    name,
+    url: httpUrl,
+    organizationName: z.string().trim().min(1).max(200),
+    expiresAt: z.iso.datetime(),
+    timeZone: timezoneSchema,
+  }),
 ]);
 
 export type EmailTemplateInput = z.input<typeof emailTemplateSchema>;
@@ -270,6 +280,27 @@ function compose(email: EmailTemplate): ActionEmailText {
         preview: format(text.preview, values),
         greeting,
         intro: [format(text.intro, values), format(text.grace, values)],
+        action: text.action,
+        notes: [],
+      };
+    }
+    case 'gdpr-export-ready': {
+      // Until when the archive exists, in the time zone of the owner.
+      const values = {
+        organization: email.organizationName,
+        date: new Intl.DateTimeFormat(email.locale, {
+          dateStyle: 'long',
+          timeStyle: 'short',
+          timeZone: email.timeZone,
+        }).format(new Date(email.expiresAt)),
+      };
+      const text = locale.gdprExportReady;
+      return {
+        ...base,
+        subject: format(text.subject, values),
+        preview: format(text.preview, values),
+        greeting,
+        intro: [format(text.intro, values), format(text.download, values)],
         action: text.action,
         notes: [],
       };

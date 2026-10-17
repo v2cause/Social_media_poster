@@ -263,4 +263,23 @@ describe('the billing emails of guide step 7.4', () => {
   it('rejects an unknown time zone', async () => {
     await expect(renderEmail({ ...failed, locale: 'de', timeZone: 'Mars/Olympus' })).rejects.toThrow();
   });
+  it('tells the owner until when the export can be downloaded, without a link to the archive', async () => {
+    const ready = {
+      template: 'gdpr-export-ready' as const,
+      url: 'https://app.example.test/org/0192f000-0000-7000-8000-000000000001/data',
+      organizationName: 'Acme GmbH',
+      expiresAt: '2026-10-18T12:00:00.000Z',
+    };
+    const de = await renderEmail({ ...ready, locale: 'de', name: 'Olga', timeZone: 'Europe/Berlin' });
+    const en = await renderEmail({ ...ready, locale: 'en', timeZone: 'America/New_York' });
+
+    expect(de.subject).toBe('Der Datenexport von Acme GmbH ist bereit');
+    expect(de.text).toContain('bis 18. Oktober 2026 um 14:00 auf der Seite Daten und Löschung herunterladen');
+    expect(de.text).toContain('keinen direkten Link zum Archiv');
+    expect(de.text).toContain(ready.url);
+    expect(en.subject).toBe('The data export of Acme GmbH is ready');
+    expect(en.text).toContain('until October 18, 2026 at 8:00');
+    expect(en.text).toContain('Open data export');
+    await expect(renderEmail({ ...ready, locale: 'de', timeZone: 'Mars/Base' })).rejects.toThrow();
+  });
 });

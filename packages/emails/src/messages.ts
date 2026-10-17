@@ -77,6 +77,8 @@ export interface EmailMessages {
     kept: string;
     action: string;
   };
+  /** To the owner who asked for an export (guide step 8.1). Placeholders: {organization}, {date}. */
+  gdprExportReady: { subject: string; preview: string; intro: string; download: string; action: string };
 }
 
 /** Why an organization became read-only: its trial ended, a payment stayed out, or its subscription ended. */
@@ -216,6 +218,14 @@ export const messages: Record<Locale, EmailMessages> = {
       kept: 'Ihre Inhalte bleiben erhalten. Sobald wieder ein Tarif aktiv ist, arbeiten Sie wie gewohnt weiter.',
       action: 'Tarif wählen',
     },
+    gdprExportReady: {
+      subject: 'Der Datenexport von {organization} ist bereit',
+      preview: 'Sie können das Archiv bis {date} herunterladen.',
+      intro: 'der Export aller Daten von {organization} ist fertig.',
+      download:
+        'Sie können das Archiv bis {date} auf der Seite Daten und Löschung herunterladen; danach wird es gelöscht. Aus Sicherheitsgründen enthält diese E-Mail keinen direkten Link zum Archiv: Der Download setzt eine Anmeldung voraus.',
+      action: 'Datenexport öffnen',
+    },
   },
   en: {
     common: {
@@ -345,6 +355,14 @@ export const messages: Record<Locale, EmailMessages> = {
         'Your organization is read-only now: scheduled posts are paused, and nothing new can be created.',
       kept: 'Your content is kept. As soon as a plan is active again, you can work as usual.',
       action: 'Choose a plan',
+    },
+    gdprExportReady: {
+      subject: 'The data export of {organization} is ready',
+      preview: 'You can download the archive until {date}.',
+      intro: 'the export of all data of {organization} is finished.',
+      download:
+        'You can download the archive on the Data and deletion page until {date}; after that it is deleted. For security this email holds no direct link to the archive: the download requires you to sign in.',
+      action: 'Open data export',
     },
   },
 };
