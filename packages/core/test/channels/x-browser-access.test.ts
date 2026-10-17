@@ -10,6 +10,7 @@ import {
   RiskTextOutdatedError,
   SetXBrowserKillSwitch,
   SetXBrowserOrganization,
+  StoreBrowserSession,
   WorkspaceNotFoundError,
   XBrowserGate,
   XBrowserUnavailableError,
@@ -212,5 +213,31 @@ describe('switching the X browser on and off', () => {
     await expect(new SetXBrowserOrganization(admin).disallow('org-unknown')).rejects.toBeInstanceOf(
       OrganizationNotFoundError,
     );
+  });
+});
+
+describe('StoreBrowserSession', () => {
+  it('replaces the session of its browser connection only', async () => {
+    const unitOfWork = new InMemoryXBrowser();
+    unitOfWork.state.connections.set('connection-1', {
+      workspaceId: 'ws-1',
+      externalUserId: '1234567890',
+      sessionSealed: Uint8Array.from([1]),
+    });
+    const store = new StoreBrowserSession({ unitOfWork });
+    const input = {
+      organizationId: 'org-1',
+      workspaceId: 'ws-1',
+      connectionId: 'connection-1',
+      externalUserId: '1234567890',
+      sessionSealed: Uint8Array.from([2, 3]),
+    };
+
+    await expect(store.execute(input)).resolves.toBe(true);
+    expect(unitOfWork.state.connections.get('connection-1')?.sessionSealed).toEqual(Uint8Array.from([2, 3]));
+    // Another X user, or a connection that is gone, keeps what it has.
+    await expect(store.execute({ ...input, externalUserId: '999' })).resolves.toBe(false);
+    await expect(store.execute({ ...input, connectionId: 'connection-2' })).resolves.toBe(false);
+    expect(unitOfWork.state.connections.get('connection-1')?.sessionSealed).toEqual(Uint8Array.from([2, 3]));
   });
 });

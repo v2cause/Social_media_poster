@@ -414,6 +414,10 @@ export {
   type XBrowserStatus,
 } from './channels/application/x-browser-access';
 export {
+  StoreBrowserSession,
+  type StoreBrowserSessionInput,
+} from './channels/application/store-browser-session';
+export {
   GetXBrowserAdmin,
   SetXBrowserKillSwitch,
   SetXBrowserOrganization,

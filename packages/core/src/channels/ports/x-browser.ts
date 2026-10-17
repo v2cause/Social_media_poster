@@ -39,6 +39,16 @@ export interface XBrowserStore {
   acknowledge(acknowledgement: NewRiskAcknowledgement): Promise<void>;
   /** Revokes the acknowledgements of the subject in force; returns how many. */
   revoke(workspaceId: string, subject: string, at: Date): Promise<number>;
+  /**
+   * Replaces the sealed session of the browser connection of X with this user (guide step 6.2);
+   * false when the connection is gone, of another method or of another user.
+   */
+  replaceSession(
+    workspaceId: string,
+    connectionId: string,
+    externalUserId: string,
+    sealed: Uint8Array,
+  ): Promise<boolean>;
   audit: AuditTrail;
 }
 

@@ -1,6 +1,7 @@
 import { X_BROWSER_FLAG, type XBrowserFlags, type XBrowserScope, type XBrowserStore } from '@smp/core';
 
 import { prismaAuditTrail, type RequestOrigin } from '../audit/prisma-audit-trail';
+import { bytesOf } from '../channels/mappers';
 import type { TenantTransaction } from '../tenant-context';
 import { setFlag } from './feature-flags';
 
@@ -75,6 +76,14 @@ export function createPrismaXBrowserStore(
         data: { revokedAt: at },
       });
       return result.count;
+    },
+
+    async replaceSession(workspaceId, connectionId, externalUserId, sealed) {
+      const result = await tx.socialConnection.updateMany({
+        where: { id: connectionId, workspaceId, platform: 'X', method: 'BROWSER', externalUserId },
+        data: { sessionSealed: bytesOf(sealed), version: { increment: 1 } },
+      });
+      return result.count === 1;
     },
 
     audit: prismaAuditTrail(tx, scope.userId, origin),

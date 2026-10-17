@@ -140,6 +140,41 @@ describe('X browser adapters', () => {
     expect(await flagRows(wsB, orgB)).toBe(0);
   });
 
+  it('replaces the sealed session of its browser connection of X only', async () => {
+    const connectionId = randomUUID();
+    const owner = await required(database, 'database').connectAs('app_system');
+    try {
+      await owner.query(
+        `INSERT INTO social_connection
+           (id, workspace_id, platform, method, external_user_id, display_name, session_sealed, updated_at)
+         VALUES ($1, $2, 'X', 'BROWSER', '1234567890', 'SMP Demo', '\\x01'::bytea, now())`,
+        [connectionId, wsA],
+      );
+    } finally {
+      await owner.end();
+    }
+    const replace = (scope: typeof scopeA | typeof scopeB, workspaceId: string, externalUserId: string) =>
+      unitOfWork().run(scope, (store) =>
+        store.replaceSession(workspaceId, connectionId, externalUserId, Uint8Array.from([2, 3])),
+      );
+
+    await expect(replace(scopeA, wsA, '1234567890')).resolves.toBe(true);
+    await expect(replace(scopeA, wsA, '999')).resolves.toBe(false);
+    // Another workspace does not see the connection.
+    await expect(replace(scopeB, wsB, '1234567890')).resolves.toBe(false);
+
+    const reader = await required(database, 'database').connectAs('app_system');
+    try {
+      const { rows } = await reader.query<{ session_sealed: Buffer; version: number }>(
+        `SELECT session_sealed, version FROM social_connection WHERE id = $1`,
+        [connectionId],
+      );
+      expect(rows).toEqual([{ session_sealed: Buffer.from([2, 3]), version: 1 }]);
+    } finally {
+      await reader.end();
+    }
+  });
+
   it('records an acknowledgement with the user and the audit log and revokes it', async () => {
     const acceptedAt = new Date('2026-10-17T08:00:00Z');
     await unitOfWork().run(scopeA, async (store) => {

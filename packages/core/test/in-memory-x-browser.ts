@@ -20,12 +20,20 @@ interface Acknowledgement extends NewRiskAcknowledgement {
   revokedAt: Date | null;
 }
 
+/** A browser connection of X with its sealed session. */
+export interface BrowserConnectionRow {
+  workspaceId: string;
+  externalUserId: string;
+  sessionSealed: Uint8Array | null;
+}
+
 interface State {
   global: { enabled: boolean; updatedAt: Date } | null;
   organizations: Map<string, { enabled: boolean; updatedAt: Date }>;
   workspaces: Map<string, boolean>;
   acknowledgements: Acknowledgement[];
   audit: AuditEntry[];
+  connections: Map<string, BrowserConnectionRow>;
 }
 
 const emptyState = (): State => ({
@@ -34,6 +42,7 @@ const emptyState = (): State => ({
   workspaces: new Map(),
   acknowledgements: [],
   audit: [],
+  connections: new Map(),
 });
 
 export class InMemoryXBrowser implements XBrowserUnitOfWork {
@@ -110,6 +119,15 @@ export class InMemoryXBrowser implements XBrowserUnitOfWork {
           }
         }
         return Promise.resolve(revoked);
+      },
+      replaceSession: (workspaceId, connectionId, externalUserId, sealed) => {
+        assertScope(workspaceId);
+        const row = state().connections.get(connectionId);
+        if (row?.workspaceId !== workspaceId || row.externalUserId !== externalUserId) {
+          return Promise.resolve(false);
+        }
+        row.sessionSealed = new Uint8Array(sealed);
+        return Promise.resolve(true);
       },
       audit: {
         record: (entry) => {
