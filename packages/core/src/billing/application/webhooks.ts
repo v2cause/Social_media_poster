@@ -23,7 +23,7 @@ import type { Subscription, SubscriptionReader } from '../ports/subscription-sto
 const HANDLED: readonly string[] = BILLING_WEBHOOK_TYPES;
 
 export class RecordStripeWebhook {
-  constructor(private readonly deps: { inbox: WebhookInbox; jobs: BillingJobs }) {}
+  constructor(private readonly deps: { inbox: Pick<WebhookInbox, 'record'>; jobs: BillingJobs }) {}
 
   /** Records an event and queues it unless it was processed already; other types are ignored. */
   async execute(event: BillingWebhookEvent): Promise<'queued' | 'duplicate' | 'ignored'> {
@@ -45,7 +45,7 @@ export class RecordStripeWebhook {
 }
 
 export interface ProcessStripeWebhookDependencies {
-  inbox: WebhookInbox;
+  inbox: Pick<WebhookInbox, 'find' | 'markProcessed'>;
   gateway: BillingGateway;
   subscriptions: Pick<SubscriptionReader, 'plans'>;
   sync: SubscriptionSync;

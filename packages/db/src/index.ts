@@ -53,6 +53,14 @@ export {
 } from './media/media-read-model';
 export { PrismaQuotaStore } from './usage/prisma-quota-store';
 export { PrismaSubscriptionReader, toPlan, toSubscription } from './billing/prisma-subscriptions';
+export {
+  PrismaBillingCustomers,
+  PrismaBillingDirectory,
+  PrismaSubscriptionSync,
+  PrismaWebhookInbox,
+  PrismaWebhookRecorder,
+  type BillingContact,
+} from './billing/prisma-billing-stores';
 export { PrismaSealedSecretStore } from './channels/prisma-sealed-secret-store';
 export { PrismaChannelUnitOfWork } from './channels/prisma-channel-unit-of-work';
 export { createPrismaChannelStore } from './channels/prisma-channel-store';
