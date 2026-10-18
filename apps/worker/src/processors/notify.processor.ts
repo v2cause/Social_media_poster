@@ -23,7 +23,8 @@ import { DELIVER_NOTIFICATION, EMAIL_SEALER, MAIL_PORT } from '../worker.tokens'
  * (guide step 8.4), rendered in the recipient's language and sent over SMTP. An event of the
  * outbox goes to its recipients: in the app, and by email as one job per recipient. Failures are
  * retried by BullMQ; payloads that do not validate or open fail at once, except an email sealed
- * with a key the role does not know yet. Logs carry the job id, never an address.
+ * with a key the role does not know yet. Logs carry the job id, never an address, and so does the
+ * error of a failed delivery (SmtpDeliveryError), which the queue keeps with the job.
  */
 @Processor(NOTIFICATIONS_QUEUE)
 export class NotifyProcessor extends WorkerHost {

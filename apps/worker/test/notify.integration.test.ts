@@ -28,6 +28,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
+import { startRejectingSmtp, type RejectingSmtp } from './support/rejecting-smtp';
 import { openedEmail, tokenKeys } from './support/sealed-email';
 
 // Guide step 1.8, "Fertig, wenn": the invitation email arrives in Mailpit in both languages,
@@ -36,7 +37,8 @@ import { openedEmail, tokenKeys } from './support/sealed-email';
 // is dispatched again; guide step 4.10: the new notification is announced as a live event.
 // Guide step 8.4: an email waits in Redis sealed with the token keyring; one the keyring of the
 // worker cannot open fails at once, as does one in the format from before the seal, while one
-// sealed with a key the worker does not know yet is retried.
+// sealed with a key the worker does not know yet is retried. A job the SMTP server refuses keeps
+// neither the address nor the reply of the server.
 
 const org = randomUUID();
 const workspace = randomUUID();
@@ -85,20 +87,28 @@ describe('notify worker', () => {
     return messages.length;
   };
 
-  beforeAll(async () => {
-    [database, redis, mailpit] = await Promise.all([startTestDatabase(), startRedis(), startMailpit()]);
-    const env = loadWorkerEnv({
+  /** The env of a notify worker against the database of this file. */
+  const workerEnv = (urls: { redis: string; smtp: string }) => {
+    if (!database) {
+      throw new Error('not started');
+    }
+    return loadWorkerEnv({
       NODE_ENV: 'test',
       LOG_LEVEL: 'warn',
       WORKER_ROLES: 'notify',
       WORKER_HEALTH_PORT: '0',
-      REDIS_URL: redis.url,
+      REDIS_URL: urls.redis,
       DATABASE_URL: database.url('app_user'),
-      SMTP_URL: mailpit.smtpUrl,
+      SMTP_URL: urls.smtp,
       MAIL_FROM: 'noreply@smp.test',
       APP_URL: 'http://localhost:3000',
       ...TOKEN_KEYS,
     });
+  };
+
+  beforeAll(async () => {
+    [database, redis, mailpit] = await Promise.all([startTestDatabase(), startRedis(), startMailpit()]);
+    const env = workerEnv({ redis: redis.url, smtp: mailpit.smtpUrl });
     worker = await NestFactory.createApplicationContext(WorkerModule.forRoles(['notify'], env), {
       logger: false,
     });
@@ -295,5 +305,65 @@ describe('notify worker', () => {
     );
     await expect(plain.waitUntilFinished(queueEvents)).rejects.toThrow(/invalid notify.dispatch payload/);
     expect(await emailsTo('plain@example.test')).toBe(0);
+  });
+
+  describe('with an SMTP server that rejects the recipient', () => {
+    let smtp: RejectingSmtp | undefined;
+    let rejecting: INestApplicationContext | undefined;
+    let rejectingConnection: Redis | undefined;
+    let rejectingQueue: Queue | undefined;
+    let rejectingEvents: QueueEvents | undefined;
+
+    beforeAll(async () => {
+      if (!redis) {
+        throw new Error('not started');
+      }
+      smtp = await startRejectingSmtp();
+      // A second worker on a Redis database of its own, so that only it takes the job.
+      const redisUrl = `${redis.url}/1`;
+      rejecting = await NestFactory.createApplicationContext(
+        WorkerModule.forRoles(['notify'], workerEnv({ redis: redisUrl, smtp: smtp.url })),
+        { logger: false },
+      );
+      await rejecting.init();
+      rejectingConnection = new Redis(redisUrl, { maxRetriesPerRequest: null });
+      rejectingQueue = new Queue(NOTIFICATIONS_QUEUE, { connection: rejectingConnection });
+      rejectingEvents = new QueueEvents(NOTIFICATIONS_QUEUE, {
+        connection: new Redis(redisUrl, { maxRetriesPerRequest: null }),
+      });
+      await rejectingEvents.waitUntilReady();
+    }, 60_000);
+
+    afterAll(async () => {
+      await rejecting?.close();
+      await rejectingEvents?.close();
+      await rejectingQueue?.close();
+      rejectingConnection?.disconnect();
+      await smtp?.close();
+    });
+
+    it('keeps the address and the reply of the server out of the failed job', async () => {
+      if (!rejectingConnection || !rejectingQueue || !rejectingEvents) {
+        throw new Error('not started');
+      }
+      const queueEvents = rejectingEvents;
+      // The first attempt fails, the job waits for the next one.
+      const retried = new Promise<string>((resolve) => {
+        queueEvents.once('delayed', ({ jobId }) => {
+          resolve(jobId);
+        });
+      });
+      await new NotificationProducer(rejectingQueue, sealerFromEnv('tokens', TOKEN_KEYS)).dispatchEmail(
+        'rejected@example.test',
+        { ...invitation, locale: 'en' },
+      );
+      const jobId = await retried;
+      const job = await rejectingQueue.getJob(jobId);
+      expect(job?.failedReason).toBe('SMTP delivery failed: EENVELOPE, RCPT TO, 550');
+      const stored = await rejectingConnection.hgetall(`bull:${NOTIFICATIONS_QUEUE}:${jobId}`);
+      expect(stored.stacktrace).toContain('SmtpDeliveryError');
+      expect(JSON.stringify(stored)).not.toMatch(/rejected@example|Recipient address rejected/);
+      await job?.remove();
+    });
   });
 });

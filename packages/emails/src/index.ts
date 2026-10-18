@@ -9,4 +9,4 @@ export {
   type RenderedEmail,
 } from './render';
 export { notificationEmailOf } from './notification-email';
-export { createSmtpMailer, type SmtpMailerOptions } from './smtp-mailer';
+export { createSmtpMailer, SmtpDeliveryError, type SmtpMailerOptions } from './smtp-mailer';
