@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard';
+import { SignOutButton } from '@/components/sign-out-button';
 import { getMemberships, requireSession } from '@/lib/server/api';
 
 export async function generateMetadata() {
@@ -22,7 +23,10 @@ export default async function OnboardingPage() {
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between p-4">
         <span className="font-semibold">{t('name')}</span>
-        <LanguageSwitcher signedIn />
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher signedIn />
+          <SignOutButton />
+        </div>
       </header>
       <main className="flex flex-1 justify-center p-4 pt-[6vh]">
         <div className="w-full max-w-xl">
