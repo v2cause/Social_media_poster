@@ -9,7 +9,9 @@ import type Redis from 'ioredis';
 // - a limit of failed sign-ins per account, so a pool of addresses cannot try passwords on it,
 // - a limit of failed password checks per user on the endpoints that take the password of a
 //   session, so a stolen session cannot guess the password and take over the second factor,
-// - no "trust this device": every sign-in asks for the second factor.
+// - no "trust this device": every sign-in asks for the second factor,
+// - a security event in the log for sign-ins, sign-ups, sign-outs, resets and every change of a
+//   factor or a session. Events name the user or a digest of the address, never the address.
 
 /** Failed sign-ins per account and window, from whatever addresses they come. */
 export const SIGN_IN_FAILURES_PER_ACCOUNT = 10;
@@ -26,6 +28,18 @@ const PASSWORD_PATHS = new Set([
   '/two-factor/generate-backup-codes',
 ]);
 const SECOND_FACTOR_PATHS = new Set(['/two-factor/verify-totp', '/two-factor/verify-backup-code']);
+/** Further endpoints whose outcome is a security event. */
+const EVENT_PATHS = new Set([
+  '/sign-up/email',
+  '/sign-out',
+  '/verify-email',
+  '/send-verification-email',
+  '/request-password-reset',
+  '/reset-password',
+  '/revoke-session',
+  '/revoke-sessions',
+  '/revoke-other-sessions',
+]);
 
 // INCR with an expiry set on the first hit, as in the password check of the API.
 const INCREMENT = `
@@ -90,7 +104,7 @@ export function createAuthHooks({ redis, logger }: AuthHookDependencies) {
   const after = createAuthMiddleware(async (ctx) => {
     const isSignIn = ctx.path === '/sign-in/email';
     const isPasswordPath = PASSWORD_PATHS.has(ctx.path);
-    if (!isSignIn && !isPasswordPath) {
+    if (!isSignIn && !isPasswordPath && !SECOND_FACTOR_PATHS.has(ctx.path) && !EVENT_PATHS.has(ctx.path)) {
       return;
     }
     const returned: unknown = ctx.context.returned;
@@ -111,6 +125,23 @@ export function createAuthHooks({ redis, logger }: AuthHookDependencies) {
     if (isPasswordPath && userId && failure && code === 'INVALID_PASSWORD') {
       await increment(userKey(userId));
     }
+
+    // This hook runs before the one of the two-factor plugin, which then swaps the new session for
+    // the second step. Devices are never trusted, so the second step always follows.
+    const needsSecondFactor =
+      isSignIn && (signedIn as { twoFactorEnabled?: boolean | null } | null)?.twoFactorEnabled === true;
+    const outcome = failure ? 'failed' : needsSecondFactor ? 'second_factor_required' : 'ok';
+    logger.log(
+      {
+        path: ctx.path,
+        outcome,
+        ...(code ? { code } : {}),
+        ...(userId ? { userId } : {}),
+        ...(email && !userId ? { account: accountDigest(email) } : {}),
+        clientAddress: ctx.headers?.get('x-real-ip') ?? null,
+      },
+      'auth.event',
+    );
   });
 
   return { before, after };
