@@ -1,0 +1,4 @@
+# False positives of gitleaks (generic-api-key): common passwords from the public lists that the
+# tests of the password policy expect to be refused (guide step 8.4). No secrets.
+2f5737ac755ef7119a7f82c2937cbb54dc7ee1c3:apps/api/test/auth.integration.test.ts:generic-api-key:346
+2f5737ac755ef7119a7f82c2937cbb54dc7ee1c3:apps/api/test/auth.integration.test.ts:generic-api-key:347
