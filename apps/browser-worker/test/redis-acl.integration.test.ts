@@ -190,6 +190,15 @@ describe('the users of Redis in compose.yaml', () => {
     await expect(anonymous.call('AUTH', 'app', 'wrong-password')).rejects.toThrow(/WRONGPASS/);
   });
 
+  it('keeps the user app from dangerous commands, apart from the INFO that BullMQ asks', async () => {
+    const app = connect(`app:${APP_PASSWORD}@`);
+    await expect(app.info('server')).resolves.toContain('redis_version');
+    await expect(app.flushall()).rejects.toThrow(/NOPERM/);
+    await expect(app.keys('smp:*')).rejects.toThrow(/NOPERM/);
+    await expect(app.call('CONFIG', 'GET', 'maxmemory-policy')).rejects.toThrow(/NOPERM/);
+    await expect(app.call('ACL', 'LIST')).rejects.toThrow(/NOPERM/);
+  });
+
   it('lets the healthcheck only PING', async () => {
     const health = connect('health:unused@');
     await expect(health.ping()).resolves.toBe('PONG');
