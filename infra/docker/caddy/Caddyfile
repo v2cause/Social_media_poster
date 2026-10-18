@@ -7,6 +7,11 @@
 
 :8080 {
 	handle /api/* {
+		# Uploads go straight to the object storage; the API takes JSON of at most 1 MB, and
+		# /api/auth at most 64 KB (guide step 8.4).
+		request_body {
+			max_size 1MB
+		}
 		reverse_proxy api:3001 {
 			# Server-sent events (AI generation, live updates) must reach the browser at once.
 			flush_interval -1
@@ -17,6 +22,14 @@
 	}
 
 	handle {
-		reverse_proxy web:3000
+		# The web app takes forms and server actions only.
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy web:3000 {
+			# The web app hands the client address on to the API with its own requests, for the
+			# inbound rate limits (guide step 8.4); overwritten here as well.
+			header_up X-Real-IP {remote_host}
+		}
 	}
 }
