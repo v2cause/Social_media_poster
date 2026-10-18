@@ -127,6 +127,21 @@ export class StripeBillingGateway implements BillingGateway {
     });
   }
 
+  async setCancelAtPeriodEnd(subscriptionId: string, cancel: boolean): Promise<void> {
+    await this.stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: cancel });
+  }
+
+  async deleteCustomer(customerId: string): Promise<void> {
+    try {
+      // Stripe deletes the customer for good and ends its subscriptions at once.
+      await this.stripe.customers.del(customerId);
+    } catch (error) {
+      if (!isMissing(error)) {
+        throw error;
+      }
+    }
+  }
+
   async fetchSubscription(subscriptionId: string): Promise<ProviderSubscription | null> {
     let subscription: Stripe.Subscription;
     try {

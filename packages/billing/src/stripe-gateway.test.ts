@@ -142,6 +142,12 @@ describe('Stripe billing against the fake Stripe', () => {
       expect.objectContaining({ status: 'paid', currency: 'eur', total: 4_900, number: 'FAKE-0001' }),
     ]);
     await expect(gateway.fetchSubscription('sub_unknown')).resolves.toBeNull();
+
+    // An organization in deletion lets the subscription end with its period, and renew again.
+    await gateway.setCancelAtPeriodEnd(String(subscription['id']), true);
+    expect((await gateway.fetchSubscription(String(subscription['id'])))?.cancelAtPeriodEnd).toBe(true);
+    await gateway.setCancelAtPeriodEnd(String(subscription['id']), false);
+    expect((await gateway.fetchSubscription(String(subscription['id'])))?.cancelAtPeriodEnd).toBe(false);
   });
 
   it('opens the portal with the configuration of the sync and reads the prices', async () => {
@@ -188,6 +194,22 @@ describe('Stripe billing against the fake Stripe', () => {
         timestamp: Date.parse('2026-10-16T23:59:59Z') / 1000,
       },
     ]);
+  });
+
+  it('deletes a customer for good, also when Stripe does not know it any more', async () => {
+    const { gateway, fake } = started();
+    const customerId = await gateway.createCustomer({
+      organizationId: 'org-erased',
+      name: 'Erased GmbH',
+      email: 'erased@example.test',
+      locale: 'de',
+    });
+
+    await gateway.deleteCustomer(customerId);
+    await gateway.deleteCustomer(customerId);
+
+    expect(fake.customers.has(customerId)).toBe(false);
+    expect(fake.requestsTo('DELETE /v1/customers/{customer}')).toHaveLength(2);
   });
 
   it('checks the signature of a webhook and keeps only its ids', () => {
