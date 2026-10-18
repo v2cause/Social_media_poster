@@ -1,6 +1,7 @@
 import { type CanActivate, type ExecutionContext, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { OrganizationNotFoundError, SLUG_PATTERN, WorkspaceNotFoundError } from '@smp/core';
+import { addToLogContext } from '@smp/observability';
 import type { TenancyReadModel } from '@smp/db';
 
 import { TENANCY_READ_MODEL } from '../../infrastructure/clients.module';
@@ -47,6 +48,10 @@ export class WorkspaceGuard implements CanActivate {
 
     request.access = { userId, ...access };
     this.tenant.set({ userId, organizationId: access.organizationId, workspaceId: access.workspaceId });
+    addToLogContext({
+      organizationId: access.organizationId,
+      ...(access.workspaceId ? { workspaceId: access.workspaceId } : {}),
+    });
     return true;
   }
 

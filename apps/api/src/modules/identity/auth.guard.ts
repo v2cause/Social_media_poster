@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { addToLogContext } from '@smp/observability';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { Request } from 'express';
 
@@ -43,6 +44,7 @@ export class AuthGuard implements CanActivate {
     }
     request.auth = session;
     this.tenant.set({ userId: session.user.id });
+    addToLogContext({ userId: session.user.id });
     return true;
   }
 }
