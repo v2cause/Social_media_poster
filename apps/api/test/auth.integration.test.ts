@@ -14,7 +14,8 @@ import { browser as openBrowser, PASSWORD, signUpVerified } from './support/brow
 // - no device is trusted to skip the second factor,
 // - a sign-up with a known address tells its owner,
 // - a session ends seven days after the sign-in,
-// - reset tokens are kept as digests only.
+// - reset tokens are kept as digests only,
+// - the password check of Better Auth is closed to browsers.
 
 const WRONG_PASSWORD = 'wrong password 123';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -332,5 +333,10 @@ describe('authentication with Better Auth', () => {
     } finally {
       await system.end();
     }
+  });
+
+  it('does not offer the password check of Better Auth to browsers', async () => {
+    const agent = await signUpVerified(started(), 'password-check@example.test');
+    await agent.post('/api/auth/verify-password').send({ password: PASSWORD }).expect(404);
   });
 });

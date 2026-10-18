@@ -92,6 +92,8 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
     session: { expiresIn: 7 * DAY_SECONDS, disableSessionRefresh: true },
     // Reset tokens are stored as SHA-256 only, so a read of the table cannot reset passwords.
     verification: { storeIdentifier: 'hashed' },
+    // The API checks the password itself (PasswordCheck, with a limit per user); browsers may not.
+    disabledPaths: ['/verify-password'],
     hooks: createAuthHooks({ redis, logger }),
     rateLimit: {
       // Better Auth keeps it off in development; tests check it.
