@@ -23,8 +23,10 @@ import { notFound, redirect } from 'next/navigation';
 import type { z } from 'zod';
 
 // Server-side calls to the API, for layouts that must decide before rendering: is there a session,
-// which workspace is this, may the user see it. The browser's cookie is forwarded; nothing is
-// cached. Responses are validated with the shared schemas, like every external input.
+// which workspace is this, may the user see it. The browser's cookie is forwarded, and the client
+// address that the reverse proxy set, so that the rate limits of the API count the user and not
+// the web app (guide step 8.4). Nothing is cached. Responses are validated with the shared
+// schemas, like every external input.
 
 const API_URL = process.env['API_INTERNAL_URL'] ?? 'http://127.0.0.1:3001';
 
@@ -38,10 +40,17 @@ async function serverFetch<T>(
   schema: z.ZodType<T>,
   init: RequestInit = {},
 ): Promise<ApiResult<T>> {
-  const cookie = (await headers()).get('cookie') ?? '';
+  const incoming = await headers();
+  const cookie = incoming.get('cookie') ?? '';
+  const clientAddress = incoming.get('x-real-ip');
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
-    headers: { accept: 'application/json', 'content-type': 'application/json', cookie },
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      cookie,
+      ...(clientAddress ? { 'x-real-ip': clientAddress } : {}),
+    },
     cache: 'no-store',
   });
   if (!response.ok) {
