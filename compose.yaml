@@ -169,8 +169,10 @@ services:
     profiles: ['app']
     restart: unless-stopped
     <<: *hardened
-    env_file: .env
-    # Inside the compose network the services are reached by their service names.
+    # Only what the API reads (guide step 8.4): no env_file, so the passwords of the database
+    # owner, the migrator, Redis and the browser worker stay outside. A name without a value
+    # comes from .env; one unset there stays unset. Inside the compose network the services are
+    # reached by their service names.
     environment:
       NODE_ENV: production
       # The browser reaches the app through the proxy, not on the dev port 3000.
@@ -185,6 +187,36 @@ services:
       S3_PUBLIC_ENDPOINT: http://127.0.0.1:8333
       # Production checks new passwords against known breaches.
       PWNED_PASSWORDS_API_URL: ${PWNED_PASSWORDS_API_URL:-https://api.pwnedpasswords.com}
+      LOG_LEVEL:
+      OTEL_EXPORTER_OTLP_ENDPOINT:
+      SENTRY_DSN:
+      BETTER_AUTH_SECRET:
+      BETTER_AUTH_SECRETS:
+      TOKEN_KEKS:
+      TOKEN_KEK_ACTIVE:
+      SESSION_KEKS:
+      SESSION_KEK_ACTIVE:
+      FEATURE_X_BROWSER_GLOBAL:
+      S3_REGION:
+      S3_BUCKET:
+      S3_ACCESS_KEY_ID:
+      S3_SECRET_ACCESS_KEY:
+      S3_FORCE_PATH_STYLE:
+      AI_PROVIDER:
+      ANTHROPIC_API_KEY:
+      AI_MODEL:
+      AI_EFFORT_GENERATE:
+      AI_EFFORT_REFINE:
+      AI_EFFORT_IDEAS:
+      AI_EFFORT_ALT_TEXT:
+      AI_REFUSAL_FALLBACK:
+      PLATFORM_MODE_LINKEDIN:
+      PLATFORM_MODE_META:
+      PLATFORM_MODE_X:
+      PUBLISH_DRY_RUN:
+      STRIPE_SECRET_KEY:
+      STRIPE_WEBHOOK_SECRET:
+      STRIPE_API_BASE:
     ports:
       - '127.0.0.1:3001:3001'
     depends_on:
@@ -209,10 +241,10 @@ services:
     profiles: ['app']
     restart: unless-stopped
     <<: *hardened
-    env_file: .env
     # SIGTERM lets the running job finish. Docker's default of 10 s is shorter than a typical
     # publish; whatever is cut off after this is picked up by lease and reconcile.
     stop_grace_period: 60s
+    # Only what the worker reads, as for the API (guide step 8.4).
     environment:
       NODE_ENV: production
       WORKER_HEALTH_PORT: '3002'
@@ -224,6 +256,35 @@ services:
       # The role "media" reads uploads and writes renditions. The role "publisher" signs the URLs
       # of renditions for the platforms with S3_PUBLIC_ENDPOINT, which they must be able to reach.
       S3_ENDPOINT: http://s3:8333
+      LOG_LEVEL:
+      OTEL_EXPORTER_OTLP_ENDPOINT:
+      SENTRY_DSN:
+      WORKER_ROLES:
+      SCHEDULER_TICK_MS:
+      PUBLISH_CONCURRENCY:
+      PUBLISH_LOCK_MS:
+      PUBLISH_LEASE_MS:
+      ANALYTICS_CADENCE_SCALE:
+      APP_URL:
+      MAIL_FROM:
+      TOKEN_KEKS:
+      TOKEN_KEK_ACTIVE:
+      SESSION_KEKS:
+      SESSION_KEK_ACTIVE:
+      FEATURE_X_BROWSER_GLOBAL:
+      XB_CANARY_ACCOUNT_ID:
+      STRIPE_SECRET_KEY:
+      STRIPE_API_BASE:
+      S3_PUBLIC_ENDPOINT:
+      S3_REGION:
+      S3_BUCKET:
+      S3_ACCESS_KEY_ID:
+      S3_SECRET_ACCESS_KEY:
+      S3_FORCE_PATH_STYLE:
+      PLATFORM_MODE_LINKEDIN:
+      PLATFORM_MODE_META:
+      PLATFORM_MODE_X:
+      PUBLISH_DRY_RUN:
     ports:
       - '127.0.0.1:3002:3002'
     depends_on:
