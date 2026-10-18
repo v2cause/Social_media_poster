@@ -181,6 +181,8 @@ function TwoFactorCard() {
   // Turning the second factor off takes a code of it as well (guide step 8.4). A confirmed code
   // stays confirmed for a few minutes, so a wrong password does not use up the next code.
   const [confirmed, setConfirmed] = useState(false);
+  // As after a new password, the other devices can be signed out (guide step 8.4).
+  const [signOutOthers, setSignOutOthers] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -189,7 +191,18 @@ function TwoFactorCard() {
     setPassword('');
     setCode('');
     setConfirmed(false);
+    setSignOutOthers(true);
     setError(null);
+  };
+
+  const endOtherSessions = async () => {
+    if (!signOutOthers) {
+      return;
+    }
+    const result = await authClient.revokeOtherSessions();
+    if (result.error) {
+      toast.error(authError(result.error) ?? t('auth.errors.unknown'));
+    }
   };
 
   /** Confirms a code of the app or a backup code with the session. */
@@ -229,6 +242,7 @@ function TwoFactorCard() {
       if (result.error) {
         setError(authError(result.error));
       } else {
+        await endOtherSessions();
         toast.success(t('account.twoFactor.disabledToast'));
         close();
         await refreshMe();
@@ -246,6 +260,7 @@ function TwoFactorCard() {
       setError(authError(result.error));
       return;
     }
+    await endOtherSessions();
     toast.success(t('account.twoFactor.enabledToast'));
     close();
     await refreshMe();
@@ -337,6 +352,16 @@ function TwoFactorCard() {
                   />
                 )}
               </FormField>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="two-factor-sign-out-others"
+                  checked={signOutOthers}
+                  onChange={(event) => {
+                    setSignOutOthers(event.target.checked);
+                  }}
+                />
+                <Label htmlFor="two-factor-sign-out-others">{t('account.password.signOutOthers')}</Label>
+              </div>
               {setup.mode === 'disable' && !confirmed ? (
                 <FormField id="disable-code" label={t('account.twoFactor.confirmCode')}>
                   {(control) => (
