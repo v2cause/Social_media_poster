@@ -127,11 +127,13 @@ export {
   type SealedEmail,
 } from './notifications';
 export {
+  MEDIA_DROP_UPLOAD,
   MEDIA_JOB_OPTIONS,
   MEDIA_PROCESS,
   MEDIA_QUEUE,
   MEDIA_RENDER,
   MediaProducer,
+  mediaDropUploadJobId,
   mediaProcessJobId,
   mediaProcessSchema,
   mediaRenderJobId,

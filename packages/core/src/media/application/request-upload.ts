@@ -1,6 +1,12 @@
 import type { ContentActor } from '../../content/domain/types';
 import { MediaTooLargeError, MediaTypeNotAllowedError, StorageQuotaExceededError } from '../domain/errors';
-import { displayFileName, isUploadMimeType, MAX_UPLOAD_BYTES, UPLOAD_URL_SECONDS } from '../domain/rules';
+import {
+  displayFileName,
+  isUploadMimeType,
+  MAX_UPLOAD_BYTES,
+  UPLOAD_DROP_SECONDS,
+  UPLOAD_URL_SECONDS,
+} from '../domain/rules';
 import { originalKey, uploadKey } from '../domain/storage-keys';
 import type { MediaAsset } from '../domain/types';
 import type { PresignedUpload } from '../ports/storage';
@@ -9,7 +15,9 @@ import { assertCanWriteMedia, mediaScopeOf, type MediaDependencies } from './dep
 // Step 1 of an upload (architecture 9): type and size as announced by the browser, the storage the
 // plan of the organization allows in all its workspaces (guide step 7.4), then an asset waiting
 // for its file and a presigned PUT for exactly that type and length into the upload object, apart
-// from the original the pipeline writes after its checks (guide step 8.4).
+// from the original the pipeline writes after its checks (guide step 8.4). media.drop-upload
+// deletes the upload object once the link has long expired, should a late PUT have created it
+// again.
 
 export interface RequestUploadInput {
   actor: ContentActor;
@@ -26,7 +34,10 @@ export interface UploadTicket {
 
 export class RequestUpload {
   constructor(
-    private readonly deps: Pick<MediaDependencies, 'unitOfWork' | 'storage' | 'limits' | 'clock' | 'ids'>,
+    private readonly deps: Pick<
+      MediaDependencies,
+      'unitOfWork' | 'storage' | 'jobs' | 'limits' | 'clock' | 'ids'
+    >,
   ) {}
 
   async execute(input: RequestUploadInput): Promise<UploadTicket> {
@@ -75,6 +86,11 @@ export class RequestUpload {
       contentLength: input.size,
       expiresInSeconds: UPLOAD_URL_SECONDS,
     });
+    // No link without the job: a ticket that fails here was never handed out.
+    await this.deps.jobs.dropUpload(
+      { organizationId: actor.organizationId, workspaceId: actor.workspaceId, assetId },
+      UPLOAD_DROP_SECONDS,
+    );
     const expiresAt = new Date(this.deps.clock.now().getTime() + UPLOAD_URL_SECONDS * 1000);
     return { asset, upload, expiresAt };
   }

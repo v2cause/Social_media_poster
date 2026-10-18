@@ -21,4 +21,6 @@ export interface MediaJobs {
   process(job: MediaJob): Promise<void>;
   /** Queues media.render; one job per asset, profile and crop. */
   render(job: RenderJob): Promise<void>;
+  /** Queues media.drop-upload for the asset of an upload ticket, to run after the delay. */
+  dropUpload(job: MediaJob, delaySeconds: number): Promise<void>;
 }

@@ -17,7 +17,7 @@ import {
 } from '@smp/core';
 import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@smp/db';
 import { S3Storage, type S3StorageConfig } from '@smp/media';
-import { MEDIA_PROCESS, MEDIA_QUEUE, MediaProducer } from '@smp/queue';
+import { MEDIA_PROCESS, MEDIA_QUEUE, MediaProducer, mediaDropUploadJobId } from '@smp/queue';
 import {
   startObjectStorage,
   startRedis,
@@ -35,7 +35,8 @@ import { WorkerModule } from '../src/worker.module';
 
 // Guide step 3.3, "Fertig, wenn": a 10 MB JPEG is READY in under 5 s, and a file that is no image
 // but is called .jpg ends up REJECTED. The worker role "media" runs against PostgreSQL with
-// row-level security, Redis and SeaweedFS; the upload side runs as the API does it.
+// row-level security, Redis and SeaweedFS; the upload side runs as the API does it. Guide step
+// 8.4: the job of the ticket deletes an upload object that a late PUT created again.
 
 const BUCKET = 'smp-test-media';
 const MB = 1024 * 1024;
@@ -73,22 +74,28 @@ describe('media worker', () => {
     };
   };
 
-  /** The upload side as the API runs it: ticket, presigned PUT, completion. */
-  const uploadAndComplete = async (bytes: Uint8Array, fileName: string): Promise<MediaAsset> => {
-    const deps = apiDeps();
-    const ticket = await new RequestUpload(deps).execute({
+  /** A ticket and the presigned PUT of the file, as the browser sends it. */
+  const requestAndUpload = async (bytes: Uint8Array, fileName: string) => {
+    const ticket = await new RequestUpload(apiDeps()).execute({
       actor,
       fileName,
       mimeType: 'image/jpeg',
       size: bytes.byteLength,
     });
-    const put = await fetch(ticket.upload.url, {
-      method: ticket.upload.method,
-      headers: ticket.upload.headers,
-      body: new Uint8Array(bytes),
-    });
-    expect(put.status).toBe(200);
-    return new CompleteUpload(deps).execute({ actor, assetId: ticket.asset.id });
+    const put = () =>
+      fetch(ticket.upload.url, {
+        method: ticket.upload.method,
+        headers: ticket.upload.headers,
+        body: new Uint8Array(bytes),
+      });
+    expect((await put()).status).toBe(200);
+    return { ticket, put };
+  };
+
+  /** The upload side as the API runs it: ticket, presigned PUT, completion. */
+  const uploadAndComplete = async (bytes: Uint8Array, fileName: string): Promise<MediaAsset> => {
+    const { ticket } = await requestAndUpload(bytes, fileName);
+    return new CompleteUpload(apiDeps()).execute({ actor, assetId: ticket.asset.id });
   };
 
   /** Polls the asset until the worker moved it on from PROCESSING. */
@@ -255,6 +262,41 @@ describe('media worker', () => {
       client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: processing.storageKey })),
     ).rejects.toThrow();
     client.destroy();
+  });
+
+  it('deletes an upload object a late PUT created again once the job of the ticket runs', async () => {
+    const { queue: media, events: queueEvents } = ready();
+    const photo = await sharp({ create: { width: 64, height: 48, channels: 3, background: '#336699' } })
+      .jpeg()
+      .toBuffer();
+    const { ticket, put } = await requestAndUpload(photo, 'Spät.jpg');
+    await new CompleteUpload(apiDeps()).execute({ actor, assetId: ticket.asset.id });
+    expect(await settled(ticket.asset.id, 10_000)).toMatchObject({ status: 'READY' });
+    const prefix = `ws/${workspaceId}/assets/${ticket.asset.id}/`;
+
+    // The link still works for a few minutes after the pipeline took the file.
+    expect((await put()).status).toBe(200);
+    expect(await keysOf(prefix)).toContain(`${prefix}upload`);
+    const drop = await media.getJob(mediaDropUploadJobId(ticket.asset.id));
+    expect(await drop?.getState()).toBe('delayed');
+    expect(drop?.opts.delay).toBe(65 * 60 * 1000);
+    await drop?.promote();
+
+    await expect(drop?.waitUntilFinished(queueEvents)).resolves.toBe('DROPPED');
+    expect((await keysOf(prefix)).sort()).toEqual([
+      `${prefix}original`,
+      `${prefix}renditions/thumb_320-full.webp`,
+      `${prefix}renditions/thumb_640-full.webp`,
+    ]);
+
+    // An upload that waits for its completion keeps its file.
+    const waiting = await requestAndUpload(photo, 'Wartet.jpg');
+    const kept = await media.getJob(mediaDropUploadJobId(waiting.ticket.asset.id));
+    await kept?.promote();
+    await expect(kept?.waitUntilFinished(queueEvents)).resolves.toBe('KEPT');
+    expect(await keysOf(`ws/${workspaceId}/assets/${waiting.ticket.asset.id}/`)).toEqual([
+      `ws/${workspaceId}/assets/${waiting.ticket.asset.id}/upload`,
+    ]);
   });
 
   it('fails an invalid payload at once instead of retrying it', async () => {

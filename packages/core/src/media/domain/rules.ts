@@ -16,6 +16,11 @@ export const MAX_INPUT_PIXELS = 50_000_000;
 
 /** A presigned upload works for five minutes. */
 export const UPLOAD_URL_SECONDS = 5 * 60;
+/**
+ * When media.drop-upload deletes the upload object of an asset (guide step 8.4): an hour after its
+ * link expired, so that a PUT the link started has ended by then, also over a slow line.
+ */
+export const UPLOAD_DROP_SECONDS = UPLOAD_URL_SECONDS + 60 * 60;
 /** Previews in the browser and images for platforms are readable for one hour. */
 export const READ_URL_SECONDS = 60 * 60;
 

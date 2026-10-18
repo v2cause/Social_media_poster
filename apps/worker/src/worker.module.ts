@@ -8,7 +8,7 @@ import {
   type Provider,
   type Type,
 } from '@nestjs/common';
-import { ProcessAsset, RenderAttachedMedia, systemClock, uuidV7Ids } from '@smp/core';
+import { DropUpload, ProcessAsset, RenderAttachedMedia, systemClock, uuidV7Ids } from '@smp/core';
 import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@smp/db';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
 import { createLogger, logSerializers } from '@smp/observability';
@@ -43,7 +43,7 @@ import { XbResultsProcessor } from './processors/xb-results.processor';
 import { PublishWorker } from './publisher/publish-worker';
 import type { WorkerRole } from './roles';
 import type { WorkerEnv } from './worker-env';
-import { PROCESS_ASSET, RENDER_ATTACHED_MEDIA, WORKER_ENV } from './worker.tokens';
+import { DROP_UPLOAD, PROCESS_ASSET, RENDER_ATTACHED_MEDIA, WORKER_ENV } from './worker.tokens';
 
 interface RoleWiring {
   queues: string[];
@@ -103,6 +103,7 @@ function mediaPipeline(env: WorkerEnv): Provider[] {
     { provide: MEDIA_CLIENTS, useValue: { database, storage } satisfies MediaClients },
     MediaClientsLifecycle,
     { provide: PROCESS_ASSET, useValue: new ProcessAsset(deps) },
+    { provide: DROP_UPLOAD, useValue: new DropUpload(deps) },
     { provide: RENDER_ATTACHED_MEDIA, useValue: new RenderAttachedMedia(deps) },
   ];
 }

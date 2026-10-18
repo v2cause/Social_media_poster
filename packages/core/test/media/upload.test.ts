@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CompleteUpload,
   DeleteMedia,
+  DropUpload,
   MediaInUseError,
   MediaNotFoundError,
   MediaTooLargeError,
@@ -66,6 +67,8 @@ describe('RequestUpload', () => {
     ]);
     expect(ticket.expiresAt.toISOString()).toBe('2026-10-16T12:05:00.000Z');
     expect(testbed.unitOfWork.locks).toBe(1);
+    // An hour after the link expired, the upload object goes for good.
+    expect(testbed.jobs.drops).toEqual([{ job: job(ticket.asset.id), delaySeconds: 65 * 60 }]);
   });
 
   it('refuses other types, empty and too large files, and viewers', async () => {
@@ -277,6 +280,50 @@ describe('ProcessAsset', () => {
 
     await expect(new ProcessAsset(testbed).execute(job(asset.id))).resolves.toBe('SKIPPED');
     await expect(new ProcessAsset(testbed).execute(job('missing'))).resolves.toBe('SKIPPED');
+  });
+});
+
+describe('DropUpload', () => {
+  const html = new TextEncoder().encode('<html><script>alert(1)</script></html>');
+
+  it('deletes an upload object a late PUT created after the pipeline took the file', async () => {
+    const testbed = createMediaTestbed();
+    const asset = await uploaded(testbed);
+    await new ProcessAsset(testbed).execute(job(asset.id));
+    testbed.storage.upload(uploadOf(asset.id), html, 'image/jpeg');
+
+    await expect(new DropUpload(testbed).execute(job(asset.id))).resolves.toBe('DROPPED');
+
+    expect(testbed.storage.objects.has(uploadOf(asset.id))).toBe(false);
+    expect(testbed.storage.objects.get(asset.storageKey)?.bytes).toEqual(JPEG_BYTES);
+  });
+
+  it('deletes it after a rejection, a removal from the library and without a row', async () => {
+    const testbed = createMediaTestbed();
+    const rejected = await uploaded(testbed, html);
+    await new ProcessAsset(testbed).execute(job(rejected.id));
+    const removed = await requested(testbed);
+    testbed.storage.upload(uploadOf(removed.asset.id), JPEG_BYTES, 'image/jpeg');
+    await new DeleteMedia(testbed).execute({ actor: editor, assetId: removed.asset.id });
+    for (const assetId of [rejected.id, removed.asset.id, 'erased']) {
+      testbed.storage.upload(uploadOf(assetId), html, 'image/jpeg');
+
+      await expect(new DropUpload(testbed).execute(job(assetId))).resolves.toBe('DROPPED');
+      expect(testbed.storage.objects.has(uploadOf(assetId))).toBe(false);
+    }
+  });
+
+  it('keeps the upload of an asset that waits for its file or is being processed', async () => {
+    const testbed = createMediaTestbed();
+    const pending = await requested(testbed);
+    testbed.storage.upload(uploadOf(pending.asset.id), JPEG_BYTES, 'image/jpeg');
+    const processing = await uploaded(testbed);
+
+    for (const assetId of [pending.asset.id, processing.id]) {
+      await expect(new DropUpload(testbed).execute(job(assetId))).resolves.toBe('KEPT');
+      expect(testbed.storage.objects.has(uploadOf(assetId))).toBe(true);
+    }
+    await expect(new ProcessAsset(testbed).execute(job(processing.id))).resolves.toBe('READY');
   });
 });
 

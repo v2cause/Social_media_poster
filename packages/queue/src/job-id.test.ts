@@ -7,6 +7,7 @@ import {
   gdprJobId,
   gdprSweepJobId,
   jobIdOf,
+  mediaDropUploadJobId,
   mediaProcessJobId,
   mediaRenderJobId,
   notifyEmailJobId,
@@ -41,6 +42,7 @@ describe('job ids', () => {
       gdprJobId(id),
       gdprSweepJobId(),
       mediaProcessJobId(id),
+      mediaDropUploadJobId(id),
       mediaRenderJobId({ assetId: id, profile: 'instagram_feed', cropHash: 'x0y120w1080h1350-lb' }),
       ...['publish', 'metrics', 'login.start'].map((operation) => xbJobId(operation, id, id)),
     ];
@@ -58,6 +60,7 @@ describe('job ids', () => {
     expect(notifyJobId(id)).toBe(`ntf.${id}`);
     expect(notifyEmailJobId(id, 'u1')).toBe(`ntf.${id}.u1`);
     expect(usageReportJobId(id, '2026-10-17')).toBe(`usage.${id}.2026-10-17`);
+    expect(mediaDropUploadJobId(id)).toBe(`drop.${id}`);
     expect(xbJobId('login.start', id, 1)).toBe(`xb.login.start.${id}.1`);
   });
 

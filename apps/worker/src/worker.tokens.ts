@@ -4,6 +4,7 @@ export const DELIVER_NOTIFICATION = Symbol('DELIVER_NOTIFICATION');
 /** The token keyring that opens the sealed emails of the notify jobs (guide step 8.4). */
 export const EMAIL_SEALER = Symbol('EMAIL_SEALER');
 export const PROCESS_ASSET = Symbol('PROCESS_ASSET');
+export const DROP_UPLOAD = Symbol('DROP_UPLOAD');
 export const RENDER_ATTACHED_MEDIA = Symbol('RENDER_ATTACHED_MEDIA');
 export const TICK_HANDLERS = Symbol('TICK_HANDLERS');
 export const PUBLISH_PIPELINE = Symbol('PUBLISH_PIPELINE');

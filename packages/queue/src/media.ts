@@ -2,14 +2,15 @@ import { RENDITION_PROFILE_KEYS } from '@smp/platform-rules';
 import type { JobsOptions, Queue } from 'bullmq';
 import { z } from 'zod';
 
-// Queue "media" with the jobs "media.process" (guide step 3.3) and "media.render" (step 3.4),
-// architecture 7.4, processed by the worker role "media". The payloads hold only ids and keys;
-// the worker reads everything else again from the database. They are validated when they are
-// added and again when they are processed.
+// Queue "media" with the jobs "media.process" (guide step 3.3), "media.render" (step 3.4) and
+// "media.drop-upload" (step 8.4), architecture 7.4, processed by the worker role "media". The
+// payloads hold only ids and keys; the worker reads everything else again from the database. They
+// are validated when they are added and again when they are processed.
 
 export const MEDIA_QUEUE = 'media';
 export const MEDIA_PROCESS = 'media.process';
 export const MEDIA_RENDER = 'media.render';
+export const MEDIA_DROP_UPLOAD = 'media.drop-upload';
 
 export const mediaProcessSchema = z.object({
   organizationId: z.uuid(),
@@ -46,6 +47,11 @@ export const mediaProcessJobId = (assetId: string): string => `media.${assetId}`
 export const mediaRenderJobId = (job: Pick<MediaRender, 'assetId' | 'profile' | 'cropHash'>): string =>
   `rend.${job.assetId}.${job.profile}.${job.cropHash}`;
 
+/** One job per upload ticket, which is one asset. */
+export const mediaDropUploadJobId = (assetId: string): string => `drop.${assetId}`;
+
+const delaySecondsSchema = z.number().int().nonnegative();
+
 /** Validates a job payload. Throws a ZodError for anything else. */
 export const parseMediaProcess = (data: unknown): MediaProcess => mediaProcessSchema.parse(data);
 export const parseMediaRender = (data: unknown): MediaRender => mediaRenderSchema.parse(data);
@@ -65,5 +71,15 @@ export class MediaProducer {
   async render(job: MediaRender): Promise<void> {
     const payload = mediaRenderSchema.parse(job);
     await this.queue.add(MEDIA_RENDER, payload, { ...MEDIA_JOB_OPTIONS, jobId: mediaRenderJobId(payload) });
+  }
+
+  /** The payload is the one of media.process: the asset of the ticket. */
+  async dropUpload(job: MediaProcess, delaySeconds: number): Promise<void> {
+    const payload = mediaProcessSchema.parse(job);
+    await this.queue.add(MEDIA_DROP_UPLOAD, payload, {
+      ...MEDIA_JOB_OPTIONS,
+      jobId: mediaDropUploadJobId(payload.assetId),
+      delay: delaySecondsSchema.parse(delaySeconds) * 1000,
+    });
   }
 }

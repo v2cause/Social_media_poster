@@ -4,6 +4,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { Test } from '@nestjs/testing';
 import {
+  DropUpload,
   ProcessAsset,
   RenderAttachedMedia,
   systemClock,
@@ -16,6 +17,7 @@ import { createPrismaClient, PrismaMediaUnitOfWork } from '@smp/db';
 import { createSmtpMailer, deliverEmail } from '@smp/emails';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
 import {
+  MEDIA_DROP_UPLOAD,
   MEDIA_PROCESS,
   MEDIA_QUEUE,
   NOTIFICATIONS_QUEUE,
@@ -244,12 +246,17 @@ function startMediaConsumer(
   };
   const process = new ProcessAsset(deps);
   const render = new RenderAttachedMedia(deps);
+  const drop = new DropUpload(deps);
   const worker = new Worker(
     MEDIA_QUEUE,
     async (job) => {
-      await (job.name === MEDIA_PROCESS
-        ? process.execute(parseMediaProcess(job.data))
-        : render.execute(parseMediaRender(job.data)));
+      if (job.name === MEDIA_PROCESS) {
+        await process.execute(parseMediaProcess(job.data));
+      } else if (job.name === MEDIA_DROP_UPLOAD) {
+        await drop.execute(parseMediaProcess(job.data));
+      } else {
+        await render.execute(parseMediaRender(job.data));
+      }
     },
     { connection: { url: redis.url, maxRetriesPerRequest: null } },
   );

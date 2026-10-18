@@ -290,6 +290,7 @@ export class MemoryStorage implements StoragePort {
 export class RecordingJobs implements MediaJobs {
   readonly jobs: MediaJob[] = [];
   readonly renders: RenderJob[] = [];
+  readonly drops: { job: MediaJob; delaySeconds: number }[] = [];
 
   process(job: MediaJob): Promise<void> {
     this.jobs.push(job);
@@ -298,6 +299,11 @@ export class RecordingJobs implements MediaJobs {
 
   render(job: RenderJob): Promise<void> {
     this.renders.push(job);
+    return Promise.resolve();
+  }
+
+  dropUpload(job: MediaJob, delaySeconds: number): Promise<void> {
+    this.drops.push({ job, delaySeconds });
     return Promise.resolve();
   }
 }

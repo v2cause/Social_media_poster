@@ -4,6 +4,7 @@ import type { Queue } from 'bullmq';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  MEDIA_DROP_UPLOAD,
   MEDIA_JOB_OPTIONS,
   MEDIA_PROCESS,
   MEDIA_RENDER,
@@ -59,5 +60,21 @@ describe('media queue', () => {
     expect(parseMediaRender(render)).toEqual(render);
     expect(() => parseMediaRender({ ...render, profile: 'tiktok' })).toThrow();
     expect(() => parseMediaRender({ ...render, cropHash: '../x' })).toThrow();
+  });
+
+  it('adds one delayed media.drop-upload job per upload ticket', async () => {
+    const add = vi.fn().mockResolvedValue(undefined);
+    const producer = new MediaProducer({ add } as unknown as Queue);
+
+    await producer.dropUpload(job, 3900);
+
+    expect(add).toHaveBeenCalledWith(MEDIA_DROP_UPLOAD, job, {
+      ...MEDIA_JOB_OPTIONS,
+      jobId: `drop.${job.assetId}`,
+      delay: 3_900_000,
+    });
+    await expect(producer.dropUpload({ ...job, assetId: '../other' }, 3900)).rejects.toThrow();
+    await expect(producer.dropUpload(job, -1)).rejects.toThrow();
+    expect(add).toHaveBeenCalledTimes(1);
   });
 });

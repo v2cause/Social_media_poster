@@ -156,6 +156,7 @@ describe('media adapters on PostgreSQL', () => {
         renders.push(job);
         return Promise.resolve();
       },
+      dropUpload: () => Promise.resolve(),
     },
     processor,
     // The plan of the organization allows storageBytes; its workspaces store what app_system sums.

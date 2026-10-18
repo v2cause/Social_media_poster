@@ -551,6 +551,7 @@ export {
   MAX_VARIANT_MEDIA,
   READ_URL_SECONDS,
   THUMBNAIL_PROFILES,
+  UPLOAD_DROP_SECONDS,
   UPLOAD_MIME_TYPES,
   UPLOAD_URL_SECONDS,
   type UploadMimeType,
@@ -609,6 +610,7 @@ export {
 } from './media/application/request-upload';
 export { CompleteUpload, type CompleteUploadInput } from './media/application/complete-upload';
 export { ProcessAsset, type ProcessOutcome } from './media/application/process-asset';
+export { DropUpload, type DropUploadOutcome } from './media/application/drop-upload';
 export { UpdateMediaAltText, type UpdateMediaAltTextInput } from './media/application/update-media';
 export { DeleteMedia, type DeleteMediaInput } from './media/application/delete-media';
 export { RenderRendition, type RenderRenditionInput } from './media/application/render-rendition';
