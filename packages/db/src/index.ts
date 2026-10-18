@@ -143,3 +143,4 @@ export {
 } from './audit/audit-log-read-model';
 export { PrismaGdprRequestRunner, PrismaGdprUnitOfWork, toGdprRequest } from './gdpr/prisma-gdpr-requests';
 export { EXPORT_TABLES, PrismaOrganizationDataSource } from './gdpr/prisma-organization-data-source';
+export { checkErasure, PrismaOrganizationEraser, type ErasureCheck } from './gdpr/prisma-organization-eraser';
