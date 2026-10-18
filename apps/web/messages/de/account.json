@@ -40,6 +40,9 @@
     "revoke": "Abmelden",
     "revokeOthers": "Alle anderen abmelden",
     "revoked": "Das Gerät wurde abgemeldet.",
-    "othersRevoked": "Alle anderen Geräte wurden abgemeldet."
+    "othersRevoked": "Alle anderen Geräte wurden abgemeldet.",
+    "revokeFailed": "Das Gerät konnte nicht abgemeldet werden. Bitte versuchen Sie es erneut.",
+    "notFresh": "Aus Sicherheitsgründen zeigen wir die angemeldeten Geräte nur bis einen Tag nach Ihrer Anmeldung. Melden Sie sich erneut an, um sie zu sehen.",
+    "signInAgain": "Erneut anmelden"
   }
 }

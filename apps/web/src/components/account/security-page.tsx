@@ -28,6 +28,7 @@ import {
   TableRow,
 } from '@smp/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import QRCode from 'react-qr-code';
@@ -273,33 +274,55 @@ function TwoFactorCard() {
   );
 }
 
+/** Better Auth lists the devices only within a day after the sign-in of this session. */
+class SessionNotFreshError extends Error {}
+
 function SessionsCard() {
   const t = useTranslations('account.sessions');
   const tActions = useTranslations('actions');
   const tStates = useTranslations('states');
   const format = useFormatter();
+  const router = useRouter();
   const current = authClient.useSession();
   const sessions = useQuery({
     queryKey: ['auth', 'sessions'],
     queryFn: async () => {
       const result = await authClient.listSessions();
       if (result.error) {
-        throw new Error('sessions unavailable');
+        throw result.error.code === 'SESSION_NOT_FRESH'
+          ? new SessionNotFreshError()
+          : new Error('sessions unavailable');
       }
       return result.data;
     },
+    retry: (failures, error) => !(error instanceof SessionNotFreshError) && failures < 3,
   });
 
+  // Better Auth reports failures in the result instead of throwing them.
   const revoke = async (token: string) => {
-    await authClient.revokeSession({ token });
-    toast.success(t('revoked'));
+    const result = await authClient.revokeSession({ token });
+    if (result.error) {
+      toast.error(t('revokeFailed'));
+    } else {
+      toast.success(t('revoked'));
+    }
     await sessions.refetch();
   };
 
   const revokeOthers = async () => {
-    await authClient.revokeOtherSessions();
-    toast.success(t('othersRevoked'));
+    const result = await authClient.revokeOtherSessions();
+    if (result.error) {
+      toast.error(t('revokeFailed'));
+    } else {
+      toast.success(t('othersRevoked'));
+    }
     await sessions.refetch();
+  };
+
+  const signInAgain = async () => {
+    await authClient.signOut();
+    router.push('/login?next=/account/security');
+    router.refresh();
   };
 
   const currentId = current.data?.session.id;
@@ -312,6 +335,12 @@ function SessionsCard() {
       <CardContent className="flex flex-col gap-4">
         {sessions.isPending ? (
           <LoadingState label={t('loading')} rows={2} />
+        ) : sessions.error instanceof SessionNotFreshError ? (
+          <Alert title={t('notFresh')}>
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => void signInAgain()}>
+              {t('signInAgain')}
+            </Button>
+          </Alert>
         ) : sessions.isError ? (
           <ErrorState
             title={tStates('error')}

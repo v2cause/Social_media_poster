@@ -40,6 +40,9 @@
     "revoke": "Sign out",
     "revokeOthers": "Sign out all others",
     "revoked": "The device has been signed out.",
-    "othersRevoked": "All other devices have been signed out."
+    "othersRevoked": "All other devices have been signed out.",
+    "revokeFailed": "The device could not be signed out. Please try again.",
+    "notFresh": "For your security, the signed-in devices are shown only until a day after your sign-in. Sign in again to see them.",
+    "signInAgain": "Sign in again"
   }
 }
