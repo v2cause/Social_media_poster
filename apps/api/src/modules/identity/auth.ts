@@ -7,6 +7,7 @@ import {
   PASSWORD_MIN_LENGTH,
   timezoneSchema,
 } from '@smp/contracts';
+import { hashPassword, verifyPassword } from '@smp/crypto';
 import type { PrismaClient } from '@smp/db';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
@@ -84,6 +85,8 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
       requireEmailVerification: true,
       minPasswordLength: PASSWORD_MIN_LENGTH,
       maxPasswordLength: PASSWORD_MAX_LENGTH,
+      // scrypt with the parameters of OWASP instead of Better Auth's lighter default (ASVS 11.4.2).
+      password: { hash: hashPassword, verify: ({ hash, password }) => verifyPassword(hash, password) },
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
         dispatch('auth.reset_mail_failed', mailer.sendResetPassword(user, url));

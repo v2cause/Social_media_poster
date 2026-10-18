@@ -1,4 +1,4 @@
-import { hashPassword } from 'better-auth/crypto';
+import { hashPassword } from '@smp/crypto';
 import { uuidv7 } from 'uuidv7';
 
 import type { PrismaClient } from '../generated/prisma/client';
