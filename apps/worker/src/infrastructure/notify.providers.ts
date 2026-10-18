@@ -7,6 +7,7 @@ import {
   type PrismaClient,
 } from '@smp/db';
 import { createSmtpMailer, notificationEmailOf } from '@smp/emails';
+import { isLoopbackUrl } from '@smp/observability';
 import { LiveEventPublisher, NOTIFICATIONS_QUEUE, NotificationProducer } from '@smp/queue';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
@@ -48,7 +49,12 @@ export function notifyPipeline(env: WorkerEnv): Provider[] {
       'Invalid configuration:\n  SMTP_URL, MAIL_FROM and APP_URL are required for the role "notify"',
     );
   }
-  const mailer = createSmtpMailer({ url: SMTP_URL, from: MAIL_FROM });
+  const mailer = createSmtpMailer({
+    url: SMTP_URL,
+    from: MAIL_FROM,
+    // Mailpit of a production build on this machine speaks plain text (compose profile "app").
+    requireTls: env.NODE_ENV === 'production' && !isLoopbackUrl(APP_URL),
+  });
   // app_user: the directory sets the tenant of the event, the inbox the user of each recipient.
   const database = createPrismaClient(env.DATABASE_URL);
   // The producer fails fast instead of queueing commands while Redis is away; the job retries.
