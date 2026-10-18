@@ -10,6 +10,7 @@ import {
 import type { PrismaClient } from '@smp/db';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { isAPIError } from 'better-auth/api';
 import { twoFactor } from 'better-auth/plugins';
 import type Redis from 'ioredis';
 import { uuidv7 } from 'uuidv7';
@@ -120,6 +121,16 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
       database: { generateId: () => uuidv7() },
     },
     plugins: [twoFactor({ issuer: 'Social Media Poster' })],
+    // Refusals that the hooks throw (429, 400) reach the router, which would print them to the
+    // console at level error; the hooks log their own events. Only failures of Better Auth itself
+    // are errors.
+    onAPIError: {
+      onError: (error) => {
+        if (!isAPIError(error) || error.statusCode >= 500) {
+          logger.error({ err: error }, 'auth.error');
+        }
+      },
+    },
     logger: {
       level: 'warn',
       // Only the message: the extra arguments can hold request data.
