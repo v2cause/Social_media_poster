@@ -788,6 +788,9 @@ importers:
       '@smp/core':
         specifier: workspace:*
         version: link:../core
+      '@smp/platform-rules':
+        specifier: workspace:*
+        version: link:../platform-rules
       uuidv7:
         specifier: ^1.2.1
         version: 1.2.1

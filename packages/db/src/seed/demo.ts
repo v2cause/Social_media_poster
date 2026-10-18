@@ -23,7 +23,7 @@ export const DEMO_USERS: ReadonlyArray<{ email: string; name: string; role: Memb
 export const DEMO_PLATFORM_ADMIN = { email: 'platform@demo.local', name: 'Demo Platform Admin' } as const;
 
 // Better Auth stores email and password logins as an account with this provider id.
-const CREDENTIAL_PROVIDER = 'credential';
+export const CREDENTIAL_PROVIDER = 'credential';
 
 export interface DemoSeedResult {
   organizationId: string;

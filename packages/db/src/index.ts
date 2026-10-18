@@ -138,6 +138,13 @@ export {
 } from './seed/demo';
 export { seedDemoAnalytics } from './seed/demo-analytics';
 export {
+  loadFixtureOptionsSchema,
+  seedLoadFixture,
+  type LoadFixture,
+  type LoadFixtureOptions,
+  type LoadWorkspace,
+} from './seed/load';
+export {
   AuditLogReadModel,
   InvalidCursorError,
   type AuditLogEntryView,
