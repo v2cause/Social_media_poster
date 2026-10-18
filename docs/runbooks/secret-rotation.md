@@ -15,6 +15,15 @@ Schritt 8.4 des Leitfadens, [ADR 0039](../adr/0039-security-review-und-haertung.
 - Nach jeder Rotation: betroffene Dienste neu starten, `GET /api/health/ready` und `GET :3002/health/ready` des Workers prüfen, Logs auf `level >= 50` durchsehen.
 - Alte Werte erst entfernen, wenn die Prüfung der jeweiligen Zeile unten bestanden ist.
 
+## Sitzungen sofort beenden
+
+Bei Verdacht auf ein übernommenes Konto oder eine gestohlene Sitzung, auch ohne Rotation. Die Sitzungen liegen nur in der Datenbank, ohne Cookie-Cache: Die nächste Anfrage einer beendeten Sitzung bekommt 401, und der Browser meldet sich neu an.
+
+- Eine Person: `docker compose exec api node dist/scripts/revoke-sessions.js --user <E-Mail-Adresse>` (lokal nach `pnpm build`: `pnpm auth:revoke-sessions --user <E-Mail-Adresse>`).
+- Alle Personen: dasselbe mit `--all`, zum Beispiel nach einem Leck der Datenbank.
+- Das Log `auth.sessions_revoked` nennt nur die Zahl der beendeten Sitzungen, nie die Adresse. Exit-Code 1 heißt, dass zu der Adresse kein Konto gehört; Exit-Code 2, dass weder `--user <E-Mail-Adresse>` noch `--all` angegeben war.
+- Ist das Passwort betroffen, setzt die Person es über "Passwort vergessen" neu; auch das beendet alle ihre Sitzungen.
+
 ## Übersicht
 
 | Secret | Genutzt von | Auswirkung der Rotation |
