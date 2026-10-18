@@ -60,6 +60,14 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
         dispatch('auth.reset_mail_failed', mailer.sendResetPassword(user, url));
         return Promise.resolve();
       },
+      // A sign-up with a known address answers like a new one; the owner of the address hears of it.
+      onExistingUserSignUp: async ({ user }) => {
+        dispatch(
+          'auth.existing_account_mail_failed',
+          mailer.sendExistingAccountNotice(user, `${env.APP_URL.replace(/\/$/, '')}/login`),
+        );
+        return Promise.resolve();
+      },
     },
     emailVerification: {
       sendOnSignUp: true,

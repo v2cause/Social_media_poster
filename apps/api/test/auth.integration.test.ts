@@ -3,7 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PASSWORD_FAILURES_PER_USER, SIGN_IN_FAILURES_PER_ACCOUNT } from '../src/modules/identity/auth-hooks';
-import { startApiTestApp, type ApiTestApp } from './support/api-app';
+import { APP_ORIGIN, startApiTestApp, type ApiTestApp } from './support/api-app';
 import { browser as openBrowser, PASSWORD, signUpVerified } from './support/browser';
 
 // Spike 0.14(d) and guide steps 1.4 and 8.4: sign-up, email verification through Mailpit,
@@ -11,7 +11,8 @@ import { browser as openBrowser, PASSWORD, signUpVerified } from './support/brow
 // API, with the hardening of step 8.4:
 // - the link verifies the address without signing in,
 // - failed sign-ins are limited per account and wrong passwords per user,
-// - no device is trusted to skip the second factor.
+// - no device is trusted to skip the second factor,
+// - a sign-up with a known address tells its owner.
 
 const WRONG_PASSWORD = 'wrong password 123';
 
@@ -207,6 +208,21 @@ describe('authentication with Better Auth', () => {
       statuses.push(response.status);
     }
     expect(statuses).toContain(429);
+  });
+
+  it('answers a sign-up with a known address like a new one and tells the owner of the address', async () => {
+    await signUpVerified(started(), 'known@example.test');
+
+    const fresh = await signUp(browser(), 'unknown@example.test');
+    const known = await signUp(browser(), 'known@example.test');
+    expect(known.status).toBe(200);
+    expect(known.status).toBe(fresh.status);
+    expect(Object.keys(known.body as object).sort()).toEqual(Object.keys(fresh.body as object).sort());
+
+    const message = await started().mailpit.waitForMessage('known@example.test', {
+      subject: 'Es gibt bereits ein Konto mit Ihrer E-Mail-Adresse',
+    });
+    expect(message.Text).toContain(`${APP_ORIGIN}/login`);
   });
 
   it('blocks the sign-in to an account after ten failures, from whatever addresses they come', async () => {
