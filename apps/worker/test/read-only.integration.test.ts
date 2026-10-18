@@ -4,9 +4,9 @@ import { randomBytes, randomUUID } from 'node:crypto';
 
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { NOTIFICATIONS_QUEUE, parseNotifyDispatch, SCHEDULER_QUEUE } from '@smp/queue';
+import { NOTIFICATIONS_QUEUE, parseNotifyDispatch, SCHEDULER_QUEUE, type Tick } from '@smp/queue';
 import { startRedis, startTestDatabase, type StartedRedis, type TestDatabase } from '@smp/testing';
-import { Queue } from 'bullmq';
+import { Queue, QueueEvents } from 'bullmq';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { TickHandlers } from '../src/processors/scheduler.processor';
@@ -18,18 +18,21 @@ import { TICK_HANDLERS } from '../src/worker.tokens';
 // Guide step 7.4 through the role "scheduler": with APP_URL the tick tick.read-only tells the
 // owners of an organization once that it became read-only, with the reason and a link to the
 // billing page; an organization still in its trial hears nothing. Without APP_URL the tick goes.
+// A tick with an interval runs once at the start of the role, so the test waits for that run
+// through the queue instead of racing it with a call of its own.
 
 describe('the notice of read-only access in the role "scheduler"', () => {
   let database: TestDatabase | undefined;
   let redis: StartedRedis | undefined;
   let notifications: Queue | undefined;
+  let ticks: QueueEvents | undefined;
   const opened: INestApplicationContext[] = [];
 
   const started = () => {
-    if (!database || !redis || !notifications) {
+    if (!database || !redis || !notifications || !ticks) {
       throw new Error('not started');
     }
-    return { database, redis, notifications };
+    return { database, redis, notifications, ticks };
   };
   const query = async <T>(sql: string, values: unknown[] = []): Promise<T[]> => {
     const client = await started().database.connectAs('app_system');
@@ -70,6 +73,21 @@ describe('the notice of read-only access in the role "scheduler"', () => {
       await queue.close();
     }
   };
+  /** What the next run of a tick through the queue of the role returns. */
+  const nextRun = (tick: Tick): Promise<unknown> =>
+    new Promise((resolve, reject) => {
+      const ours = (jobId: string): boolean => jobId.startsWith(`repeat:${tick}:`);
+      started().ticks.on('completed', ({ jobId, returnvalue }) => {
+        if (ours(jobId)) {
+          resolve(returnvalue);
+        }
+      });
+      started().ticks.on('failed', ({ jobId, failedReason }) => {
+        if (ours(jobId)) {
+          reject(new Error(failedReason));
+        }
+      });
+    });
   /** An organization with one verified owner and a subscription read-only from the given moment. */
   const organization = async (status: string, readOnlyAt: string): Promise<{ id: string; owner: string }> => {
     const id = randomUUID();
@@ -95,6 +113,8 @@ describe('the notice of read-only access in the role "scheduler"', () => {
   beforeAll(async () => {
     [database, redis] = await Promise.all([startTestDatabase(), startRedis()]);
     notifications = new Queue(NOTIFICATIONS_QUEUE, { connection: { url: redis.url } });
+    ticks = new QueueEvents(SCHEDULER_QUEUE, { connection: { url: redis.url } });
+    await ticks.waitUntilReady();
   });
 
   afterAll(async () => {
@@ -102,6 +122,7 @@ describe('the notice of read-only access in the role "scheduler"', () => {
       await context.close();
     }
     await notifications?.close();
+    await ticks?.close();
     await Promise.all([database?.stop(), redis?.stop()]);
   });
 
@@ -110,11 +131,12 @@ describe('the notice of read-only access in the role "scheduler"', () => {
     const ended = await organization('TRIALING', '2026-10-01T12:00:00Z');
     await organization('TRIALING', '2999-01-01T00:00:00Z');
 
+    const firstRun = nextRun('tick.read-only');
     const configured = await scheduler('http://localhost:3000/');
     expect(await schedulerKeys()).toContain('tick.read-only');
-    const handlers = configured.get<TickHandlers>(TICK_HANDLERS);
-    await expect(handlers['tick.read-only']?.()).resolves.toEqual({ announced: 1, failed: 0 });
+    await expect(firstRun).resolves.toEqual({ announced: 1, failed: 0 });
     // The next run finds nothing new.
+    const handlers = configured.get<TickHandlers>(TICK_HANDLERS);
     await expect(handlers['tick.read-only']?.()).resolves.toEqual({ announced: 0, failed: 0 });
 
     const jobs = await notifications.getJobs(['waiting']);
