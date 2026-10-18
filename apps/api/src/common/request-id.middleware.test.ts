@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { currentLogContext } from '@smp/observability';
+import { currentLogContext, type LogContext } from '@smp/observability';
 import { describe, expect, it, vi } from 'vitest';
 
 import { requestIdMiddleware } from './request-id.middleware';
@@ -13,9 +13,9 @@ function run(incomingId: string | undefined) {
     setHeader: (name: string, value: string) => (headers[name] = value),
   } as unknown as Response;
   const next = vi.fn(() => {
-    seenInside = currentLogContext().requestId;
+    seenInside = currentLogContext();
   });
-  let seenInside: string | undefined;
+  let seenInside: LogContext = {};
 
   requestIdMiddleware(request, response, next);
 
@@ -23,19 +23,20 @@ function run(incomingId: string | undefined) {
 }
 
 describe('requestIdMiddleware', () => {
-  it('keeps a well-formed incoming request ID', () => {
+  it('gives the request an ID of its own and keeps a well-formed incoming one apart', () => {
     const result = run('client-req-20261015');
 
-    expect((result.request as Request & { id: string }).id).toBe('client-req-20261015');
-    expect(result.headers['x-request-id']).toBe('client-req-20261015');
-    expect(result.seenInside()).toBe('client-req-20261015');
+    const id = (result.request as Request & { id: string }).id;
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(result.headers['x-request-id']).toBe(id);
+    expect(result.seenInside()).toEqual({ requestId: id, clientRequestId: 'client-req-20261015' });
   });
 
-  it('replaces an incoming ID that has an unsafe shape', () => {
+  it('drops an incoming ID that has an unsafe shape', () => {
     const result = run('bad id with spaces');
 
-    expect((result.request as Request & { id: string }).id).not.toBe('bad id with spaces');
     expect(result.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    expect(result.seenInside()).not.toHaveProperty('clientRequestId');
   });
 
   it('generates an ID when none is sent', () => {
