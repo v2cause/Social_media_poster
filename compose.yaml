@@ -54,15 +54,32 @@ services:
   redis:
     image: redis:7.4.11-alpine
     restart: unless-stopped
-    # BullMQ needs noeviction, otherwise Redis may delete job data under memory pressure. The
-    # default user stays as it is; the user "browser-worker" reaches only the keys and queues of the
-    # X browser (XB_REDIS_ACL in packages/x-browser, checked by the tests of the browser worker).
+    # BullMQ needs noeviction, otherwise Redis may delete job data under memory pressure. Nobody
+    # works without a password (ADR 0039): the default user is off, API and worker sign in as
+    # "app", the healthcheck as "health", which may only PING, and the user "browser-worker" reaches
+    # only the keys and queues of the X browser (XB_REDIS_ACL in packages/x-browser). The tests of
+    # the browser worker start Redis with these users.
     command:
       - redis-server
       - --appendonly
       - 'yes'
       - --maxmemory-policy
       - noeviction
+      - --user
+      - default
+      - 'off'
+      - --user
+      - app
+      - 'on'
+      - '>${REDIS_APP_PASSWORD:?set REDIS_APP_PASSWORD in .env}'
+      - '~*'
+      - '&*'
+      - '+@all'
+      - --user
+      - health
+      - 'on'
+      - nopass
+      - '+ping'
       - --user
       - browser-worker
       - 'on'
@@ -85,7 +102,7 @@ services:
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD', 'redis-cli', '--user', 'health', '--pass', 'unused', '--no-auth-warning', 'ping']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -162,7 +179,7 @@ services:
       API_PORT: '3001'
       DATABASE_URL: postgresql://app_user:${APP_USER_PASSWORD:?set APP_USER_PASSWORD in .env}@postgres:5432/smp
       DATABASE_SYSTEM_URL: postgresql://app_system:${APP_SYSTEM_PASSWORD:?set APP_SYSTEM_PASSWORD in .env}@postgres:5432/smp
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://app:${REDIS_APP_PASSWORD:?set REDIS_APP_PASSWORD in .env}@redis:6379
       S3_ENDPOINT: http://s3:8333
       # Upload and preview URLs are signed for the address the browser reaches.
       S3_PUBLIC_ENDPOINT: http://127.0.0.1:8333
@@ -200,7 +217,7 @@ services:
       DATABASE_URL: postgresql://app_user:${APP_USER_PASSWORD:?set APP_USER_PASSWORD in .env}@postgres:5432/smp
       # The role "scheduler" scans across workspaces (ticks, outbox relay) as app_system.
       DATABASE_SYSTEM_URL: postgresql://app_system:${APP_SYSTEM_PASSWORD:?set APP_SYSTEM_PASSWORD in .env}@postgres:5432/smp
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://app:${REDIS_APP_PASSWORD:?set REDIS_APP_PASSWORD in .env}@redis:6379
       SMTP_URL: smtp://mailpit:1025
       # The role "media" reads uploads and writes renditions. The role "publisher" signs the URLs
       # of renditions for the platforms with S3_PUBLIC_ENDPOINT, which they must be able to reach.
