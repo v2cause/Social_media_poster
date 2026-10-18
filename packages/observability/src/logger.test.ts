@@ -2,7 +2,7 @@ import { Writable } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { runWithLogContext } from './log-context';
+import { addToLogContext, runWithLogContext } from './log-context';
 import { createLogger } from './logger';
 
 type LogLine = Record<string, unknown>;
@@ -55,6 +55,23 @@ describe('createLogger', () => {
 
     expect(lines[0]).toMatchObject({ jobId: 'job-7', workspaceId: 'ws-1' });
     expect(lines[1]).not.toHaveProperty('jobId');
+  });
+
+  it('adds the user and the workspace to a running context for the rest of it', () => {
+    const { lines, destination } = captureLogs();
+    const logger = createLogger({ service: 'api', environment: 'test', destination });
+
+    runWithLogContext({ requestId: 'req-2' }, () => {
+      logger.info('request.started');
+      addToLogContext({ userId: 'user-1', workspaceId: 'ws-1' });
+      logger.info('request.authorized');
+    });
+    addToLogContext({ userId: 'nobody' });
+    logger.info('outside.context');
+
+    expect(lines[0]).not.toHaveProperty('userId');
+    expect(lines[1]).toMatchObject({ requestId: 'req-2', userId: 'user-1', workspaceId: 'ws-1' });
+    expect(lines[2]).not.toHaveProperty('userId');
   });
 
   it('omits traceId when no span is active', () => {

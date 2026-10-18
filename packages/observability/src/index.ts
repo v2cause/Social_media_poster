@@ -1,5 +1,5 @@
 export { observabilityEnvSchema, type ObservabilityEnv } from './env';
-export { runWithLogContext, currentLogContext, type LogContext } from './log-context';
+export { addToLogContext, currentLogContext, runWithLogContext, type LogContext } from './log-context';
 export { createLogger, type Logger, type LoggerOptions } from './logger';
 export { redactSecrets } from './redact';
 export { startTracing, type TracingOptions } from './otel';
