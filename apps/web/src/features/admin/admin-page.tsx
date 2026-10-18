@@ -31,6 +31,7 @@ import {
   LoadingState,
 } from '@smp/ui';
 import { useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { toast } from 'sonner';
@@ -39,7 +40,8 @@ import { useErrorMessage } from '@/lib/use-error-message';
 
 // The page of the platform admins (guide step 6.1): the global kill switch of the X browser and
 // the organizations allowed to use it beyond their plan (guide step 7.4). Everyone else gets no
-// access; the API checks the flag isPlatformAdmin on every call.
+// access; the API checks the flag isPlatformAdmin and a second factor (guide step 8.4) on every
+// call.
 
 export function AdminPage() {
   const t = useTranslations('admin');
@@ -50,6 +52,19 @@ export function AdminPage() {
     return <LoadingState label={states('loading')} />;
   }
   if (admin.isError) {
+    if (admin.error instanceof ApiError && admin.error.code === 'TWO_FACTOR_REQUIRED') {
+      return (
+        <EmptyState
+          title={t('twoFactor.title')}
+          description={t('twoFactor.description')}
+          action={
+            <Button asChild>
+              <Link href="/account/security">{t('twoFactor.action')}</Link>
+            </Button>
+          }
+        />
+      );
+    }
     return admin.error instanceof ApiError && admin.error.status === 403 ? (
       <EmptyState title={t('denied.title')} description={t('denied.description')} />
     ) : (

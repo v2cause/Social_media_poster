@@ -33,7 +33,7 @@ Der Browser-Adapter für X verstößt gegen die Nutzungsbedingungen von X und ka
 
 ### Plattform-Admins
 
-- **Wer**: Nutzer mit `users.is_platform_admin`; das Feld setzen nur Betreiber, Better Auth nimmt es nicht als Eingabe an.
+- **Wer**: Nutzer mit `users.is_platform_admin`; das Feld setzen nur Betreiber, Better Auth nimmt es nicht als Eingabe an. Seit Schritt 8.4 brauchen Plattform-Admins einen zweiten Faktor: Ohne ihn antwortet jede Admin-Route mit 403 `TWO_FACTOR_REQUIRED`, und die Seite `/admin` führt zur Einrichtung. Die Schalter wirken auf alle Organisationen.
 - **Was**: der Kill-Switch und die Freischaltung von Organisationen über `/api/admin/x-browser` und die Seite `/admin`. Organisationen haben keinen Slug; freigeschaltet wird über den Slug eines ihrer Workspaces.
 - **Kill-Switch**: setzt das globale Flag und zugleich den Schlüssel `xb:kill` in Redis, den der browser-worker vor jedem Befehl liest, weil er keine Datenbank hat.
 - **Als app_system**: Die globalen und die Organisations-Zeilen gehören zu keinem Workspace.

@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import { totpCodes } from '@smp/testing';
 
 import { STAND_IN_USER, startBrowserWorkerStandIn } from './browser-worker-stand-in';
 import { DEMO_WORKSPACE, seedPassword, signInDemo } from './demo';
@@ -8,7 +9,8 @@ import { DEMO_WORKSPACE, seedPassword, signInDemo } from './demo';
 // an X account through the login dialog with the code of the two-factor login, the kill switch
 // closes X without the API for every workspace, and the owner switches it off again. Needs the
 // stack with FEATURE_X_BROWSER_GLOBAL=true and the demo seed; a stand-in takes the part of the
-// browser worker, which must not run.
+// browser worker, which must not run. Guide step 8.4: the switches need a second factor, which
+// the platform admin sets up on the security page and turns off again with a code at the end.
 
 const X_PASSWORD = 'the-password-of-the-x-account';
 const X_CODE = '482916';
@@ -48,7 +50,8 @@ async function connectThroughTheBrowser(page: Page) {
   }
 }
 
-async function signInPlatformAdmin(browser: Browser): Promise<Page> {
+/** Signs the platform admin in and sets up the second factor the admin page asks for. */
+async function signInPlatformAdmin(browser: Browser): Promise<{ admin: Page; nextCode: () => string }> {
   const page = await (await browser.newContext()).newPage();
   await page.goto('/login');
   await page.getByLabel('E-Mail-Adresse').fill('platform@demo.local');
@@ -57,15 +60,39 @@ async function signInPlatformAdmin(browser: Browser): Promise<Page> {
   // Without a membership the app offers the onboarding; the admin page is reached directly.
   await page.waitForURL(/\/onboarding/);
   await page.goto('/admin');
+  await expect(page.getByText('Zweiter Faktor erforderlich')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Zu den Sicherheitseinstellungen' }).click();
+  await page.getByRole('button', { name: '2FA einrichten' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Passwort', { exact: true }).fill(seedPassword());
+  await dialog.getByRole('button', { name: 'Weiter' }).click();
+  const nextCode = totpCodes((await dialog.locator('code').textContent()) ?? '');
+  await dialog.getByLabel('Code', { exact: true }).fill(nextCode());
+  await dialog.getByRole('button', { name: 'Aktivieren' }).click();
+  await expect(page.getByText('Die Zwei-Faktor-Authentifizierung ist aktiv.')).toBeVisible();
+
+  await page.goto('/admin');
   await expect(page.getByRole('heading', { name: 'Plattform-Administration' })).toBeVisible();
-  return page;
+  return { admin: page, nextCode };
+}
+
+/** Turning the second factor off takes the password and a code of it. */
+async function turnOffSecondFactor(page: Page, code: string) {
+  await page.goto('/account/security');
+  await page.getByRole('button', { name: '2FA ausschalten' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Passwort', { exact: true }).fill(seedPassword());
+  await dialog.getByLabel('Code aus der App oder Backup-Code').fill(code);
+  await dialog.getByRole('button', { name: 'Weiter' }).click();
+  await expect(page.getByText('Die Zwei-Faktor-Authentifizierung ist ausgeschaltet.')).toBeVisible();
 }
 
 test('switch X without the API on, connect an account, stop it with the kill switch and switch it off', async ({
   page,
   browser,
 }) => {
-  const admin = await signInPlatformAdmin(browser);
+  const { admin, nextCode } = await signInPlatformAdmin(browser);
   await admin.getByLabel('Slug eines Workspace der Organisation').fill('demo');
   await admin.getByRole('button', { name: 'Freischalten' }).click();
   const organizations = admin.getByRole('region', { name: 'X ohne API' });
@@ -104,4 +131,7 @@ test('switch X without the API on, connect an account, stop it with the kill swi
 
   await admin.getByRole('button', { name: 'Freischaltung von Demo GmbH entfernen' }).click();
   await expect(admin.getByText('Noch keine Organisation ist freigeschaltet.')).toBeVisible();
+
+  // The demo stays as it was: the platform admin without a second factor.
+  await turnOffSecondFactor(admin, nextCode());
 });

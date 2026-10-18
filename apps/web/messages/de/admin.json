@@ -5,6 +5,11 @@
     "title": "Kein Zugriff",
     "description": "Diese Seite ist Plattform-Admins vorbehalten."
   },
+  "twoFactor": {
+    "title": "Zweiter Faktor erforderlich",
+    "description": "Die Plattform-Administration ändert Einstellungen für alle Organisationen und verlangt deshalb einen zweiten Faktor. Richten Sie ihn in Ihren Sicherheitseinstellungen ein.",
+    "action": "Zu den Sicherheitseinstellungen"
+  },
   "xBrowser": {
     "title": "X ohne API",
     "description": "Der Browser-Adapter für X. Workspaces schalten ihn selbst ein, sobald ihre Organisation freigeschaltet ist.",

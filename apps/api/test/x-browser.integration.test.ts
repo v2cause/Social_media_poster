@@ -10,6 +10,7 @@ import { sealerFromEnv } from '@smp/crypto';
 import { createPrismaClient, DEMO_USERS, DEMO_WORKSPACE_SLUG, seedDemoData } from '@smp/db';
 import { RedisBrowserLoginStore } from '@smp/platform-adapters';
 import { liveEventChannel } from '@smp/queue';
+import { totpCodes } from '@smp/testing';
 import { parseXbCommand, XB_COMMANDS_QUEUE, XB_KEYS, xbLoginAad } from '@smp/x-browser';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
@@ -17,7 +18,7 @@ import type { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { startApiTestApp, type ApiTestApp } from './support/api-app';
-import { signIn, type Browser } from './support/browser';
+import { signIn, signUpVerified, type Browser } from './support/browser';
 import { onPlan } from './support/plan';
 
 // Guide steps 6.1 and 6.4 through the API: the X browser stays closed until the plan of the
@@ -111,6 +112,14 @@ describe('X browser API', () => {
     for (const role of ['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']) {
       browsers.set(role, await signIn(api, emailOf(role), SEED_PASSWORD));
     }
+    // The switches of the platform admins need a second factor (guide step 8.4).
+    const admin = browsers.get('ADMIN');
+    const enabled = await admin
+      ?.post('/api/auth/two-factor/enable')
+      .send({ password: SEED_PASSWORD })
+      .expect(200);
+    const code = totpCodes((enabled?.body as { totpURI: string }).totpURI);
+    await admin?.post('/api/auth/two-factor/verify-totp').send({ code: code() }).expect(200);
     redis = new Redis(api.env.REDIS_URL);
   });
 
@@ -142,10 +151,17 @@ describe('X browser API', () => {
     }
   });
 
-  it('keeps the switches of the platform admins to the platform admins', async () => {
+  it('keeps the switches of the platform admins to the platform admins with a second factor', async () => {
     const denied = await as('OWNER').get('/api/admin/x-browser').expect(403);
     expect(denied.body).toMatchObject({ code: 'NOT_PERMITTED' });
     await as('OWNER').put('/api/admin/x-browser/kill-switch').send({ active: true }).expect(403);
+    const withoutSecondFactor = await signUpVerified(started(), 'operator@platform.test', 'Otto Operator');
+    await system?.query(`UPDATE users SET is_platform_admin = true WHERE email = $1`, [
+      'operator@platform.test',
+    ]);
+    const refused = await withoutSecondFactor.get('/api/admin/x-browser').expect(403);
+    expect(refused.body).toMatchObject({ code: 'TWO_FACTOR_REQUIRED' });
+    await withoutSecondFactor.put('/api/admin/x-browser/kill-switch').send({ active: true }).expect(403);
 
     const allowed = await as('ADMIN')
       .post('/api/admin/x-browser/organizations')

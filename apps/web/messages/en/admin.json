@@ -5,6 +5,11 @@
     "title": "No access",
     "description": "This page is reserved for platform admins."
   },
+  "twoFactor": {
+    "title": "Second factor required",
+    "description": "The platform administration changes settings for every organization and therefore requires a second factor. Set it up in your security settings.",
+    "action": "Go to the security settings"
+  },
   "xBrowser": {
     "title": "X without the API",
     "description": "The browser adapter for X. Workspaces switch it on themselves once their organization is allowed.",
