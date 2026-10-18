@@ -34,6 +34,10 @@ describe('the parameters of the official spec', () => {
       'GET /v1/subscriptions/{subscription_exposed_id}',
     );
     expect(endpointOf('DELETE', '/v1/subscriptions/sub_123')).toBeNull();
+    expect(endpointOf('DELETE', '/v1/customers/cus_123')).toBe('DELETE /v1/customers/{customer}');
+    expect(checkParams('DELETE /v1/customers/{customer}', { force: 'true' })).toBe(
+      'Received unknown parameter: force',
+    );
     const template = 'POST /v1/checkout/sessions';
     expect(checkParams(template, { mode: 'subscription', automatic_tax: { enabled: 'true' } })).toBeNull();
     expect(checkParams(template, { mode: 'subscription', automatic_taxes: 'true' })).toBe(
@@ -73,6 +77,31 @@ describe('the fake Stripe', () => {
     });
     const created = await post('/v1/customers', 'email=a%40example.test&metadata[organizationId]=org-1');
     expect(await created.json()).toMatchObject({ object: 'customer', email: 'a@example.test' });
+  });
+
+  it('deletes a customer for good and ends its subscriptions', async () => {
+    fake = await FakeStripe.start({ webhookSecret: SECRET });
+    const customer = (await (await post('/v1/customers', 'email=b%40example.test')).json()) as { id: string };
+    fake.subscriptions.set('sub_1', {
+      id: 'sub_1',
+      object: 'subscription',
+      customer: customer.id,
+      status: 'active',
+    });
+    const remove = () =>
+      fetch(`${fake?.url ?? ''}/v1/customers/${customer.id}`, {
+        method: 'DELETE',
+        headers: { authorization: 'Bearer sk_test_fake' },
+      });
+
+    const deleted = await remove();
+
+    expect(await deleted.json()).toEqual({ id: customer.id, object: 'customer', deleted: true });
+    expect(fake.customers.has(customer.id)).toBe(false);
+    expect(fake.subscriptions.get('sub_1')).toMatchObject({ status: 'canceled' });
+    const again = await remove();
+    expect(again.status).toBe(404);
+    expect(await again.json()).toMatchObject({ error: { code: 'resource_missing' } });
   });
 
   it('signs its webhooks the way the SDK checks them', async () => {

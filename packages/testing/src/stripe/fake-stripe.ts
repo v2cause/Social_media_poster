@@ -313,6 +313,8 @@ export class FakeStripe {
         return this.createCustomer(params);
       case 'GET /v1/customers/{customer}':
         return this.found(this.customers, id, 'customer');
+      case 'DELETE /v1/customers/{customer}':
+        return this.deleteCustomer(id);
       case 'POST /v1/products':
         return this.createProduct(params);
       case 'GET /v1/products/{id}':
@@ -389,6 +391,19 @@ export class FakeStripe {
     };
     this.customers.set(String(customer['id']), customer);
     return customer;
+  }
+
+  /** Stripe deletes the customer for good and ends its subscriptions at once (spec of the endpoint). */
+  private deleteCustomer(id: string): Json {
+    this.found(this.customers, id, 'customer');
+    this.customers.delete(id);
+    for (const subscription of this.subscriptions.values()) {
+      if (subscription['customer'] === id && subscription['status'] !== 'canceled') {
+        Object.assign(subscription, { status: 'canceled', canceled_at: this.now(), ended_at: this.now() });
+        void this.send('customer.subscription.deleted', subscription);
+      }
+    }
+    return { id, object: 'customer', deleted: true };
   }
 
   private createProduct(params: FormObject): Json {

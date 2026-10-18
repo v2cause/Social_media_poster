@@ -747,6 +747,7 @@
         "status": true,
         "subscription": true
       }
-    }
+    },
+    "DELETE /v1/customers/{customer}": { "required": [], "params": {} }
   }
 }

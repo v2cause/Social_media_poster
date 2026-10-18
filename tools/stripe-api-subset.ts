@@ -50,6 +50,7 @@ const POST = [
   '/v1/products/{id}',
   '/v1/prices',
 ];
+const DELETE = ['/v1/customers/{customer}'];
 const GET = [
   '/v1/customers/{customer}',
   '/v1/prices',
@@ -133,6 +134,17 @@ for (const path of GET) {
         .map((entry) => [entry.name, treeOf(entry.schema, 3)]),
     ),
   };
+}
+
+for (const path of DELETE) {
+  const body =
+    spec.paths[path]?.['delete']?.requestBody?.content['application/x-www-form-urlencoded']?.schema;
+  if (!spec.paths[path]?.['delete']) {
+    throw new Error(`The spec has no DELETE ${path}`);
+  }
+  // A delete takes no parameters: an object without properties.
+  const params = body?.properties && Object.keys(body.properties).length > 0 ? treeOf(body, 4) : {};
+  endpoints[`DELETE ${path}`] = { required: body?.required ?? [], params };
 }
 
 const target = resolve(__dirname, '../packages/testing/src/stripe/api-subset.json');
