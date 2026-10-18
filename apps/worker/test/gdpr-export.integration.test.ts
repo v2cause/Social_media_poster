@@ -1,13 +1,13 @@
 import 'reflect-metadata';
 
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { createPrismaClient, DEMO_USERS, EXPORT_TABLES, seedDemoData } from '@smp/db';
 import { S3Storage, type S3StorageConfig } from '@smp/media';
-import { GDPR_QUEUE, GdprProducer, NOTIFICATIONS_QUEUE, parseNotifyDispatch } from '@smp/queue';
+import { GDPR_QUEUE, GdprProducer, NOTIFICATIONS_QUEUE } from '@smp/queue';
 import {
   readZip,
   startObjectStorage,
@@ -23,6 +23,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
+import { openedEmail, tokenKeys } from './support/sealed-email';
 
 // Guide step 8.1, "Fertig, wenn": the export is complete and readable. The role "gdpr" packs the
 // demo organization into a ZIP in SeaweedFS: a JSON array per table with as many rows as the
@@ -33,6 +34,7 @@ import { WorkerModule } from '../src/worker.module';
 const BUCKET = 'smp-test-gdpr';
 const PHOTO_NAME = 'Sommerfest Mädchen.jpg';
 const SECRET_HASH = `invitation-hash-${randomUUID()}`;
+const TOKEN_KEYS = tokenKeys();
 
 describe('the export in the role "gdpr"', () => {
   let database: TestDatabase | undefined;
@@ -172,9 +174,9 @@ describe('the export in the role "gdpr"', () => {
       DATABASE_URL: database.url('app_user'),
       DATABASE_SYSTEM_URL: database.url('app_system'),
       APP_URL: 'http://localhost:3000/',
-      // The role revokes the grants of an erased organization with the key ring of the tokens.
-      TOKEN_KEKS: `kek-test:${randomBytes(32).toString('base64')}`,
-      TOKEN_KEK_ACTIVE: 'kek-test',
+      // The role revokes the grants of an erased organization with the key ring of the tokens
+      // and seals the emails with it.
+      ...TOKEN_KEYS,
       S3_ENDPOINT: config.endpoint,
       S3_REGION: config.region,
       S3_BUCKET: BUCKET,
@@ -253,8 +255,7 @@ describe('the export in the role "gdpr"', () => {
     expect(archive.find((entry) => entry.name === 'data/post.json')?.method).toBe(8);
 
     const notice = await ready().notifications.getJob(`ntf.export.${requestId}.${org.ownerId}`);
-    expect(parseNotifyDispatch(notice?.data)).toMatchObject({
-      channel: 'email',
+    expect(await openedEmail(TOKEN_KEYS, notice?.data)).toMatchObject({
       email: {
         template: 'gdpr-export-ready',
         url: `http://localhost:3000/org/${org.organizationId}/data`,

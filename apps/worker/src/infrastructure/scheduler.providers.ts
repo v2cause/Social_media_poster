@@ -102,7 +102,8 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
   if (!env.DATABASE_SYSTEM_URL) {
     throw new Error('Invalid configuration:\n  DATABASE_SYSTEM_URL is required for the role "scheduler"');
   }
-  // The keyrings are checked at the start, not at night when the re-wrap first needs them.
+  // The keyrings are checked at the start, not at night when the re-wrap first needs them; the
+  // token keyring also seals the emails of the notify jobs.
   const sealers = { tokens: sealerFromEnv('tokens', env), sessions: sealerFromEnv('sessions', env) };
   // app_system for the scans across workspaces; every use runs inside a system scope.
   const system = createSystemPrismaClient(env.DATABASE_SYSTEM_URL);
@@ -123,7 +124,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
   const dispatcher = new OutboxDispatcher({
     publish: publishProducer,
     live: new LiveEventPublisher(live),
-    notifications: new NotificationProducer(notificationsQueue),
+    notifications: new NotificationProducer(notificationsQueue, sealers.tokens),
   });
   const plans = new PrismaPublishScheduler(system, { batchSize: PUBLISH_BATCH });
   const publishTick = new PublishTick({
@@ -190,7 +191,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
         notices: new PrismaReadOnlyNotices(system),
         notifier: new EmailBillingNotifier({
           directory: new PrismaBillingDirectory(system),
-          notifications: new NotificationProducer(notificationsQueue),
+          notifications: new NotificationProducer(notificationsQueue, sealers.tokens),
           appUrl: env.APP_URL.replace(/\/$/, ''),
         }),
         clock: systemClock,

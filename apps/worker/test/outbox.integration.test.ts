@@ -5,6 +5,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { sealerFromEnv } from '@smp/crypto';
 // eslint-disable-next-line no-restricted-imports -- two relays on their own system clients, wired like src/infrastructure does
 import { createSystemPrismaClient } from '@smp/db';
 import { PrismaOutboxRelay, type SystemPrismaClient } from '@smp/db';
@@ -33,6 +34,7 @@ import { WorkerModule } from '../src/worker.module';
 const org = randomUUID();
 const workspace = randomUUID();
 const EVENTS = 60;
+const key = (): string => `kek-test:${randomBytes(32).toString('base64')}`;
 
 describe('outbox relay of the worker', () => {
   let database: TestDatabase | undefined;
@@ -108,7 +110,10 @@ describe('outbox relay of the worker', () => {
         dispatcher: new OutboxDispatcher({
           publish: new PublishProducer(publishQueue()),
           live: new LiveEventPublisher(new Redis(started().redis.url, { lazyConnect: true })),
-          notifications: new NotificationProducer(queueOf(NOTIFICATIONS_QUEUE)),
+          notifications: new NotificationProducer(
+            queueOf(NOTIFICATIONS_QUEUE),
+            sealerFromEnv('tokens', { TOKEN_KEKS: key(), TOKEN_KEK_ACTIVE: 'kek-test' }),
+          ),
         }),
       };
     });
@@ -152,7 +157,6 @@ describe('outbox relay of the worker', () => {
   });
 
   it('relays an event through the tick of the role "scheduler"', async () => {
-    const key = (): string => `kek-test:${randomBytes(32).toString('base64')}`;
     const env = loadWorkerEnv({
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',

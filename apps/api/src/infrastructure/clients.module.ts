@@ -1,5 +1,6 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { Global, Inject, Logger, Module, type OnApplicationShutdown } from '@nestjs/common';
+import { sealerFromEnv } from '@smp/crypto';
 import {
   AuditLogReadModel,
   createPrismaClient,
@@ -194,9 +195,11 @@ class ClientLifecycle implements OnApplicationShutdown {
       useFactory: (env: ApiEnv): Queue => producerQueue(NOTIFICATIONS_QUEUE, env),
     },
     {
+      // The emails of the jobs travel sealed with the token keyring (guide step 8.4).
       provide: NotificationProducer,
-      inject: [NOTIFICATIONS],
-      useFactory: (queue: Queue) => new NotificationProducer(queue),
+      inject: [NOTIFICATIONS, API_ENV],
+      useFactory: (queue: Queue, env: ApiEnv) =>
+        new NotificationProducer(queue, sealerFromEnv('tokens', env)),
     },
     {
       provide: MEDIA_STORAGE,

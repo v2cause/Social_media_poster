@@ -22,6 +22,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
+import { tokenKeys } from './support/sealed-email';
 
 // Guide step 7.5, "Fertig, wenn", against the test mode of the real Stripe: a customer on a test
 // clock subscribes to Starter, upgrades to Pro, downgrades to Starter again, fails the renewal when
@@ -171,6 +172,8 @@ describe.runIf(LIVE)('billing against the test clocks of Stripe', () => {
       DATABASE_SYSTEM_URL: database.url('app_system'),
       APP_URL: 'http://localhost:3000/',
       STRIPE_SECRET_KEY: SECRET_KEY,
+      // The role seals the emails of its notify jobs with the token keyring.
+      ...tokenKeys(),
     });
     worker = await NestFactory.createApplicationContext(WorkerModule.forRoles(['billing'], env), {
       logger: false,

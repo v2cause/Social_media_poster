@@ -147,7 +147,7 @@ export function gdprPipeline(env: WorkerEnv): Provider[] {
       storage,
       notifier: new EmailGdprNotifier({
         directory: new PrismaBillingDirectory(system),
-        notifications: new NotificationProducer(notifications),
+        notifications: new NotificationProducer(notifications, sealer),
         appUrl: APP_URL.replace(/\/$/, ''),
       }),
       clock: systemClock,

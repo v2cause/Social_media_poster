@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import { DeliverNotification } from '@smp/core';
+import { sealerFromEnv } from '@smp/crypto';
 import {
   createPrismaClient,
   PrismaNotificationDirectory,
@@ -13,12 +14,13 @@ import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
 import type { WorkerEnv } from '../worker-env';
-import { DELIVER_NOTIFICATION, MAIL_PORT } from '../worker.tokens';
+import { DELIVER_NOTIFICATION, EMAIL_SEALER, MAIL_PORT } from '../worker.tokens';
 
-// The adapters of the role "notify" (guide steps 1.8, 4.9 and 4.10): SMTP for the emails; for
-// the events of the outbox the database as app_user (the directory in the tenant of the event,
-// the inbox as each recipient), the producer that queues one email per event and recipient, with
-// links into the web app at APP_URL, and the live events that announce a new notification.
+// The adapters of the role "notify" (guide steps 1.8, 4.9 and 4.10): SMTP for the emails and the
+// token keyring that opens them (guide step 8.4); for the events of the outbox the database as
+// app_user (the directory in the tenant of the event, the inbox as each recipient), the producer
+// that queues one sealed email per event and recipient, with links into the web app at APP_URL,
+// and the live events that announce a new notification.
 
 const NOTIFY_CLIENTS = Symbol('NOTIFY_CLIENTS');
 
@@ -60,7 +62,9 @@ export function notifyPipeline(env: WorkerEnv): Provider[] {
   // The producer fails fast instead of queueing commands while Redis is away; the job retries.
   const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false });
   const queue = new Queue(NOTIFICATIONS_QUEUE, { connection });
-  const producer = new NotificationProducer(queue);
+  // The keyring is checked at the start, not with the first email.
+  const sealer = sealerFromEnv('tokens', env);
+  const producer = new NotificationProducer(queue, sealer);
   // Live events go out on a plain connection that fails fast as well.
   const live = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1, enableOfflineQueue: false });
   const liveEvents = new LiveEventPublisher(live);
@@ -92,6 +96,7 @@ export function notifyPipeline(env: WorkerEnv): Provider[] {
     { provide: NOTIFY_CLIENTS, useValue: { database, queue, connection, live } satisfies NotifyClients },
     NotifyClientsLifecycle,
     { provide: MAIL_PORT, useValue: mailer },
+    { provide: EMAIL_SEALER, useValue: sealer },
     { provide: DELIVER_NOTIFICATION, useValue: deliver },
   ];
 }

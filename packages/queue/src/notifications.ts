@@ -1,4 +1,4 @@
-import { PUBLISH_FAILURE_CODES, type NotificationRequest } from '@smp/core';
+import { PUBLISH_FAILURE_CODES, type NotificationRequest, type SecretSealer } from '@smp/core';
 import { emailTemplateSchema, type EmailTemplateInput } from '@smp/emails';
 import type { JobsOptions, Queue } from 'bullmq';
 import { z } from 'zod';
@@ -13,7 +13,9 @@ import { notifyEmailJobId, notifyJobId } from './job-id';
 //
 // Exception to "payloads hold only ids": an email carries its address and text. One with a link
 // (verification, password reset, invitation) carries its link, because only the hash of the
-// token is stored, so it leaves Redis right after delivery (ADR 0012). Failed jobs stay one day.
+// token is stored (ADR 0012). Both are sealed with the token keyring, so Redis, its AOF and its
+// backups hold neither address nor link in the clear (guide step 8.4); the role "notify" opens
+// them right before it sends. A job leaves Redis right after delivery, a failed one after a day.
 
 export const NOTIFICATIONS_QUEUE = 'notifications';
 export const NOTIFY_DISPATCH = 'notify.dispatch';
@@ -44,11 +46,24 @@ export const notificationRequestSchema = z.discriminatedUnion('type', [
   }),
 ]) satisfies z.ZodType<NotificationRequest>;
 
-const emailDispatchSchema = z.object({
-  channel: z.literal('email'),
+/** What an email job seals: the address and the email. */
+const sealedEmailSchema = z.object({
   to: z.email().max(254),
   email: emailTemplateSchema,
 });
+export type SealedEmail = z.output<typeof sealedEmailSchema>;
+
+/** The AAD of a sealed email, so that no other envelope of the keyring passes for one. */
+const EMAIL_AAD = 'notify.email';
+/** An envelope of the longest email with room to spare, in base64. */
+const MAX_SEALED_LENGTH = 64 * 1024;
+
+const emailDispatchSchema = z.object({
+  channel: z.literal('email'),
+  /** The SealedEmail, sealed with the token keyring, as base64. */
+  sealed: z.base64().max(MAX_SEALED_LENGTH),
+});
+export type EmailDispatch = z.output<typeof emailDispatchSchema>;
 
 const eventDispatchSchema = z.object({
   channel: z.literal('event'),
@@ -90,13 +105,27 @@ export const NOTIFY_EVENT_JOB_OPTIONS: JobsOptions = {
 /** Validates a job payload. Throws a ZodError for anything else. */
 export const parseNotifyDispatch = (data: unknown): NotifyDispatch => notifyDispatchSchema.parse(data);
 
+/**
+ * Opens the email of a job and validates it again. Throws when the envelope is damaged or its
+ * key is not configured, and a ZodError for content that is no email.
+ */
+export async function openNotifyEmail(
+  sealer: Pick<SecretSealer, 'open'>,
+  payload: EmailDispatch,
+): Promise<SealedEmail> {
+  const opened = await sealer.open(Buffer.from(payload.sealed, 'base64'), EMAIL_AAD);
+  return sealedEmailSchema.parse(JSON.parse(opened));
+}
+
 /** Typed producer of the notifications queue for the API and the worker. */
 export class NotificationProducer {
-  constructor(private readonly queue: Queue) {}
+  constructor(
+    private readonly queue: Queue,
+    private readonly sealer: Pick<SecretSealer, 'seal'>,
+  ) {}
 
   async dispatchEmail(to: string, email: EmailTemplateInput): Promise<void> {
-    const payload = emailDispatchSchema.parse({ channel: 'email', to, email });
-    await this.queue.add(NOTIFY_DISPATCH, payload, NOTIFY_JOB_OPTIONS);
+    await this.queue.add(NOTIFY_DISPATCH, await this.sealedEmail(to, email), NOTIFY_JOB_OPTIONS);
   }
 
   /** One job per outbox event, ntf.{eventId}. */
@@ -115,10 +144,16 @@ export class NotificationProducer {
     to: string,
     email: EmailTemplateInput,
   ): Promise<void> {
-    const payload = emailDispatchSchema.parse({ channel: 'email', to, email });
-    await this.queue.add(NOTIFY_DISPATCH, payload, {
+    await this.queue.add(NOTIFY_DISPATCH, await this.sealedEmail(to, email), {
       ...NOTIFY_EVENT_JOB_OPTIONS,
       jobId: notifyEmailJobId(eventId, userId),
     });
+  }
+
+  /** Validates the email first: what is sealed is no longer checked before it is opened. */
+  private async sealedEmail(to: string, email: EmailTemplateInput): Promise<EmailDispatch> {
+    const content = sealedEmailSchema.parse({ to, email });
+    const sealed = await this.sealer.seal(JSON.stringify(content), EMAIL_AAD);
+    return emailDispatchSchema.parse({ channel: 'email', sealed: Buffer.from(sealed).toString('base64') });
   }
 }

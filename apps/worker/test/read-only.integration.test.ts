@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { NOTIFICATIONS_QUEUE, parseNotifyDispatch, SCHEDULER_QUEUE, type Tick } from '@smp/queue';
+import { NOTIFICATIONS_QUEUE, SCHEDULER_QUEUE, type Tick } from '@smp/queue';
 import { startRedis, startTestDatabase, type StartedRedis, type TestDatabase } from '@smp/testing';
 import { Queue, QueueEvents } from 'bullmq';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -14,12 +14,15 @@ import { parseRoles } from '../src/roles';
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
 import { TICK_HANDLERS } from '../src/worker.tokens';
+import { openedEmail, tokenKeys } from './support/sealed-email';
 
 // Guide step 7.4 through the role "scheduler": with APP_URL the tick tick.read-only tells the
 // owners of an organization once that it became read-only, with the reason and a link to the
 // billing page; an organization still in its trial hears nothing. Without APP_URL the tick goes.
 // A tick with an interval runs once at the start of the role, so the test waits for that run
 // through the queue instead of racing it with a call of its own.
+
+const TOKEN_KEYS = tokenKeys();
 
 describe('the notice of read-only access in the role "scheduler"', () => {
   let database: TestDatabase | undefined;
@@ -52,8 +55,7 @@ describe('the notice of read-only access in the role "scheduler"', () => {
       REDIS_URL: started().redis.url,
       DATABASE_URL: started().database.url('app_user'),
       DATABASE_SYSTEM_URL: started().database.url('app_system'),
-      TOKEN_KEKS: key(),
-      TOKEN_KEK_ACTIVE: 'kek-test',
+      ...TOKEN_KEYS,
       SESSION_KEKS: key(),
       SESSION_KEK_ACTIVE: 'kek-test',
       ...(appUrl ? { APP_URL: appUrl } : {}),
@@ -143,8 +145,7 @@ describe('the notice of read-only access in the role "scheduler"', () => {
     expect(jobs.map((job) => job.id)).toEqual([
       `ntf.read-only.${ended.id}.${String(Date.parse('2026-10-01T12:00:00Z'))}.${ended.owner}`,
     ]);
-    expect(parseNotifyDispatch(jobs[0]?.data)).toEqual({
-      channel: 'email',
+    expect(await openedEmail(TOKEN_KEYS, jobs[0]?.data)).toEqual({
       to: `olivia-${ended.owner}@nordlicht.test`,
       email: {
         template: 'billing-read-only',

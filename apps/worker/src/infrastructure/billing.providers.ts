@@ -1,6 +1,7 @@
 import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import { createStripeClient, StripeBillingGateway } from '@smp/billing';
 import { ProcessStripeWebhook, ReportUsage, systemClock, type BillingLock } from '@smp/core';
+import { sealerFromEnv } from '@smp/crypto';
 import {
   createSystemPrismaClient,
   PrismaBillingDirectory,
@@ -71,6 +72,8 @@ export function billingPipeline(env: WorkerEnv): Provider[] {
   const notifications = new Queue(NOTIFICATIONS_QUEUE, {
     connection: { url: env.REDIS_URL, maxRetriesPerRequest: null, enableOfflineQueue: false },
   });
+  // Seals the emails of the notify jobs; checked at the start, not with the first email.
+  const emailSealer = sealerFromEnv('tokens', env);
   const lock: BillingLock = {
     run: (key, work) =>
       withLock(redis, `lock:${key}`, BILLING_LOCK_TTL_MS, () => work(), { waitMs: BILLING_LOCK_WAIT_MS }),
@@ -86,7 +89,7 @@ export function billingPipeline(env: WorkerEnv): Provider[] {
       lock,
       notifier: new EmailBillingNotifier({
         directory: new PrismaBillingDirectory(system),
-        notifications: new NotificationProducer(notifications),
+        notifications: new NotificationProducer(notifications, emailSealer),
         appUrl: APP_URL.replace(/\/$/, ''),
       }),
       clock: systemClock,

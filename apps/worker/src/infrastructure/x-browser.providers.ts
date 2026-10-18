@@ -8,6 +8,7 @@ import {
   type AccountLimits,
   type SocialPlatformAdapter,
 } from '@smp/core';
+import { sealerFromEnv } from '@smp/crypto';
 import {
   createSystemPrismaClient,
   PrismaPlanUsage,
@@ -133,7 +134,8 @@ export function xBrowserBreakerOf(
     killSignal: new RedisXBrowserKillSignal(redis),
     alerts: new EmailXBrowserAlerts({
       admins: new PrismaXBrowserOperations(system),
-      notifications: new NotificationProducer(notifications),
+      // The token keyring of the role seals the emails of the notify jobs.
+      notifications: new NotificationProducer(notifications, sealerFromEnv('tokens', env)),
       adminUrl: new URL('/admin', env.APP_URL).toString(),
     }),
     clock: systemClock,

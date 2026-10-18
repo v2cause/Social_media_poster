@@ -26,6 +26,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseRoles } from '../src/roles';
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
+import { openedEmail, tokenKeys } from './support/sealed-email';
 
 // Guide steps 6.3 to 6.6 through the role "publisher": a post of a browser connection of X goes
 // to xb-commands with the sealed session and comes back as the return value of its job, the new
@@ -39,6 +40,7 @@ import { WorkerModule } from '../src/worker.module';
 const SESSION = Buffer.from('sealed-session-of-the-test');
 const NEW_SESSION = Buffer.from('sealed-session-after-the-task');
 const LOGIN_SESSION = Buffer.from('sealed-session-of-a-login');
+const TOKEN_KEYS = tokenKeys();
 
 interface Workspace {
   organizationId: string;
@@ -208,8 +210,7 @@ describe('X without the API in the role "publisher"', () => {
       // The circuit breaker switches the global flag as app_system and links to the admin page.
       DATABASE_SYSTEM_URL: database.url('app_system'),
       APP_URL: 'http://localhost:3000',
-      TOKEN_KEKS: `kek-test:${Buffer.alloc(32, 7).toString('base64')}`,
-      TOKEN_KEK_ACTIVE: 'kek-test',
+      ...TOKEN_KEYS,
       S3_ENDPOINT: 'http://127.0.0.1:9',
       S3_REGION: 'eu-central-1',
       S3_BUCKET: 'media',
@@ -434,8 +435,7 @@ describe('X without the API in the role "publisher"', () => {
       ).toEqual([{ enabled: false }]);
       await waitFor('the email', async () => (await notifications.getWaitingCount()) >= 1);
       const [email] = await notifications.getJobs(['waiting']);
-      expect(email?.data).toMatchObject({
-        channel: 'email',
+      expect(await openedEmail(TOKEN_KEYS, email?.data)).toMatchObject({
         to: 'ops@example.test',
         email: {
           template: 'x-browser-breaker',

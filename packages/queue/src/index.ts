@@ -119,9 +119,12 @@ export {
   NOTIFY_JOB_OPTIONS,
   NotificationProducer,
   notifyDispatchSchema,
+  openNotifyEmail,
   parseNotifyDispatch,
+  type EmailDispatch,
   type NotifyDispatch,
   type NotifyEvent,
+  type SealedEmail,
 } from './notifications';
 export {
   MEDIA_JOB_OPTIONS,

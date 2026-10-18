@@ -20,8 +20,10 @@ export const workerEnvSchema = z
     SMTP_URL: z.url({ protocol: /^smtps?$/ }).optional(),
     MAIL_FROM: z.string().min(3).optional(),
     APP_URL: z.url({ protocol: /^https?$/ }).optional(),
-    // Needed by the roles "scheduler" (re-wrap in tick.maintenance) and "gdpr" (the revocation of
-    // the grants of an erased organization); @smp/crypto checks the format.
+    // Needed by the roles "scheduler" (re-wrap in tick.maintenance), "gdpr" (the revocation of
+    // the grants of an erased organization), "publisher" and "analytics" (the tokens of the
+    // platforms), and by every role that sends or queues emails, which travel sealed with it
+    // (guide step 8.4); @smp/crypto checks the format.
     TOKEN_KEKS: z.string().optional(),
     TOKEN_KEK_ACTIVE: z.string().optional(),
     SESSION_KEKS: z.string().optional(),

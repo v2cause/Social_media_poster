@@ -11,6 +11,7 @@ import {
   type InvitationMessage,
   type InvitationNotifier,
 } from '@smp/core';
+import { sealerFromEnv } from '@smp/crypto';
 import { createPrismaClient, PrismaMediaUnitOfWork } from '@smp/db';
 import { createSmtpMailer, deliverEmail } from '@smp/emails';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
@@ -18,6 +19,7 @@ import {
   MEDIA_PROCESS,
   MEDIA_QUEUE,
   NOTIFICATIONS_QUEUE,
+  openNotifyEmail,
   parseMediaProcess,
   parseMediaRender,
   parseNotifyDispatch,
@@ -153,13 +155,16 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
   });
 
   const mailer = createSmtpMailer({ url: mailpit.smtpUrl, from: 'noreply@smp.test' });
+  // Opens the sealed emails like the worker role "notify", with the token keyring of the tests.
+  const emailSealer = sealerFromEnv('tokens', env);
   const notifications = new Worker(
     NOTIFICATIONS_QUEUE,
     async (job) => {
       const payload = parseNotifyDispatch(job.data);
       // The API queues emails only; events come from the outbox relay of the worker.
       if (payload.channel === 'email') {
-        await deliverEmail(mailer, payload.to, payload.email);
+        const { to, email } = await openNotifyEmail(emailSealer, payload);
+        await deliverEmail(mailer, to, email);
       }
     },
     { connection: { url: redis.url, maxRetriesPerRequest: null } },

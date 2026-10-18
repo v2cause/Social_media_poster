@@ -5,6 +5,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { sealerFromEnv } from '@smp/crypto';
 import {
   liveEventChannel,
   NOTIFICATIONS_QUEUE,
@@ -27,15 +28,26 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
+import { openedEmail, tokenKeys } from './support/sealed-email';
 
 // Guide step 1.8, "Fertig, wenn": the invitation email arrives in Mailpit in both languages,
 // sent by the worker role "notify" from the queue "notifications". Guide step 4.9: an event of
 // the outbox reaches the managers of a connection in the app and by email, once, also when it
 // is dispatched again; guide step 4.10: the new notification is announced as a live event.
+// Guide step 8.4: an email waits in Redis sealed with the token keyring; one the keyring of the
+// worker cannot open fails at once, as does one in the format from before the seal.
 
 const org = randomUUID();
 const workspace = randomUUID();
 const owner = { id: randomUUID(), email: `owner-${randomUUID()}@demo.local` };
+const TOKEN_KEYS = tokenKeys();
+const invitation = {
+  template: 'invitation' as const,
+  url: 'http://localhost:3000/invite/token-for-the-test',
+  organizationName: 'Acme GmbH',
+  inviterName: 'Olivia Owner',
+  role: 'EDITOR' as const,
+};
 
 describe('notify worker', () => {
   let database: TestDatabase | undefined;
@@ -49,10 +61,11 @@ describe('notify worker', () => {
   let events: QueueEvents | undefined;
 
   const started = () => {
-    if (!database || !mailpit || !queue || !events) {
+    if (!database || !mailpit || !connection || !queue || !events) {
       throw new Error('not started');
     }
-    return { database, mailpit, queue, events, producer: new NotificationProducer(queue) };
+    const producer = new NotificationProducer(queue, sealerFromEnv('tokens', TOKEN_KEYS));
+    return { database, mailpit, connection, queue, events, producer };
   };
   const query = async <T>(sql: string, values: unknown[] = []): Promise<T[]> => {
     const client = await started().database.connectAs('app_system');
@@ -83,6 +96,7 @@ describe('notify worker', () => {
       SMTP_URL: mailpit.smtpUrl,
       MAIL_FROM: 'noreply@smp.test',
       APP_URL: 'http://localhost:3000',
+      ...TOKEN_KEYS,
     });
     worker = await NestFactory.createApplicationContext(WorkerModule.forRoles(['notify'], env), {
       logger: false,
@@ -128,13 +142,6 @@ describe('notify worker', () => {
 
   it('sends the invitation in German and in English', async () => {
     const { producer, mailpit: mail } = started();
-    const invitation = {
-      template: 'invitation' as const,
-      url: 'http://localhost:3000/invite/token-for-the-test',
-      organizationName: 'Acme GmbH',
-      inviterName: 'Olivia Owner',
-      role: 'EDITOR' as const,
-    };
     await producer.dispatchEmail('deutsch@example.test', { ...invitation, locale: 'de' });
     await producer.dispatchEmail('english@example.test', { ...invitation, locale: 'en' });
 
@@ -205,11 +212,59 @@ describe('notify worker', () => {
     expect(live).toHaveLength(1);
   });
 
+  it('keeps neither the address nor the link in Redis while an email waits', async () => {
+    const { connection: redisClient } = started();
+    const held = new Queue(`${NOTIFICATIONS_QUEUE}-held`, { connection: redisClient });
+    try {
+      await new NotificationProducer(held, sealerFromEnv('tokens', TOKEN_KEYS)).dispatchEmail(
+        'held@example.test',
+        { ...invitation, locale: 'en' },
+      );
+      const [job] = await held.getJobs(['waiting']);
+      const stored = await redisClient.hgetall(`bull:${NOTIFICATIONS_QUEUE}-held:${job?.id ?? ''}`);
+      expect(stored.data).toBeDefined();
+      expect(JSON.stringify(stored)).not.toMatch(/held@example|token-for-the-test|Olivia/);
+      expect(await openedEmail(TOKEN_KEYS, job?.data)).toMatchObject({
+        to: 'held@example.test',
+        email: { url: invitation.url },
+      });
+    } finally {
+      await held.obliterate({ force: true });
+      await held.close();
+    }
+  });
+
+  it('fails an email sealed with another keyring at once instead of retrying it', async () => {
+    const { queue: notifications, events: queueEvents } = started();
+    const failure = new Promise<{ jobId: string; failedReason: string }>((resolve) => {
+      queueEvents.once('failed', resolve);
+    });
+    await new NotificationProducer(notifications, sealerFromEnv('tokens', tokenKeys())).dispatchEmail(
+      'foreign@example.test',
+      { ...invitation, locale: 'en' },
+    );
+    const { jobId, failedReason } = await failure;
+    expect(failedReason).toBe('unreadable notify.dispatch email');
+    const failed = await notifications.getJob(jobId);
+    expect(await failed?.getState()).toBe('failed');
+    expect(failed?.attemptsMade).toBe(1);
+    expect(await emailsTo('foreign@example.test')).toBe(0);
+  });
+
   it('fails an invalid payload at once instead of retrying it', async () => {
     const { queue: notifications, events: queueEvents } = started();
     const job = await notifications.add(NOTIFY_DISPATCH, { channel: 'sms', to: 'x' }, { attempts: 5 });
     await expect(job.waitUntilFinished(queueEvents)).rejects.toThrow(/invalid notify.dispatch payload/);
     const failed = await notifications.getJob(job.id ?? '');
     expect(failed?.attemptsMade).toBe(1);
+
+    // An email in the clear, as queued before the seal, is no valid payload any more.
+    const plain = await notifications.add(
+      NOTIFY_DISPATCH,
+      { channel: 'email', to: 'plain@example.test', email: { ...invitation, locale: 'en' } },
+      { attempts: 5 },
+    );
+    await expect(plain.waitUntilFinished(queueEvents)).rejects.toThrow(/invalid notify.dispatch payload/);
+    expect(await emailsTo('plain@example.test')).toBe(0);
   });
 });
