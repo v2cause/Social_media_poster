@@ -8,7 +8,9 @@ import { hashPassword, verifyPassword } from './password-hash';
 
 const PASSWORD = 'correct horse battery staple';
 
-describe('password hashes', () => {
+// A hash with these parameters takes a good part of a second. Under the load of a full test run
+// the four of the first test passed the default timeout of five seconds.
+describe('password hashes', { timeout: 30_000 }, () => {
   it('hash with scrypt N=2^15, r=8, p=3 and a fresh salt each time', async () => {
     const first = await hashPassword(PASSWORD);
     const second = await hashPassword(PASSWORD);
