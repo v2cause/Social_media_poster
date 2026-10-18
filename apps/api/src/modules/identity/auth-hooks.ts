@@ -14,6 +14,7 @@ import type { PasswordContext, PasswordPolicy, PasswordProblem } from './passwor
 // - a limit of failed password checks per user on the endpoints that take the password of a
 //   session, so a stolen session cannot guess the password and take over the second factor,
 // - no "trust this device": every sign-in asks for the second factor,
+// - every TOTP code works once per user, also across two sign-ins within its time window,
 // - the password policy for every new password (PasswordPolicy),
 // - a security event in the log for sign-ins, sign-ups, sign-outs, resets and every change of a
 //   factor or a session. Events name the user or a digest of the address, never the address.
@@ -23,6 +24,11 @@ export const SIGN_IN_FAILURES_PER_ACCOUNT = 10;
 /** Failed password checks per user and window on the endpoints that take the password again. */
 export const PASSWORD_FAILURES_PER_USER = 5;
 export const AUTH_FAILURE_WINDOW_SECONDS = 15 * 60;
+/**
+ * How long a TOTP code counts as used: Better Auth takes the code of the step before and after
+ * the current one, so a code works for up to 90 seconds.
+ */
+export const TOTP_USED_SECONDS = 120;
 
 /** The endpoints that check the password of the signed-in user. */
 const PASSWORD_PATHS = new Set([
@@ -79,6 +85,7 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
   // two windows.
   const accountKey = (email: string): string => `auth:sign-in-failures:${accountDigest(email)}`;
   const userKey = (userId: string): string => `auth:password-failures:${userId}`;
+  const totpKey = (userId: string, code: string): string => `auth:totp-used:${userId}:${code}`;
   const count = async (key: string): Promise<number> => Number((await redis.get(key)) ?? 0);
   const increment = async (key: string): Promise<void> => {
     await redis.eval(INCREMENT, 1, key, String(AUTH_FAILURE_WINDOW_SECONDS));
@@ -111,6 +118,43 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
     const verification = token ? await adapter.findVerificationValue(`reset-password:${token}`) : null;
     const user = verification ? await adapter.findUserById(verification.value) : null;
     return { email: user?.email ?? null, name: user?.name ?? null };
+  };
+
+  /** The user of a second-factor step: of the session, or during a sign-in of its cookie. */
+  const userOfSecondFactor = async (ctx: GenericEndpointContext): Promise<string | null> => {
+    const session = await getSessionFromCtx(ctx);
+    if (session) {
+      return session.user.id;
+    }
+    const cookie = ctx.context.createAuthCookie('two_factor');
+    const identifier = await ctx.getSignedCookie(cookie.name, ctx.context.secret);
+    const verification = identifier
+      ? await ctx.context.internalAdapter.findVerificationValue(identifier)
+      : null;
+    return verification?.value ?? null;
+  };
+
+  /**
+   * Marks the code as used before Better Auth checks it, so that two requests with one code
+   * cannot both pass. A wrong code is marked as well, which costs nothing.
+   */
+  const refuseUsedCode = async (
+    ctx: GenericEndpointContext,
+    body: Record<string, unknown>,
+  ): Promise<void> => {
+    const code = textOf(body['code']);
+    const userId = code ? await userOfSecondFactor(ctx) : null;
+    if (!code || !userId) {
+      return;
+    }
+    const fresh = await redis.set(totpKey(userId, code), '1', 'EX', TOTP_USED_SECONDS, 'NX');
+    if (fresh === null) {
+      logger.warn({ path: ctx.path, outcome: 'code_reused', userId }, 'auth.event');
+      throw APIError.from('UNAUTHORIZED', {
+        code: 'CODE_ALREADY_USED',
+        message: 'The code was used already; wait for the next one.',
+      });
+    }
   };
 
   const refuseWeakPassword = async (ctx: GenericEndpointContext, field: string): Promise<void> => {
@@ -153,6 +197,9 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
     }
     if (SECOND_FACTOR_PATHS.has(ctx.path)) {
       const body = (ctx.body ?? {}) as Record<string, unknown>;
+      if (ctx.path === '/two-factor/verify-totp') {
+        await refuseUsedCode(ctx, body);
+      }
       if (body['trustDevice'] === true) {
         return { context: { body: { ...body, trustDevice: false } } };
       }

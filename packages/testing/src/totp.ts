@@ -31,3 +31,23 @@ export function totpCode(uriOrSecret: string, now = Date.now()): string {
   const binary = hmac.readUInt32BE(offset) & 0x7fffffff;
   return String(binary % 1_000_000).padStart(6, '0');
 }
+
+/**
+ * Hands out codes of one secret that were not handed out before: the API takes every code once
+ * (guide step 8.4). The current step comes first, then the next and the previous one, which the
+ * API accepts as well, so one test can verify up to three times within one step of 30 seconds.
+ */
+export function totpCodes(uriOrSecret: string): () => string {
+  const used = new Set<string>();
+  return () => {
+    const now = Date.now();
+    for (const offset of [0, 30_000, -30_000]) {
+      const code = totpCode(uriOrSecret, now + offset);
+      if (!used.has(code)) {
+        used.add(code);
+        return code;
+      }
+    }
+    throw new Error('every code around the current step was used; wait for the next step');
+  };
+}

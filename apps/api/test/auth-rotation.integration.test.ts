@@ -1,5 +1,5 @@
 import { createPrismaClient, type PrismaClient } from '@smp/db';
-import { totpCode } from '@smp/testing';
+import { totpCodes } from '@smp/testing';
 import { symmetricDecrypt, symmetricEncrypt, type SecretConfig } from 'better-auth/crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -42,10 +42,9 @@ describe('a rotation of the keys of Better Auth', () => {
     const agent = await signUpVerified(started().api, email);
     const enabled = await agent.post('/api/auth/two-factor/enable').send({ password: PASSWORD }).expect(200);
     const { totpURI } = enabled.body as { totpURI: string };
-    await agent
-      .post('/api/auth/two-factor/verify-totp')
-      .send({ code: totpCode(totpURI) })
-      .expect(200);
+    // Every code works once (guide step 8.4), so each sign-in below takes a fresh one.
+    const code = totpCodes(totpURI);
+    await agent.post('/api/auth/two-factor/verify-totp').send({ code: code() }).expect(200);
 
     // New payloads carry the current version; as before the rotation, the old key alone sealed it.
     const { prisma: db } = started();
@@ -71,10 +70,7 @@ describe('a rotation of the keys of Better Auth', () => {
         .send({ email, password: PASSWORD })
         .expect(200);
       expect(signedIn.body).toMatchObject({ twoFactorRedirect: true });
-      await agent
-        .post('/api/auth/two-factor/verify-totp')
-        .send({ code: totpCode(totpURI) })
-        .expect(200);
+      await agent.post('/api/auth/two-factor/verify-totp').send({ code: code() }).expect(200);
     };
     await signInWithSecondFactor();
 

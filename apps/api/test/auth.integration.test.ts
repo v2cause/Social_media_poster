@@ -1,4 +1,4 @@
-import { totpCode } from '@smp/testing';
+import { totpCode, totpCodes } from '@smp/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -12,7 +12,7 @@ import { BREACHED_PASSWORD, UNCHECKABLE_PASSWORD } from './support/pwned-passwor
 // API, with the hardening of step 8.4:
 // - the link verifies the address without signing in,
 // - failed sign-ins are limited per account and wrong passwords per user,
-// - no device is trusted to skip the second factor,
+// - no device is trusted to skip the second factor, and every code of it works once,
 // - a sign-up with a known address tells its owner,
 // - a session ends seven days after the sign-in,
 // - reset tokens are kept as digests only,
@@ -158,10 +158,8 @@ describe('authentication with Better Auth', () => {
     const enabled = await agent.post('/api/auth/two-factor/enable').send({ password: PASSWORD }).expect(200);
     const body = enabled.body as { totpURI: string; backupCodes: string[] };
     expect(body.backupCodes.length).toBeGreaterThan(0);
-    await agent
-      .post('/api/auth/two-factor/verify-totp')
-      .send({ code: totpCode(body.totpURI) })
-      .expect(200);
+    const code = totpCodes(body.totpURI);
+    await agent.post('/api/auth/two-factor/verify-totp').send({ code: code() }).expect(200);
     await agent
       .get('/api/me')
       .expect(200)
@@ -174,10 +172,7 @@ describe('authentication with Better Auth', () => {
     expect(again.body).toMatchObject({ twoFactorRedirect: true });
     await agent.get('/api/me').expect(401);
 
-    await agent
-      .post('/api/auth/two-factor/verify-totp')
-      .send({ code: totpCode(body.totpURI) })
-      .expect(200);
+    await agent.post('/api/auth/two-factor/verify-totp').send({ code: code() }).expect(200);
     await agent.get('/api/me').expect(200);
   });
 
@@ -269,17 +264,15 @@ describe('authentication with Better Auth', () => {
     const agent = await signUpVerified(started(), email);
     const enabled = await agent.post('/api/auth/two-factor/enable').send({ password: PASSWORD }).expect(200);
     const { totpURI } = enabled.body as { totpURI: string };
-    await agent
-      .post('/api/auth/two-factor/verify-totp')
-      .send({ code: totpCode(totpURI) })
-      .expect(200);
+    const code = totpCodes(totpURI);
+    await agent.post('/api/auth/two-factor/verify-totp').send({ code: code() }).expect(200);
     await agent.post('/api/auth/sign-out').send({}).expect(200);
 
     const first = await signIn(agent, email).expect(200);
     expect(first.body).toMatchObject({ twoFactorRedirect: true });
     const trusted = await agent
       .post('/api/auth/two-factor/verify-totp')
-      .send({ code: totpCode(totpURI), trustDevice: true })
+      .send({ code: code(), trustDevice: true })
       .expect(200);
     expect(cookiesOf(trusted)).not.toContain('trust_device');
     await agent.post('/api/auth/sign-out').send({}).expect(200);
@@ -287,6 +280,28 @@ describe('authentication with Better Auth', () => {
     const second = await signIn(agent, email).expect(200);
     expect(second.body).toMatchObject({ twoFactorRedirect: true });
     await agent.get('/api/me').expect(401);
+  });
+
+  it('takes every code of the second factor once, also across two sign-ins', async () => {
+    const email = 'once@example.test';
+    const agent = await signUpVerified(started(), email);
+    const enabled = await agent.post('/api/auth/two-factor/enable').send({ password: PASSWORD }).expect(200);
+    const { totpURI } = enabled.body as { totpURI: string };
+    const used = totpCode(totpURI);
+    await agent.post('/api/auth/two-factor/verify-totp').send({ code: used }).expect(200);
+
+    // Whoever saw the code and knows the password signs in elsewhere within its 90 seconds.
+    const other = browser();
+    await signIn(other, email).expect(200);
+    const replayed = await other.post('/api/auth/two-factor/verify-totp').send({ code: used });
+    expect(replayed.status).toBe(401);
+    expect(replayed.body).toMatchObject({ code: 'CODE_ALREADY_USED' });
+    await other.get('/api/me').expect(401);
+
+    // The next code still opens the sign-in.
+    const next = totpCode(totpURI, Date.now() + 30_000);
+    await other.post('/api/auth/two-factor/verify-totp').send({ code: next }).expect(200);
+    await other.get('/api/me').expect(200);
   });
 
   it('ends a session seven days after the sign-in, however often it is used', async () => {

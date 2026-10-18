@@ -10,7 +10,7 @@ export {
   type StartedRedis,
 } from './containers';
 export { PASSWORDS, startTestDatabase, type DatabaseRole, type TestDatabase } from './postgres';
-export { totpCode } from './totp';
+export { totpCode, totpCodes } from './totp';
 export { describeAdapterContract, type AdapterContractFixtures, type TestRunner } from './adapter-contract';
 export {
   FakeStripe,

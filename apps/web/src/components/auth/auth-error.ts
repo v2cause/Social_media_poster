@@ -17,6 +17,8 @@ const KNOWN = [
   'PASSWORD_CONTAINS_CONTEXT',
   'PASSWORD_COMPROMISED',
   'TOO_MANY_ATTEMPTS',
+  // Every code of the second factor works once (guide step 8.4).
+  'CODE_ALREADY_USED',
 ] as const;
 type KnownCode = (typeof KNOWN)[number];
 
