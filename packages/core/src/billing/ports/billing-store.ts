@@ -26,6 +26,8 @@ export interface WebhookInbox {
   record(event: Omit<StoredWebhook, 'processedAt'>): Promise<{ processed: boolean }>;
   find(eventId: string): Promise<StoredWebhook | null>;
   markProcessed(eventId: string, at: Date): Promise<void>;
+  /** Forgets an event that concerns no organization, for example after an erasure (guide step 8.2). */
+  discard(eventId: string): Promise<void>;
 }
 
 /** The jobs of the role "billing". */

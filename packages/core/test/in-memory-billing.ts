@@ -268,6 +268,11 @@ export class MemoryBillingStores implements BillingCustomers, WebhookInbox, Bill
     return Promise.resolve();
   }
 
+  discard(eventId: string): Promise<void> {
+    this.webhooks.delete(eventId);
+    return Promise.resolve();
+  }
+
   processWebhook(eventId: string): Promise<void> {
     this.queued.push(eventId);
     return Promise.resolve();

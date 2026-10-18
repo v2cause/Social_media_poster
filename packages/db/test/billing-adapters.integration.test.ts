@@ -102,6 +102,12 @@ describe('billing adapters on PostgreSQL', () => {
     await expect(inbox.find('evt_1')).resolves.toMatchObject({ processedAt: at });
     await expect(recorder.record(event)).resolves.toEqual({ processed: true });
     await expect(inbox.find('evt_unknown')).resolves.toBeNull();
+
+    // An event of a customer that no organization knows is forgotten (guide step 8.2).
+    await recorder.record({ ...event, id: 'evt_stray', customerId: 'cus_erased' });
+    await inbox.discard('evt_stray');
+    await expect(inbox.find('evt_stray')).resolves.toBeNull();
+    await expect(inbox.find('evt_1')).resolves.not.toBeNull();
   });
 
   it('writes the state from Stripe and announces a new moment of read-only access again', async () => {

@@ -161,13 +161,15 @@ describe('the webhooks of Stripe', () => {
   });
 
   it('leaves the organization alone for unknown customers, subscriptions and checkouts that did not go through', async () => {
-    const { subscriptions, record, process, gateway } = testbed();
+    const { subscriptions, stores, record, process, gateway } = testbed();
     await record.execute(event('evt_1', 'customer.subscription.updated'));
     await expect(process.execute('evt_1')).resolves.toBe('unknown_subscription');
 
+    // The event of a customer no organization knows, as after an erasure, is not kept.
     gateway.subscriptions.set('sub_1', subscription({ customerId: 'cus_other' }));
     await record.execute(event('evt_2', 'customer.subscription.updated'));
     await expect(process.execute('evt_2')).resolves.toBe('unknown_customer');
+    expect([...stores.webhooks.keys()]).toEqual(['evt_1']);
 
     gateway.subscriptions.set('sub_1', subscription({ status: 'INCOMPLETE' }));
     await record.execute(event('evt_3', 'customer.subscription.created'));

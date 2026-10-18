@@ -65,7 +65,7 @@ export class PrismaWebhookRecorder implements Pick<WebhookInbox, 'record'> {
 }
 
 /** Reads and marks the recorded webhooks (app_system, the role "billing"). */
-export class PrismaWebhookInbox implements Pick<WebhookInbox, 'find' | 'markProcessed'> {
+export class PrismaWebhookInbox implements Pick<WebhookInbox, 'find' | 'markProcessed' | 'discard'> {
   constructor(private readonly system: SystemPrismaClient) {}
 
   async find(eventId: string): Promise<StoredWebhook | null> {
@@ -87,6 +87,12 @@ export class PrismaWebhookInbox implements Pick<WebhookInbox, 'find' | 'markProc
         where: { provider: PROVIDER, externalId: eventId, processedAt: null },
         data: { processedAt: at },
       }),
+    );
+  }
+
+  async discard(eventId: string): Promise<void> {
+    await runInSystemScope(() =>
+      this.system.webhookEvent.deleteMany({ where: { provider: PROVIDER, externalId: eventId } }),
     );
   }
 }

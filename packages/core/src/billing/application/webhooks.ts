@@ -18,7 +18,9 @@ import type { Subscription, SubscriptionReader } from '../ports/subscription-sto
 // The webhooks of Stripe (guide step 7.2, ADR 0034): the API checks the signature, records each
 // event once and hands it to the role "billing", which reads the subscription from Stripe and
 // takes it over. The order of the events does not matter, and an event delivered twice changes
-// nothing.
+// nothing. An event of a customer that no organization knows is not kept: it belongs to another
+// use of the Stripe account, or Stripe sent it after an erasure deleted the customer (guide step
+// 8.2), whose ids would otherwise stay behind.
 
 const HANDLED: readonly string[] = BILLING_WEBHOOK_TYPES;
 
@@ -45,7 +47,7 @@ export class RecordStripeWebhook {
 }
 
 export interface ProcessStripeWebhookDependencies {
-  inbox: Pick<WebhookInbox, 'find' | 'markProcessed'>;
+  inbox: Pick<WebhookInbox, 'find' | 'markProcessed' | 'discard'>;
   gateway: BillingGateway;
   subscriptions: Pick<SubscriptionReader, 'plans'>;
   sync: SubscriptionSync;
@@ -96,7 +98,11 @@ export class ProcessStripeWebhook {
         : await deps.lock.run(`billing.${event.customerId ?? subscriptionId}`, () =>
             this.sync(eventId, subscriptionId),
           );
-    await deps.inbox.markProcessed(eventId, deps.clock.now());
+    if (result === 'unknown_customer') {
+      await deps.inbox.discard(eventId);
+    } else {
+      await deps.inbox.markProcessed(eventId, deps.clock.now());
+    }
     return result;
   }
 
