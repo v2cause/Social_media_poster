@@ -1,6 +1,7 @@
 import {
   GDPR_REQUEST_KINDS,
   GDPR_REQUEST_STATUSES,
+  runsPaid,
   type GdprRequest,
   type GdprRequestDetails,
   type GdprRequestKind,
@@ -9,21 +10,27 @@ import {
   type GdprScope,
   type GdprStore,
   type GdprUnitOfWork,
+  type OrganizationDeletion,
 } from '@smp/core';
 import { z } from 'zod';
 
 import { prismaAuditTrail, type RequestOrigin } from '../audit/prisma-audit-trail';
+import { toSubscription } from '../billing/prisma-subscriptions';
 import type { PrismaClient } from '../generated/prisma/client';
 import { runInSystemScope, type SystemPrismaClient } from '../system-client';
 import { withTenantTx, type TenantTransaction } from '../tenant-context';
 
-// The requests of data protection (guide step 8.1, ADR 0036). The owners create and read them as
-// app_user in their organization; the worker role "gdpr" runs them as app_system. A partial
-// unique index keeps one open request per kind and organization.
+// The requests of data protection (guide steps 8.1 and 8.2, ADR 0036 and 0037). The owners create
+// and read them as app_user in their organization and may cancel an erasure that waits; the worker
+// role "gdpr" runs them as app_system. A partial unique index keeps one open request per kind and
+// organization.
 
 const OPEN: ('PENDING' | 'RUNNING')[] = ['PENDING', 'RUNNING'];
 
-const detailsSchema = z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]));
+const detailsSchema = z.record(
+  z.string(),
+  z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]),
+);
 
 interface GdprRequestRow {
   id: string;
@@ -91,6 +98,46 @@ const prismaGdprRequests = (tx: TenantTransaction): GdprRequestRepository => ({
     });
     return rows.map(toGdprRequest);
   },
+  async cancel(organizationId, requestId, at) {
+    // The policy erasure_cancel lets app_user move a waiting erasure to CANCELED, nothing else.
+    const { count } = await tx.gdprRequest.updateMany({
+      where: { id: requestId, organizationId, kind: 'ERASURE', status: 'PENDING' },
+      data: { status: 'CANCELED', completedAt: at },
+    });
+    return count === 1;
+  },
+});
+
+const prismaOrganizationDeletion = (tx: TenantTransaction): OrganizationDeletion => ({
+  async find(organizationId) {
+    const row = await tx.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        name: true,
+        deletedAt: true,
+        workspaces: { select: { id: true }, orderBy: { createdAt: 'asc' } },
+        subscription: { include: { plan: true } },
+      },
+    });
+    if (!row) {
+      return null;
+    }
+    const subscription = row.subscription ? toSubscription(row.subscription) : null;
+    return {
+      id: row.id,
+      name: row.name,
+      deletedAt: row.deletedAt,
+      workspaceIds: row.workspaces.map((workspace) => workspace.id),
+      renewingSubscription: runsPaid(subscription) && !subscription.cancelAtPeriodEnd,
+    };
+  },
+  async markDeleted(organizationId, at) {
+    await tx.organization.update({ where: { id: organizationId }, data: { deletedAt: at } });
+  },
+  async restore(organizationId) {
+    await tx.organization.update({ where: { id: organizationId }, data: { deletedAt: null } });
+  },
 });
 
 /** GdprUnitOfWork on PostgreSQL: one interactive transaction per run as app_user, scope set at its start. */
@@ -103,7 +150,11 @@ export class PrismaGdprUnitOfWork implements GdprUnitOfWork {
   run<T>(scope: GdprScope, work: (store: GdprStore) => Promise<T>): Promise<T> {
     const origin = this.origin();
     return withTenantTx(this.base, scope, (tx) =>
-      work({ requests: prismaGdprRequests(tx), audit: prismaAuditTrail(tx, scope.userId, origin) }),
+      work({
+        requests: prismaGdprRequests(tx),
+        organizations: prismaOrganizationDeletion(tx),
+        audit: prismaAuditTrail(tx, scope.userId, origin),
+      }),
     );
   }
 }
@@ -126,7 +177,7 @@ export class PrismaGdprRequestRunner implements GdprRequestRunner {
   async complete(
     requestId: string,
     at: Date,
-    result: { details: GdprRequestDetails; objectKey?: string; expiresAt?: Date },
+    result: { details: GdprRequestDetails; objectKey?: string; expiresAt?: Date; anonymize?: boolean },
   ): Promise<boolean> {
     const { count } = await runInSystemScope(() =>
       this.system.gdprRequest.updateMany({
@@ -137,6 +188,7 @@ export class PrismaGdprRequestRunner implements GdprRequestRunner {
           details: result.details,
           objectKey: result.objectKey ?? null,
           expiresAt: result.expiresAt ?? null,
+          ...(result.anonymize ? { requestedById: null } : {}),
         },
       }),
     );
@@ -162,6 +214,24 @@ export class PrismaGdprRequestRunner implements GdprRequestRunner {
          WHERE kind = ${kind}::"GdprRequestKind" AND status IN ('PENDING', 'RUNNING')
            AND created_at < ${createdBefore}`,
     );
+  }
+
+  async dueErasures(at: Date, stuckSince: Date, limit: number): Promise<string[]> {
+    const rows = await runInSystemScope(() =>
+      this.system.gdprRequest.findMany({
+        where: {
+          kind: 'ERASURE',
+          OR: [
+            { status: 'PENDING', runAfter: { lte: at } },
+            { status: 'RUNNING', startedAt: { lte: stuckSince } },
+          ],
+        },
+        orderBy: { runAfter: 'asc' },
+        take: limit,
+        select: { id: true },
+      }),
+    );
+    return rows.map((row) => row.id);
   }
 
   async expiredExports(at: Date, limit: number): Promise<{ id: string; objectKey: string }[]> {

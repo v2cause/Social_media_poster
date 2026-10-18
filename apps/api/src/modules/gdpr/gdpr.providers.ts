@@ -30,7 +30,10 @@ export const gdprProviders: Provider[] = [
       producer: GdprProducer,
     ): GdprDependencies => ({
       unitOfWork: new PrismaGdprUnitOfWork(base, () => origin.get()),
-      jobs: { exportData: (requestId) => producer.exportData({ requestId }) },
+      jobs: {
+        exportData: (requestId) => producer.exportData({ requestId }),
+        erase: (requestId) => producer.erase({ requestId }),
+      },
       clock: systemClock,
       ids: uuidV7Ids,
     }),

@@ -201,6 +201,20 @@ export class FakeBillingGateway implements BillingGateway {
     return Promise.resolve();
   }
 
+  readonly periodEnds: { subscriptionId: string; cancel: boolean }[] = [];
+
+  setCancelAtPeriodEnd(subscriptionId: string, cancel: boolean): Promise<void> {
+    this.periodEnds.push({ subscriptionId, cancel });
+    return Promise.resolve();
+  }
+
+  readonly deletedCustomers: string[] = [];
+
+  deleteCustomer(customerId: string): Promise<void> {
+    this.deletedCustomers.push(customerId);
+    return Promise.resolve();
+  }
+
   fetchSubscription(subscriptionId: string): Promise<ProviderSubscription | null> {
     return Promise.resolve(this.subscriptions.get(subscriptionId) ?? null);
   }

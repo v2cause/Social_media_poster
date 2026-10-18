@@ -345,7 +345,11 @@ export {
   type ConfirmConnectionInput,
   type ConfirmedConnection,
 } from './channels/application/confirm-connection';
-export { DisconnectAccount, type DisconnectResult } from './channels/application/disconnect-account';
+export {
+  DisconnectAccount,
+  revokeAtPlatform,
+  type DisconnectResult,
+} from './channels/application/disconnect-account';
 export {
   EXPIRY_NOTICE_DAYS,
   isInExpiryWindow,
@@ -839,6 +843,7 @@ export {
   ChangePlan,
   ListInvoices,
   OpenBillingPortal,
+  runsPaid,
   StartCheckout,
   type BillingActor,
   type BillingDependencies,
@@ -888,9 +893,11 @@ export {
 export * from './gdpr/domain/errors';
 export {
   DOWNLOAD_LINK_SECONDS,
+  ERASURE_DELAY_DAYS,
   EXPORT_AVAILABLE_HOURS,
   GDPR_REQUEST_KINDS,
   GDPR_REQUEST_STATUSES,
+  erasureDateOf,
   exportExpiryOf,
   exportFileNameOf,
   exportKeyOf,
@@ -903,12 +910,15 @@ export {
   type GdprRequestStatus,
 } from './gdpr/domain/request';
 export type {
+  DeletableOrganization,
+  DeletionBilling,
   GdprJobs,
   GdprRequestRepository,
   GdprRequestRunner,
   GdprScope,
   GdprStore,
   GdprUnitOfWork,
+  OrganizationDeletion,
 } from './gdpr/ports/gdpr-store';
 export type {
   ExportArchive,
@@ -916,7 +926,9 @@ export type {
   ExportedMedia,
   ExportedOrganization,
   GdprNotifier,
+  GrantRevoker,
   OrganizationDataSource,
+  OrganizationEraser,
 } from './gdpr/ports/gdpr-runtime';
 export {
   DownloadDataExport,
@@ -931,3 +943,16 @@ export {
   type ExportDependencies,
   type ExportResult,
 } from './gdpr/application/export';
+export {
+  CancelOrganizationErasure,
+  RequestOrganizationErasure,
+  type DeletionDependencies,
+} from './gdpr/application/deletion';
+export {
+  EraseOrganization,
+  ErasureIncompleteError,
+  ScheduleErasures,
+  type ErasureDependencies,
+  type ErasureResult,
+} from './gdpr/application/erasure';
+export { SubscriptionDeletionBilling } from './billing/application/deletion-billing';

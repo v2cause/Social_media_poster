@@ -75,6 +75,13 @@ export interface BillingGateway {
   createPortal(request: PortalRequest): Promise<string>;
   /** Moves the plan item of a subscription to another price; the provider prorates it. */
   changePlan(change: { subscriptionId: string; priceLookupKey: string }): Promise<void>;
+  /** Lets a subscription end with its period, or renew again (guide step 8.2). */
+  setCancelAtPeriodEnd(subscriptionId: string, cancel: boolean): Promise<void>;
+  /**
+   * Deletes a customer for good, which ends its subscriptions at once (guide step 8.2). A customer
+   * the provider does not know any more counts as deleted.
+   */
+  deleteCustomer(customerId: string): Promise<void>;
   /** Null when the provider does not know the subscription. */
   fetchSubscription(subscriptionId: string): Promise<ProviderSubscription | null>;
   /** The latest invoices of a customer, newest first. */

@@ -8,7 +8,7 @@ import type { NotificationProducer } from '@smp/queue';
 // "notify". When that owner has left the organization or is no owner any more, every owner hears
 // it. The link leads to the data page of the organization; the archive itself is never linked.
 
-export class EmailGdprNotifier implements GdprNotifier {
+export class EmailGdprNotifier implements Pick<GdprNotifier, 'exportReady'> {
   constructor(
     private readonly deps: {
       directory: {

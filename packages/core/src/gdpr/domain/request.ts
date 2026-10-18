@@ -1,7 +1,8 @@
-// Data protection of an organization (guide steps 8.1 and 8.2, ADR 0036). An export packs all
-// data of the organization into one archive in the object storage; the owners download it on the
-// data page of the organization for 24 hours, then it is deleted. The erasure of an organization
-// uses the same requests (guide step 8.2).
+// Data protection of an organization (guide steps 8.1 and 8.2, ADR 0036 and 0037). An export
+// packs all data of the organization into one archive in the object storage; the owners download
+// it on the data page of the organization for 24 hours, then it is deleted. An erasure waits 30
+// days after an owner deleted the organization, so that the deletion can be taken back; then
+// everything of the organization goes, and only the record of the request stays, naming nobody.
 
 export const GDPR_REQUEST_KINDS = ['EXPORT', 'ERASURE'] as const;
 export type GdprRequestKind = (typeof GDPR_REQUEST_KINDS)[number];
@@ -9,8 +10,8 @@ export type GdprRequestKind = (typeof GDPR_REQUEST_KINDS)[number];
 export const GDPR_REQUEST_STATUSES = ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELED'] as const;
 export type GdprRequestStatus = (typeof GDPR_REQUEST_STATUSES)[number];
 
-/** Counts and codes of a run; never personal data. */
-export type GdprRequestDetails = Readonly<Record<string, string | number | boolean>>;
+/** Counts, codes and ids of a run; never personal data. */
+export type GdprRequestDetails = Readonly<Record<string, string | number | boolean | readonly string[]>>;
 
 export interface GdprRequest {
   id: string;
@@ -30,6 +31,14 @@ export interface GdprRequest {
   details: GdprRequestDetails;
   createdAt: Date;
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The days between the deletion of an organization and its erasure. */
+export const ERASURE_DELAY_DAYS = 30;
+
+export const erasureDateOf = (deletedAt: Date): Date =>
+  new Date(deletedAt.getTime() + ERASURE_DELAY_DAYS * DAY_MS);
 
 /** How long the archive of an export can be downloaded before it is deleted. */
 export const EXPORT_AVAILABLE_HOURS = 24;

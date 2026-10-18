@@ -7,14 +7,21 @@ import { toSettings, toWorkspace } from './mappers';
 // The read side of the tenancy context: what the guards, the team page and the workspace
 // switcher show. Every method names its tenant explicitly and runs in that scope.
 
+/** The organization of a route; deletedAt is set while it waits for its erasure (step 8.2). */
+export interface AccessedOrganization {
+  id: string;
+  name: string;
+  deletedAt: Date | null;
+}
+
 export interface WorkspaceAccess {
   workspace: Workspace;
-  organization: { id: string; name: string };
+  organization: AccessedOrganization;
   role: MemberRole;
 }
 
 export interface OrganizationAccess {
-  organization: { id: string; name: string };
+  organization: AccessedOrganization;
   role: MemberRole;
 }
 
@@ -94,7 +101,7 @@ export class TenancyReadModel {
     return withTenantTx(this.base, { userId }, async (tx) => {
       const workspace = await tx.workspace.findUnique({
         where: { slug },
-        include: { organization: { select: { id: true, name: true } } },
+        include: { organization: { select: { id: true, name: true, deletedAt: true } } },
       });
       if (!workspace) {
         return null;
@@ -114,7 +121,7 @@ export class TenancyReadModel {
     return withTenantTx(this.base, { userId }, async (tx) => {
       const membership = await tx.membership.findFirst({
         where: { organizationId, userId },
-        include: { organization: { select: { id: true, name: true } } },
+        include: { organization: { select: { id: true, name: true, deletedAt: true } } },
       });
       return membership ? { organization: membership.organization, role: membership.role } : null;
     });

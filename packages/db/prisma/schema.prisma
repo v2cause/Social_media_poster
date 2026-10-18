@@ -141,10 +141,13 @@ enum MemberRole {
 }
 
 model Organization {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  id        String    @id @default(uuid(7)) @db.Uuid
   name      String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  // Set when an owner deletes the organization (guide step 8.2, ADR 0037): nobody works in it from
+  // then on, and the erasure follows 30 days later unless an owner takes the deletion back.
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   workspaces           Workspace[]
   memberships          Membership[]

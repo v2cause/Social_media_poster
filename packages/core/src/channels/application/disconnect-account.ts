@@ -51,28 +51,36 @@ export class DisconnectAccount {
     }
     // After the commit: the tokens are gone here even when the platform does not answer.
     try {
-      await this.revokeAtPlatform(revoked, revoked.accessTokenSealed);
+      await revokeAtPlatform(this.deps, revoked, revoked.accessTokenSealed);
       return { platformRevoke: 'done' };
     } catch (cause) {
       return { platformRevoke: 'failed', cause };
     }
   }
+}
 
-  private async revokeAtPlatform(connection: SocialConnection, accessTokenSealed: Uint8Array): Promise<void> {
-    const connector = this.deps.connectors.connector(connection.platform, connection.method);
-    if (!connector) {
-      throw new Error(`No connector for ${connection.platform} via ${connection.method}.`);
-    }
-    const aad = (field: 'access_token' | 'refresh_token') =>
-      connectionSecretAad(connection.workspaceId, connection.id, field);
-    await connector.revoke({
-      accessToken: await this.deps.sealer.open(accessTokenSealed, aad('access_token')),
-      refreshToken: connection.refreshTokenSealed
-        ? await this.deps.sealer.open(connection.refreshTokenSealed, aad('refresh_token'))
-        : null,
-      accessTokenExpiresAt: connection.accessTokenExpiresAt,
-      refreshTokenExpiresAt: connection.refreshTokenExpiresAt,
-      scopes: connection.scopes,
-    });
+/**
+ * Revokes the grant of a connection at its platform with its sealed tokens. Throws when the
+ * platform does not confirm; also the erasure of an organization uses it (guide step 8.2).
+ */
+export async function revokeAtPlatform(
+  deps: Pick<ChannelDependencies, 'connectors' | 'sealer'>,
+  connection: SocialConnection,
+  accessTokenSealed: Uint8Array,
+): Promise<void> {
+  const connector = deps.connectors.connector(connection.platform, connection.method);
+  if (!connector) {
+    throw new Error(`No connector for ${connection.platform} via ${connection.method}.`);
   }
+  const aad = (field: 'access_token' | 'refresh_token') =>
+    connectionSecretAad(connection.workspaceId, connection.id, field);
+  await connector.revoke({
+    accessToken: await deps.sealer.open(accessTokenSealed, aad('access_token')),
+    refreshToken: connection.refreshTokenSealed
+      ? await deps.sealer.open(connection.refreshTokenSealed, aad('refresh_token'))
+      : null,
+    accessTokenExpiresAt: connection.accessTokenExpiresAt,
+    refreshTokenExpiresAt: connection.refreshTokenExpiresAt,
+    scopes: connection.scopes,
+  });
 }

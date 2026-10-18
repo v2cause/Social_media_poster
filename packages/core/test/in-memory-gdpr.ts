@@ -1,5 +1,7 @@
 import type {
   AuditEntry,
+  DeletableOrganization,
+  DeletionBilling,
   ExportArchive,
   ExportArchives,
   ExportedMedia,
@@ -15,6 +17,9 @@ import type {
   GdprStore,
   GdprUnitOfWork,
   OrganizationDataSource,
+  OrganizationDeletion,
+  OrganizationEraser,
+  SocialConnection,
 } from '../src';
 
 // In-memory stand-ins for the use cases of data protection (guide step 8.1): one table of
@@ -89,7 +94,7 @@ export class MemoryGdprRequests implements GdprRunnerAndRepository {
   complete(
     requestId: string,
     at: Date,
-    result: { details: GdprRequestDetails; objectKey?: string; expiresAt?: Date },
+    result: { details: GdprRequestDetails; objectKey?: string; expiresAt?: Date; anonymize?: boolean },
   ): Promise<boolean> {
     const row = this.rows.get(requestId);
     if (row?.status !== 'RUNNING') {
@@ -101,8 +106,33 @@ export class MemoryGdprRequests implements GdprRunnerAndRepository {
       details: result.details,
       objectKey: result.objectKey ?? null,
       expiresAt: result.expiresAt ?? null,
+      ...(result.anonymize ? { requestedById: null } : {}),
     });
     return Promise.resolve(true);
+  }
+
+  cancel(organizationId: string, requestId: string, at: Date): Promise<boolean> {
+    const row = this.rows.get(requestId);
+    if (row?.organizationId !== organizationId || row.kind !== 'ERASURE' || row.status !== 'PENDING') {
+      return Promise.resolve(false);
+    }
+    Object.assign(row, { status: 'CANCELED', completedAt: at });
+    return Promise.resolve(true);
+  }
+
+  dueErasures(at: Date, stuckSince: Date, limit: number): Promise<string[]> {
+    return Promise.resolve(
+      [...this.rows.values()]
+        .filter(
+          (row) =>
+            row.kind === 'ERASURE' &&
+            ((row.status === 'PENDING' && row.runAfter.getTime() <= at.getTime()) ||
+              (row.status === 'RUNNING' && (row.startedAt?.getTime() ?? 0) <= stuckSince.getTime())),
+        )
+        .sort((a, b) => a.runAfter.getTime() - b.runAfter.getTime())
+        .slice(0, limit)
+        .map((row) => row.id),
+    );
   }
 
   fail(requestId: string, at: Date, details: GdprRequestDetails): Promise<void> {
@@ -154,17 +184,51 @@ export class MemoryGdprRequests implements GdprRunnerAndRepository {
 
 type GdprRunnerAndRepository = GdprRequestRepository & GdprRequestRunner;
 
-/** Runs the work against the shared table; a failure leaves what the work wrote, like a test double. */
+/** The organizations that owners can delete, with their workspaces and their subscription. */
+export class MemoryOrganizations implements OrganizationDeletion {
+  readonly rows = new Map<string, DeletableOrganization>();
+
+  put(organization: DeletableOrganization): void {
+    this.rows.set(organization.id, { ...organization });
+  }
+
+  find(organizationId: string): Promise<DeletableOrganization | null> {
+    const row = this.rows.get(organizationId);
+    return Promise.resolve(row ? { ...row } : null);
+  }
+
+  markDeleted(organizationId: string, at: Date): Promise<void> {
+    const row = this.rows.get(organizationId);
+    if (row) {
+      row.deletedAt = at;
+    }
+    return Promise.resolve();
+  }
+
+  restore(organizationId: string): Promise<void> {
+    const row = this.rows.get(organizationId);
+    if (row) {
+      row.deletedAt = null;
+    }
+    return Promise.resolve();
+  }
+}
+
+/** Runs the work against the shared tables; a failure leaves what the work wrote, like a test double. */
 export class MemoryGdprUnitOfWork implements GdprUnitOfWork {
   readonly scopes: GdprScope[] = [];
 
-  constructor(readonly requests: MemoryGdprRequests) {}
+  constructor(
+    readonly requests: MemoryGdprRequests,
+    readonly organizations: MemoryOrganizations = new MemoryOrganizations(),
+  ) {}
 
   async run<T>(scope: GdprScope, work: (store: GdprStore) => Promise<T>): Promise<T> {
     this.scopes.push(scope);
     const audit: AuditEntry[] = [];
     const result = await work({
       requests: this.requests,
+      organizations: this.organizations,
       audit: {
         record: (entry) => {
           audit.push(entry);
@@ -180,19 +244,100 @@ export class MemoryGdprUnitOfWork implements GdprUnitOfWork {
 
 export class RecordingGdprJobs implements GdprJobs {
   readonly exports: string[] = [];
+  readonly erasures: string[] = [];
 
   exportData(requestId: string): Promise<void> {
     this.exports.push(requestId);
+    return Promise.resolve();
+  }
+
+  erase(requestId: string): Promise<void> {
+    this.erasures.push(requestId);
     return Promise.resolve();
   }
 }
 
 export class RecordingGdprNotifier implements GdprNotifier {
   readonly ready: Parameters<GdprNotifier['exportReady']>[0][] = [];
+  readonly scheduled: Parameters<GdprNotifier['erasureScheduled']>[0][] = [];
+  /** Fails the next notice of an erasure, as a queue that is away would. */
+  failNext = false;
 
   exportReady(notice: Parameters<GdprNotifier['exportReady']>[0]): Promise<void> {
     this.ready.push(notice);
     return Promise.resolve();
+  }
+
+  erasureScheduled(notice: Parameters<GdprNotifier['erasureScheduled']>[0]): Promise<void> {
+    if (this.failNext) {
+      this.failNext = false;
+      return Promise.reject(new Error('queue away'));
+    }
+    this.scheduled.push(notice);
+    return Promise.resolve();
+  }
+}
+
+export class RecordingDeletionBilling implements DeletionBilling {
+  readonly calls: { organizationId: string; end: boolean }[] = [];
+
+  endWithPeriod(organizationId: string, end: boolean): Promise<void> {
+    this.calls.push({ organizationId, end });
+    return Promise.resolve();
+  }
+}
+
+/** The rows of organizations as the erasure sees them: per table, the organization or workspace they name. */
+export class MemoryEraser implements OrganizationEraser {
+  readonly rows: { table: string; organizationId?: string; workspaceId?: string }[] = [];
+  readonly connectionsOf = new Map<string, SocialConnection[]>();
+  readonly customers = new Map<string, string>();
+  /** Leaves the rows of this table behind, as a missing delete would. */
+  forget: string | null = null;
+  erasures = 0;
+
+  connections(organizationId: string): Promise<SocialConnection[]> {
+    return Promise.resolve(this.connectionsOf.get(organizationId) ?? []);
+  }
+
+  billingCustomerOf(organizationId: string): Promise<string | null> {
+    return Promise.resolve(this.customers.get(organizationId) ?? null);
+  }
+
+  private matches(
+    row: { organizationId?: string; workspaceId?: string },
+    organizationId: string,
+    workspaceIds: readonly string[],
+  ) {
+    return (
+      row.organizationId === organizationId ||
+      (row.workspaceId !== undefined && workspaceIds.includes(row.workspaceId))
+    );
+  }
+
+  erase(organizationId: string, workspaceIds: readonly string[]): Promise<Record<string, number>> {
+    this.erasures += 1;
+    const counts: Record<string, number> = {};
+    for (let index = this.rows.length - 1; index >= 0; index -= 1) {
+      const row = this.rows[index];
+      if (row && this.matches(row, organizationId, workspaceIds) && row.table !== this.forget) {
+        counts[row.table] = (counts[row.table] ?? 0) + 1;
+        this.rows.splice(index, 1);
+      }
+    }
+    this.connectionsOf.delete(organizationId);
+    this.customers.delete(organizationId);
+    return Promise.resolve(counts);
+  }
+
+  leftovers(organizationId: string, workspaceIds: readonly string[]): Promise<Record<string, number>> {
+    const counts: Record<string, number> = {};
+    for (const row of this.rows) {
+      if (this.matches(row, organizationId, workspaceIds)) {
+        counts[row.table] = (counts[row.table] ?? 0) + 1;
+      }
+    }
+    return Promise.resolve(counts);
   }
 }
 

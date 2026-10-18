@@ -1,5 +1,7 @@
-// What the worker role "gdpr" needs to export an organization (guide step 8.1, ADR 0036), all
-// as app_system.
+import type { SocialConnection } from '../../channels/domain/types';
+
+// What the worker role "gdpr" needs to export and to erase an organization (guide steps 8.1 and
+// 8.2, ADR 0036 and 0037), all as app_system.
 
 export interface ExportedOrganization {
   id: string;
@@ -54,4 +56,37 @@ export interface GdprNotifier {
     requestedById: string | null;
     expiresAt: Date;
   }): Promise<void>;
+  /** To every owner: the organization will be erased on this day unless one of them takes it back. */
+  erasureScheduled(notice: { requestId: string; organizationId: string; eraseAfter: Date }): Promise<void>;
 }
+
+/** The parts of an organization the erasure removes, as app_system. */
+export interface OrganizationEraser {
+  /** The connections with their sealed tokens, to revoke the grants at the platforms. */
+  connections(organizationId: string): Promise<SocialConnection[]>;
+  /** The customer at the payment provider, or null. */
+  billingCustomerOf(organizationId: string): Promise<string | null>;
+  /**
+   * Deletes every row of the organization and of its workspaces in one transaction and returns
+   * how many rows each table lost. The erasure request itself stays.
+   */
+  erase(
+    organizationId: string,
+    workspaceIds: readonly string[],
+    keepRequestId: string,
+  ): Promise<Record<string, number>>;
+  /**
+   * Rows that still name the organization or one of its workspaces, and the webhook events of its
+   * customer at the payment provider, per table; empty when none. The customer is given once the
+   * erasure deleted it, when the subscription that named it is gone.
+   */
+  leftovers(
+    organizationId: string,
+    workspaceIds: readonly string[],
+    keepRequestId: string,
+    customerId: string | null,
+  ): Promise<Record<string, number>>;
+}
+
+/** Revokes the grant of one connection at its platform; throws when the platform refuses. */
+export type GrantRevoker = (connection: SocialConnection) => Promise<void>;

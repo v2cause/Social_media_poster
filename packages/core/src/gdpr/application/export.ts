@@ -57,7 +57,7 @@ export interface ExportDependencies {
   source: OrganizationDataSource;
   archives: ExportArchives;
   storage: Pick<StoragePort, 'head' | 'get' | 'delete'>;
-  notifier: GdprNotifier;
+  notifier: Pick<GdprNotifier, 'exportReady'>;
   clock: Clock;
 }
 
