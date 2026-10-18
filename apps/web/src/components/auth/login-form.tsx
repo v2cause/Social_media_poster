@@ -14,6 +14,7 @@ import {
   FormField,
   Input,
 } from '@smp/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -39,6 +40,7 @@ export function LoginForm({
 }) {
   const t = useTranslations('auth');
   const router = useRouter();
+  const queryClient = useQueryClient();
   const fieldError = useFieldError();
   const authError = useAuthError();
   const [error, setError] = useState<string | null>(
@@ -53,7 +55,10 @@ export function LoginForm({
     defaultValues: { email: '', password: '' },
   });
 
+  // Queries another account left in this tab, after a session that ended on the server, go
+  // before the new account loads its own (guide step 8.4).
   const finish = () => {
+    queryClient.clear();
     router.push(next ?? '/');
     router.refresh();
   };
