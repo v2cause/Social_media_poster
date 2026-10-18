@@ -11,7 +11,7 @@ import {
 import { ProcessAsset, RenderAttachedMedia, systemClock, uuidV7Ids } from '@smp/core';
 import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@smp/db';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
-import { createLogger } from '@smp/observability';
+import { createLogger, logSerializers } from '@smp/observability';
 import {
   ANALYTICS_QUEUE,
   BILLING_QUEUE,
@@ -137,7 +137,8 @@ export class WorkerModule {
     return {
       module: WorkerModule,
       imports: [
-        LoggerModule.forRoot({ pinoHttp: { logger } }),
+        // pino-http brings its own serializer for errors, which keeps every field of an error.
+        LoggerModule.forRoot({ pinoHttp: { logger, serializers: logSerializers } }),
         // Options instead of a shared client: every queue and worker opens its own connection and
         // closes it on shutdown (BullMQ never closes a client it was handed). Blocking worker
         // connections get maxRetriesPerRequest null from BullMQ itself.

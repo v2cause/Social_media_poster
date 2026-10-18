@@ -2,7 +2,7 @@ import { trace } from '@opentelemetry/api';
 import pino, { type DestinationStream, type Logger } from 'pino';
 
 import { currentLogContext } from './log-context';
-import { redactSecrets } from './redact';
+import { logSerializers, redactSecrets } from './redact';
 
 export interface LoggerOptions {
   service: string;
@@ -25,6 +25,7 @@ export function createLogger({ service, environment, level = 'info', destination
       formatters: {
         log: (object) => redactSecrets(object) as Record<string, unknown>,
       },
+      serializers: logSerializers,
     },
     destination,
   );

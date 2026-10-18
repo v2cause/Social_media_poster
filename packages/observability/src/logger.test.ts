@@ -44,6 +44,26 @@ describe('createLogger', () => {
     });
   });
 
+  it('logs errors with their type, message and codes only, without addresses', () => {
+    const { lines, destination } = captureLogs();
+    const logger = createLogger({ service: 'worker', environment: 'test', destination });
+    const error = Object.assign(new Error('Recipient <ada@example.test> rejected'), {
+      code: 'EENVELOPE',
+      rejected: ['ada@example.test'],
+      config: { headers: { authorization: 'Bearer abc' } },
+    });
+
+    logger.warn({ err: error }, 'notify.send_failed');
+    logger.error(error);
+
+    expect(lines[0]).toMatchObject({
+      msg: 'notify.send_failed',
+      err: { type: 'Error', message: 'Recipient <[email]> rejected', code: 'EENVELOPE' },
+    });
+    expect(lines[1]).toMatchObject({ msg: 'Recipient <[email]> rejected' });
+    expect(JSON.stringify(lines)).not.toMatch(/ada@example\.test|Bearer abc|rejected":/);
+  });
+
   it('adds the fields of the surrounding log context', () => {
     const { lines, destination } = captureLogs();
     const logger = createLogger({ service: 'worker', environment: 'test', destination });

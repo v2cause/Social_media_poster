@@ -1,7 +1,7 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { Params, LoggerModule } from 'nestjs-pino';
-import { createLogger } from '@smp/observability';
+import { createLogger, logSerializers } from '@smp/observability';
 import { uuidv7 } from 'uuidv7';
 
 import { RequestContextModule } from './common/cls/request-context.module';
@@ -41,7 +41,8 @@ export class AppModule {
         autoLogging: {
           ignore: (req) => (req.url ?? '').startsWith('/api/health'),
         },
-        serializers: httpLogSerializers,
+        // pino-http brings its own serializer for errors, which keeps every field of an error.
+        serializers: { ...logSerializers, ...httpLogSerializers },
       },
     };
 
