@@ -322,14 +322,16 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
     }
 
     // This hook runs before the one of the two-factor plugin, which then swaps the new session for
-    // the second step. Devices are never trusted, so the second step always follows.
+    // the second step and drops the session cookie. Devices are never trusted, so the second step
+    // always follows. The session the browser held ends with the first step already: once the
+    // cookie is gone, the second step could not name it any more.
     const needsSecondFactor =
       isSignIn && (signedIn as { twoFactorEnabled?: boolean | null } | null)?.twoFactorEnabled === true;
     const created = ctx.context.newSession?.session.token;
     const isSignInStep = isSignIn || SECOND_FACTOR_PATHS.has(ctx.path);
-    if (isSignInStep && created && !failure && !needsSecondFactor) {
+    if (isSignInStep && created && !failure) {
       await endPreviousSession(ctx, created);
-      if (signedIn?.email) {
+      if (!needsSecondFactor && signedIn?.email) {
         await trustDevice(ctx, signedIn.email);
       }
     }

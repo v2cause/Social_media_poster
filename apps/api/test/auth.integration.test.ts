@@ -401,6 +401,21 @@ describe('authentication with Better Auth', () => {
     await other.get('/api/me').expect(200);
   });
 
+  it('ends the session the browser held also when the new sign-in asks for the second factor', async () => {
+    const email = 'twice-with-code@example.test';
+    const agent = await signUpVerified(started(), email);
+    const enabled = await agent.post('/api/auth/two-factor/enable').send({ password: PASSWORD }).expect(200);
+    const code = totpCodes((enabled.body as { totpURI: string }).totpURI);
+    const verified = await agent.post('/api/auth/two-factor/verify-totp').send({ code: code() }).expect(200);
+    const held = sessionCookieOf(verified);
+    await request(started().server).get('/api/me').set('Cookie', held).expect(200);
+
+    const again = await signIn(agent, email).expect(200);
+    expect(again.body).toMatchObject({ twoFactorRedirect: true });
+    // Over before the second step: afterwards the browser no longer names it.
+    await request(started().server).get('/api/me').set('Cookie', held).expect(401);
+  });
+
   it('ends the session the browser held when it signs in again, and clears the site at sign-out', async () => {
     const email = 'again@example.test';
     const agent = await signUpVerified(started(), email);
