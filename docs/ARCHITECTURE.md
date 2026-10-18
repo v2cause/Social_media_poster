@@ -311,7 +311,7 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md`. `PROM
 
 - **Identity und Tenancy**:
   - `User` (E-Mail, Sprache, Zeitzone; Tabelle `users`) sowie die Tabellen von Better Auth (`Session`, `Account` als Tabelle `auth_account`, `Verification`, `TwoFactor`).
-  - `Organization` (Mandant, Billing).
+  - `Organization` (Mandant, Billing; `deletedAt`, solange die Organisation auf ihre endgültige Löschung wartet, [ADR 0037](adr/0037-loeschung-von-organisationen.md)).
   - `Workspace` (Marke oder Kunde innerhalb einer Organisation, z.B. für Agenturen; mit Zeitzone, Content-Sprache, Branche, Zielgruppe, Zielen, Content-Säulen). Der Slug ist global eindeutig, weil die Routen `/w/:ws` den Workspace allein darüber adressieren (ADR 0010).
   - `Membership` (Rolle OWNER, ADMIN, EDITOR oder VIEWER, optional über `MembershipWorkspace` auf bestimmte Workspaces beschränkt) und `Invitation` (Token nur als Hash gespeichert).
 - **Channels**:
@@ -356,7 +356,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
 ### 6.4 Tarife, Abo und Limits
 
 - **Tarife** (`plan`): Referenzdaten der Migrationen mit Limits als zod-geprüftem JSON und dem Lookup-Key des Monatspreises in Stripe. Pro Organisation können die Betreiber einzelne Limits überschreiben ([ADR 0033](adr/0033-tarife-abo-und-nur-lesen.md)).
-- **Abo** (`subscription`, eines pro Organisation): Tarif, Status wie in Stripe, 14 Tage Testphase ab Anlage der Organisation, Beginn des Zahlungsverzugs, Nur-Lesen ab, Stripe-Kunde und -Abo. Nur die Webhooks von Stripe ändern Tarif und Status; die Worker-Rolle `billing` lädt dazu das Abo frisch von Stripe ([ADR 0034](adr/0034-stripe-integration.md)).
+- **Abo** (`subscription`, eines pro Organisation): Tarif, Status wie in Stripe, 14 Tage Testphase ab Anlage der Organisation, Beginn des Zahlungsverzugs, Nur-Lesen ab, Stripe-Kunde und -Abo. Nur die Webhooks von Stripe ändern Tarif und Status; die Worker-Rolle `billing` lädt dazu das Abo frisch von Stripe ([ADR 0034](adr/0034-stripe-integration.md)). Ereignisse eines Kunden, den keine Organisation kennt, verwirft sie, etwa die nach einer Löschung ([ADR 0037](adr/0037-loeschung-von-organisationen.md)).
 - **Nur-Lesen**: nach der Testphase ohne Kauf, 7 Tage nach Beginn eines Zahlungsverzugs und sofort nach dem Ende eines Abos.
   - Die API lehnt dann Änderungen mit 402 `SUBSCRIPTION_INACTIVE` ab; Bezahlen und Reduzieren bleiben möglich.
   - Der Scheduler übergeht geplante Posts der Organisation.
@@ -452,7 +452,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | `ai` | `ai.topic-ideas`, `ai.alt-text` (für Vorschläge im Hintergrund; auf Knopfdruck laufen beide synchron, ADR 0016 und 0021) | - | `ai` |
 | `notifications` | `notify.dispatch`: ein Outbox-Ereignis (in der App und per E-Mail an seine Empfänger) oder eine E-Mail an eine Adresse | `ntf.{outboxId}` für das Ereignis, `ntf.{outboxId}.{userId}` für seine E-Mails | `notify` |
 | `billing` | `stripe.webhook`, `usage.report` | `stripe.{eventId}`, `usage.{organizationId}.{Tag}` | `billing` |
-| `gdpr` | `gdpr.export`, `gdpr.erase`, `gdpr.sweep` (löscht abgelaufene Archive) | `gdpr.{requestId}`, `gdpr.sweep` (höchstens einer wartet) | `gdpr` |
+| `gdpr` | `gdpr.export`, `gdpr.erase` (nie aufgegeben), `gdpr.sweep` (löscht abgelaufene Archive, reiht fällige und verlorene Löschungen ein) | `gdpr.{requestId}`, `gdpr.sweep` (höchstens einer wartet) | `gdpr` |
 
 - **Job-IDs ohne Doppelpunkt**: BullMQ lehnt eigene Job-IDs mit `:` ab (`Custom Id cannot contain :`; geduldet wird nur eine Altform mit genau drei Segmenten). Deshalb trennt der Punkt die Bestandteile. Redis-Schlüssel für Locks und Pub/Sub (`lock:conn:{id}`, `ws:{workspaceId}:events`) sind davon nicht betroffen.
 - **Payloads**: enthalten nur IDs und werden im Job neu aus der DB gelesen. Ausnahmen sind die `xb-*`-Queues, weil der browser-worker keinen DB-Zugriff hat, und die E-Mails in `notifications`, die Adresse und Text tragen. E-Mails mit Link (Verifizierung, Passwort-Reset, Einladung) tragen den Link, weil nur der Hash des Tokens gespeichert ist; sie verlassen Redis direkt nach dem Versand, fehlgeschlagene nach einem Tag (ADR 0012). Die Jobs eines Outbox-Ereignisses und seine E-Mails bleiben nach dem Lauf einen Tag, damit ihre Job-ID einen zweiten Versand verhindert (ADR 0025).
@@ -542,9 +542,11 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
   - Rate-Limits pro Client-Adresse aus `X-Real-IP`, das der Reverse Proxy setzt. Details und Spike-Ergebnis in ADR 0006.
 - **Request-Pipeline** (globale Guards in dieser Reihenfolge, registriert im `AccessModule`):
   1. `AuthGuard`: prüft die Session.
-  2. `WorkspaceGuard`: löst den Workspace-Slug (`@WorkspaceScope()`, Routen `/api/w/:ws`) bzw. die Organisation (`@OrgScope()`, Routen `/api/org/:org`) zu Mitgliedschaft und Rolle auf (60 s in Redis gecacht, bei Rollenwechsel, Entfernen und Austritt sofort invalidiert; gecacht wird nur gewährter Zugriff). Fremde und unbekannte Mandanten liefern 404.
-  3. `PermissionGuard`: z.B. `@RequirePermission('post.schedule')`; fehlt das Recht, kommt 403 `NOT_PERMITTED`.
-  4. Der CLS-Kontext wird gesetzt, die Prisma-Extension nutzt ihn.
+  2. `WorkspaceGuard`: löst den Workspace-Slug (`@WorkspaceScope()`, Routen `/api/w/:ws`) bzw. die Organisation (`@OrgScope()`, Routen `/api/org/:org`) zu Mitgliedschaft und Rolle auf (60 s in Redis gecacht, bei Rollenwechsel, Entfernen und Austritt sofort invalidiert, nach Löschen und Zurücknehmen einer Organisation für alle Mitglieder; gecacht wird nur gewährter Zugriff). Fremde und unbekannte Mandanten liefern 404.
+  3. `DeletedOrganizationGuard`: Eine gelöschte Organisation, die auf ihre endgültige Löschung wartet, antwortet mit 409 `ORGANIZATION_DELETION_PENDING`, außer auf Routen mit `@AllowWhenDeleted()`: Kontexte, Datenexporte und das Zurücknehmen ([ADR 0037](adr/0037-loeschung-von-organisationen.md)).
+  4. `PermissionGuard`: z.B. `@RequirePermission('post.schedule')`; fehlt das Recht, kommt 403 `NOT_PERMITTED`.
+  5. `ReadOnlyGuard`: Im Nur-Lesen-Zustand lehnt er Änderungen mit 402 `SUBSCRIPTION_INACTIVE` ab, außer auf Routen mit `@AllowWhenReadOnly()` ([ADR 0033](adr/0033-tarife-abo-und-nur-lesen.md)).
+  6. Der CLS-Kontext wird gesetzt, die Prisma-Extension nutzt ihn.
 - **Deny by default**: Jede Route trägt genau eine Regel: `@Public()`, `@UserScope()` (Session genügt, z.B. Onboarding) oder `@RequirePermission()` (nur mit Mandanten-Scope). Ein Startup-Check bricht sonst den Start ab. Der Organisations-Kontext in einer Transaktion ist eine Berechtigung: Ihn setzt nur der Guard nach gefundener Mitgliedschaft, die Datenbank prüft die Mitgliedschaft nicht erneut.
 - **Rechte-Matrix** (liegt in `packages/contracts`, damit die UI Aktionen ausblenden kann):
 
@@ -573,7 +575,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 - **DSGVO**:
   - Hosting in der EU, AV-Verträge und Liste der Unterauftragsverarbeiter (Anthropic, Stripe, E-Mail-Provider, Hosting) sowie ein Hinweis auf die Datenübermittlung an LinkedIn, Meta und X.
   - Datenexport als ZIP über die Worker-Rolle `gdpr`: jede Tabelle mit Mandantenspalte als JSON, die Originale der Medien und ein Manifest, ohne Geheimnisse. Das Archiv liegt 24 Stunden im Objektspeicher; die E-Mail führt zur Datenseite, wo jeder Download einen Link von fünf Minuten erzeugt und im Audit-Log steht ([ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)).
-  - Löschung (30 Tage Soft-Delete, dann endgültig) als asynchroner Job.
+  - Löschung einer Organisation durch einen Owner, bestätigt mit ihrem Namen: Ab da arbeitet niemand mehr darin, die Scans lassen sie aus, und ein bezahltes Abo endet mit seiner Periode. 30 Tage lang können Owner die Löschung zurücknehmen und die Daten exportieren. Dann löscht der Job `gdpr.erase` der Rolle `gdpr` alles: Grants bei den Plattformen, den Stripe-Kunden, die Objekte und jede Zeile mit der Organisation oder einem ihrer Workspaces. Es bleibt nur die Anfrage als Nachweis, ohne Antragsteller. `pnpm check:erasure <requestId>` prüft, dass nichts übrig ist ([ADR 0037](adr/0037-loeschung-von-organisationen.md)).
   - Beim Trennen eines Accounts werden die Tokens bei der Plattform widerrufen.
   - Aufbewahrungsfristen, nur essenzielle Cookies, eine DSFA für die Browser-Automation (Session-Cookies sind faktisch Zugangsdaten).
 
@@ -612,7 +614,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   - Planen: Datum und Uhrzeit in der Workspace-Zeitzone, Account und Zeitpunkt pro Variante überschreibbar, "Jetzt posten", Kostenhinweis bei X, Hinweis auf ablaufende Zugänge. Planungen laufen in der Warteschlange des Auto-Speicherns nach den offenen Speicherungen; der Status folgt den Live-Events, und eine Variante, die veröffentlicht wird oder wurde, ist gesperrt ([ADR 0026](adr/0026-planen-im-web.md)).
   - Entwürfe werden automatisch gespeichert: 800 ms nach der letzten Änderung, nacheinander und mit Optimistic Locking; ein neuer Beitrag entsteht, sobald Briefing und eine Plattform da sind ([ADR 0017](adr/0017-composer-zustand-und-auto-speichern.md)).
 - **Kalender**: eigener Kalender (CSS-Grid, `dnd-kit`) mit Varianten als Plattform-Kürzel, Uhrzeit, Textanfang und Status-Icon. Umplanen per Drag & Drop auf einen anderen Tag mit optimistischem Update und Rollback; vergangene Tage nehmen nichts an. Für Tastaturnutzer und neue Uhrzeiten gibt es einen Umplanen-Dialog ([ADR 0026](adr/0026-planen-im-web.md)).
-- **Daten und Löschung** (nur Owner): Export anfordern, seinen Fortschritt verfolgen und das Archiv 24 Stunden lang herunterladen ([ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)).
+- **Daten und Löschung** (nur Owner): Export anfordern, seinen Fortschritt verfolgen und das Archiv 24 Stunden lang herunterladen ([ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)). Die Organisation löschen (mit ihrem Namen als Bestätigung) und die Löschung binnen 30 Tagen zurücknehmen. Solange sie wartet, steht über jeder Seite der Organisation ein Hinweis, und außer der Datenseite zeigt jede Seite statt ihres Inhalts eine Erklärung ([ADR 0037](adr/0037-loeschung-von-organisationen.md)).
 - **Abrechnung** (nur Owner): Tarif mit Status und Terminen, ein Verbrauchsbalken pro Limit (über dem Limit rot, mit der Bitte zu reduzieren), die Tarife mit Checkout oder Wechsel (der Dialog nennt, was nach einem Downgrade über den Limits läge), Kundenportal und Rechnungen. Über jeder Seite der Organisation steht für alle Mitglieder ein Hinweis bei Nur-Lesen, Zahlungsverzug und endender Testphase ([ADR 0033](adr/0033-tarife-abo-und-nur-lesen.md)).
 - **Analytics**: eigene SVG-Diagramme (Liniendiagramm, Balkenliste, Sparklines). Jede Plattform hat feste Farbe, Strichmuster und Marker. Das Liniendiagramm lässt sich mit den Pfeiltasten bedienen und hat eine Tabelle derselben Zahlen. Fehlende Werte erscheinen als "n. v.", nie als 0 ([ADR 0028](adr/0028-analytics-im-web.md)).
 - **Bibliotheken**: TanStack Query (Orval-Hooks), react-hook-form + zodResolver (dieselben Schemas wie die API), der URL-State über einen kleinen Hook mit zod-Schema, der Composer-State als getesteter Reducer unter `useReducer` (Zustand-Stores nur für State, den mehrere Seiten teilen; ADR 0017), shadcn/ui + Tailwind 4, lucide, sonner, `dnd-kit`, Datum und Zeitzonen über `Intl` (ADR 0026); für Analytics die Tabellen von `@smp/ui` und eigene Diagramme statt TanStack Table und Recharts (ADR 0028).

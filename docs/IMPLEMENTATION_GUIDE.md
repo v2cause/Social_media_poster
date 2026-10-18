@@ -1339,6 +1339,25 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
 #### 8.2 Löschung
 - **Erstellen**: Soft-Delete, nach 30 Tagen `gdpr.erase`: DB-Kaskade, S3-Prefix löschen, Plattform-Tokens widerrufen, Stripe-Kunde löschen bzw. anonymisieren; Audit-Eintrag anonymisiert.
 - **Fertig, wenn**: keine Restdaten (Prüfskript).
+- **Umgesetzt** ([ADR 0037](adr/0037-loeschung-von-organisationen.md)):
+  - Spalte `organization.deleted_at` und Policy `erasure_cancel`, mit der Owner eine wartende Löschung zurücknehmen (Migrationen `0022_organization_deletion`, `0023_rls_organization_deletion`).
+  - API: `POST /api/org/:org/deletion` (Recht `org.delete`, Bestätigung mit dem Namen der Organisation) und `DELETE /api/org/:org/deletion` (zurücknehmen).
+    - Der `DeletedOrganizationGuard` antwortet mit 409 `ORGANIZATION_DELETION_PENDING`, außer für Kontexte, Datenexporte und das Zurücknehmen; der Zugriffs-Cache aller Mitglieder wird verworfen.
+    - Ein bezahltes Abo endet mit seiner Periode, und alle Owner bekommen die E-Mail `gdpr-erasure-scheduled` mit dem Tag der endgültigen Löschung.
+  - Scheduler, Sweeper, Token-Überwachung, Metriken-Planer und Nur-Lesen-Hinweise lassen gelöschte Organisationen aus.
+  - Worker-Rolle `gdpr`: `gdpr.sweep` reiht fällige und verlorene Löschungen ein. `gdpr.erase` widerruft die Grants, löscht den Stripe-Kunden, die Präfixe `exports/{organizationId}/` und `ws/{workspaceId}/` und in einer Transaktion jede Zeile mit der Organisation oder einem ihrer Workspaces. Dann prüft der Job auf Reste und schließt die Anfrage ohne Antragsteller ab.
+  - Die Rolle `billing` verwirft Webhook-Ereignisse von Kunden, die keine Organisation kennt, etwa die nach einer Löschung.
+  - Prüfskript `pnpm check:erasure <requestId>` (`tools/check-erasure.ts`).
+  - Web: Abschnitt "Organisation löschen" auf der Datenseite mit Bestätigungsdialog, dazu ein Hinweis über jeder Seite der Organisation und eine Erklärung statt des Inhalts auf allen anderen Seiten.
+  - Tests:
+    - `packages/core/test/gdpr/deletion.test.ts`, `packages/core/test/gdpr/erasure.test.ts`, `packages/core/test/billing/deletion-billing.test.ts`,
+    - `packages/db/test/gdpr-erasure.integration.test.ts` (Löschung aller Tabellen gegen den Katalog, andere Organisation unberührt, RLS des Zurücknehmens),
+    - `apps/api/test/organization-deletion.integration.test.ts` (mit dem Fake-Stripe) und die Rechte-Matrix,
+    - `apps/worker/test/gdpr-erasure.integration.test.ts` (Löschung über den Sweep, das Prüfskript vorher und nachher),
+    - `apps/web/e2e/organization-deletion.spec.ts`.
+- **Stand**: Das Kriterium ist erfüllt: Im Integrationstest des Workers findet das Prüfskript vor der Löschung die Zeilen und Objekte der Organisation und danach nichts.
+  - Auslegung: Als anonymisierter Audit-Eintrag bleibt die Anfrage in `gdpr_request`; das Audit-Log der Organisation nennt ihre Mitglieder und geht mit ihr (ADR 0037).
+  - Webhook-Ereignisse, die Stripe während der Löschtransaktion schickt, können als verarbeitet liegen bleiben (nur die IDs von Kunde und Abo); sie räumen die Aufbewahrungsjobs aus 8.3 ab.
 
 #### 8.3 Aufbewahrung
 - **Erstellen**: Jobs: KI-Rohdaten 180 Tage, Screenshots 7 Tage, Logs 30 Tage, Metriken nach Tarif.
