@@ -1384,6 +1384,32 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
 #### 8.4 Security-Review
 - **Erstellen**: Checkliste OWASP ASVS Level 2, Pentest, Runbook zur Secret-Rotation, CSP-Prüfung, Tuning der Rate-Limits.
 - **Fertig, wenn**: keine offenen kritischen oder hohen Befunde.
+- **Umgesetzt** ([ADR 0039](adr/0039-security-review-und-haertung.md)):
+  - **Checkliste** `docs/security/asvs-l2.md`: alle 253 Anforderungen der Level 1 und 2 von ASVS 5.0.0 mit Status, Nachweis, Lücke, Schwere und Plan. Dazu die Inventare `docs/security/kryptografie.md`, `docs/security/daten-und-protokolle.md` und `docs/security/autorisierung-und-grenzen.md`.
+  - **Pentest** `docs/security/pentest-2026-10.md`: ZAP und manuelle Prüfungen gegen das Compose-Profil `app`, dazu die Befunde der Codeprüfung danach (C-01 bis C-17) mit ihren Commits.
+  - **Runbook** `docs/runbooks/secret-rotation.md`: jedes Secret mit Ort, Nutzern, Rotation und Prüfung. `BETTER_AUTH_SECRETS` ist versioniert, `pnpm auth:reencrypt` verschlüsselt die zweiten Faktoren neu, KEKs wechseln in zwei Neustarts, `pnpm auth:revoke-sessions` beendet Sessions.
+  - **CSP**: geprüft im Pentest-Bericht; seitdem `base-uri 'none'`, HSTS aus der Web-App in Produktion und die API mit `base-uri 'none'` und `frame-ancestors 'none'`.
+  - **Rate-Limits**: Nest-Throttler je Adresse (3.000 pro Minute), je Person (600 pro Minute) und für teure Routen; Limits je Konto, Gerät und Person in den Hooks von Better Auth; E-Mails der Auth-Flows und Einladungen je Adresse; Größe der Bodies an Proxy und API; zehn Live-Streams je Person.
+  - **Anmeldung**:
+    - Der Bestätigungslink meldet nicht an, unbestätigte Konten gehen nach einem Tag, eine bekannte Adresse bekommt bei einer neuen Registrierung einen Hinweis.
+    - Passwortrichtlinie mit Leck-Prüfung, scrypt nach OWASP, Reset-Tokens nur als Digest.
+    - Sessions höchstens sieben Tage, eine neue Anmeldung beendet die alte, Cookies mit `__Host-` über https.
+    - Jeder TOTP-Code gilt einmal, Änderungen am zweiten Faktor verlangen einen bestätigten Code, Owner können 2FA verlangen, Plattform-Admins brauchen sie.
+  - **Daten und Logs**: Request-ID je Anfrage, Person und Workspace in jeder Zeile, Fehler nach Allowlist, Spans ohne Tokens und personenbezogene Daten, über OTLP nur Traces, Sicherheitsereignisse, versiegelte E-Mail-Jobs, SMTP in Produktion nur mit TLS und Fehler ohne Adresse. Die Web-App leert ihren Cache beim An- und Abmelden.
+  - **Uploads**: signierte Länge, eigenes Upload-Objekt, `media.drop-upload`, Export nur geprüfter Originale, entfernte Medien mit dem nächsten stündlichen Lauf.
+  - **Mandanten und Tarif**: Posts und Accounts zählen unter einer Sperre der Organisation, eine Person legt höchstens drei Organisationen in 30 Tagen an, Live-Streams öffnen sich nach fünf Minuten neu durch die Guards.
+  - **Betrieb und Lieferkette**: Redis ohne Default-Nutzer und mit eigenem Nutzer je Zweck, Compose mit den Variablen je Dienst, Produktionsregeln gegen Beispielwerte und Klartext, Images auf Debian 13 ohne Paketmanager, der CI-Job `images` mit SBOM und Trivy, auch wöchentlich.
+  - **Tests**:
+    - `apps/api/test/auth.integration.test.ts`, `auth-rotation.integration.test.ts`, `rate-limits.integration.test.ts`, `security-events.integration.test.ts`, `two-factor-requirement.integration.test.ts`, `live-events.integration.test.ts`, `x-browser.integration.test.ts` und `tenancy.integration.test.ts`,
+    - die Unit-Tests von Passwortrichtlinie, Leck-Prüfung, Body-Limits, E-Mails je Adresse und Cookies in `apps/api/src`,
+    - `apps/worker/test/notify.integration.test.ts`, `media.integration.test.ts`, `media-cleanup.integration.test.ts` und `retention.integration.test.ts`,
+    - `apps/browser-worker/test/redis-acl.integration.test.ts` mit den Nutzern von Redis aus `compose.yaml`,
+    - `packages/crypto/src/password-hash.test.ts`, `packages/emails/src/smtp-mailer.test.ts`, `packages/observability/src/redact.test.ts`, `span-privacy.test.ts` und `env.test.ts`, `packages/queue/src/notifications.test.ts`, die Sperren in `packages/db/test/publishing-adapters.integration.test.ts` und `channel-adapters.integration.test.ts`,
+    - `apps/web/src/lib/safe-next.test.ts`, `apps/web/src/i18n/locale.test.ts`, `apps/web/src/security/content-security-policy.test.ts` und `apps/web/e2e/x-browser.spec.ts` (ein Plattform-Admin richtet den zweiten Faktor ein).
+- **Stand**: Das Kriterium ist erfüllt: Kein Befund der Stufen kritisch oder hoch ist offen. Die Checkliste zählt 148 erfüllte, 36 teilweise erfüllte, 5 offene und 64 nicht anwendbare Anforderungen; jede Lücke ist niedrig oder mittel und hat einen Plan. Mittel sind nur noch Punkte des Deployments: TLS, Zertifikate, Secret-Store und Log-Backend.
+  - Akzeptierte Abweichungen stehen mit Begründung und Wiedervorlage in ADR 0039, darunter die freiwillige 2FA, Sessions ohne Inaktivitätszeit und Eigenheiten von Better Auth (Token im JSON, Fenster der TOTP-Codes, verschlüsselte Backup-Codes).
+  - Verschoben sind die Härtung von Transport und Betrieb nach Schritt 8.9 sowie Alarme, der Log-Kontext je Job und das Runbook für verlorene zweite Faktoren nach Schritt 8.7.
+  - Abweichung von der Architektur: Der Login über Google oder Microsoft entfällt (ADR 0039).
 
 #### 8.5 Lasttest
 - **Erstellen**: k6-Skripte: 10.000 fällige Varianten pro Minute, API-p95 unter 300 ms für Lesezugriffe.
