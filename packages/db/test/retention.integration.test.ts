@@ -14,11 +14,11 @@ import { seedDemoData } from '../src/seed/demo';
 import { seedDemoAnalytics } from '../src/seed/demo-analytics';
 import { createOrganization, fillOrganization, type TestOrganization } from './support/organization-fixtures';
 
-// Guide step 8.3 on PostgreSQL: the store clears the raw data of AI generations and keeps their
-// counts and costs, deletes processed webhook events and leaves waiting ones, clears the
-// connection data of the audit log and deletes expired sessions and old counters of the rate
-// limits, and deletes the metrics of one organization before a moment, in batches of a limit,
-// without touching another organization.
+// Guide steps 8.3 and 8.4 on PostgreSQL: the store clears the raw data of AI generations and
+// keeps their counts and costs, deletes processed webhook events and leaves waiting ones, clears
+// the connection data of the audit log and deletes expired sessions and old counters of the rate
+// limits, deletes old accounts never verified, and deletes the metrics of one organization before
+// a moment, in batches of a limit, without touching another organization.
 
 const NOW = new Date('2026-10-17T10:00:00Z');
 const DAY = 24 * 60 * 60 * 1000;
@@ -186,6 +186,50 @@ describe('the retention store on PostgreSQL', () => {
     expect(left.rows.map((row) => row.id)).toEqual([sessions[1], sessions[2]]);
     const counters = await sql.query<{ key: string }>(`SELECT key FROM rate_limit ORDER BY key`);
     expect(counters.rows.map((row) => row.key)).toEqual(['203.0.113.7|/get-session']);
+  });
+
+  it('deletes old accounts never verified with their sessions and credentials, but not members', async () => {
+    const { store, sql } = clients();
+    const users = { stale: randomUUID(), fresh: randomUUID(), verified: randomUUID(), member: randomUUID() };
+    for (const [id, verified, createdAt] of [
+      [users.stale, false, daysAgo(2)],
+      [users.fresh, false, NOW],
+      [users.verified, true, daysAgo(400)],
+      [users.member, false, daysAgo(400)],
+    ] as const) {
+      await sql.query(
+        `INSERT INTO users (id, email, name, email_verified, created_at, updated_at)
+         VALUES ($1, $2, 'Somebody', $3, $4, now())`,
+        [id, `${id}@unverified.test`, verified, createdAt],
+      );
+    }
+    await sql.query(
+      `INSERT INTO membership (id, organization_id, user_id, role, updated_at) VALUES ($1, $2, $3, 'VIEWER', now())`,
+      [randomUUID(), other.organizationId, users.member],
+    );
+    await sql.query(
+      `INSERT INTO auth_account (id, user_id, account_id, provider_id, password, updated_at)
+       VALUES ($1, $2, $3, 'credential', 'not-a-real-hash', now())`,
+      [randomUUID(), users.stale, users.stale],
+    );
+    await sql.query(
+      `INSERT INTO session (id, user_id, token, expires_at, updated_at) VALUES ($1, $2, $3, $4, now())`,
+      [randomUUID(), users.stale, randomUUID(), daysAgo(-5)],
+    );
+
+    await expect(store.deleteUnverifiedUsers(daysAgo(1), 10)).resolves.toBe(1);
+    await expect(store.deleteUnverifiedUsers(daysAgo(1), 10)).resolves.toBe(0);
+
+    const left = await sql.query<{ id: string }>(`SELECT id FROM users WHERE id = ANY($1) ORDER BY id`, [
+      Object.values(users),
+    ]);
+    expect(left.rows.map((row) => row.id)).toEqual([users.fresh, users.verified, users.member].sort());
+    await expect(
+      count(`SELECT count(*)::int AS count FROM auth_account WHERE user_id = $1`, [users.stale]),
+    ).resolves.toBe(0);
+    await expect(
+      count(`SELECT count(*)::int AS count FROM session WHERE user_id = $1`, [users.stale]),
+    ).resolves.toBe(0);
   });
 
   it('lists the organizations with workspaces page by page', async () => {

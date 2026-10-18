@@ -51,6 +51,21 @@ export class PrismaRetentionStore implements RetentionStore {
     });
   }
 
+  deleteUnverifiedUsers(createdBefore: Date, limit: number): Promise<number> {
+    // Sessions, credentials and second factors go with the user (ON DELETE CASCADE). Without a
+    // verified address nobody signed in, so nothing else can belong to the account; should a
+    // membership exist all the same, the account stays.
+    return runInSystemScope(
+      () => this.system.$executeRaw`
+        DELETE FROM users
+         WHERE id IN (
+           SELECT id FROM users
+            WHERE email_verified = false AND created_at < ${createdBefore}
+              AND NOT EXISTS (SELECT 1 FROM membership WHERE membership.user_id = users.id)
+            LIMIT ${limit})`,
+    );
+  }
+
   async organizations(after: string | null, limit: number): Promise<string[]> {
     const rows = await runInSystemScope(() =>
       this.system.organization.findMany({

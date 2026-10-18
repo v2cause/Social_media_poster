@@ -47,6 +47,8 @@ model User {
   notificationPreferences NotificationPreference[]
   gdprRequests            GdprRequest[]
 
+  // For the retention periods, which delete accounts not verified within a day.
+  @@index([createdAt], map: "users_unverified_idx", where: raw("email_verified = false"))
   // "user" is a reserved word in PostgreSQL; raw SQL would need quotes everywhere.
   @@map("users")
 }
