@@ -16,6 +16,7 @@ import { twoFactor } from 'better-auth/plugins';
 import type Redis from 'ioredis';
 import { uuidv7 } from 'uuidv7';
 
+import { clipped, type SecurityEvent } from '../../common/logging/security-events';
 import type { ApiEnv } from '../../config/api-env';
 import { createAuthHooks } from './auth-hooks';
 import type { AuthMailer } from './auth-mailer';
@@ -36,6 +37,13 @@ export interface AuthDependencies {
 }
 
 const DAY_SECONDS = 24 * 60 * 60;
+
+// Better Auth reports a callback, redirect or origin that it refuses at level error, with the value
+// the client sent (its origin check). That is input of the client, not a failure of the API: it
+// becomes a security event at level warn, with the value clipped (pentest of guide step 8.4).
+const REFUSED_TARGET =
+  /^Invalid (origin|callbackURL|redirectURL|errorCallbackURL|newUserCallbackURL|redirect URL): /;
+const REDIRECT_REJECTED: SecurityEvent = 'security.redirect_rejected';
 
 /**
  * Cookies over https carry the prefix __Host- (ASVS 3.3.3): Secure, Path=/ and no Domain, so no
@@ -136,6 +144,10 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
     },
     advanced: {
       ...authCookieOptions(env),
+      // Better Auth skips its checks of the Origin and of callback and redirect URLs when NODE_ENV
+      // is test. They stay on: the tests run what production runs, and a wrong NODE_ENV cannot
+      // open redirects to other sites (pentest of guide step 8.4).
+      disableOriginCheck: false,
       // The reverse proxy overwrites X-Real-IP with the peer address (Caddyfile). A forwarded
       // chain is not trusted, because its first entry is set by the client.
       ipAddress: { ipAddressHeaders: ['x-real-ip'] },
@@ -156,7 +168,13 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
       level: 'warn',
       // Only the message: the extra arguments can hold request data.
       log: (level, message) => {
-        if (level === 'error') {
+        const refused = REFUSED_TARGET.exec(message);
+        if (refused) {
+          logger.warn(
+            { field: refused[1], value: clipped(message.slice(refused[0].length)) },
+            REDIRECT_REJECTED,
+          );
+        } else if (level === 'error') {
           logger.error({ message }, 'auth.error');
         } else {
           logger.warn({ message }, 'auth.warning');

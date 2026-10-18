@@ -130,6 +130,22 @@ describe('security events of the API', () => {
     expect(JSON.stringify(warn.mock.calls)).not.toContain('hunter2');
   });
 
+  it('logs a callback URL of another site as a warning, clipped, not as an error', async () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn');
+    const error = vi.spyOn(Logger.prototype, 'error');
+    const target = `https://evil.example/${'phish'.repeat(100)}`;
+
+    const response = await browser(started().server, '198.51.100.42')
+      .post('/api/auth/sign-up/email')
+      .send({ email: 'redirect@events.test', password: PASSWORD, name: 'Redirect', callbackURL: target });
+    expect(response.status).toBe(403);
+
+    expect(events(warn)).toEqual([
+      [{ field: 'callbackURL', value: target.slice(0, 200) }, 'security.redirect_rejected'],
+    ]);
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it('logs an OAuth callback with a forged state and sign-ins beyond the limit of Better Auth', async () => {
     const agent = await signUpVerified(started(), 'oauth@events.test');
     const warn = vi.spyOn(Logger.prototype, 'warn');

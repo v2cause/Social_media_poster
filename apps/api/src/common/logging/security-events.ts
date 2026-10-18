@@ -30,6 +30,8 @@ export const SECURITY_EVENTS = [
   'security.webhook_rejected',
   /** An OAuth callback with an unknown, used or foreign state. */
   'security.oauth_rejected',
+  /** A callback, redirect or origin of an auth request that is not of the app (open redirect). */
+  'security.redirect_rejected',
 ] as const;
 export type SecurityEvent = (typeof SECURITY_EVENTS)[number];
 
