@@ -1,4 +1,10 @@
-import type { PublishJobStore, UnclearAttempt, VariantRunResult } from '@smp/core';
+import type {
+  MissedWindowBehavior,
+  PublishJobStore,
+  PublishJobVariant,
+  UnclearAttempt,
+  VariantRunResult,
+} from '@smp/core';
 
 import { bytesOf, toSocialConnection } from '../channels/mappers';
 import { markNeedsReauth } from '../channels/reauth';
@@ -14,6 +20,28 @@ import type { TenantTransaction } from '../tenant-context';
 /** A plain JSON copy: drops undefined values and fails on what JSON cannot hold. */
 const json = (value: unknown): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+
+/** The variant with the settings of its workspace, as lockForJob reads it in one statement. */
+interface LockedVariantRow {
+  id: string;
+  workspace_id: string;
+  post_id: string;
+  platform: PublishJobVariant['platform'];
+  status: PublishJobVariant['status'];
+  version: number;
+  schedule_version: number;
+  social_account_id: string | null;
+  text: string;
+  hashtags: string[];
+  first_comment: string | null;
+  link_url: string | null;
+  scheduled_at: Date | null;
+  queued_at: Date | null;
+  lease_owner: string | null;
+  lease_until: Date | null;
+  dry_run: boolean | null;
+  missed_window_behavior: MissedWindowBehavior | null;
+}
 
 /** SocialAccount.settings as an object; anything else counts as no settings. */
 const settingsOf = (value: Prisma.JsonValue): Record<string, unknown> =>
@@ -40,43 +68,35 @@ export function createPrismaPublishJobStore(tx: TenantTransaction): PublishJobSt
     variants: {
       async lockForJob(workspaceId, variantId) {
         // The row lock lasts until the end of the transaction: claims of the same variant wait.
-        const locked = await tx.$queryRaw<{ id: string }[]>`
-          SELECT id FROM post_variant
-           WHERE id = ${variantId}::uuid AND workspace_id = ${workspaceId}::uuid
-             FOR UPDATE`;
-        if (locked.length === 0) {
-          return null;
-        }
-        const row = await tx.postVariant.findFirst({
-          where: { id: variantId, workspaceId },
-          select: {
-            id: true,
-            workspaceId: true,
-            postId: true,
-            platform: true,
-            status: true,
-            version: true,
-            scheduleVersion: true,
-            socialAccountId: true,
-            text: true,
-            hashtags: true,
-            firstComment: true,
-            linkUrl: true,
-            scheduledAt: true,
-            queuedAt: true,
-            leaseOwner: true,
-            leaseUntil: true,
-          },
-        });
-        const settings = await tx.workspaceSettings.findUnique({
-          where: { workspaceId },
-          select: { dryRun: true, missedWindowBehavior: true },
-        });
+        // One statement with the settings of the workspace (guide step 8.5).
+        const [row] = await tx.$queryRaw<LockedVariantRow[]>`
+          SELECT v.id, v.workspace_id, v.post_id, v.platform, v.status, v.version, v.schedule_version,
+                 v.social_account_id, v.text, v.hashtags, v.first_comment, v.link_url, v.scheduled_at,
+                 v.queued_at, v.lease_owner, v.lease_until, s.dry_run, s.missed_window_behavior
+            FROM post_variant v
+            LEFT JOIN workspace_settings s ON s.workspace_id = v.workspace_id
+           WHERE v.id = ${variantId}::uuid AND v.workspace_id = ${workspaceId}::uuid
+             FOR UPDATE OF v`;
         return row
           ? {
-              ...row,
-              dryRun: settings?.dryRun ?? false,
-              missedWindowBehavior: settings?.missedWindowBehavior ?? 'FAIL',
+              id: row.id,
+              workspaceId: row.workspace_id,
+              postId: row.post_id,
+              platform: row.platform,
+              status: row.status,
+              version: row.version,
+              scheduleVersion: row.schedule_version,
+              socialAccountId: row.social_account_id,
+              text: row.text,
+              hashtags: row.hashtags,
+              firstComment: row.first_comment,
+              linkUrl: row.link_url,
+              scheduledAt: row.scheduled_at,
+              queuedAt: row.queued_at,
+              leaseOwner: row.lease_owner,
+              leaseUntil: row.lease_until,
+              dryRun: row.dry_run ?? false,
+              missedWindowBehavior: row.missed_window_behavior ?? 'FAIL',
             }
           : null;
       },
@@ -134,28 +154,23 @@ export function createPrismaPublishJobStore(tx: TenantTransaction): PublishJobSt
         );
       },
       async start(attempt) {
-        const last = await tx.publishAttempt.aggregate({
-          where: {
-            workspaceId: attempt.workspaceId,
-            variantId: attempt.variantId,
-            scheduleVersion: attempt.scheduleVersion,
-          },
-          _max: { attemptNumber: true },
-        });
-        const attemptNumber = (last._max.attemptNumber ?? 0) + 1;
-        await tx.publishAttempt.create({
-          data: {
-            id: attempt.id,
-            workspaceId: attempt.workspaceId,
-            variantId: attempt.variantId,
-            scheduleVersion: attempt.scheduleVersion,
-            attemptNumber,
-            trigger: attempt.trigger,
-            leaseOwner: attempt.leaseOwner,
-            startedAt: attempt.startedAt,
-          },
-        });
-        return attemptNumber;
+        // The next number of the schedule version and the row in one statement (guide step
+        // 8.5); the claim holds the row lock of the variant, so no other run counts meanwhile.
+        const [row] = await tx.$queryRaw<{ attempt_number: number }[]>`
+          INSERT INTO publish_attempt
+                 (id, workspace_id, variant_id, schedule_version, attempt_number, trigger, lease_owner, started_at)
+          SELECT ${attempt.id}::uuid, ${attempt.workspaceId}::uuid, ${attempt.variantId}::uuid,
+                 ${attempt.scheduleVersion}::int, COALESCE(MAX(attempt_number), 0) + 1, ${attempt.trigger}::text,
+                 ${attempt.leaseOwner}::text, ${attempt.startedAt}::timestamptz
+            FROM publish_attempt
+           WHERE workspace_id = ${attempt.workspaceId}::uuid
+             AND variant_id = ${attempt.variantId}::uuid
+             AND schedule_version = ${attempt.scheduleVersion}::int
+          RETURNING attempt_number`;
+        if (!row) {
+          throw new Error('The publish attempt was not written.');
+        }
+        return row.attempt_number;
       },
       async markSent(workspaceId, attemptId) {
         await tx.publishAttempt.updateMany({

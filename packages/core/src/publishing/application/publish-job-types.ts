@@ -10,9 +10,12 @@ import type { PublishFailureCode } from '../domain/publish-job';
 import type {
   OperationPrices,
   PublishJobStore,
+  PublishJobTarget,
   PublishJobTrigger,
   PublishJobUnitOfWork,
   PublishJobVariant,
+  PublishMediaItem,
+  PublishRendition,
   UnclearAttempt,
 } from '../ports/publish-job';
 
@@ -67,7 +70,17 @@ export type PublishJobOutcome =
   | { kind: 'failed'; code: PublishFailureCode }
   | { kind: 'needs_attention'; code: PublishFailureCode };
 
-/** A run after its claim: the variant as it was claimed, and the attempt it logged. */
+/** An image of the variant with the rendition its platform gets; null while it is being made. */
+export interface RunMedia {
+  item: PublishMediaItem;
+  rendition: PublishRendition | null;
+}
+
+/**
+ * A run after its claim: the variant as it was claimed, the attempt it logged, and what the run
+ * sends to and with, read in the transaction of the claim (guide step 8.5: one transaction
+ * less per run).
+ */
 export interface ClaimedRun {
   variant: PublishJobVariant;
   /** The version of the variant after the claim. */
@@ -76,6 +89,9 @@ export interface ClaimedRun {
   startedAt: Date;
   /** The open attempts before this one. */
   unclear: UnclearAttempt[];
+  /** The account with its connection; null when the variant has no account or it is gone. */
+  target: PublishJobTarget | null;
+  media: RunMedia[];
 }
 
 export const statusEvent = (variant: PublishJobVariant, status: VariantStatus): OutboxEventInput => ({

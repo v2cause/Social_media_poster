@@ -21,7 +21,6 @@ import type {
   PublishJobTarget,
   PublishJobVariant,
   PublishMediaItem,
-  PublishRendition,
 } from '../ports/publish-job';
 import {
   statusEvent,
@@ -30,6 +29,7 @@ import {
   type PublishJobDependencies,
   type PublishJobInput,
   type PublishJobOutcome,
+  type RunMedia,
 } from './publish-job-types';
 import {
   attemptResultOf,
@@ -68,6 +68,20 @@ interface Content {
   profile: string;
 }
 
+/** The images of a variant with the renditions of its platform, read with the claim. */
+export async function readRunMedia(store: PublishJobStore, variant: PublishJobVariant): Promise<RunMedia[]> {
+  const profile = renditionProfileFor(variant.platform).key;
+  const media: RunMedia[] = [];
+  for (const item of await store.media.itemsOf(variant.workspaceId, variant.id)) {
+    const cropHash = cropHashOf(item.crop, item.letterbox);
+    media.push({
+      item,
+      rendition: await store.media.rendition(variant.workspaceId, item.assetId, profile, cropHash),
+    });
+  }
+  return media;
+}
+
 export class PublishRun {
   /** The version of the variant this run wrote last. */
   private version: number;
@@ -101,15 +115,10 @@ export class PublishRun {
   }
 
   private async run(): Promise<RunEnd> {
-    const { variant } = this.claimed;
-    const accountId = variant.socialAccountId;
-    if (accountId === null) {
+    const { variant, target, media } = this.claimed;
+    if (variant.socialAccountId === null) {
       return failedEnd('SOCIAL_ACCOUNT_DISCONNECTED', 'The variant has no account.');
     }
-    const { target, items } = await this.unit(async (store) => ({
-      target: await store.targets.find(variant.workspaceId, accountId),
-      items: await store.media.itemsOf(variant.workspaceId, variant.id),
-    }));
     if (!target || target.disconnectedAt !== null || target.account.platform !== variant.platform) {
       return failedEnd('SOCIAL_ACCOUNT_DISCONNECTED', 'The account is disconnected.');
     }
@@ -135,7 +144,10 @@ export class PublishRun {
     );
     this.tokens = tokens;
     const context = (): AdapterContext => this.contextFor(target, tokens);
-    const content = this.contentOf(variant, items);
+    const content = this.contentOf(
+      variant,
+      media.map((entry) => entry.item),
+    );
 
     // Step 5 comes first, so the reconcile can read.
     await tokens.refresh(context, false);
@@ -179,8 +191,7 @@ export class PublishRun {
     }
 
     // Step 8: from the mark on, a stopped run leaves the attempt UNKNOWN.
-    await this.extendLease();
-    await this.unit((store) => store.attempts.markSent(variant.workspaceId, this.claimed.attemptId));
+    await this.extendLease({ markSent: true });
     this.sent = true;
     try {
       const result = await tokens.withToken(context, (ctx) => adapter.publish(request.request, ctx));
@@ -303,17 +314,8 @@ export class PublishRun {
     adapter: SocialPlatformAdapter,
     type: SocialAccountType,
   ): Promise<{ kind: 'ready'; request: PublishRequest } | { kind: 'not_ready'; end: RunEnd }> {
-    const renditions = await this.unit(async (store) => {
-      const found: (PublishRendition | null)[] = [];
-      for (const item of content.items) {
-        const cropHash = cropHashOf(item.crop, item.letterbox);
-        found.push(await store.media.rendition(variant.workspaceId, item.assetId, content.profile, cropHash));
-      }
-      return found;
-    });
     const media: PublishMedia[] = [];
-    for (const [index, item] of content.items.entries()) {
-      const rendition = renditions[index];
+    for (const { item, rendition } of this.claimed.media) {
       if (!rendition) {
         return {
           kind: 'not_ready',
@@ -414,16 +416,24 @@ export class PublishRun {
     };
   }
 
-  /** Moves the end of the lease before a long step, by compare-and-swap (architecture 7, step 2). */
-  private async extendLease(): Promise<void> {
-    const { variant } = this.claimed;
+  /**
+   * Moves the end of the lease before a long step, by compare-and-swap (architecture 7, step 2).
+   * Right before the request goes out it also marks the attempt UNKNOWN, in the same transaction:
+   * a run that lost its lease never marks it.
+   */
+  private async extendLease(options: { markSent?: boolean } = {}): Promise<void> {
+    const { variant, attemptId } = this.claimed;
     const until = new Date(this.deps.clock.now().getTime() + (this.deps.leaseMs ?? PUBLISH_LEASE_MS));
-    const version = await this.unit((store) =>
-      store.variants.extendLease(variant.workspaceId, variant.id, this.version, {
+    const version = await this.unit(async (store) => {
+      const extended = await store.variants.extendLease(variant.workspaceId, variant.id, this.version, {
         owner: this.job.owner,
         until,
-      }),
-    );
+      });
+      if (extended !== null && options.markSent) {
+        await store.attempts.markSent(variant.workspaceId, attemptId);
+      }
+      return extended;
+    });
     if (version === null) {
       throw new LeaseLostError();
     }

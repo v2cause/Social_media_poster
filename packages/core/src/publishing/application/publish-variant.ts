@@ -1,6 +1,6 @@
 import { isMissedWindow, isRunnable, LEASE_GRACE_MS, PUBLISH_LEASE_MS } from '../domain/publish-job';
 import type { PublishJobStore } from '../ports/publish-job';
-import { PublishRun } from './publish-run';
+import { PublishRun, readRunMedia } from './publish-run';
 import {
   statusEvent,
   unitOfJob,
@@ -13,8 +13,8 @@ import {
 // The publish job (guide step 4.8, architecture 7, steps 1 to 3): a job ends without action
 // when its variant moved on, waits for the live lease of another run, fails a variant whose
 // window it missed, and otherwise claims the variant with a lease by compare-and-swap and logs
-// its attempt, in one transaction. Postgres decides, not the queue. The run itself follows in
-// PublishRun.
+// its attempt, in one transaction that also reads the account and the media of the run. Postgres
+// decides, not the queue. The run itself follows in PublishRun.
 
 export class PublishVariant {
   constructor(private readonly deps: PublishJobDependencies) {}
@@ -82,6 +82,12 @@ export class PublishVariant {
     if (variant.status !== 'PUBLISHING') {
       await store.outbox.add(job.workspaceId, statusEvent(variant, 'PUBLISHING'));
     }
-    return { kind: 'claimed', run: { variant, version, attemptId, startedAt: now, unclear } };
+    // What the run sends to and with, read in this transaction instead of one of its own.
+    const target =
+      variant.socialAccountId === null
+        ? null
+        : await store.targets.find(job.workspaceId, variant.socialAccountId);
+    const media = await readRunMedia(store, variant);
+    return { kind: 'claimed', run: { variant, version, attemptId, startedAt: now, unclear, target, media } };
   }
 }
