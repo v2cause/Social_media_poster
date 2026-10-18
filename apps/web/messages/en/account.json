@@ -3,6 +3,14 @@
     "title": "Security",
     "description": "Two-factor authentication and signed-in devices."
   },
+  "password": {
+    "title": "Password",
+    "description": "Change your password. You need your current password for it.",
+    "current": "Current password",
+    "signOutOthers": "Sign out all other devices",
+    "submit": "Change password",
+    "changed": "Your password has been changed."
+  },
   "twoFactor": {
     "title": "Two-factor authentication",
     "statusOn": "On",

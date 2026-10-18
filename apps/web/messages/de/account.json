@@ -3,6 +3,14 @@
     "title": "Sicherheit",
     "description": "Zwei-Faktor-Authentifizierung und angemeldete Geräte."
   },
+  "password": {
+    "title": "Passwort",
+    "description": "Ändern Sie Ihr Passwort. Dafür brauchen Sie Ihr aktuelles Passwort.",
+    "current": "Aktuelles Passwort",
+    "signOutOthers": "Alle anderen Geräte abmelden",
+    "submit": "Passwort ändern",
+    "changed": "Ihr Passwort wurde geändert."
+  },
   "twoFactor": {
     "title": "Zwei-Faktor-Authentifizierung",
     "statusOn": "Aktiv",

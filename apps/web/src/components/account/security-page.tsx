@@ -1,6 +1,13 @@
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
 import { getMeGetQueryKey, useMeGet } from '@smp/api-client';
+import {
+  changePasswordSchema,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  type ChangePasswordRequest,
+} from '@smp/contracts';
 import {
   Alert,
   Badge,
@@ -10,6 +17,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,6 +27,7 @@ import {
   ErrorState,
   FormField,
   Input,
+  Label,
   LoadingState,
   Table,
   TableBody,
@@ -31,13 +40,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import QRCode from 'react-qr-code';
 import { toast } from 'sonner';
 
 import { useAuthError } from '@/components/auth/auth-error';
 import { authClient } from '@/lib/auth-client';
+import { useFieldError } from '@/lib/use-field-error';
 
-/** Two-factor setup and signed-in devices (guide step 1.9). */
+/** Password, two-factor setup and signed-in devices (guide steps 1.9 and 8.4). */
 export function SecurityPage() {
   const t = useTranslations('account');
   return (
@@ -46,9 +57,104 @@ export function SecurityPage() {
         <h1 className="text-2xl font-semibold">{t('security.title')}</h1>
         <p className="text-muted-foreground">{t('security.description')}</p>
       </div>
+      <PasswordCard />
       <TwoFactorCard />
       <SessionsCard />
     </div>
+  );
+}
+
+/**
+ * The change of the password (ASVS 6.2.2 and 6.2.3): the current one and a new one, which the API
+ * checks against the password policy. Signing out the other devices is the default (ASVS 7.4.3).
+ */
+function PasswordCard() {
+  const t = useTranslations();
+  const queryClient = useQueryClient();
+  const fieldError = useFieldError();
+  const authError = useAuthError();
+  const [error, setError] = useState<string | null>(null);
+  const form = useForm<ChangePasswordRequest>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: { current: '', password: '', confirm: '', signOutOthers: true },
+  });
+
+  const submit = form.handleSubmit(async ({ current, password, signOutOthers }) => {
+    setError(null);
+    const result = await authClient.changePassword({
+      currentPassword: current,
+      newPassword: password,
+      revokeOtherSessions: signOutOthers,
+    });
+    if (result.error) {
+      setError(authError(result.error));
+      return;
+    }
+    form.reset();
+    toast.success(t('account.password.changed'));
+    await queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('account.password.title')}</CardTitle>
+        <CardDescription>{t('account.password.description')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+          {error ? <Alert variant="destructive" title={error} /> : null}
+          <FormField
+            id="password-current"
+            label={t('account.password.current')}
+            error={fieldError(form.formState.errors.current)}
+          >
+            {(control) => (
+              <Input
+                {...control}
+                {...form.register('current')}
+                type="password"
+                autoComplete="current-password"
+              />
+            )}
+          </FormField>
+          <FormField
+            id="password-new"
+            label={t('auth.fields.newPassword')}
+            hint={t('auth.passwordHint', { min: PASSWORD_MIN_LENGTH })}
+            error={fieldError(form.formState.errors.password, {
+              minimum: PASSWORD_MIN_LENGTH,
+              maximum: PASSWORD_MAX_LENGTH,
+            })}
+          >
+            {(control) => (
+              <Input
+                {...control}
+                {...form.register('password')}
+                type="password"
+                autoComplete="new-password"
+              />
+            )}
+          </FormField>
+          <FormField
+            id="password-confirm"
+            label={t('auth.fields.confirmPassword')}
+            error={fieldError(form.formState.errors.confirm)}
+          >
+            {(control) => (
+              <Input {...control} {...form.register('confirm')} type="password" autoComplete="new-password" />
+            )}
+          </FormField>
+          <div className="flex items-center gap-2">
+            <Checkbox id="password-sign-out-others" {...form.register('signOutOthers')} />
+            <Label htmlFor="password-sign-out-others">{t('account.password.signOutOthers')}</Label>
+          </div>
+          <Button type="submit" className="self-start" loading={form.formState.isSubmitting}>
+            {t('account.password.submit')}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
