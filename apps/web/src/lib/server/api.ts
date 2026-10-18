@@ -33,7 +33,12 @@ const API_URL = process.env['API_INTERNAL_URL'] ?? 'http://127.0.0.1:3001';
 interface ApiResult<T> {
   status: number;
   data: T | null;
+  /** The code of a problem the API answered with. */
+  code?: string;
 }
+
+/** Where a member goes whose organization requires a second factor (guide step 8.4). */
+const TWO_FACTOR_SETUP = '/account/security?required=two-factor';
 
 async function serverFetch<T>(
   path: string,
@@ -54,7 +59,12 @@ async function serverFetch<T>(
     cache: 'no-store',
   });
   if (!response.ok) {
-    return { status: response.status, data: null };
+    const problem = (await response.json().catch(() => null)) as { code?: unknown } | null;
+    return {
+      status: response.status,
+      data: null,
+      ...(typeof problem?.code === 'string' ? { code: problem.code } : {}),
+    };
   }
   return { status: response.status, data: schema.parse(await response.json()) };
 }
@@ -77,9 +87,15 @@ export async function getMemberships(): Promise<MyMemberships['memberships']> {
   return (await serverFetch('/api/me/memberships', myMembershipsSchema)).data?.memberships ?? [];
 }
 
-/** The workspace of /w/:ws; unknown or foreign workspaces render the 404 page. */
+/**
+ * The workspace of /w/:ws; unknown or foreign workspaces render the 404 page, and a member without
+ * the second factor the organization requires goes to the security page to set it up.
+ */
 export async function getWorkspaceContext(slug: string): Promise<WorkspaceContext> {
   const result = await serverFetch(`/api/w/${encodeURIComponent(slug)}`, workspaceContextSchema);
+  if (result.code === 'TWO_FACTOR_REQUIRED') {
+    redirect(TWO_FACTOR_SETUP);
+  }
   if (!result.data) {
     notFound();
   }
@@ -91,6 +107,9 @@ export async function getOrganizationContext(organizationId: string): Promise<Or
     `/api/org/${encodeURIComponent(organizationId)}`,
     organizationContextSchema,
   );
+  if (result.code === 'TWO_FACTOR_REQUIRED') {
+    redirect(TWO_FACTOR_SETUP);
+  }
   if (!result.data) {
     notFound();
   }

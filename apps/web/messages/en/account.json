@@ -1,7 +1,11 @@
 {
   "security": {
     "title": "Security",
-    "description": "Two-factor authentication and signed-in devices."
+    "description": "Two-factor authentication and signed-in devices.",
+    "required": {
+      "title": "Your organization requires a second factor",
+      "description": "Set up two-factor authentication here. Afterwards you can continue working in the organization."
+    }
   },
   "password": {
     "title": "Password",

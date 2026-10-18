@@ -1,7 +1,11 @@
 {
   "security": {
     "title": "Sicherheit",
-    "description": "Zwei-Faktor-Authentifizierung und angemeldete Geräte."
+    "description": "Zwei-Faktor-Authentifizierung und angemeldete Geräte.",
+    "required": {
+      "title": "Ihre Organisation verlangt einen zweiten Faktor",
+      "description": "Richten Sie die Zwei-Faktor-Authentifizierung hier ein. Danach können Sie in der Organisation weiterarbeiten."
+    }
   },
   "password": {
     "title": "Passwort",

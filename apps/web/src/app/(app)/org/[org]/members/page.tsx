@@ -17,6 +17,7 @@ export default async function MembersPage({ params }: { params: Promise<{ org: s
       organizationName={context.organization.name}
       role={context.role}
       currentUserId={me?.id ?? ''}
+      requireTwoFactor={context.security.requireTwoFactor}
     />
   );
 }

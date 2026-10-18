@@ -7,6 +7,12 @@ export async function generateMetadata() {
   return { title: t('title') };
 }
 
-export default function AccountSecurityPage() {
-  return <SecurityPage />;
+/** ?required=two-factor: an organization of the user requires a second factor (guide step 8.4). */
+export default async function AccountSecurityPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ required?: string }>;
+}) {
+  const { required } = await searchParams;
+  return <SecurityPage twoFactorRequired={required === 'two-factor'} />;
 }

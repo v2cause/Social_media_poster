@@ -55,5 +55,15 @@
     "description": "Sie verlieren den Zugriff auf alle Workspaces von {organization}.",
     "action": "Organisation verlassen",
     "confirm": "Verlassen"
+  },
+  "security": {
+    "title": "Zwei-Faktor-Authentifizierung",
+    "description": "Verlangen Sie von allen Mitgliedern einen zweiten Faktor. Mitglieder ohne zweiten Faktor gelangen erst wieder in die Organisation, wenn sie ihn in ihren Sicherheitseinstellungen eingerichtet haben.",
+    "required": "Verlangt",
+    "optional": "Freiwillig",
+    "require": "Für alle Mitglieder verlangen",
+    "makeOptional": "Nicht mehr verlangen",
+    "nowRequired": "Alle Mitglieder brauchen jetzt einen zweiten Faktor.",
+    "nowOptional": "Der zweite Faktor ist wieder freiwillig."
   }
 }

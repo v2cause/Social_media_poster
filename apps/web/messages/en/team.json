@@ -55,5 +55,15 @@
     "description": "You lose access to every workspace of {organization}.",
     "action": "Leave organization",
     "confirm": "Leave"
+  },
+  "security": {
+    "title": "Two-factor authentication",
+    "description": "Require a second factor of every member. Members without one regain access to the organization once they have set it up in their security settings.",
+    "required": "Required",
+    "optional": "Optional",
+    "require": "Require for all members",
+    "makeOptional": "Stop requiring it",
+    "nowRequired": "Every member now needs a second factor.",
+    "nowOptional": "The second factor is optional again."
   }
 }

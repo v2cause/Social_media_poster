@@ -12,6 +12,7 @@ import {
   useOrganizationRemoveMember,
   useOrganizationResendInvitation,
   useOrganizationRevokeInvitation,
+  useOrganizationSetSecurity,
   useOrganizationWorkspaces,
 } from '@smp/api-client';
 import { can, inviteMemberSchema, ROLES, type InviteMemberRequest, type Role } from '@smp/contracts';
@@ -63,6 +64,8 @@ interface TeamPageProps {
   organizationName: string;
   role: Role;
   currentUserId: string;
+  /** Whether every member needs a second factor (guide step 8.4). */
+  requireTwoFactor: boolean;
 }
 
 /** Roles a member may grant: owners every role, admins every role but owner. */
@@ -87,8 +90,59 @@ export function TeamPage(props: TeamPageProps) {
       </div>
       <MembersTable {...props} canManage={canManage} />
       {canManage ? <OpenInvitations organizationId={props.organizationId} actorRole={props.role} /> : null}
+      {can(props.role, 'org.security') ? (
+        <TwoFactorRequirementCard organizationId={props.organizationId} required={props.requireTwoFactor} />
+      ) : null}
       <LeaveOrganization organizationId={props.organizationId} organizationName={props.organizationName} />
     </div>
+  );
+}
+
+/**
+ * Owners require a second factor of every member (architecture 10, guide step 8.4). Members
+ * without one see the organization again once they set it up on their security page.
+ */
+function TwoFactorRequirementCard({
+  organizationId,
+  required,
+}: {
+  organizationId: string;
+  required: boolean;
+}) {
+  const t = useTranslations('team.security');
+  const errorMessage = useErrorMessage();
+  const router = useRouter();
+  const setSecurity = useOrganizationSetSecurity();
+
+  const change = async (requireTwoFactor: boolean) => {
+    try {
+      await setSecurity.mutateAsync({ org: organizationId, data: { requireTwoFactor } });
+      toast.success(requireTwoFactor ? t('nowRequired') : t('nowOptional'));
+      router.refresh();
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-center gap-2">
+          {t('title')}
+          <Badge variant={required ? 'success' : 'muted'}>{required ? t('required') : t('optional')}</Badge>
+        </CardTitle>
+        <CardDescription>{t('description')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button
+          variant={required ? 'outline' : 'default'}
+          disabled={setSecurity.isPending}
+          onClick={() => void change(!required)}
+        >
+          {required ? t('makeOptional') : t('require')}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -49,7 +49,7 @@ import { useFieldError } from '@/lib/use-field-error';
 import { useSignOut } from '@/lib/use-sign-out';
 
 /** Password, two-factor setup and signed-in devices (guide steps 1.9 and 8.4). */
-export function SecurityPage() {
+export function SecurityPage({ twoFactorRequired = false }: { twoFactorRequired?: boolean }) {
   const t = useTranslations('account');
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -57,6 +57,9 @@ export function SecurityPage() {
         <h1 className="text-2xl font-semibold">{t('security.title')}</h1>
         <p className="text-muted-foreground">{t('security.description')}</p>
       </div>
+      {twoFactorRequired ? (
+        <Alert title={t('security.required.title')}>{t('security.required.description')}</Alert>
+      ) : null}
       <PasswordCard />
       <TwoFactorCard />
       <SessionsCard />
