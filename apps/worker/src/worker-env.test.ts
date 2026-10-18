@@ -69,3 +69,33 @@ describe('loadWorkerEnv', () => {
     );
   });
 });
+
+describe('loadWorkerEnv in production (guide step 8.4)', () => {
+  const deployed = {
+    ...validEnv,
+    NODE_ENV: 'production',
+    APP_URL: 'https://app.example.com',
+    SMTP_URL: 'smtp://mail.example.com:587',
+    MAIL_FROM: 'noreply@example.com',
+  };
+
+  it('needs https for the links of the emails and refuses example values', () => {
+    expect(loadWorkerEnv(deployed).APP_URL).toBe('https://app.example.com');
+    expect(() => loadWorkerEnv({ ...deployed, APP_URL: 'http://app.example.com' })).toThrow(
+      /APP_URL: an https URL is required in production/,
+    );
+    expect(() =>
+      loadWorkerEnv({ ...deployed, REDIS_URL: 'redis://app:change-me-redis-app@redis:6379' }),
+    ).toThrow(/REDIS_URL: an example value of .env.example is not allowed in production/);
+  });
+
+  it('lets a production build on this machine keep the example values', () => {
+    const local = {
+      ...deployed,
+      APP_URL: 'http://localhost:3000',
+      REDIS_URL: 'redis://app:change-me@redis:6379',
+    };
+
+    expect(loadWorkerEnv(local).REDIS_URL).toBe('redis://app:change-me@redis:6379');
+  });
+});

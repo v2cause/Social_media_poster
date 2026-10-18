@@ -1,7 +1,7 @@
 import { billingEnvSchema, checkBillingEnv } from '@smp/billing';
 import { dbEnvSchema } from '@smp/db';
 import { storageEnvSchema } from '@smp/media';
-import { observabilityEnvSchema } from '@smp/observability';
+import { checkProductionEnv, observabilityEnvSchema } from '@smp/observability';
 import { platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
@@ -53,7 +53,11 @@ export const workerEnvSchema = z
   // Mock or live per platform and PUBLISH_DRY_RUN, for the roles "publisher" and "analytics".
   .extend(platformEnvSchema.shape)
   .extend(observabilityEnvSchema.shape)
-  .superRefine(checkBillingEnv);
+  .superRefine(checkBillingEnv)
+  // The links of the emails lead to the app over https; renditions reach the platforms that way.
+  .superRefine((env, context) => {
+    checkProductionEnv(env, context, { APP_URL: env.APP_URL, S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT });
+  });
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;
 

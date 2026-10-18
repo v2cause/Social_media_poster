@@ -2,7 +2,7 @@ import { aiEnvSchema, checkAiEnv } from '@smp/ai';
 import { billingEnvSchema, checkBillingEnv } from '@smp/billing';
 import { dbEnvSchema } from '@smp/db';
 import { storageEnvSchema } from '@smp/media';
-import { observabilityEnvSchema } from '@smp/observability';
+import { checkProductionEnv, observabilityEnvSchema } from '@smp/observability';
 import { platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
@@ -90,6 +90,16 @@ export const apiEnvSchema = z
         message: 'an https URL is required in production, for example https://api.pwnedpasswords.com',
       });
     }
+  })
+  // The browser takes the app, its links and the uploads to the storage over https.
+  .superRefine((env, context) => {
+    checkProductionEnv(env, context, {
+      APP_URL: env.APP_URL,
+      BETTER_AUTH_URL: env.BETTER_AUTH_URL,
+      ...(env.S3_PUBLIC_ENDPOINT === undefined
+        ? { S3_ENDPOINT: env.S3_ENDPOINT }
+        : { S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT }),
+    });
   })
   .superRefine((env, context) => {
     if (env.FEATURE_X_BROWSER_GLOBAL && (!env.SESSION_KEKS || !env.SESSION_KEK_ACTIVE)) {

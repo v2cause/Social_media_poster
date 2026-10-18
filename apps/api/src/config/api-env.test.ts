@@ -144,6 +144,61 @@ describe('loadApiEnv with the breach check of passwords', () => {
   });
 });
 
+describe('loadApiEnv in production (guide step 8.4)', () => {
+  const deployed = {
+    ...validEnv,
+    NODE_ENV: 'production',
+    AI_PROVIDER: 'anthropic',
+    ANTHROPIC_API_KEY: 'sk-ant-x',
+    PWNED_PASSWORDS_API_URL: 'https://api.pwnedpasswords.com',
+    APP_URL: 'https://app.example.com',
+    BETTER_AUTH_URL: 'https://app.example.com',
+    S3_ENDPOINT: 'http://s3:8333',
+    S3_PUBLIC_ENDPOINT: 'https://media.example.com',
+  };
+
+  it('starts with https for the browser and its own secrets', () => {
+    expect(loadApiEnv(deployed).APP_URL).toBe('https://app.example.com');
+  });
+
+  it('needs https for the app, its links and the uploads', () => {
+    expect(() => loadApiEnv({ ...deployed, BETTER_AUTH_URL: 'http://app.example.com' })).toThrow(
+      /BETTER_AUTH_URL: an https URL is required in production/,
+    );
+    expect(() => loadApiEnv({ ...deployed, S3_PUBLIC_ENDPOINT: 'http://media.example.com' })).toThrow(
+      /S3_PUBLIC_ENDPOINT: an https URL is required/,
+    );
+    expect(() => loadApiEnv({ ...deployed, S3_PUBLIC_ENDPOINT: '' })).toThrow(
+      /S3_ENDPOINT: an https URL is required/,
+    );
+  });
+
+  it('refuses the example values of .env.example without echoing them', () => {
+    const example = 'postgresql://app_user:change-me-app-user@db:5432/smp';
+    let message = '';
+    try {
+      loadApiEnv({ ...deployed, DATABASE_URL: example });
+    } catch (error) {
+      message = error instanceof Error ? error.message : '';
+    }
+
+    expect(message).toContain('DATABASE_URL: an example value of .env.example is not allowed in production');
+    expect(message).not.toContain('change-me-app-user');
+  });
+
+  it('lets a production build on this machine keep http and the example values', () => {
+    const local = {
+      ...deployed,
+      APP_URL: 'http://localhost:8080',
+      BETTER_AUTH_URL: 'http://localhost:8080',
+      S3_PUBLIC_ENDPOINT: 'http://127.0.0.1:8333',
+      DATABASE_URL: 'postgresql://app_user:change-me-app-user@postgres:5432/smp',
+    };
+
+    expect(loadApiEnv(local).APP_URL).toBe('http://localhost:8080');
+  });
+});
+
 describe('loadApiEnv with versioned keys of Better Auth', () => {
   const current = 'c'.repeat(32);
   const previous = 'p'.repeat(32);
