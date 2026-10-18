@@ -18,6 +18,9 @@
 			# The client address for the auth rate limits. Overwritten, never appended, so a
 			# client cannot choose it (ADR 0006).
 			header_up X-Real-IP {remote_host}
+			# Forwarded names whatever client the client claims to be; tracing would take it as
+			# the client address (guide step 8.4). X-Forwarded-For is set by Caddy itself.
+			header_up -Forwarded
 		}
 	}
 
@@ -30,6 +33,7 @@
 			# The web app hands the client address on to the API with its own requests, for the
 			# inbound rate limits (guide step 8.4); overwritten here as well.
 			header_up X-Real-IP {remote_host}
+			header_up -Forwarded
 		}
 	}
 }

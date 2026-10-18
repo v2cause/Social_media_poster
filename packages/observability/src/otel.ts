@@ -4,6 +4,13 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
+import {
+  fetchSpanAttributes,
+  incomingSpanAttributes,
+  outgoingSpanAttributes,
+  redisStatement,
+} from './span-privacy';
+
 export interface TracingOptions {
   serviceName: string;
   environment: string;
@@ -11,11 +18,21 @@ export interface TracingOptions {
   otlpEndpoint?: string;
 }
 
-// Filesystem and DNS calls create so many spans that they drown out the request traces.
-const NOISY_INSTRUMENTATIONS = {
+const INSTRUMENTATIONS = {
+  // Filesystem and DNS calls create so many spans that they drown out the request traces.
   '@opentelemetry/instrumentation-fs': { enabled: false },
   '@opentelemetry/instrumentation-dns': { enabled: false },
+  // No secrets and no personal data in spans (./span-privacy).
+  '@opentelemetry/instrumentation-http': {
+    startIncomingSpanHook: incomingSpanAttributes,
+    startOutgoingSpanHook: outgoingSpanAttributes,
+  },
+  '@opentelemetry/instrumentation-undici': { startSpanHook: fetchSpanAttributes },
+  '@opentelemetry/instrumentation-ioredis': { dbStatementSerializer: redisStatement },
 };
+
+/** The configuration of the instrumentations, for tests. */
+export const instrumentationConfig = (): typeof INSTRUMENTATIONS => INSTRUMENTATIONS;
 
 /** Starts the OpenTelemetry SDK. Call it before any other application module is loaded. */
 export function startTracing({
@@ -33,7 +50,7 @@ export function startTracing({
       'deployment.environment.name': environment,
     }),
     traceExporter: new OTLPTraceExporter({ url: `${otlpEndpoint.replace(/\/$/, '')}/v1/traces` }),
-    instrumentations: [getNodeAutoInstrumentations(NOISY_INSTRUMENTATIONS)],
+    instrumentations: [getNodeAutoInstrumentations(INSTRUMENTATIONS)],
   });
   sdk.start();
   return sdk;
