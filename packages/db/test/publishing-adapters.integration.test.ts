@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  PlanLimitReachedError,
   PublishNow,
   RescheduleVariant,
   ScheduleVariant,
@@ -9,6 +10,7 @@ import {
   VariantNotFoundError,
   VersionConflictError,
   type ContentActor,
+  type PostLimits,
   type PublishingDependencies,
 } from '@smp/core';
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
@@ -19,6 +21,7 @@ import {
   createPrismaClient,
   createSystemPrismaClient,
   PrismaOutboxRelay,
+  PrismaPlanUsage,
   PrismaPublishingUnitOfWork,
   type PendingOutboxEvent,
   type PrismaClient,
@@ -27,7 +30,8 @@ import {
 
 // Guide step 4.6 on PostgreSQL: the planning use cases of the core store status, schedule
 // version, outbox events and audit entry in one transaction under row-level security; two plans
-// on the same version do not both win.
+// on the same version do not both win, and parallel plans stay within the posts of the plan
+// (guide step 8.4).
 
 const orgA = randomUUID();
 const orgB = randomUUID();
@@ -52,7 +56,7 @@ describe('publishing adapters on PostgreSQL', () => {
   let base: PrismaClient | undefined;
   let system: SystemPrismaClient | undefined;
 
-  const deps = (): PublishingDependencies => {
+  const deps = (posts: PostLimits = unlimitedPosts): PublishingDependencies => {
     if (!base) {
       throw new Error('database not ready');
     }
@@ -62,9 +66,21 @@ describe('publishing adapters on PostgreSQL', () => {
         userAgent: 'vitest',
       })),
       clock: { now: () => new Date('2026-10-16T12:00:00Z') },
-      posts: unlimitedPosts,
+      posts,
     };
   };
+  /** A plan with this many posts per month, counted by app_system like in the API. */
+  const postsPerMonth = (max: number): PostLimits => ({
+    async assertRoom(organizationId, exceptVariantId, at) {
+      if (!system) {
+        throw new Error('database not ready');
+      }
+      const used = await new PrismaPlanUsage(system).postsInMonth(organizationId, at, exceptVariantId);
+      if (used + 1 > max) {
+        throw new PlanLimitReachedError('scheduledPostsPerMonth', max);
+      }
+    },
+  });
   const query = async <T>(sql: string, values: unknown[] = []): Promise<T[]> => {
     if (!database) {
       throw new Error('database not ready');
@@ -217,5 +233,66 @@ describe('publishing adapters on PostgreSQL', () => {
         at: at('2026-10-20T09:30'),
       }),
     ).rejects.toBeInstanceOf(SocialAccountNotReadyError);
+  });
+
+  it('keeps parallel plans of an organization within the posts of its plan', async () => {
+    const organizationId = randomUUID();
+    const workspaceId = randomUUID();
+    const connection = randomUUID();
+    const account = randomUUID();
+    const post = randomUUID();
+    const drafts = Array.from({ length: 5 }, () => randomUUID());
+    await query(`INSERT INTO organization (id, name, updated_at) VALUES ($1, 'C', now())`, [organizationId]);
+    await query(
+      `INSERT INTO workspace (id, organization_id, slug, name, timezone, content_language, updated_at)
+       VALUES ($1, $2, 'plan-c', 'C', 'Europe/Berlin', 'de', now())`,
+      [workspaceId, organizationId],
+    );
+    await query(
+      `INSERT INTO social_connection (id, workspace_id, platform, method, external_user_id, display_name,
+                                      access_token_sealed, updated_at)
+       VALUES ($1, $2, 'LINKEDIN', 'MOCK', 'lena', 'Lena', '\\x00', now())`,
+      [connection, workspaceId],
+    );
+    await query(
+      `INSERT INTO social_account (id, workspace_id, connection_id, platform, type, external_id, name, updated_at)
+       VALUES ($1, $2, $3, 'LINKEDIN', 'PROFILE', 'urn:li:person:lena', 'Lena', now())`,
+      [account, workspaceId, connection],
+    );
+    await query(
+      `INSERT INTO post (id, workspace_id, brief, language, updated_at) VALUES ($1, $2, 'Brief', 'de', now())`,
+      [post, workspaceId],
+    );
+    for (const [index, draft] of drafts.entries()) {
+      await query(
+        `INSERT INTO post_variant (id, workspace_id, post_id, platform, target_key, text, social_account_id, updated_at)
+         VALUES ($1, $2, $3, 'LINKEDIN', $4, 'Wir suchen Verstärkung.', $5, now())`,
+        [draft, workspaceId, post, `t${String(index)}`, account],
+      );
+    }
+    const planner: ContentActor = { ...editor, organizationId, workspaceId };
+
+    const outcomes = await Promise.allSettled(
+      drafts.map((draft, index) =>
+        new ScheduleVariant(deps(postsPerMonth(2))).execute({
+          actor: planner,
+          variantId: draft,
+          version: 0,
+          at: at(`2026-10-2${String(index)}T09:30`),
+        }),
+      ),
+    );
+
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(2);
+    const refused = outcomes.filter((outcome) => outcome.status === 'rejected');
+    expect(refused).toHaveLength(3);
+    for (const outcome of refused) {
+      expect(outcome.reason).toBeInstanceOf(PlanLimitReachedError);
+    }
+    const [planned] = await query<{ planned: number }>(
+      `SELECT count(*)::int AS planned FROM post_variant WHERE workspace_id = $1 AND status = 'SCHEDULED'`,
+      [workspaceId],
+    );
+    expect(planned?.planned).toBe(2);
   });
 });

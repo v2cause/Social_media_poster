@@ -3,6 +3,7 @@ import type { ContentActor } from '../../content/domain/types';
 import {
   applyChange,
   assertCanPublish,
+  assertPostRoom,
   assertTimeZone,
   checkPublishable,
   publishingScopeOf,
@@ -43,7 +44,7 @@ export class PublishNow {
       );
       const accountId = input.socialAccountId ?? variant.socialAccountId;
       const warnings = await checkPublishable(store, variant, accountId, now);
-      await this.deps.posts.assertRoom(actor.organizationId, variant.id, now);
+      await assertPostRoom(this.deps.posts, store, actor.organizationId, variant.id, now);
       const scheduleVersion = await applyChange(
         store,
         variant,

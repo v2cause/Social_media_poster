@@ -3,6 +3,7 @@ import type { ContentActor } from '../../content/domain/types';
 import {
   applyChange,
   assertCanPublish,
+  assertPostRoom,
   checkPublishable,
   instantOf,
   publishingScopeOf,
@@ -48,7 +49,7 @@ async function plan(
     );
     const accountId = input.socialAccountId ?? variant.socialAccountId;
     const warnings = await checkPublishable(store, variant, accountId, scheduledAt);
-    await deps.posts.assertRoom(actor.organizationId, variant.id, scheduledAt);
+    await assertPostRoom(deps.posts, store, actor.organizationId, variant.id, scheduledAt);
     const scheduleVersion = await applyChange(
       store,
       variant,

@@ -36,6 +36,11 @@ export function createPrismaPublishingStore(
         });
         return row;
       },
+      async lockPostLimit(organizationId) {
+        // Held until the transaction ends. Plannings of other organizations do not wait; a
+        // collision of the hash only makes two of them wait for each other.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`plan.posts.${organizationId}`}, 0))`;
+      },
       async change(workspaceId, variantId, version, change) {
         const { count } = await tx.postVariant.updateMany({
           where: { id: variantId, workspaceId, version },

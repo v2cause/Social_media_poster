@@ -3,6 +3,7 @@ import type { ContentActor } from '../../content/domain/types';
 import {
   applyChange,
   assertCanPublish,
+  assertPostRoom,
   assertTimeZone,
   checkPublishable,
   instantOf,
@@ -49,7 +50,7 @@ export class RetryVariant {
         () => new VariantNotFoundError(),
       );
       const warnings = await checkPublishable(store, variant, variant.socialAccountId, publishAt);
-      await this.deps.posts.assertRoom(actor.organizationId, variant.id, publishAt);
+      await assertPostRoom(this.deps.posts, store, actor.organizationId, variant.id, publishAt);
       const scheduleVersion = await applyChange(
         store,
         variant,

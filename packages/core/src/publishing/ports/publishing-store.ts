@@ -48,6 +48,12 @@ export interface ScheduleChange {
 export interface PublishingVariantRepository {
   find(workspaceId: string, variantId: string): Promise<SchedulableVariant | null>;
   /**
+   * Waits for other plannings of the organization, in all its workspaces, until the transaction
+   * ends, so that the check of the posts per month of its plan and the change are atomic (guide
+   * step 8.4).
+   */
+  lockPostLimit(organizationId: string): Promise<void>;
+  /**
    * Applies the change if the version is current, clears the error of a former attempt and
    * raises version and schedule version. Returns the new schedule version, or null when the
    * variant changed meanwhile.

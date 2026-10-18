@@ -186,6 +186,23 @@ export async function checkPublishable(
 }
 
 /**
+ * Checks that the month of `at` has room for one more post in the plan of the organization. Under
+ * its lock, held until the transaction ends, parallel plannings in its workspaces count one after
+ * the other and together stay within the plan (guide steps 7.4 and 8.4).
+ */
+export async function assertPostRoom(
+  posts: PostLimits,
+  store: PublishingStore,
+  organizationId: string,
+  variantId: string,
+  at: Date,
+): Promise<void> {
+  await store.variants.lockPostLimit(organizationId);
+  // Counted after the lock: a planning that held it before is committed by now.
+  await posts.assertRoom(organizationId, variantId, at);
+}
+
+/**
  * Stores the change with a version check and writes the live event of the new status, plus the
  * publish job where the variant goes to QUEUED.
  */

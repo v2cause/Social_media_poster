@@ -13,7 +13,8 @@ import { PlanLimitReachedError, type PostLimits } from '../src';
 import { fixedClock, ScopeViolation } from './in-memory-content';
 
 // In-memory adapters for the planning use cases: a unit of work that hides other workspaces and
-// rolls back on errors, with variants, targets, media, outbox and audit.
+// rolls back on errors, with variants, targets, media, outbox and audit. The limit of the posts
+// counts only under the lock of the organization, as in the database (guide step 8.4).
 
 interface State {
   variants: Map<string, SchedulableVariant & { queuedAt: Date | null }>;
@@ -25,6 +26,8 @@ interface State {
 
 export class InMemoryPublishing implements PublishingUnitOfWork {
   state: State = { variants: new Map(), targets: new Map(), media: new Map(), outbox: [], audit: [] };
+  /** The organizations whose post limit the running transaction holds. */
+  readonly postLocks = new Set<string>();
 
   async run<T>(scope: PublishingScope, work: (store: PublishingStore) => Promise<T>): Promise<T> {
     const snapshot = structuredClone(this.state);
@@ -33,11 +36,14 @@ export class InMemoryPublishing implements PublishingUnitOfWork {
     } catch (error) {
       this.state = snapshot;
       throw error;
+    } finally {
+      this.postLocks.clear();
     }
   }
 
   private storeFor(scope: PublishingScope): PublishingStore {
     const state = (): State => this.state;
+    const locks = this.postLocks;
     const assertScope = (workspaceId: string): void => {
       if (workspaceId !== scope.workspaceId) {
         throw new ScopeViolation(`workspace ${workspaceId} is outside the scope`);
@@ -49,6 +55,13 @@ export class InMemoryPublishing implements PublishingUnitOfWork {
           assertScope(workspaceId);
           const variant = state().variants.get(variantId);
           return Promise.resolve(variant?.workspaceId === workspaceId ? variant : null);
+        },
+        lockPostLimit(organizationId) {
+          if (organizationId !== scope.organizationId) {
+            throw new ScopeViolation(`organization ${organizationId} is outside the scope`);
+          }
+          locks.add(organizationId);
+          return Promise.resolve();
         },
         change(workspaceId, variantId, version, change) {
           assertScope(workspaceId);
@@ -99,10 +112,16 @@ export class InMemoryPublishing implements PublishingUnitOfWork {
 /** The posts per month of the plan over the variants of the in-memory store. */
 export class MemoryPostLimits implements PostLimits {
   max = Number.POSITIVE_INFINITY;
+  /** The organizations it counted for, in order. */
+  readonly counted: string[] = [];
 
   constructor(private readonly unitOfWork: InMemoryPublishing) {}
 
-  assertRoom(_organizationId: string, variantId: string, at: Date): Promise<void> {
+  assertRoom(organizationId: string, variantId: string, at: Date): Promise<void> {
+    if (!this.unitOfWork.postLocks.has(organizationId)) {
+      return Promise.reject(new Error('The posts of the plan were counted without its lock.'));
+    }
+    this.counted.push(organizationId);
     const month = at.toISOString().slice(0, 7);
     const used = [...this.unitOfWork.state.variants.values()].filter(
       (variant) =>

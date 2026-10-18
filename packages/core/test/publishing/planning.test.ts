@@ -382,6 +382,36 @@ describe('the posts per month of the plan (guide step 7.4)', () => {
     ).resolves.toMatchObject({ status: 'SCHEDULED' });
   });
 
+  it('counts only under the lock of the organization, which the transaction holds to its end (guide step 8.4)', async () => {
+    const bed = createPublishingTestbed();
+    seedVariant(bed);
+    seedVariant(bed, { id: 'variant-2' });
+    seedVariant(bed, { id: 'variant-3', status: 'FAILED' });
+
+    await new ScheduleVariant(bed).execute({
+      actor: editor,
+      variantId: 'variant-1',
+      version: 4,
+      at: berlin('2026-10-20T09:30'),
+    });
+    await new PublishNow(bed).execute({
+      actor: editor,
+      variantId: 'variant-2',
+      version: 4,
+      timeZone: 'Europe/Berlin',
+    });
+    await new RetryVariant(bed).execute({
+      actor: editor,
+      variantId: 'variant-3',
+      version: 4,
+      at: { now: true, timeZone: 'Europe/Berlin' },
+    });
+
+    // The limits of the testbed refuse to count without the lock.
+    expect(bed.posts.counted).toEqual(['org-1', 'org-1', 'org-1']);
+    expect(bed.unitOfWork.postLocks.size).toBe(0);
+  });
+
   it('holds for posting now as well', async () => {
     const bed = createPublishingTestbed();
     seedVariant(bed);
