@@ -92,6 +92,7 @@
     "description": "The change applies at once. Stripe prorates the difference with the next invoice.",
     "beyond": "After the change you are beyond these limits. What exists is kept, but anything new is blocked until you have reduced it:",
     "beyondItem": "{label}: {used} of {limit}",
+    "history": "The new plan keeps analytics for {days, plural, one {# day} other {# days}}. Older analytics are deleted in the night after the change and do not come back with a later upgrade.",
     "confirm": "Switch",
     "done": "The plan is being changed."
   },

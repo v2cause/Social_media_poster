@@ -8,6 +8,7 @@ import {
   noticeOf,
   offeredPlansOf,
   planActionOf,
+  shorterHistoryOf,
   usageRowsOf,
 } from './billing-model';
 
@@ -99,6 +100,17 @@ describe('beyondLimitsOf', () => {
       ['socialAccounts', 12, 5],
     ]);
     expect(beyondLimitsOf(overview(), PRO)).toEqual([]);
+  });
+});
+
+describe('shorterHistoryOf', () => {
+  it('names the days of analytics a plan keeps when they are fewer than now', () => {
+    const current = overview({
+      plan: { key: 'pro', limits: { ...PRO, analyticsHistoryDays: 365 }, price: price(4_900) },
+    });
+    expect(shorterHistoryOf(current, STARTER)).toBe(90);
+    expect(shorterHistoryOf(current, { ...PRO, analyticsHistoryDays: 365 })).toBeNull();
+    expect(shorterHistoryOf(current, { ...PRO, analyticsHistoryDays: 730 })).toBeNull();
   });
 });
 

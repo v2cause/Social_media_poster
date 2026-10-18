@@ -92,6 +92,7 @@
     "description": "Der Wechsel gilt sofort. Stripe verrechnet die Differenz anteilig mit der nächsten Rechnung.",
     "beyond": "Nach dem Wechsel liegen Sie über diesen Limits. Bestehendes bleibt erhalten, aber Neues ist blockiert, bis Sie reduziert haben:",
     "beyondItem": "{label}: {used} von {limit}",
+    "history": "Der neue Tarif bewahrt Analytics {days, plural, one {# Tag} other {# Tage}} auf. Ältere Analytics werden in der Nacht nach dem Wechsel gelöscht und kommen mit einem späteren Upgrade nicht zurück.",
     "confirm": "Wechseln",
     "done": "Der Tarif wird umgestellt."
   },

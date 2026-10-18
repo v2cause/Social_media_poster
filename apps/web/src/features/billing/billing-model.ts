@@ -98,6 +98,15 @@ export function beyondLimitsOf(overview: BillingOverviewDto, limits: PlanLimits)
 }
 
 /**
+ * The days of analytics a plan with these limits keeps, when they are fewer than now: in the night
+ * after the change, the retention periods delete the older metrics (ADR 0038).
+ */
+export function shorterHistoryOf(overview: BillingOverviewDto, limits: PlanLimits): number | null {
+  const days = limits.analyticsHistoryDays;
+  return days < overview.plan.limits.analyticsHistoryDays ? days : null;
+}
+
+/**
  * What a plan offers: it is the running one, a checkout (no paid subscription runs), a change in
  * place (one runs), or nothing while Stripe is not set up or the plan has no price.
  */

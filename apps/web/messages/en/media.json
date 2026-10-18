@@ -62,7 +62,7 @@
   "delete": {
     "button": "Delete",
     "title": "Delete the file?",
-    "description": "“{name}” is removed from the library.",
+    "description": "“{name}” is removed from the library and deleted for good after 30 days.",
     "confirm": "Delete",
     "done": "File deleted."
   },

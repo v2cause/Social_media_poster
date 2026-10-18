@@ -113,6 +113,8 @@ test('upgrade, downgrade, a failed renewal and the cancellation reach the billin
   await page.getByRole('button', { name: 'Wechseln: Starter' }).click();
   const dialog = page.getByRole('dialog', { name: 'Zu Starter wechseln?' });
   await expect(dialog.getByText('Workspaces: 2 von 1')).toBeVisible();
+  // Starter keeps 90 days of analytics instead of the 365 of Pro.
+  await expect(dialog.getByText(/^Der neue Tarif bewahrt Analytics 90 Tage auf\./)).toBeVisible();
   await shot(page, 'billing-downgrade-dialog');
   await dialog.getByRole('button', { name: 'Wechseln' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Starter' })).toBeVisible({ timeout: 60_000 });

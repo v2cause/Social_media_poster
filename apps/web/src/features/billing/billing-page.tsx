@@ -53,6 +53,7 @@ import {
   fromMinorUnits,
   offeredPlansOf,
   planActionOf,
+  shorterHistoryOf,
   usageRowsOf,
   type UsageRow,
 } from './billing-model';
@@ -421,6 +422,7 @@ function Plans(props: {
   };
   const target = plans.find((plan) => plan.key === confirming);
   const beyond = target ? beyondLimitsOf(props.overview, target.limits) : [];
+  const history = target ? shorterHistoryOf(props.overview, target.limits) : null;
 
   return (
     <Card>
@@ -520,6 +522,9 @@ function Plans(props: {
               </ul>
             </Alert>
           ) : null}
+          {history === null ? null : (
+            <Alert variant="destructive" title={t('change.history', { days: history })} />
+          )}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">{tActions('cancel')}</Button>

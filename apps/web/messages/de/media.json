@@ -62,7 +62,7 @@
   "delete": {
     "button": "Löschen",
     "title": "Datei löschen?",
-    "description": "„{name}“ wird aus der Bibliothek entfernt.",
+    "description": "„{name}“ wird aus der Bibliothek entfernt und nach 30 Tagen endgültig gelöscht.",
     "confirm": "Löschen",
     "done": "Datei gelöscht."
   },
