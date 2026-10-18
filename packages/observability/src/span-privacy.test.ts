@@ -6,6 +6,8 @@ import {
   incomingSpanAttributes,
   outgoingSpanAttributes,
   privatePath,
+  privateUrl,
+  PrivateUrlSpanProcessor,
   redisStatement,
 } from './span-privacy';
 
@@ -49,6 +51,29 @@ describe('span privacy', () => {
     ).toEqual({ 'url.full': 'https://graph.example.test/v21.0/me', 'url.query': undefined });
   });
 
+  it('cleans the URL attributes an instrumentation filled from the raw request', () => {
+    const attributes: Record<string, unknown> = {
+      'url.full': '/api/oauth/linkedin/callback?code=secret-code&state=secret-state',
+      'http.url': 'https://app.example.test/api/auth/reset-password/8m2VhQ0x?callbackURL=%2Freset',
+      'http.route': '/api/oauth/:platform/callback',
+    };
+    const span = {
+      attributes,
+      setAttribute: (key: string, value: unknown) => {
+        attributes[key] = value;
+      },
+    };
+
+    new PrivateUrlSpanProcessor().onStart(span as never);
+
+    expect(attributes).toEqual({
+      'url.full': '/api/oauth/linkedin/callback',
+      'http.url': 'https://app.example.test/api/auth/reset-password/REDACTED',
+      'http.route': '/api/oauth/:platform/callback',
+    });
+    expect(privateUrl('not a url?x=1')).toBe('not a url');
+  });
+
   it('records Redis commands without their arguments', () => {
     expect(redisStatement('evalsha')).toBe('evalsha');
   });
@@ -60,5 +85,6 @@ describe('span privacy', () => {
     expect(config['@opentelemetry/instrumentation-http'].startOutgoingSpanHook).toBe(outgoingSpanAttributes);
     expect(config['@opentelemetry/instrumentation-undici'].startSpanHook).toBe(fetchSpanAttributes);
     expect(config['@opentelemetry/instrumentation-ioredis'].dbStatementSerializer).toBe(redisStatement);
+    expect(config['@opentelemetry/instrumentation-pino'].disableLogSending).toBe(true);
   });
 });

@@ -1,13 +1,14 @@
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
-import { NodeSDK } from '@opentelemetry/sdk-node';
+import { NodeSDK, tracing } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
 import {
   fetchSpanAttributes,
   incomingSpanAttributes,
   outgoingSpanAttributes,
+  PrivateUrlSpanProcessor,
   redisStatement,
 } from './span-privacy';
 
@@ -29,6 +30,8 @@ const INSTRUMENTATIONS = {
   },
   '@opentelemetry/instrumentation-undici': { startSpanHook: fetchSpanAttributes },
   '@opentelemetry/instrumentation-ioredis': { dbStatementSerializer: redisStatement },
+  // Log lines go to stdout and from there to the log backend, not over OTLP (guide step 8.4).
+  '@opentelemetry/instrumentation-pino': { disableLogSending: true },
 };
 
 /** The configuration of the instrumentations, for tests. */
@@ -49,7 +52,16 @@ export function startTracing({
       [ATTR_SERVICE_NAME]: serviceName,
       'deployment.environment.name': environment,
     }),
-    traceExporter: new OTLPTraceExporter({ url: `${otlpEndpoint.replace(/\/$/, '')}/v1/traces` }),
+    spanProcessors: [
+      new PrivateUrlSpanProcessor(),
+      new tracing.BatchSpanProcessor(
+        new OTLPTraceExporter({ url: `${otlpEndpoint.replace(/\/$/, '')}/v1/traces` }),
+      ),
+    ],
+    // Only traces go over OTLP. Without these the SDK would also export every log record and the
+    // metrics there; metrics are served to Prometheus at /metrics (guide step 8.4).
+    logRecordProcessors: [],
+    metricReaders: [],
     instrumentations: [getNodeAutoInstrumentations(INSTRUMENTATIONS)],
   });
   sdk.start();

@@ -1,6 +1,7 @@
 import type { IncomingMessage, RequestOptions } from 'node:http';
 
 import type { Attributes } from '@opentelemetry/api';
+import type { tracing } from '@opentelemetry/sdk-node';
 
 // What spans keep of a request (guide steps 0.6 and 8.4): no query, which may carry the token of
 // a link or an OAuth code; no client address and no user agent, which are personal data; and for
@@ -54,3 +55,47 @@ export const fetchSpanAttributes = (request: { origin: string; path: string }): 
 
 /** The Redis command without its arguments, which hold job payloads with addresses and links. */
 export const redisStatement = (command: string): string => command;
+
+/** A URL as an attribute keeps it: a path through privatePath, an absolute URL with its origin. */
+export function privateUrl(value: string): string {
+  if (value.startsWith('/')) {
+    return privatePath(value) ?? '/';
+  }
+  try {
+    const url = new URL(value);
+    return `${url.origin}${privatePath(url.pathname) ?? '/'}`;
+  } catch {
+    return privatePath(value) ?? '';
+  }
+}
+
+/** The URL attributes some instrumentations fill from the raw request, query included. */
+const URL_ATTRIBUTES = ['url.full', 'http.url', 'http.target'];
+
+/**
+ * Cleans the URL attributes of every span when it starts, for the instrumentations without a
+ * hook: the one of NestJS writes url.full from the original URL, so OAuth codes and the state of
+ * a callback would reach the trace backend (guide step 8.4).
+ */
+export class PrivateUrlSpanProcessor implements tracing.SpanProcessor {
+  onStart(span: tracing.Span): void {
+    for (const key of URL_ATTRIBUTES) {
+      const value = span.attributes[key];
+      if (typeof value === 'string') {
+        span.setAttribute(key, privateUrl(value));
+      }
+    }
+  }
+
+  onEnd(): void {
+    // Spans are cleaned when they start.
+  }
+
+  forceFlush(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  shutdown(): Promise<void> {
+    return Promise.resolve();
+  }
+}
