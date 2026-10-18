@@ -1314,6 +1314,12 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Weitere Tests: `packages/core/test/billing/overview.test.ts`, `apps/web/src/features/billing/billing-model.test.ts`, `apps/api/test/billing.integration.test.ts`.
 - **Stand**: Der Test gegen die Test Clocks von Stripe ist geschrieben und typgeprüft, aber nicht gelaufen: Es gibt keinen Testschlüssel, und api.stripe.com ist aus dieser Umgebung nicht erreichbar. Mit dem Fake-Stripe ist das Kriterium erfüllt; der Lauf gegen Stripe steht aus.
 
+#### Abschlussprüfung der Phase 7
+Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frischen Stack wie in CI fanden drei Fehler, die vor dem Merge behoben wurden:
+- Die Integrationstests des Workers wählten den Port ihres Health-Servers zufällig und trafen auf Ports von Docker-Containern. Sie nehmen jetzt Port 0, also einen freien Port des Systems.
+- Der Rollentest der Datenbank prüfte eine feste Liste der Migrationen bis 0016. Er vergleicht die angewendeten Migrationen jetzt mit den Ordnern.
+- Der Demo-Seed hing vom Wochentag des Tages ab, an dem er lief: An manchen Tagen fehlte im 30-Tage-Fenster ein Post-Stil, und der Analytics-Test schlug fehl. Jeder Werktag hat jetzt einen Post, die Themen wechseln sich ab, und ein Unit-Test prüft das Fenster für zwei Wochen.
+
 ---
 
 ## B.10 Phase 8: Härtung, DSGVO, Betrieb
