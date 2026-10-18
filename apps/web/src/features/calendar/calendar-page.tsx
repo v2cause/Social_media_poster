@@ -538,6 +538,7 @@ function RescheduleDialog(props: {
     >
       <DialogContent closeLabel={actions('close')}>
         <form
+          method="post"
           className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();

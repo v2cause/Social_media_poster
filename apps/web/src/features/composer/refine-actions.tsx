@@ -68,6 +68,7 @@ export function RefineActions(props: {
         ))}
       </div>
       <form
+        method="post"
         className="flex flex-col gap-2 sm:flex-row sm:items-end"
         onSubmit={(event) => {
           event.preventDefault();

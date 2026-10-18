@@ -101,6 +101,7 @@ export function OnboardingWizard() {
           </CardHeader>
           <CardContent>
             <form
+              method="post"
               className="flex flex-col gap-4"
               onSubmit={(event) => {
                 event.preventDefault();
@@ -137,7 +138,12 @@ export function OnboardingWizard() {
             <CardDescription>{t('workspace.description')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+            <form
+              method="post"
+              className="flex flex-col gap-4"
+              onSubmit={(event) => void submit(event)}
+              noValidate
+            >
               {createOrganization.error ? (
                 <Alert variant="destructive" title={errorMessage(createOrganization.error)} />
               ) : null}

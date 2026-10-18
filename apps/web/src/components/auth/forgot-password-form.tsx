@@ -48,7 +48,12 @@ export function ForgotPasswordForm() {
         {sent ? (
           <Alert variant="success" title={t('forgotPassword.sent')} />
         ) : (
-          <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+          <form
+            method="post"
+            className="flex flex-col gap-4"
+            onSubmit={(event) => void submit(event)}
+            noValidate
+          >
             <FormField id="email" label={t('fields.email')} error={fieldError(form.formState.errors.email)}>
               {(control) => (
                 <Input {...control} {...form.register('email')} type="email" autoComplete="email" />

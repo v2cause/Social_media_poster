@@ -362,7 +362,12 @@ function InviteDialog({ organizationId, actorRole }: { organizationId: string; a
       <DialogContent closeLabel={t('actions.close')}>
         <DialogTitle>{t('team.invite.title')}</DialogTitle>
         <DialogDescription>{t('team.invite.description')}</DialogDescription>
-        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+        <form
+          method="post"
+          className="flex flex-col gap-4"
+          onSubmit={(event) => void submit(event)}
+          noValidate
+        >
           <FormField
             id="invite-email"
             label={t('team.invite.email')}

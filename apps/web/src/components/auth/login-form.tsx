@@ -94,7 +94,12 @@ export function LoginForm({
         <CardDescription>{t('login.description')}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+        <form
+          method="post"
+          className="flex flex-col gap-4"
+          onSubmit={(event) => void submit(event)}
+          noValidate
+        >
           {error ? <Alert variant="destructive" title={error} /> : null}
           {notice ? <Alert title={notice} /> : null}
           <FormField id="email" label={t('fields.email')} error={fieldError(form.formState.errors.email)}>

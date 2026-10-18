@@ -96,6 +96,7 @@ function SelectionForm(props: { ws: string; pending: PendingConnectionDto; back:
 
   return (
     <form
+      method="post"
       noValidate
       onSubmit={(event) => {
         event.preventDefault();

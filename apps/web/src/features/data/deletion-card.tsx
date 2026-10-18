@@ -105,6 +105,7 @@ function DeleteOrganization({
             <DialogTitle>{t('dialogTitle', { organization: organizationName })}</DialogTitle>
             <DialogDescription>{t('dialogDescription')}</DialogDescription>
             <form
+              method="post"
               className="flex flex-col gap-4"
               onSubmit={(event) => {
                 event.preventDefault();

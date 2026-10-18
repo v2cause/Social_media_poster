@@ -122,6 +122,7 @@ function CredentialsStep(props: {
 
   return (
     <form
+      method="post"
       className="flex flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
@@ -258,6 +259,7 @@ function CodeStep(props: { ws: string; loginId: string; retry: boolean; until: s
 
   return (
     <form
+      method="post"
       className="flex flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();

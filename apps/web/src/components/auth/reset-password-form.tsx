@@ -70,7 +70,12 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
             </Button>
           </>
         ) : (
-          <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+          <form
+            method="post"
+            className="flex flex-col gap-4"
+            onSubmit={(event) => void submit(event)}
+            noValidate
+          >
             {error ? <Alert variant="destructive" title={error} /> : null}
             <FormField
               id="password"

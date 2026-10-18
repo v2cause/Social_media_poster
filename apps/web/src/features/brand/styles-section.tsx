@@ -290,7 +290,12 @@ function StyleDialog(props: { ws: string; style: StyleDto | null; onSaved: () =>
       <DialogContent closeLabel={t('actions.close')}>
         <DialogTitle>{style ? t('brand.styles.editTitle') : t('brand.styles.createTitle')}</DialogTitle>
         <DialogDescription>{t('brand.styles.instructionsHint')}</DialogDescription>
-        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+        <form
+          method="post"
+          className="flex flex-col gap-4"
+          onSubmit={(event) => void submit(event)}
+          noValidate
+        >
           <FormField
             id={`${idPrefix}-name`}
             label={t('brand.styles.name')}

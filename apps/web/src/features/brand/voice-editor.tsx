@@ -179,7 +179,12 @@ export function VoiceEditorPage(props: VoiceEditorPageProps) {
       {readOnly ? <Alert>{t('brand.editor.readOnly')}</Alert> : null}
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <form className="flex flex-col gap-6" onSubmit={(event) => void submit(event)} noValidate>
+        <form
+          method="post"
+          className="flex flex-col gap-6"
+          onSubmit={(event) => void submit(event)}
+          noValidate
+        >
           <fieldset disabled={readOnly} className="flex flex-col gap-6">
             <Card>
               <CardHeader>

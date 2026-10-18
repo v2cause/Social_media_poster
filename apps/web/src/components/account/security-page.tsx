@@ -105,7 +105,12 @@ function PasswordCard() {
         <CardDescription>{t('account.password.description')}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+        <form
+          method="post"
+          className="flex flex-col gap-4"
+          onSubmit={(event) => void submit(event)}
+          noValidate
+        >
           {error ? <Alert variant="destructive" title={error} /> : null}
           <FormField
             id="password-current"
@@ -283,6 +288,7 @@ function TwoFactorCard() {
         <DialogContent closeLabel={t('actions.close')}>
           {setup?.phase === 'password' ? (
             <form
+              method="post"
               className="flex flex-col gap-4"
               onSubmit={(event) => {
                 event.preventDefault();
@@ -319,6 +325,7 @@ function TwoFactorCard() {
 
           {setup?.phase === 'scan' ? (
             <form
+              method="post"
               className="flex flex-col gap-4"
               onSubmit={(event) => {
                 event.preventDefault();

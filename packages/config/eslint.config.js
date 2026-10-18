@@ -109,6 +109,17 @@ function createEslintConfig({ tsconfigRootDir, typed = true, web = false }) {
       rules: {
         ...reactHooks.configs.recommended.rules,
         ...nextPlugin.configs['core-web-vitals'].rules,
+        // Before the page is hydrated, the browser submits a form by itself: with GET its fields,
+        // passwords included, land in the URL, the history and logs (pentest of guide step 8.4).
+        'no-restricted-syntax': [
+          'error',
+          {
+            selector:
+              'JSXOpeningElement[name.name="form"]:not(:has(JSXAttribute[name.name="method"][value.value="post"]))',
+            message:
+              'A <form> needs method="post", so that a submit before hydration keeps its fields out of the URL.',
+          },
+        ],
       },
     });
   }

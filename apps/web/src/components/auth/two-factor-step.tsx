@@ -59,7 +59,12 @@ export function TwoFactorStep({ onDone }: { onDone: () => void }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+        <form
+          method="post"
+          className="flex flex-col gap-4"
+          onSubmit={(event) => void submit(event)}
+          noValidate
+        >
           {error ? <Alert variant="destructive" title={error} /> : null}
           <FormField
             id="code"

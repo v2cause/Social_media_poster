@@ -240,6 +240,7 @@ function Organizations({ view }: { view: XBrowserAdminDto }) {
         </ul>
       )}
       <form
+        method="post"
         className="flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
           event.preventDefault();
