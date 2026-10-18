@@ -82,7 +82,10 @@
     "BILLING_UNAVAILABLE": "Die Abrechnung ist in dieser Umgebung nicht eingerichtet.",
     "BILLING_CUSTOMER_MISSING": "Ihre Organisation ist noch kein Kunde. Wählen Sie zuerst einen Tarif.",
     "WEBHOOK_SIGNATURE_INVALID": "Die Signatur des Webhooks ist ungültig.",
-    "DATA_EXPORT_UNAVAILABLE": "Der Export ist nicht mehr verfügbar. Bitte fordern Sie einen neuen an."
+    "DATA_EXPORT_UNAVAILABLE": "Der Export ist nicht mehr verfügbar. Bitte fordern Sie einen neuen an.",
+    "ORGANIZATION_NAME_MISMATCH": "Der eingegebene Name stimmt nicht mit dem Namen der Organisation überein.",
+    "ORGANIZATION_DELETION_PENDING": "Diese Organisation wurde gelöscht und wartet auf die endgültige Löschung. Ein Owner kann sie auf der Seite Daten und Löschung wiederherstellen.",
+    "ERASURE_NOT_PENDING": "Es wartet keine Löschung, die sich zurücknehmen ließe."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

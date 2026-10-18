@@ -82,7 +82,10 @@
     "BILLING_UNAVAILABLE": "Billing is not set up in this environment.",
     "BILLING_CUSTOMER_MISSING": "Your organization is not a customer yet. Choose a plan first.",
     "WEBHOOK_SIGNATURE_INVALID": "The signature of the webhook is invalid.",
-    "DATA_EXPORT_UNAVAILABLE": "The export is no longer available. Please request a new one."
+    "DATA_EXPORT_UNAVAILABLE": "The export is no longer available. Please request a new one.",
+    "ORGANIZATION_NAME_MISMATCH": "The name you entered does not match the name of the organization.",
+    "ORGANIZATION_DELETION_PENDING": "This organization was deleted and waits for its erasure. An owner can restore it on the Data and deletion page.",
+    "ERASURE_NOT_PENDING": "No deletion is waiting that could be taken back."
   },
   "validation": {
     "required": "Please fill in this field.",

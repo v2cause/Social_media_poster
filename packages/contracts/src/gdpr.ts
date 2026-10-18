@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
-// The data protection of an organization (guide step 8.1, ADR 0036): the exports of its owners.
-// The archive itself is never part of a response; a download asks for a link of a few minutes.
+// The data protection of an organization (guide steps 8.1 and 8.2, ADR 0036 and 0037): the
+// exports of its owners and its deletion. The archive itself is never part of a response; a
+// download asks for a link of a few minutes.
 
 export const GDPR_REQUEST_STATUSES = ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELED'] as const;
 export const gdprRequestStatusSchema = z.enum(GDPR_REQUEST_STATUSES);
@@ -30,3 +31,16 @@ export const dataExportDownloadSchema = z.object({
   expiresAt: z.iso.datetime(),
 });
 export type DataExportDownload = z.output<typeof dataExportDownloadSchema>;
+
+/** An owner deletes the organization by typing its name. */
+export const organizationDeletionRequestSchema = z.object({
+  confirmName: z.string().trim().min(1).max(200),
+});
+export type OrganizationDeletionRequest = z.output<typeof organizationDeletionRequestSchema>;
+
+/** A deleted organization: nobody works in it, and on eraseAfter it is erased for good. */
+export const organizationDeletionSchema = z.object({
+  deletedAt: z.iso.datetime(),
+  eraseAfter: z.iso.datetime(),
+});
+export type OrganizationDeletionState = z.output<typeof organizationDeletionSchema>;
