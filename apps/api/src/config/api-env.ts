@@ -9,6 +9,33 @@ import { z } from 'zod';
 // .env.example and Compose set empty strings for unset values.
 const unsetIfEmpty = (value: unknown): unknown => (value === '' ? undefined : value);
 
+/**
+ * The keys of Better Auth by version, the current one first: "2:<secret>,1:<secret>". Messages
+ * name the rule, never a value.
+ */
+const authSecretsSchema = z.string().transform((value, context) => {
+  const entries: { version: number; value: string }[] = [];
+  for (const entry of value.split(',').map((part) => part.trim())) {
+    const separator = entry.indexOf(':');
+    const version = entry.slice(0, separator);
+    const secret = entry.slice(separator + 1);
+    if (separator < 1 || !/^\d+$/.test(version)) {
+      context.addIssue({ code: 'custom', message: 'entries are "<version>:<secret>", comma-separated' });
+      return z.NEVER;
+    }
+    if (secret.length < 32) {
+      context.addIssue({ code: 'custom', message: 'every secret has at least 32 characters' });
+      return z.NEVER;
+    }
+    entries.push({ version: Number(version), value: secret });
+  }
+  if (new Set(entries.map((entry) => entry.version)).size !== entries.length) {
+    context.addIssue({ code: 'custom', message: 'every version appears once' });
+    return z.NEVER;
+  }
+  return entries;
+});
+
 // The API connects only as app_user and app_system. MIGRATION_DATABASE_URL belongs to the migrations.
 export const apiEnvSchema = z
   .object({
@@ -17,6 +44,9 @@ export const apiEnvSchema = z
     REDIS_URL: z.url({ protocol: /^rediss?$/ }),
     // Better Auth: signs session cookies and tokens. Generate with `pnpm gen:keys`.
     BETTER_AUTH_SECRET: z.string().min(32),
+    // A rotation (docs/runbooks/secret-rotation.md): the versioned keys, the current one first.
+    // BETTER_AUTH_SECRET then only opens what was encrypted before versions existed.
+    BETTER_AUTH_SECRETS: z.preprocess(unsetIfEmpty, authSecretsSchema.optional()),
     // The public origin the browser talks to (same origin as the web app).
     BETTER_AUTH_URL: z.url({ protocol: /^https?$/ }),
     // Seal the tokens of the platforms; @smp/crypto checks the format at start.

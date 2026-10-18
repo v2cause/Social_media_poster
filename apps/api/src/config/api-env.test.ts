@@ -143,3 +143,31 @@ describe('loadApiEnv with the breach check of passwords', () => {
     ).toBe('https://api.pwnedpasswords.com');
   });
 });
+
+describe('loadApiEnv with versioned keys of Better Auth', () => {
+  const current = 'c'.repeat(32);
+  const previous = 'p'.repeat(32);
+
+  it('reads the versions with the current key first', () => {
+    expect(
+      loadApiEnv({ ...validEnv, BETTER_AUTH_SECRETS: `2:${current}, 1:${previous}` }).BETTER_AUTH_SECRETS,
+    ).toEqual([
+      { version: 2, value: current },
+      { version: 1, value: previous },
+    ]);
+    expect(loadApiEnv({ ...validEnv, BETTER_AUTH_SECRETS: '' }).BETTER_AUTH_SECRETS).toBeUndefined();
+  });
+
+  it('refuses malformed entries, short keys and repeated versions without printing a key', () => {
+    for (const value of [`two:${current}`, current, `1:${'s'.repeat(31)}`, `1:${current},1:${previous}`]) {
+      let message = '';
+      try {
+        loadApiEnv({ ...validEnv, BETTER_AUTH_SECRETS: value });
+      } catch (error) {
+        message = error instanceof Error ? error.message : '';
+      }
+      expect(message).toContain('BETTER_AUTH_SECRETS');
+      expect(message).not.toMatch(/ccccc|ppppp|sssss/);
+    }
+  });
+});

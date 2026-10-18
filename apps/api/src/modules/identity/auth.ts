@@ -18,6 +18,7 @@ import { uuidv7 } from 'uuidv7';
 import type { ApiEnv } from '../../config/api-env';
 import { createAuthHooks } from './auth-hooks';
 import type { AuthMailer } from './auth-mailer';
+import { authSecretConfig } from './auth-secrets';
 import { createBreachCheck, noBreachCheck } from './breached-passwords';
 import { PasswordPolicy } from './password-policy';
 
@@ -57,6 +58,8 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
     baseURL: env.BETTER_AUTH_URL,
     basePath: '/api/auth',
     secret: env.BETTER_AUTH_SECRET,
+    // After a rotation the versioned keys; BETTER_AUTH_SECRET then opens the older payloads.
+    ...(authSecretConfig(env) ? { secrets: env.BETTER_AUTH_SECRETS } : {}),
     trustedOrigins: [env.APP_URL],
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
     emailAndPassword: {
