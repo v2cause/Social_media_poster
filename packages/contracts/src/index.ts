@@ -13,6 +13,7 @@ export {
 } from './audit';
 export * from './channels';
 export {
+  changePasswordSchema,
   emailSchema,
   forgotPasswordSchema,
   PASSWORD_MAX_LENGTH,
@@ -22,6 +23,7 @@ export {
   signInSchema,
   signUpSchema,
   twoFactorCodeSchema,
+  type ChangePasswordRequest,
   type SignInRequest,
   type SignUpRequest,
 } from './auth';

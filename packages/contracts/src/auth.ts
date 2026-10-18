@@ -28,5 +28,17 @@ export const resetPasswordSchema = z
   .object({ password: passwordSchema, confirm: z.string() })
   .refine((value) => value.password === value.confirm, { path: ['confirm'], message: 'passwords_differ' });
 
+/** The password change of a signed-in user (ASVS 6.2.3): the current password and a new one. */
+export const changePasswordSchema = z
+  .object({
+    current: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+    password: passwordSchema,
+    confirm: z.string(),
+    // Ends the sessions on every other device (ASVS 7.4.3).
+    signOutOthers: z.boolean(),
+  })
+  .refine((value) => value.password === value.confirm, { path: ['confirm'], message: 'passwords_differ' });
+export type ChangePasswordRequest = z.infer<typeof changePasswordSchema>;
+
 /** Six digits from the authenticator app, or a backup code. */
 export const twoFactorCodeSchema = z.object({ code: z.string().trim().min(6).max(32) });
