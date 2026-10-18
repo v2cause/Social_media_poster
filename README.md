@@ -30,10 +30,11 @@ Phase 6 (X ohne API) ist hinter Feature-Flags umgesetzt: Freischaltung mit versi
 
 Phase 7 (Billing und Quoten) ist umgesetzt: Tarife mit Limits und Testphase, Stripe Checkout, Kundenportal und Tarifwechsel, Webhooks über die Worker-Rolle `billing`, die tägliche Meldung von KI-Mehrverbrauch und X-Kosten an die Stripe-Meter, die Limits an allen Stellen mit Nur-Lesen nach Zahlungsverzug oder Abo-Ende und die Abrechnungsseite mit Verbrauch, Tarifen und Rechnungen ([ADR 0033](docs/adr/0033-tarife-abo-und-nur-lesen.md) bis [ADR 0035](docs/adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)). Getestet ist alles gegen einen Fake-Stripe, der die Parameter gegen die OpenAPI-Spezifikation von Stripe prüft. Offen ist der Lauf gegen die Test Clocks des echten Stripe: Der Test liegt bereit, braucht aber einen Testschlüssel. Die Preise sind Platzhalter.
 
-Phase 8 (Härtung, DSGVO, Betrieb) ist in Arbeit. Umgesetzt sind Datenexport und Löschung auf der Seite "Daten und Löschung":
+Phase 8 (Härtung, DSGVO, Betrieb) ist in Arbeit. Umgesetzt sind Datenexport und Löschung auf der Seite "Daten und Löschung" und die Aufbewahrungsfristen:
 
 - **Export**: Owner fordern einen Export an. Die Worker-Rolle `gdpr` schreibt alle Tabellen der Organisation als JSON und die Originale der Medien als ZIP in den Objektspeicher, und nach der E-Mail lädt der Owner das Archiv 24 Stunden lang herunter ([ADR 0036](docs/adr/0036-datenschutz-anfragen-und-datenexport.md)).
 - **Löschung**: Owner löschen die Organisation mit ihrem Namen als Bestätigung. Ab da arbeitet niemand mehr darin, und 30 Tage lang können Owner die Löschung zurücknehmen. Danach löscht die Rolle `gdpr` alles: Grants bei den Plattformen, den Stripe-Kunden, die Objekte und jede Zeile der Organisation. `pnpm check:erasure <requestId>` prüft, dass nichts übrig ist ([ADR 0037](docs/adr/0037-loeschung-von-organisationen.md)).
+- **Aufbewahrung**: Nachts leert der Scheduler KI-Rohdaten nach 180 Tagen, löscht verarbeitete Webhook-Ereignisse und Verbindungsdaten nach 30 Tagen und Metriken über die Analytics-Historie des Tarifs hinaus. Stündlich löscht die Rolle `gdpr` Medien 30 Tage nach dem Entfernen aus der Bibliothek und Uploads, die nach 24 Stunden nicht abgeschlossen sind ([ADR 0038](docs/adr/0038-aufbewahrungsfristen.md)).
 
 ## Entwicklung
 

@@ -289,7 +289,7 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md`. `PROM
   - Prüfung auf verbotene Wörter der Brand Voice.
   - Die KI veröffentlicht nie selbst; Planen ist immer eine bewusste Nutzeraktion.
 - **Kosten**:
-  - Jeder Aufruf wird in `AiGeneration` gespeichert: Prompt-Version, Modell angefragt und geliefert, Effort, Input-Snapshot, Output, Ergebnis, Tokens inkl. Cache, Kosten, Latenz, Time-to-first-token.
+  - Jeder Aufruf wird in `AiGeneration` gespeichert: Prompt-Version, Modell angefragt und geliefert, Effort, Input-Snapshot, Output, Ergebnis, Tokens inkl. Cache, Kosten, Latenz, Time-to-first-token. Input-Snapshot und Output werden nach 180 Tagen geleert ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
   - Die Preise stehen versioniert in einem `PriceBook` (keine fest einprogrammierten Zahlen), auch für die Modelle, auf die der Server-Fallback ausweichen kann.
   - Vor dem Aufruf wird eine Quote reserviert und danach abgerechnet. Die Quote ist das KI-Guthaben des Tarifs plus sein Mehrverbrauch (Abschnitt 6.4). Ohne Guthaben antwortet die API mit 402.
   - Die Reservierung ist ein bedingtes `UPDATE` auf dem Monatszähler der Organisation (UTC-Kalendermonat), parallel sicher. `finalize` bucht danach im `finally` den tatsächlichen Betrag: einen Ledger-Eintrag pro Quelle und die Differenz zur Reservierung am Zähler, nie unter null. Bricht ein Prozess dazwischen ab, bleibt die Reservierung stehen, bis ein Abgleich mit dem Ledger sie korrigiert.
@@ -326,7 +326,7 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md`. `PROM
 - **Analytics**: `MetricSnapshot` (append-only, kumulative Zähler plus Rohdaten und Mapping-Version), `PostMetricLatest` (für schnelle Listen und Top-Posts), `AccountMetricSnapshot` (ein Eintrag pro Account und lokalem Tag: Follower, Reichweite, Profilaufrufe), `AnalyticsDaily` (Rollup pro Account und lokalem Tag; Reichweite der Accounts und Summe der Post-Reichweiten getrennt; [ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)).
 - **KI und Kosten**: `AiGeneration`, `UsageRecord` (Ledger, idempotent pro Quelle), `UsageCounter` (atomare Quoten-Zähler), `ApiCostRecord` (X-Kosten pro Operation), `PriceBook`.
 - **Billing**: `Plan` (Limits als zod-validiertes JSON: Workspaces, Accounts, Mitglieder, KI-Guthaben und Mehrverbrauch, Posts pro Monat, Speicher, Analytics-Historie, X-Browser erlaubt, X-Ausgabenlimit; dazu der Lookup-Key des Stripe-Preises), `Subscription` (eine pro Organisation: Tarif, Status, Testphase, Beginn des Zahlungsverzugs, Nur-Lesen ab, Overrides der Limits, Stripe-IDs). `UsageRecord` und `ApiCostRecord` tragen `reportedToStripeAt`.
-- **Querschnitt**: `FeatureFlag` (global, pro Organisation oder pro Workspace, inkl. Kill-Switches), `RiskAcknowledgement`, `AuditLog` (append-only), `Notification` und `NotificationPreference`, `WorkspaceSettings` (Dry-Run, Verhalten bei verpasstem Zeitfenster, Effort-Overrides), `GdprRequest` (Export und Löschung einer Organisation mit Status, Archiv und Zählern; ohne Fremdschlüssel auf die Organisation, höchstens eine offene Anfrage pro Art; [ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)).
+- **Querschnitt**: `FeatureFlag` (global, pro Organisation oder pro Workspace, inkl. Kill-Switches), `RiskAcknowledgement`, `AuditLog` (append-only; nur die Aufbewahrung leert nach 30 Tagen IP-Adresse und User-Agent, [ADR 0038](adr/0038-aufbewahrungsfristen.md)), `Notification` und `NotificationPreference`, `WorkspaceSettings` (Dry-Run, Verhalten bei verpasstem Zeitfenster, Effort-Overrides), `GdprRequest` (Export und Löschung einer Organisation mit Status, Archiv und Zählern; ohne Fremdschlüssel auf die Organisation, höchstens eine offene Anfrage pro Art; [ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)).
 
 **Kernfelder von `PostVariant`**:
 - Inhalt und Zuordnung: `socialAccountId`, `platform`, `text`, `hashtags`, `firstComment`, `linkUrl`.
@@ -364,7 +364,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
 - **Limits**: Neun Stellen in API und Worker prüfen sie.
   - Workspaces, Mitglieder und Speicher zählt die API exakt unter Advisory-Sperren, Accounts und Posts pro Monat über bestätigte Daten als `app_system`.
   - Der Ausgaben-Deckel der X-API sitzt um deren Adapter.
-  - Nach einem Downgrade bleibt Bestehendes, nur Neues wird blockiert ([ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)).
+  - Nach einem Downgrade bleibt Bestehendes, nur Neues wird blockiert ([ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)). Ausnahme sind Metriken über die Analytics-Historie des neuen Tarifs hinaus: Sie löscht die nächste Nacht ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
 - **Nutzungsabrechnung**: Täglich gehen der KI-Mehrverbrauch und die X-Kosten des Vortags als Meter-Events an Stripe, jeder Batch einmal dank fester Identifier und `reportedToStripeAt`.
 
 ---
@@ -452,13 +452,13 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | `ai` | `ai.topic-ideas`, `ai.alt-text` (für Vorschläge im Hintergrund; auf Knopfdruck laufen beide synchron, ADR 0016 und 0021) | - | `ai` |
 | `notifications` | `notify.dispatch`: ein Outbox-Ereignis (in der App und per E-Mail an seine Empfänger) oder eine E-Mail an eine Adresse | `ntf.{outboxId}` für das Ereignis, `ntf.{outboxId}.{userId}` für seine E-Mails | `notify` |
 | `billing` | `stripe.webhook`, `usage.report` | `stripe.{eventId}`, `usage.{organizationId}.{Tag}` | `billing` |
-| `gdpr` | `gdpr.export`, `gdpr.erase` (nie aufgegeben), `gdpr.sweep` (löscht abgelaufene Archive, reiht fällige und verlorene Löschungen ein) | `gdpr.{requestId}`, `gdpr.sweep` (höchstens einer wartet) | `gdpr` |
+| `gdpr` | `gdpr.export`, `gdpr.erase` (nie aufgegeben), `gdpr.sweep` (löscht abgelaufene Archive, reiht fällige und verlorene Löschungen ein, räumt die Medien auf) | `gdpr.{requestId}`, `gdpr.sweep` (höchstens einer wartet) | `gdpr` |
 
 - **Job-IDs ohne Doppelpunkt**: BullMQ lehnt eigene Job-IDs mit `:` ab (`Custom Id cannot contain :`; geduldet wird nur eine Altform mit genau drei Segmenten). Deshalb trennt der Punkt die Bestandteile. Redis-Schlüssel für Locks und Pub/Sub (`lock:conn:{id}`, `ws:{workspaceId}:events`) sind davon nicht betroffen.
 - **Payloads**: enthalten nur IDs und werden im Job neu aus der DB gelesen. Ausnahmen sind die `xb-*`-Queues, weil der browser-worker keinen DB-Zugriff hat, und die E-Mails in `notifications`, die Adresse und Text tragen. E-Mails mit Link (Verifizierung, Passwort-Reset, Einladung) tragen den Link, weil nur der Hash des Tokens gespeichert ist; sie verlassen Redis direkt nach dem Versand, fehlgeschlagene nach einem Tag (ADR 0012). Die Jobs eines Outbox-Ereignisses und seine E-Mails bleiben nach dem Lauf einen Tag, damit ihre Job-ID einen zweiten Versand verhindert (ADR 0025).
 - **Redis-Betrieb**: `maxmemory-policy noeviction` (Voraussetzung für BullMQ) und AOF-Persistenz.
 - **Outbox-Relay**: läuft als `tick.outbox-relay` im 1-s-Takt mit `FOR UPDATE SKIP LOCKED`.
-- **`tick.maintenance`**: bündelt die nächtlichen Aufgaben: Rollup-Komplettlauf (Abschnitt 8), Aufräumen der Medien (Abschnitt 9) und Aufbewahrungsfristen (Leitfaden, Schritt 8.3).
+- **`tick.maintenance`**: bündelt um 03:41 UTC die nächtlichen Aufgaben: Re-Wrap der Schlüssel, Löschen verarbeiteter Outbox-Ereignisse, die Aufbewahrungsfristen ([ADR 0038](adr/0038-aufbewahrungsfristen.md)) und den Rollup-Komplettlauf (Abschnitt 8). Das Aufräumen der Medien (Abschnitt 9) läuft stündlich in `gdpr.sweep`.
 
 ---
 
@@ -493,7 +493,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 - **Reichweite**: ist über Posts nicht addierbar. Das Dashboard benennt das ehrlich und nutzt Account-Reichweite, wo vorhanden. Die API nennt die Basis (`account`, `posts` oder `mixed`).
 - **Speicherung**: Snapshots (append-only), ein Upsert in `PostMetricLatest` und ein Rollup in `AnalyticsDaily` (zeitnah plus nächtlicher Komplettlauf). Ab ca. 50 Mio. Zeilen werden die Snapshots monatlich partitioniert.
 - **Rollup**: zählt pro Account und lokalem Tag der Workspace-Zone die Zuwächse zwischen aufeinanderfolgenden Snapshots, die veröffentlichten Posts und die Tageszahlen der Accounts. Der zeitnahe Lauf rechnet die Tage, die eine Abfrage berührt hat, der nächtliche in `tick.maintenance` die letzten 35 Tage. Eine Advisory-Sperre pro Workspace hält zwei Läufe auseinander.
-- **API**: sieben Endpunkte unter `/api/w/:ws/analytics` (`analytics.read`). Zeiträume sind lokale Tage, höchstens 366 pro Anfrage, und durch die Analytics-Historie des Tarifs begrenzt (`analyticsHistoryDays`). Die Übersicht liegt 5 Minuten in Redis, der CSV-Export ist gestreamt.
+- **API**: sieben Endpunkte unter `/api/w/:ws/analytics` (`analytics.read`). Zeiträume sind lokale Tage, höchstens 366 pro Anfrage, und durch die Analytics-Historie des Tarifs begrenzt (`analyticsHistoryDays`). Ältere Metriken löscht die Aufbewahrung nachts, frühestens nach 36 Tagen, weil der Rollup die letzten 35 neu rechnet ([ADR 0038](adr/0038-aufbewahrungsfristen.md)). Die Übersicht liegt 5 Minuten in Redis, der CSV-Export ist gestreamt.
 - **Dashboard**:
   - KPI-Kacheln mit Vergleich zum Vorzeitraum: Impressions, Reach, Engagements, Engagement-Rate, Follower-Wachstum, Anzahl Posts.
   - Zeitreihen pro Tag, Plattform und Account.
@@ -529,7 +529,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
    - Die Werte liegen zentral in `packages/platform-rules` und werden pro Adapter-Phase gegen die Doku geprüft. Umgesetzt sind JPEG-Renditions (Qualität 85, Instagram 1080 x 1350 als Box, Facebook und LinkedIn 2048, X 4096) mit Qualitäts- und Größenstufen bis zum Byte-Limit; Stand der Prüfung je Wert in [ADR 0020](adr/0020-renditions-und-zuschnitt.md).
    - Liegt ein Seitenverhältnis außerhalb des Erlaubten, schneidet der Nutzer pro Plattform zu (`react-easy-crop`) oder wählt Letterbox (weiße Ränder). Der Zuschnitt wird in Pixeln des angezeigten Originals an `PostMedia` gespeichert; `PUT /api/w/:ws/variants/:variantId/media` setzt die Medien einer Variante mit ihrer `version` und reiht `media.render` ein.
 5. **Öffentliche URLs für Meta**: Presigned GET mit 1 h Laufzeit und `.jpg`-Key. Als Fallback gibt es einen HMAC-signierten Medien-Proxy der API. Lokal laufen Tests über einen `cloudflared`-Tunnel oder den Mock-Adapter.
-6. **Aufräumen** (in `tick.maintenance`): Assets, die nach 24 h noch auf `PENDING_UPLOAD` stehen, und S3-Objekte ohne zugehöriges `MediaAsset` nach 24 h; gelöschte Assets nach 30 Tagen. Unbenutzte, aber fertige Assets bleiben in der Bibliothek, und Thumbnails veröffentlichter Posts bleiben für die Historie erhalten.
+6. **Aufräumen** (stündlich in `gdpr.sweep` der Rolle `gdpr`, [ADR 0038](adr/0038-aufbewahrungsfristen.md)): Assets, die nach 24 h noch auf `PENDING_UPLOAD` stehen, und gelöschte Assets nach 30 Tagen, die keine Variante verwendet; erst die Objekte, dann die Zeilen. Nach Objekten ohne Asset sucht kein Job, weil keine Löschung sie zurücklässt. Unbenutzte, aber fertige Assets bleiben in der Bibliothek, und Thumbnails veröffentlichter Posts bleiben für die Historie erhalten.
 
 ---
 
@@ -577,7 +577,8 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
   - Datenexport als ZIP über die Worker-Rolle `gdpr`: jede Tabelle mit Mandantenspalte als JSON, die Originale der Medien und ein Manifest, ohne Geheimnisse. Das Archiv liegt 24 Stunden im Objektspeicher; die E-Mail führt zur Datenseite, wo jeder Download einen Link von fünf Minuten erzeugt und im Audit-Log steht ([ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)).
   - Löschung einer Organisation durch einen Owner, bestätigt mit ihrem Namen: Ab da arbeitet niemand mehr darin, die Scans lassen sie aus, und ein bezahltes Abo endet mit seiner Periode. 30 Tage lang können Owner die Löschung zurücknehmen und die Daten exportieren. Dann löscht der Job `gdpr.erase` der Rolle `gdpr` alles: Grants bei den Plattformen, den Stripe-Kunden, die Objekte und jede Zeile mit der Organisation oder einem ihrer Workspaces. Es bleibt nur die Anfrage als Nachweis, ohne Antragsteller. `pnpm check:erasure <requestId>` prüft, dass nichts übrig ist ([ADR 0037](adr/0037-loeschung-von-organisationen.md)).
   - Beim Trennen eines Accounts werden die Tokens bei der Plattform widerrufen.
-  - Aufbewahrungsfristen, nur essenzielle Cookies, eine DSFA für die Browser-Automation (Session-Cookies sind faktisch Zugangsdaten).
+  - Aufbewahrungsfristen, nachts in `tick.maintenance`: KI-Rohdaten 180 Tage; verarbeitete Webhook-Ereignisse und Verbindungsdaten (IP-Adresse und User-Agent im Audit-Log, abgelaufene Sessions, Zähler der Rate-Limits) 30 Tage; Metriken nach der Analytics-Historie des Tarifs, mindestens 36 Tage. Die Anwendungslogs hält das Log-Backend 30 Tage, Screenshots werden nicht gespeichert ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
+  - Nur essenzielle Cookies, eine DSFA für die Browser-Automation (Session-Cookies sind faktisch Zugangsdaten).
 
 ---
 
@@ -626,7 +627,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 
 ## 12. Observability, CI/CD, Umgebungen
 
-- **Logging**: pino (JSON) mit `requestId`, `traceId`, `workspaceId` und `jobId`; Secrets geschwärzt.
+- **Logging**: pino (JSON) mit `requestId`, `traceId`, `workspaceId` und `jobId`; Secrets geschwärzt. Das Log-Backend hält die Logs 30 Tage ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
 - **Tracing**: OpenTelemetry über HTTP, Prisma, Redis und BullMQ, `traceparent` in den Job-Payloads. Fehler gehen an Sentry.
 - **Health und Queues**: Health-Checks (`/health/live`, `/health/ready`) für alle Dienste. Bull Board nur für Plattform-Admins.
 - **Metriken**: Erfolgsquote pro Plattform, Verzögerung beim Veröffentlichen, Queue-Tiefe, Verzögerung des Scheduler-Ticks, KI-Tokens, Kosten und Cache-Trefferquote, Refusals, X-Ausgaben pro Workspace, Fehler beim Token-Refresh, Browser-Challenges.

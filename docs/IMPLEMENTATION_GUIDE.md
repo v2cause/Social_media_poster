@@ -1362,6 +1362,24 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
 #### 8.3 Aufbewahrung
 - **Erstellen**: Jobs: KI-Rohdaten 180 Tage, Screenshots 7 Tage, Logs 30 Tage, Metriken nach Tarif.
 - **Fertig, wenn**: Jobs laufen nachts.
+- **Umgesetzt** ([ADR 0038](adr/0038-aufbewahrungsfristen.md)):
+  - `ApplyRetention` im Core, angewendet von `tick.maintenance` um 03:41 UTC mit `PrismaRetentionStore` als `app_system`:
+    - KI-Rohdaten: Eingabe und Ausgabe von Generierungen, die älter als 180 Tage sind, werden geleert (`ai_generation.input` ist dafür nullable); Tokens und Kosten bleiben.
+    - Verarbeitete Webhook-Ereignisse gehen nach 30 Tagen, auch die, die ADR 0037 offenlässt.
+    - Verbindungsdaten gehen nach 30 Tagen: IP-Adresse und User-Agent im Audit-Log, abgelaufene Sessions und die Zähler der Rate-Limits von Better Auth.
+    - Metriken über die Analytics-Historie des Tarifs hinaus gehen, aber nie vor 36 Tagen, damit der nächtliche Rollup seine 35 Tage behält.
+    - Stapel von 1.000 Zeilen, höchstens 100 pro Art und Nacht; partielle Indizes in der Migration `0024_retention`.
+  - Nachgeholt aus Abschnitt 9 der Architektur: `CleanUpMedia` im stündlichen `gdpr.sweep` löscht Assets 30 Tage nach dem Entfernen aus der Bibliothek und Uploads, die nach 24 Stunden nicht abgeschlossen sind. Erst gehen die Objekte, dann die Zeilen (Migration `0025_media_cleanup`).
+  - Web: Der Dialog zum Tarifwechsel warnt, wenn der neue Tarif Analytics kürzer aufbewahrt. Der Dialog zum Löschen einer Datei nennt die endgültige Löschung nach 30 Tagen.
+  - Tests:
+    - `packages/core/test/gdpr/retention.test.ts`, `packages/core/test/media/clean-up-media.test.ts`,
+    - `packages/db/test/retention.integration.test.ts`, `packages/db/test/media-cleanup.integration.test.ts`,
+    - `apps/worker/test/retention.integration.test.ts` (Plan des Ticks und ein Lauf mit allen Fristen), `apps/worker/test/media-cleanup.integration.test.ts` (Sweep gegen SeaweedFS),
+    - `apps/web/src/features/billing/billing-model.test.ts` und die Warnung in `apps/web/e2e/billing.spec.ts`.
+- **Stand**: Das Kriterium ist erfüllt: Der Integrationstest des Workers prüft, dass die Rolle `scheduler` `tick.maintenance` um 03:41 UTC plant und der Tick alle Fristen anwendet.
+  - Screenshots speichert der browser-worker nicht (ADR 0032); die Frist von 7 Tagen hat nichts zu löschen.
+  - Die 30 Tage der Anwendungslogs setzt das Log-Backend; die Vorlage dafür kommt mit Schritt 8.9.
+  - Abweichung von der Architektur: Das Aufräumen der Medien läuft stündlich in der Rolle `gdpr`, und Objekte ohne Asset sucht kein Job (Begründung in ADR 0038).
 
 #### 8.4 Security-Review
 - **Erstellen**: Checkliste OWASP ASVS Level 2, Pentest, Runbook zur Secret-Rotation, CSP-Prüfung, Tuning der Rate-Limits.
