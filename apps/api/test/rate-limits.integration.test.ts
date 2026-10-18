@@ -1,5 +1,6 @@
+import { Logger } from '@nestjs/common';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { startApiTestApp, type ApiTestApp } from './support/api-app';
 import { browser, signUpVerified } from './support/browser';
@@ -31,7 +32,12 @@ describe('inbound rate limits', () => {
     await api?.close();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('limits the requests of one client address, before the session is checked', async () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn');
     const client = browser(started().server, '198.51.100.20');
     for (let index = 0; index < PER_ADDRESS; index += 1) {
       await client.get('/api/me').expect(401);
@@ -41,6 +47,11 @@ describe('inbound rate limits', () => {
     expect(refused.body).toMatchObject({ code: 'HTTP_429' });
     expect(Number(refused.headers['retry-after'])).toBeGreaterThan(0);
     expect(refused.headers['retry-after-address']).toBeUndefined();
+    // A security event names the route and the address (guide step 8.4).
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ route: '/api/me', clientAddress: '198.51.100.20', status: 429 }),
+      'security.rate_limited',
+    );
 
     // Another address goes on.
     await browser(started().server, '198.51.100.21').get('/api/me').expect(401);

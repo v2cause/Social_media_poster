@@ -3,8 +3,11 @@ import { STATUS_CODES } from 'node:http';
 import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, Logger } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
 import { isDomainError, type DomainErrorKind, type DomainErrorParams } from '@smp/core';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
+
+import type { RequestWithAccess } from '../guards/request-access';
+import { clipped, logSecurityEvent, type SecurityEvent } from '../logging/security-events';
 
 export interface ProblemDetails {
   type: string;
@@ -35,12 +38,42 @@ const UNEXPECTED_ERROR: Pick<ProblemDetails, 'status' | 'code' | 'detail'> = {
 };
 
 /**
+ * The refusals that are security events (guide step 8.4, ASVS 16.3.2 and 16.3.3), by their code;
+ * every answer 429 is one as well.
+ */
+const SECURITY_EVENTS: Partial<Record<string, SecurityEvent>> = {
+  VALIDATION_FAILED: 'security.validation_failed',
+  WORKSPACE_NOT_FOUND: 'security.tenant_denied',
+  ORGANIZATION_NOT_FOUND: 'security.tenant_denied',
+  NOT_PERMITTED: 'security.permission_denied',
+  INVITATION_EMAIL_MISMATCH: 'security.permission_denied',
+  TWO_FACTOR_REQUIRED: 'security.two_factor_required',
+  WEBHOOK_SIGNATURE_INVALID: 'security.webhook_rejected',
+};
+
+/** How many failed fields of a schema an event names. */
+const MAX_ISSUES = 10;
+
+/** The fields that failed and why, without their values: a value can be a password or a token. */
+function issuesOf(exception: ZodValidationException): { path: string; code: string }[] {
+  const issues = (exception.getZodError() as { issues?: unknown } | null)?.issues;
+  if (!Array.isArray(issues)) {
+    return [];
+  }
+  return issues.slice(0, MAX_ISSUES).map((issue: { path?: unknown; code?: unknown }) => ({
+    path: Array.isArray(issue.path) ? issue.path.map(String).join('.') : '',
+    code: typeof issue.code === 'string' ? issue.code : 'unknown',
+  }));
+}
+
+/**
  * Renders every error as an RFC 9457 problem document. Stack traces and internal messages
  * never reach the client: server errors (5xx) always get a generic detail, also when they were
  * thrown as an HttpException. The code is the stable key the UI translates.
  *
  * Server errors are logged with the error itself (name, message, stack), so they can be traced
- * through the request ID without exposing anything to the caller.
+ * through the request ID without exposing anything to the caller. Refusals that may be an attack
+ * are logged as security events.
  */
 @Catch()
 export class ProblemDetailsFilter implements ExceptionFilter {
@@ -48,7 +81,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
-    const request = http.getRequest<Request & { id?: string }>();
+    const request = http.getRequest<RequestWithAccess & { id?: string }>();
     const response = http.getResponse<Response>();
     // pino-http types req.id as a required ReqId; the request-id middleware sets a string.
     const requestId = typeof request.id === 'string' ? request.id : 'unknown';
@@ -57,8 +90,29 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     if (problem.status >= 500) {
       this.logger.error({ code: problem.code, requestId, err: exception }, 'request.failed');
     }
+    const event = SECURITY_EVENTS[problem.code] ?? (problem.status === 429 ? 'security.rate_limited' : null);
+    if (event) {
+      logSecurityEvent(event, request, this.eventFields(exception, request, problem));
+    }
 
     response.status(problem.status).type('application/problem+json').json(problem);
+  }
+
+  /** What a security event adds to the route: the code, the role and the tenant, failed fields. */
+  private eventFields(
+    exception: unknown,
+    request: RequestWithAccess,
+    problem: ProblemDetails,
+  ): Record<string, unknown> {
+    const params = request.params as Record<string, unknown> | undefined;
+    const tenant = clipped(params?.['ws'] ?? params?.['org']);
+    return {
+      status: problem.status,
+      code: problem.code,
+      ...(request.access ? { role: request.access.role } : {}),
+      ...(tenant ? { tenant } : {}),
+      ...(exception instanceof ZodValidationException ? { issues: issuesOf(exception) } : {}),
+    };
   }
 
   private toProblem(exception: unknown, requestId: string): ProblemDetails {

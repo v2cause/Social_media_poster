@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 
+import { clipped, logSecurityEvent } from '../logging/security-events';
+
 // CSRF protection for every API route including /api/auth (architecture 10). The session cookie
 // is SameSite=Lax, and in addition a state-changing request must come from the app's own origin.
 // Browsers send Origin and Sec-Fetch-Site with every such request; other clients (webhooks,
@@ -21,6 +23,10 @@ export function createOriginCheckMiddleware(appUrl: string) {
     const foreignOrigin = origin !== undefined && origin !== allowedOrigin;
     const crossSite = fetchSite !== undefined && !SAME_SITE_FETCH.has(fetchSite);
     if (foreignOrigin || crossSite) {
+      logSecurityEvent('security.origin_rejected', req, {
+        origin: clipped(origin),
+        fetchSite: clipped(fetchSite),
+      });
       res
         .status(403)
         .type('application/problem+json')

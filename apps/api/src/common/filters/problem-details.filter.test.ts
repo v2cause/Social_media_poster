@@ -10,18 +10,18 @@ import {
   NotPermittedError,
   QuotaExceededError,
   ScheduleTimeInGapError,
+  WebhookSignatureInvalidError,
   WorkspaceNotFoundError,
 } from '@smp/core';
 
 import { ProblemDetailsFilter } from './problem-details.filter';
 
-function renderWith(exception: unknown) {
+function renderWith(exception: unknown, request: Record<string, unknown> = { id: 'req-1' }) {
   const response = {
     status: vi.fn().mockReturnThis(),
     type: vi.fn().mockReturnThis(),
     json: vi.fn(),
   };
-  const request = { id: 'req-1' };
   const host = {
     switchToHttp: () => ({ getRequest: () => request, getResponse: () => response }),
   } as unknown as ArgumentsHost;
@@ -131,5 +131,75 @@ describe('ProblemDetailsFilter', () => {
 
     expect(response.status).toHaveBeenCalledWith(400);
     expect(body).toMatchObject({ status: 400, code: 'VALIDATION_FAILED' });
+  });
+
+  describe('security events (guide step 8.4)', () => {
+    const request = {
+      id: 'req-1',
+      method: 'PATCH',
+      originalUrl: '/api/w/acme/settings',
+      route: { path: '/api/w/:ws/settings' },
+      params: { ws: 'acme' },
+      headers: { 'x-real-ip': '203.0.113.5' },
+      access: { role: 'VIEWER' },
+    };
+    const securityEvents = (warn: { mock: { calls: unknown[][] } }) =>
+      warn.mock.calls.filter((call) => String(call[1]).startsWith('security.'));
+
+    it('logs a refusal of the role with route, role and tenant', () => {
+      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+      renderWith(new NotPermittedError(), request);
+
+      expect(securityEvents(warn)).toEqual([
+        [
+          {
+            method: 'PATCH',
+            route: '/api/w/:ws/settings',
+            clientAddress: '203.0.113.5',
+            status: 403,
+            code: 'NOT_PERMITTED',
+            role: 'VIEWER',
+            tenant: 'acme',
+          },
+          'security.permission_denied',
+        ],
+      ]);
+    });
+
+    it('names the failed fields of a schema without their values', () => {
+      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const error = z
+        .object({ password: z.string().min(12), profile: z.object({ email: z.email() }) })
+        .safeParse({ password: 'hunter2', profile: { email: 'not-an-address' } }).error;
+
+      renderWith(new ZodValidationException(error), request);
+
+      const [event] = securityEvents(warn);
+      expect(event?.[1]).toBe('security.validation_failed');
+      expect(event?.[0]).toMatchObject({
+        issues: [
+          { path: 'password', code: 'too_small' },
+          { path: 'profile.email', code: 'invalid_format' },
+        ],
+      });
+      expect(JSON.stringify(event)).not.toMatch(/hunter2|not-an-address/);
+    });
+
+    it('logs tenants without membership, rate limits and webhooks without signature, nothing else', () => {
+      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+      renderWith(new WorkspaceNotFoundError(), request);
+      renderWith(new AiRateLimitedError(), request);
+      renderWith(new WebhookSignatureInvalidError(), { id: 'req-2', method: 'POST' });
+      renderWith(new LastOwnerError(), request);
+      renderWith(new NotFoundException(), request);
+
+      expect(securityEvents(warn).map((call) => call[1])).toEqual([
+        'security.tenant_denied',
+        'security.rate_limited',
+        'security.webhook_rejected',
+      ]);
+    });
   });
 });

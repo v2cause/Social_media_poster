@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import type { Request } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 
 import { clientAddress } from '../throttling/throttling';
 import { pathOnly } from './http-log-serializers';
@@ -12,12 +12,35 @@ import { pathOnly } from './http-log-serializers';
 // (auth-hooks.ts).
 
 export const SECURITY_EVENTS = [
+  /** A state-changing request from another origin (CSRF). */
+  'security.origin_rejected',
   /** A body that is no valid JSON, too large or in an unsupported encoding. */
   'security.body_rejected',
+  /** A body or query that does not match the schema of the route. */
+  'security.validation_failed',
+  /** A workspace or organization the user is no member of. */
+  'security.tenant_denied',
+  /** A route the role of the user does not permit. */
+  'security.permission_denied',
+  /** A member without a second factor in an organization that requires one. */
+  'security.two_factor_required',
+  /** A request beyond a rate limit or a limit of open streams. */
+  'security.rate_limited',
+  /** A webhook without a valid signature. */
+  'security.webhook_rejected',
+  /** An OAuth callback with an unknown, used or foreign state. */
+  'security.oauth_rejected',
 ] as const;
 export type SecurityEvent = (typeof SECURITY_EVENTS)[number];
 
 const logger = new Logger('SecurityEvents');
+
+/** The longest value of the request an event keeps, such as an Origin or a slug. */
+const MAX_VALUE_LENGTH = 200;
+
+/** A value of the request as an event keeps it: shortened, or null when the request had none. */
+export const clipped = (value: unknown): string | null =>
+  typeof value === 'string' ? value.slice(0, MAX_VALUE_LENGTH) : null;
 
 /** The route of a request: its pattern once Express matched it, otherwise the path. */
 export function routeOf(req: Pick<Request, 'originalUrl' | 'url'> & { route?: unknown }): string {
@@ -35,4 +58,19 @@ export function logSecurityEvent(
     { method: req.method, route: routeOf(req), clientAddress: clientAddress(req), ...fields },
     event,
   );
+}
+
+/**
+ * Logs the requests to /api/auth that a rate limit refused: those of Better Auth per address and
+ * path, which no hook sees, and those of the hooks per account, which auth.event names as well.
+ */
+export function authRateLimitEvents(req: Request, res: Response, next: NextFunction): void {
+  // The path of the endpoint; once the handler of Better Auth matched, the route is its wildcard.
+  const route = routeOf(req);
+  res.on('finish', () => {
+    if (res.statusCode === 429) {
+      logSecurityEvent('security.rate_limited', req, { route, limiter: 'auth' });
+    }
+  });
+  next();
 }

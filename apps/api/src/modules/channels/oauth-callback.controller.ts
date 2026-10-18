@@ -8,6 +8,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 
 import { Public } from '../../common/decorators/public.decorator';
+import { clipped, logSecurityEvent } from '../../common/logging/security-events';
 import { LimitPerUser } from '../../common/throttling/throttling';
 import type { ApiEnv } from '../../config/api-env';
 import { API_ENV } from '../../config/config.module';
@@ -53,6 +54,10 @@ export class OAuthCallbackController {
     const platform = platformSlugSchema.safeParse(slug);
     const params = callbackQuerySchema.safeParse(query);
     if (!platform.success || !params.success) {
+      logSecurityEvent('security.oauth_rejected', request, {
+        platform: clipped(slug),
+        reason: 'STATE_INVALID',
+      });
       response.redirect(this.failureUrl({ status: 'failed', reason: 'STATE_INVALID', workspaceSlug: null }));
       return;
     }
@@ -71,6 +76,13 @@ export class OAuthCallbackController {
         }),
       );
       return;
+    }
+    if (outcome.reason === 'STATE_INVALID') {
+      // Unknown, used, expired, or of another user: a forged or replayed callback looks like this.
+      logSecurityEvent('security.oauth_rejected', request, {
+        platform: platform.data,
+        reason: outcome.reason,
+      });
     }
     if (outcome.reason === 'EXCHANGE_FAILED') {
       const { cause } = outcome;

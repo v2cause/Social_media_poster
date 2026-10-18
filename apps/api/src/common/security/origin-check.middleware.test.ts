@@ -1,5 +1,6 @@
+import { Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createOriginCheckMiddleware } from './origin-check.middleware';
 
@@ -9,6 +10,8 @@ function run(method: string, headers: Record<string, string>) {
   const req = {
     method,
     id: 'req-1',
+    originalUrl: '/api/organizations',
+    headers,
     get: (name: string) => headers[name.toLowerCase()],
   } as unknown as Request;
   const json = vi.fn();
@@ -21,6 +24,10 @@ function run(method: string, headers: Record<string, string>) {
 }
 
 describe('origin check', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('lets safe methods through', () => {
     expect(run('GET', { origin: 'https://evil.example' }).next).toHaveBeenCalled();
   });
@@ -33,11 +40,28 @@ describe('origin check', () => {
   });
 
   it('rejects writes from another origin or another site', () => {
-    const foreign = run('POST', { origin: 'https://evil.example' });
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const foreign = run('POST', { origin: 'https://evil.example', 'x-real-ip': '203.0.113.9' });
     expect(foreign.next).not.toHaveBeenCalled();
     expect(foreign.status).toHaveBeenCalledWith(403);
     expect(foreign.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'ORIGIN_REJECTED' }));
 
     expect(run('PATCH', { 'sec-fetch-site': 'cross-site' }).next).not.toHaveBeenCalled();
+    expect(warn.mock.calls).toEqual([
+      [
+        {
+          method: 'POST',
+          route: '/api/organizations',
+          clientAddress: '203.0.113.9',
+          origin: 'https://evil.example',
+          fetchSite: null,
+        },
+        'security.origin_rejected',
+      ],
+      [
+        expect.objectContaining({ method: 'PATCH', origin: null, fetchSite: 'cross-site' }),
+        'security.origin_rejected',
+      ],
+    ]);
   });
 });
