@@ -23,7 +23,10 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv): void {
   app.set('trust proxy', 1);
   app.setGlobalPrefix('api');
   app.use(requestIdMiddleware);
-  app.use(helmet());
+  // The defaults of helmet, with nothing that may frame the API or set a <base> for it.
+  app.use(
+    helmet({ contentSecurityPolicy: { directives: { baseUri: ["'none'"], frameAncestors: ["'none'"] } } }),
+  );
 
   // Before the auth handler: Better Auth accepts a sign-in without cookies from any origin,
   // which would allow login CSRF.
