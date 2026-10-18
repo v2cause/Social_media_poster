@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { hours } from '@nestjs/throttler';
 import {
   BrowserLoginNotFoundError,
   GetBrowserLogin,
@@ -12,6 +13,7 @@ import { z } from 'zod';
 
 import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
+import { LimitPerUser } from '../../common/throttling/throttling';
 import { actorOf } from '../content/content.mappers';
 import { StartXbLoginDto, XbLoginCodeDto, XbLoginSessionDto } from './x-browser.dto';
 
@@ -47,6 +49,7 @@ export class XBrowserLoginController {
     private readonly submitCode: SubmitBrowserLoginCode,
   ) {}
 
+  @LimitPerUser(10, hours(1))
   @Post()
   @RequirePermission('account.manage')
   @ZodResponse({ status: 201, type: XbLoginSessionDto })
@@ -68,6 +71,7 @@ export class XBrowserLoginController {
     return toLoginDto(await this.getLogin.execute(actorOf(access), loginIdOf(loginId)));
   }
 
+  @LimitPerUser(20, hours(1))
   @Post(':loginId/code')
   @RequirePermission('account.manage')
   @HttpCode(200)

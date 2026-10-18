@@ -11,6 +11,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { hours } from '@nestjs/throttler';
 import { permissionsOf } from '@smp/contracts';
 import {
   ChangeMemberRole,
@@ -35,6 +36,7 @@ import {
 } from '../../common/decorators/access.decorators';
 import { AccessCache } from '../../common/guards/access-cache';
 import { Access, Actor, type RequestAccess } from '../../common/guards/request-access';
+import { LimitPerUser } from '../../common/throttling/throttling';
 import { TENANCY_READ_MODEL } from '../../infrastructure/clients.module';
 import { toBillingStateDto } from '../billing/billing.mappers';
 import { toOrganizationDeletionDto } from '../gdpr/gdpr.mappers';
@@ -145,6 +147,7 @@ export class OrganizationController {
     };
   }
 
+  @LimitPerUser(30, hours(1))
   @Post('invitations')
   @RequirePermission('member.manage')
   @ZodResponse({ status: 201, type: InviteMemberResponseDto })
@@ -161,6 +164,7 @@ export class OrganizationController {
     return { invitationId: result.invitationId, expiresAt: result.expiresAt.toISOString() };
   }
 
+  @LimitPerUser(10, hours(1))
   @Post('invitations/:invitationId/resend')
   @RequirePermission('member.manage')
   @HttpCode(204)

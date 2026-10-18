@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { hours } from '@nestjs/throttler';
 import { toLocale } from '@smp/contracts';
 import {
   ChangePlan,
@@ -13,6 +14,7 @@ import { ZodResponse } from 'nestjs-zod';
 
 import { AllowWhenReadOnly, OrgScope, RequirePermission } from '../../common/decorators/access.decorators';
 import { Access, Actor, type RequestAccess } from '../../common/guards/request-access';
+import { LimitPerUser } from '../../common/throttling/throttling';
 import type { AuthSession } from '../identity/auth';
 import { CurrentUser } from '../identity/current-user.decorator';
 import {
@@ -51,6 +53,7 @@ export class BillingController {
     return toBillingOverviewDto(await this.getOverview.execute(actor));
   }
 
+  @LimitPerUser(30, hours(1))
   @Post('checkout')
   @RequirePermission('billing.manage')
   @HttpCode(201)
@@ -74,6 +77,7 @@ export class BillingController {
     return { url };
   }
 
+  @LimitPerUser(30, hours(1))
   @Post('plan')
   @RequirePermission('billing.manage')
   @HttpCode(204)
@@ -81,6 +85,7 @@ export class BillingController {
     await this.changePlan.execute({ actor, plan: body.plan });
   }
 
+  @LimitPerUser(30, hours(1))
   @Post('portal')
   @RequirePermission('billing.manage')
   @HttpCode(201)

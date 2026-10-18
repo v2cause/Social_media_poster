@@ -1,5 +1,6 @@
 import { Controller, Get, Inject, Logger, Param, Query, Req, Res } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
+import { hours } from '@nestjs/throttler';
 import { CompleteAuthorization, isPlatformError, type AuthorizationOutcome } from '@smp/core';
 import { platformOfSlug, platformSlugSchema } from '@smp/contracts';
 import { fromNodeHeaders } from 'better-auth/node';
@@ -7,6 +8,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 
 import { Public } from '../../common/decorators/public.decorator';
+import { LimitPerUser } from '../../common/throttling/throttling';
 import type { ApiEnv } from '../../config/api-env';
 import { API_ENV } from '../../config/config.module';
 import { AUTH, type Auth } from '../identity/auth';
@@ -35,6 +37,7 @@ export class OAuthCallbackController {
     private readonly completeAuthorization: CompleteAuthorization,
   ) {}
 
+  @LimitPerUser(60, hours(1))
   @Get(':platform/callback')
   async callback(
     @Req() request: Request,

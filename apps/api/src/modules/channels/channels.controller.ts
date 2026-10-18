@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Inject, NotFoundException, Param, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { hours } from '@nestjs/throttler';
 import {
   ConfirmConnection,
   GetPendingConnection,
@@ -13,6 +14,7 @@ import { ZodResponse } from 'nestjs-zod';
 
 import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
+import { LimitPerUser } from '../../common/throttling/throttling';
 import { actorOf } from '../content/content.mappers';
 import {
   AuthorizationUrlDto,
@@ -63,6 +65,7 @@ export class ChannelsController {
     return { items: this.registry.methods() };
   }
 
+  @LimitPerUser(30, hours(1))
   @Post(':platform/connect')
   @RequirePermission('account.manage')
   @HttpCode(200)

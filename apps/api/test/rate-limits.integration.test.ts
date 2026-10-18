@@ -5,8 +5,8 @@ import { startApiTestApp, type ApiTestApp } from './support/api-app';
 import { browser, signUpVerified } from './support/browser';
 
 // Guide step 8.4 (ADR 0039): inbound rate limits with @nestjs/throttler, counted in Redis. Before
-// the session a limit per client address, after it a limit per user across all routes. Low limits
-// here; the defaults are far higher.
+// the session a limit per client address, after it a limit per user across all routes, and on
+// costly routes a tighter limit of their own. Low limits here; the defaults are far higher.
 
 const PER_ADDRESS = 40;
 const PER_USER = 20;
@@ -55,6 +55,23 @@ describe('inbound rate limits', () => {
 
     const calm = await signUpVerified(started(), 'calm-user@example.test');
     await calm.get('/api/me').expect(200);
+  });
+
+  it('applies the tighter limit of a costly route per user', async () => {
+    const owner = await signUpVerified(started(), 'export-limit@example.test');
+    const created = await owner
+      .post('/api/organizations')
+      .send({ name: 'Limit GmbH', workspace: { name: 'Limit', timezone: 'UTC', contentLanguage: 'de' } })
+      .expect(201);
+    const { organizationId } = created.body as { organizationId: string };
+
+    // Five exports a day; the waiting one comes back each time.
+    for (let index = 0; index < 5; index += 1) {
+      await owner.post(`/api/org/${organizationId}/data-exports`).expect(202);
+    }
+    await owner.post(`/api/org/${organizationId}/data-exports`).expect(429);
+    // The other routes of the user are not affected.
+    await owner.get(`/api/org/${organizationId}/data-exports`).expect(200);
   });
 
   it('keeps the health checks out of the limit per user', async () => {

@@ -1,5 +1,6 @@
 import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { days, hours } from '@nestjs/throttler';
 import {
   DownloadDataExport,
   ListDataExports,
@@ -16,6 +17,7 @@ import {
   RequirePermission,
 } from '../../common/decorators/access.decorators';
 import { Actor } from '../../common/guards/request-access';
+import { LimitPerUser } from '../../common/throttling/throttling';
 import { DataExportDownloadDto, DataExportDto, DataExportListDto } from './gdpr.dto';
 import { toDataExportDto } from './gdpr.mappers';
 
@@ -46,6 +48,7 @@ export class DataExportsController {
   }
 
   /** A new export, or the one that waits or runs already. */
+  @LimitPerUser(5, days(1))
   @Post()
   @RequirePermission('org.export')
   @HttpCode(202)
@@ -54,6 +57,7 @@ export class DataExportsController {
     return toDataExportDto(await this.requestExport.execute(actor), systemClock.now());
   }
 
+  @LimitPerUser(30, hours(1))
   @Post(':exportId/download')
   @RequirePermission('org.export')
   @HttpCode(201)

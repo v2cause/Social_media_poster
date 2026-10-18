@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, HttpCode, Inject, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { hours } from '@nestjs/throttler';
 import { CancelOrganizationErasure, RequestOrganizationErasure, type OrganizationActor } from '@smp/core';
 import type { TenancyReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
@@ -12,6 +13,7 @@ import {
 } from '../../common/decorators/access.decorators';
 import { AccessCache } from '../../common/guards/access-cache';
 import { Actor } from '../../common/guards/request-access';
+import { LimitPerUser } from '../../common/throttling/throttling';
 import { TENANCY_READ_MODEL } from '../../infrastructure/clients.module';
 import { OrganizationDeletionDto, OrganizationDeletionRequestDto } from './gdpr.dto';
 
@@ -34,6 +36,7 @@ export class OrganizationDeletionController {
     private readonly cancelErasure: CancelOrganizationErasure,
   ) {}
 
+  @LimitPerUser(10, hours(1))
   @Post()
   @RequirePermission('org.delete')
   @HttpCode(201)
@@ -50,6 +53,7 @@ export class OrganizationDeletionController {
   }
 
   /** Takes the deletion back while the erasure waits. */
+  @LimitPerUser(10, hours(1))
   @Delete()
   @RequirePermission('org.delete')
   @AllowWhenDeleted()

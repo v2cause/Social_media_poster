@@ -12,6 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { hours } from '@nestjs/throttler';
 import {
   CompleteUpload,
   DeleteMedia,
@@ -30,6 +31,7 @@ import {
   WorkspaceScope,
 } from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
+import { LimitPerUser } from '../../common/throttling/throttling';
 import { MEDIA_STORAGE } from '../../infrastructure/clients.module';
 import { actorOf, refOf } from '../content/content.mappers';
 import {
@@ -63,6 +65,7 @@ export class MediaController {
     private readonly deleteMedia: DeleteMedia,
   ) {}
 
+  @LimitPerUser(300, hours(1))
   @Post('uploads')
   @RequirePermission('media.write')
   @ZodResponse({ status: 201, type: UploadTicketDto })
