@@ -215,6 +215,15 @@ const DEMO_TOPICS: readonly DemoTopic[] = [
   },
 ];
 
+/** The topic of the n-th post; the topics take turns. */
+const topicAt = (position: number): DemoTopic => {
+  const topic = DEMO_TOPICS[position % DEMO_TOPICS.length];
+  if (!topic) {
+    throw new Error('The demo needs topics.');
+  }
+  return topic;
+};
+
 const DEMO_HASHTAGS = ['#Marketing', '#ContentStrategie', '#SocialMedia', '#B2B', '#Mittelstand'];
 
 interface DemoPipelinePost extends DemoTopic {
@@ -426,6 +435,7 @@ export function demoAnalyticsPlan(input: {
   }
 
   let externalNumber = 0;
+  let postingDays = 0;
   // Two posts the platforms no longer know: their polls stopped when they were deleted.
   const deletedVariants = new Set([7, 23]);
   // The 90 local days up to today, so the view of 90 days has no data before it.
@@ -435,9 +445,13 @@ export function demoAnalyticsPlan(input: {
     // The account grows over the period, so the last 30 days beat the 30 before.
     const trend = 0.8 + (0.4 * index) / (DEMO_ANALYTICS_DAYS - 1);
     const postsOfDay = new Map<string, number>();
-    if (random() < (weekend ? 0.3 : 0.9)) {
-      const topic = pick(DEMO_TOPICS);
-      const styleKey = random() < 0.12 ? null : topic.style;
+    // Every weekday has a post and some weekend days. The topics take turns and every ninth post has
+    // no style, so the last 30 days hold every style and posts without one, whatever day the seed
+    // runs on: the analytics test reads them.
+    if (!weekend || random() < 0.3) {
+      const topic = topicAt(postingDays);
+      const styleKey = postingDays % 9 === 8 ? null : topic.style;
+      postingDays += 1;
       const effect = STYLE_EFFECTS[styleKey ?? 'none'];
       const minute = Math.round((7 + random() * 11) * 60);
       const hour = minute / 60;
