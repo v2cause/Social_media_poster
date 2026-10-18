@@ -1,7 +1,7 @@
 {
   "title": "Daten und Löschung",
-  "intro": "Hier exportieren Sie alle Daten Ihrer Organisation.",
-  "ownersOnly": "Nur Owner der Organisation können ihre Daten exportieren.",
+  "intro": "Hier exportieren Sie alle Daten Ihrer Organisation oder löschen sie.",
+  "ownersOnly": "Nur Owner der Organisation können ihre Daten exportieren oder sie löschen.",
   "loading": "Exporte werden geladen",
   "loadError": "Die Exporte konnten nicht geladen werden.",
   "export": {
@@ -31,5 +31,26 @@
     "expired": "Abgelaufen",
     "failed": "Fehlgeschlagen",
     "canceled": "Abgebrochen"
+  },
+  "deletion": {
+    "title": "Organisation löschen",
+    "description": "Löscht {organization} mit allen Workspaces, Posts, Medien, verbundenen Accounts und Statistiken. Alle Mitglieder verlieren sofort den Zugriff, geplante Posts werden nicht mehr veröffentlicht, und ein bezahltes Abo endet mit der laufenden Periode.",
+    "delay": "Endgültig gelöscht wird nach 30 Tagen. Bis dahin können Owner die Löschung hier zurücknehmen. Laden Sie vorher einen Datenexport herunter, wenn Sie die Daten behalten möchten.",
+    "delete": "Organisation löschen",
+    "dialogTitle": "{organization} wirklich löschen?",
+    "dialogDescription": "Geben Sie zur Bestätigung den Namen der Organisation ein. Nach 30 Tagen lässt sich die Löschung nicht mehr rückgängig machen.",
+    "confirmLabel": "Name der Organisation",
+    "deleting": "Organisation wird gelöscht",
+    "deleted": "Die Organisation wurde gelöscht. Sie wird am {date} endgültig gelöscht.",
+    "pendingTitle": "Löschung geplant",
+    "pending": "{organization} wurde am {deletedAt} gelöscht und wird am {date} endgültig gelöscht. Bis dahin kann niemand darin arbeiten.",
+    "restore": "Löschung zurücknehmen",
+    "restoring": "Löschung wird zurückgenommen",
+    "restored": "Die Löschung wurde zurückgenommen. Die Organisation steht wieder zur Verfügung.",
+    "notice": "Diese Organisation wurde gelöscht und wird am {date} endgültig gelöscht.",
+    "noticeAction": "Zur Löschung",
+    "askOwner": "Ein Owner kann die Löschung zurücknehmen.",
+    "blockedTitle": "Diese Organisation wurde gelöscht",
+    "blockedDescription": "Seit der Löschung kann niemand mehr in ihr arbeiten. Am {date} wird sie mit allen Daten endgültig gelöscht."
   }
 }

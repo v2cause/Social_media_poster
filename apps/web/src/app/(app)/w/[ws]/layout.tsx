@@ -30,6 +30,7 @@ export default async function WorkspaceLayout({
         organizationId: context.organization.id,
         role: context.role,
         billingNotice: noticeOf(context.billing, new Date()),
+        deletion: context.deletion,
       }}
     >
       {children}

@@ -6,7 +6,7 @@ import {
   useDataExportsDownload,
   useDataExportsList,
 } from '@smp/api-client';
-import { can, type DataExport, type Role } from '@smp/contracts';
+import { can, type DataExport, type OrganizationDeletionState, type Role } from '@smp/contracts';
 import {
   Alert,
   Badge,
@@ -38,15 +38,18 @@ import { bytesIn } from '@/features/billing/billing-model';
 import { useErrorMessage } from '@/lib/use-error-message';
 
 import { openExportOf, POLL_MS, stateOf, type ExportState } from './data-model';
+import { DeletionCard } from './deletion-card';
 
-// The data page of an organization for its owners (guide step 8.1): ask for an export of all its
-// data, follow it while it is created, and download it for 24 hours. A download asks the API for
-// a link of five minutes and follows it at once; the archive never has a lasting address.
+// The data page of an organization for its owners (guide steps 8.1 and 8.2): ask for an export of
+// all its data, follow it while it is created, and download it for 24 hours; delete the
+// organization or take its deletion back. A download asks the API for a link of five minutes and
+// follows it at once; the archive never has a lasting address.
 
 interface DataPageProps {
   organizationId: string;
   organizationName: string;
   role: Role;
+  deletion: OrganizationDeletionState | null;
 }
 
 const BADGE_VARIANT: Record<ExportState, 'success' | 'warning' | 'destructive' | 'muted'> = {
@@ -75,6 +78,13 @@ export function DataPage(props: DataPageProps) {
         <p className="text-muted-foreground">{t('intro')}</p>
       </div>
       <ExportCard {...props} />
+      {can(props.role, 'org.delete') ? (
+        <DeletionCard
+          organizationId={props.organizationId}
+          organizationName={props.organizationName}
+          deletion={props.deletion}
+        />
+      ) : null}
     </div>
   );
 }

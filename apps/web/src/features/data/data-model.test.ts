@@ -1,7 +1,7 @@
 import type { DataExport } from '@smp/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { openExportOf, readyExportOf, stateOf } from './data-model';
+import { confirmsName, openExportOf, readyExportOf, stateOf } from './data-model';
 
 const exportOf = (overrides: Partial<DataExport>): DataExport => ({
   id: '0192f000-0000-7000-8000-0000000000e1',
@@ -33,5 +33,14 @@ describe('the exports on the data page', () => {
     expect(openExportOf([ready, expired])).toBeNull();
     expect(readyExportOf([running, expired, ready])?.id).toBe('ready');
     expect(readyExportOf([running, expired])).toBeNull();
+  });
+});
+
+describe('the confirmation of a deletion', () => {
+  it('needs the name of the organization, apart from spaces around it', () => {
+    expect(confirmsName(' Acme GmbH ', 'Acme GmbH')).toBe(true);
+    expect(confirmsName('Acme', 'Acme GmbH')).toBe(false);
+    expect(confirmsName('acme gmbh', 'Acme GmbH')).toBe(false);
+    expect(confirmsName('  ', ' ')).toBe(false);
   });
 });

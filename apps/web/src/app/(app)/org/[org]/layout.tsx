@@ -26,6 +26,7 @@ export default async function OrganizationLayout({
         organizationName: context.organization.name,
         role: context.role,
         billingNotice: noticeOf(context.billing, new Date()),
+        deletion: context.deletion,
       }}
     >
       {children}

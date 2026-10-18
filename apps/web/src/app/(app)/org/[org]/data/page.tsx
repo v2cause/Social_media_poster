@@ -8,7 +8,7 @@ export async function generateMetadata() {
   return { title: t('title') };
 }
 
-/** The export of all data of an organization for its owners (guide step 8.1). */
+/** The export of all data of an organization and its deletion, for its owners (guide steps 8.1 and 8.2). */
 export default async function DataRoute({ params }: { params: Promise<{ org: string }> }) {
   const { org } = await params;
   const context = await getOrganizationContext(org);
@@ -17,6 +17,7 @@ export default async function DataRoute({ params }: { params: Promise<{ org: str
       organizationId={context.organization.id}
       organizationName={context.organization.name}
       role={context.role}
+      deletion={context.deletion}
     />
   );
 }

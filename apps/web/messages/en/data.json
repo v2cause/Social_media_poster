@@ -1,7 +1,7 @@
 {
   "title": "Data and deletion",
-  "intro": "Export all data of your organization here.",
-  "ownersOnly": "Only owners of the organization can export its data.",
+  "intro": "Export all data of your organization here, or delete it.",
+  "ownersOnly": "Only owners of the organization can export its data or delete it.",
   "loading": "Loading exports",
   "loadError": "The exports could not be loaded.",
   "export": {
@@ -31,5 +31,26 @@
     "expired": "Expired",
     "failed": "Failed",
     "canceled": "Canceled"
+  },
+  "deletion": {
+    "title": "Delete organization",
+    "description": "Deletes {organization} with all workspaces, posts, media, connected accounts and statistics. All members lose access at once, scheduled posts are no longer published, and a paid subscription ends with the current period.",
+    "delay": "The data is erased for good after 30 days. Until then owners can take the deletion back here. Download a data export first if you want to keep the data.",
+    "delete": "Delete organization",
+    "dialogTitle": "Really delete {organization}?",
+    "dialogDescription": "Type the name of the organization to confirm. After 30 days the deletion cannot be undone.",
+    "confirmLabel": "Name of the organization",
+    "deleting": "Deleting organization",
+    "deleted": "The organization was deleted. It will be erased for good on {date}.",
+    "pendingTitle": "Deletion scheduled",
+    "pending": "{organization} was deleted on {deletedAt} and will be erased for good on {date}. Until then nobody can work in it.",
+    "restore": "Take the deletion back",
+    "restoring": "Taking the deletion back",
+    "restored": "The deletion was taken back. The organization is available again.",
+    "notice": "This organization was deleted and will be erased for good on {date}.",
+    "noticeAction": "View deletion",
+    "askOwner": "An owner can take the deletion back.",
+    "blockedTitle": "This organization was deleted",
+    "blockedDescription": "Since the deletion nobody can work in it. On {date} it is erased for good with all its data."
   }
 }

@@ -46,6 +46,7 @@ import { useState, type ReactNode } from 'react';
 
 import type { BillingNotice } from '@/features/billing/billing-model';
 import { BillingNoticeBar } from '@/features/billing/billing-notice';
+import { DeletionNoticeBar, OrganizationDeletedNotice } from '@/features/data/deletion-notice';
 import { LiveEventsProvider } from '@/features/live/live-events-provider';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { authClient } from '@/lib/auth-client';
@@ -87,6 +88,8 @@ export type ShellArea =
       role: Role;
       /** What the subscription needs, shown above every page (guide step 7.4). */
       billingNotice: BillingNotice | null;
+      /** Set while the organization waits for its erasure (guide step 8.2). */
+      deletion: { eraseAfter: string } | null;
     }
   | {
       kind: 'organization';
@@ -94,6 +97,7 @@ export type ShellArea =
       organizationName: string;
       role: Role;
       billingNotice: BillingNotice | null;
+      deletion: { eraseAfter: string } | null;
     }
   | { kind: 'account' };
 
@@ -274,17 +278,36 @@ export function AppShell(props: {
               <UserMenu user={props.user} area={props.area} memberships={props.memberships} />
             </div>
           </header>
-          {props.area.kind !== 'account' &&
-          props.area.billingNotice &&
-          // The billing page explains it in detail itself.
-          !pathname.startsWith(`/org/${props.area.organizationId}/billing`) ? (
+          {props.area.kind !== 'account' && props.area.deletion ? (
+            <DeletionNoticeBar
+              eraseAfter={props.area.deletion.eraseAfter}
+              organizationId={props.area.organizationId}
+              canRestore={can(props.area.role, 'org.delete')}
+            />
+          ) : props.area.kind !== 'account' &&
+            props.area.billingNotice &&
+            // The billing page explains it in detail itself.
+            !pathname.startsWith(`/org/${props.area.organizationId}/billing`) ? (
             <BillingNoticeBar
               notice={props.area.billingNotice}
               organizationId={props.area.organizationId}
               canManage={can(props.area.role, 'billing.manage')}
             />
           ) : null}
-          <main className="min-w-0 flex-1 p-6 max-md:p-4">{props.children}</main>
+          <main className="min-w-0 flex-1 p-6 max-md:p-4">
+            {props.area.kind !== 'account' &&
+            props.area.deletion &&
+            // Only the data page works while the organization waits for its erasure.
+            !pathname.startsWith(`/org/${props.area.organizationId}/data`) ? (
+              <OrganizationDeletedNotice
+                eraseAfter={props.area.deletion.eraseAfter}
+                organizationId={props.area.organizationId}
+                canRestore={can(props.area.role, 'org.delete')}
+              />
+            ) : (
+              props.children
+            )}
+          </main>
         </div>
       </div>
     </LiveEventsProvider>
