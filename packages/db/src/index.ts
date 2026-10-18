@@ -135,6 +135,7 @@ export {
   seedDemoData,
   type DemoSeedResult,
 } from './seed/demo';
+export { seedDemoAnalytics } from './seed/demo-analytics';
 export {
   AuditLogReadModel,
   InvalidCursorError,
@@ -144,3 +145,4 @@ export {
 export { PrismaGdprRequestRunner, PrismaGdprUnitOfWork, toGdprRequest } from './gdpr/prisma-gdpr-requests';
 export { EXPORT_TABLES, PrismaOrganizationDataSource } from './gdpr/prisma-organization-data-source';
 export { checkErasure, PrismaOrganizationEraser, type ErasureCheck } from './gdpr/prisma-organization-eraser';
+export { PrismaRetentionStore } from './gdpr/prisma-retention-store';

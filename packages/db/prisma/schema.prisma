@@ -64,6 +64,8 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  // For the retention periods, which delete sessions 30 days after they expired.
+  @@index([expiresAt])
   @@map("session")
 }
 
@@ -298,6 +300,8 @@ model AuditLog {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt(sort: Desc)])
+  // The entries that still hold connection data, which the retention periods clear after 30 days.
+  @@index([createdAt], map: "audit_log_connection_data_idx", where: raw("ip_address IS NOT NULL OR user_agent IS NOT NULL"))
   @@map("audit_log")
 }
 
@@ -640,8 +644,9 @@ model AiGeneration {
   // The model that produced the answer (top-level model of the response), after a fallback too.
   modelServed         String?   @map("model_served")
   effort              String
-  // The input without the rendered prompt: brief, style, targets, language, refine action.
-  input               Json
+  // The input without the rendered prompt: brief, style, targets, language, refine action. Input
+  // and output are cleared after 180 days (guide step 8.3, ADR 0038).
+  input               Json?
   output              Json?
   outcome             AiOutcome
   stopReason          String?   @map("stop_reason")
@@ -663,6 +668,8 @@ model AiGeneration {
   ideas             Idea[]
 
   @@index([workspaceId, createdAt(sort: Desc)])
+  // The generations that still hold raw data, for the retention periods.
+  @@index([createdAt], map: "ai_generation_raw_data_idx", where: raw("input IS NOT NULL OR output IS NOT NULL"))
   @@map("ai_generation")
 }
 
@@ -1024,6 +1031,8 @@ model WebhookEvent {
   receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz(3)
 
   @@unique([provider, externalId])
+  // The processed events, which the retention periods delete after 30 days.
+  @@index([processedAt], map: "webhook_event_processed_idx", where: raw("processed_at IS NOT NULL"))
   @@map("webhook_event")
 }
 
