@@ -8,7 +8,8 @@ import type Redis from 'ioredis';
 // requests per client address and path; these hooks add:
 // - a limit of failed sign-ins per account, so a pool of addresses cannot try passwords on it,
 // - a limit of failed password checks per user on the endpoints that take the password of a
-//   session, so a stolen session cannot guess the password and take over the second factor.
+//   session, so a stolen session cannot guess the password and take over the second factor,
+// - no "trust this device": every sign-in asks for the second factor.
 
 /** Failed sign-ins per account and window, from whatever addresses they come. */
 export const SIGN_IN_FAILURES_PER_ACCOUNT = 10;
@@ -24,6 +25,7 @@ const PASSWORD_PATHS = new Set([
   '/two-factor/get-totp-uri',
   '/two-factor/generate-backup-codes',
 ]);
+const SECOND_FACTOR_PATHS = new Set(['/two-factor/verify-totp', '/two-factor/verify-backup-code']);
 
 // INCR with an expiry set on the first hit, as in the password check of the API.
 const INCREMENT = `
@@ -75,6 +77,12 @@ export function createAuthHooks({ redis, logger }: AuthHookDependencies) {
         throw tooMany();
       }
       return;
+    }
+    if (SECOND_FACTOR_PATHS.has(ctx.path)) {
+      const body = (ctx.body ?? {}) as Record<string, unknown>;
+      if (body['trustDevice'] === true) {
+        return { context: { body: { ...body, trustDevice: false } } };
+      }
     }
     return;
   });

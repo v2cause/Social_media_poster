@@ -10,10 +10,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Checkbox,
   FormField,
   Input,
-  Label,
 } from '@smp/ui';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -25,13 +23,15 @@ import { useFieldError } from '@/lib/use-field-error';
 
 import { useAuthError } from './auth-error';
 
-/** Second step of the sign-in: a TOTP code from the app or a backup code. */
+/**
+ * Second step of the sign-in: a TOTP code from the app or a backup code. Every sign-in asks for
+ * it; no browser is trusted to skip it (guide step 8.4).
+ */
 export function TwoFactorStep({ onDone }: { onDone: () => void }) {
   const t = useTranslations('auth');
   const fieldError = useFieldError();
   const authError = useAuthError();
   const [backup, setBackup] = useState(false);
-  const [trustDevice, setTrustDevice] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const form = useForm<z.infer<typeof twoFactorCodeSchema>>({
     resolver: zodResolver(twoFactorCodeSchema),
@@ -41,8 +41,8 @@ export function TwoFactorStep({ onDone }: { onDone: () => void }) {
   const submit = form.handleSubmit(async ({ code }) => {
     setError(null);
     const result = backup
-      ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice })
-      : await authClient.twoFactor.verifyTotp({ code, trustDevice });
+      ? await authClient.twoFactor.verifyBackupCode({ code })
+      : await authClient.twoFactor.verifyTotp({ code });
     if (result.error) {
       setError(authError(result.error));
       return;
@@ -76,16 +76,6 @@ export function TwoFactorStep({ onDone }: { onDone: () => void }) {
               />
             )}
           </FormField>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="trust-device"
-              checked={trustDevice}
-              onChange={(event) => {
-                setTrustDevice(event.target.checked);
-              }}
-            />
-            <Label htmlFor="trust-device">{t('twoFactor.trustDevice')}</Label>
-          </div>
           <Button type="submit" loading={form.formState.isSubmitting}>
             {t('twoFactor.submit')}
           </Button>

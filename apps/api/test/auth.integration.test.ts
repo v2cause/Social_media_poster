@@ -10,7 +10,8 @@ import { browser as openBrowser, PASSWORD, signUpVerified } from './support/brow
 // sign-in, getSession in the AuthGuard, sign-out and two-factor authentication against the real
 // API, with the hardening of step 8.4:
 // - the link verifies the address without signing in,
-// - failed sign-ins are limited per account and wrong passwords per user.
+// - failed sign-ins are limited per account and wrong passwords per user,
+// - no device is trusted to skip the second factor.
 
 const WRONG_PASSWORD = 'wrong password 123';
 
@@ -239,5 +240,30 @@ describe('authentication with Better Auth', () => {
     const blocked = await agent.post('/api/auth/two-factor/enable').send({ password: PASSWORD });
     expect(blocked.status).toBe(429);
     expect(blocked.body).toMatchObject({ code: 'TOO_MANY_ATTEMPTS' });
+  });
+
+  it('asks for the second factor at every sign-in, even when the device should be trusted', async () => {
+    const email = 'distrustful@example.test';
+    const agent = await signUpVerified(started(), email);
+    const enabled = await agent.post('/api/auth/two-factor/enable').send({ password: PASSWORD }).expect(200);
+    const { totpURI } = enabled.body as { totpURI: string };
+    await agent
+      .post('/api/auth/two-factor/verify-totp')
+      .send({ code: totpCode(totpURI) })
+      .expect(200);
+    await agent.post('/api/auth/sign-out').send({}).expect(200);
+
+    const first = await signIn(agent, email).expect(200);
+    expect(first.body).toMatchObject({ twoFactorRedirect: true });
+    const trusted = await agent
+      .post('/api/auth/two-factor/verify-totp')
+      .send({ code: totpCode(totpURI), trustDevice: true })
+      .expect(200);
+    expect(cookiesOf(trusted)).not.toContain('trust_device');
+    await agent.post('/api/auth/sign-out').send({}).expect(200);
+
+    const second = await signIn(agent, email).expect(200);
+    expect(second.body).toMatchObject({ twoFactorRedirect: true });
+    await agent.get('/api/me').expect(401);
   });
 });
