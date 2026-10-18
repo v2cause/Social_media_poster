@@ -1,5 +1,12 @@
 import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
-import { AnnounceReadOnly, MonitorTokens, RewrapSecrets, systemClock } from '@smp/core';
+import {
+  AnnounceReadOnly,
+  ApplyRetention,
+  EntitlementsService,
+  MonitorTokens,
+  RewrapSecrets,
+  systemClock,
+} from '@smp/core';
 import { sealerFromEnv } from '@smp/crypto';
 import {
   createPrismaClient,
@@ -10,7 +17,9 @@ import {
   PrismaOutboxRelay,
   PrismaPublishScheduler,
   PrismaReadOnlyNotices,
+  PrismaRetentionStore,
   PrismaSealedSecretStore,
+  PrismaSubscriptionReader,
   PrismaTokenMaintenanceUnitOfWork,
   PrismaUsageReportStore,
   PrismaXBrowserOperations,
@@ -49,12 +58,12 @@ import type { WorkerEnv } from '../worker-env';
 import { TICK_HANDLERS } from '../worker.tokens';
 import { EmailBillingNotifier } from './billing-notifier';
 
-// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9, 5.2, 6.5, 7.3, 7.4 and
-// 8.1): the system client for the scans across workspaces, app_user for the changes of the token
-// monitor in the tenant of each connection, the producers of the jobs the ticks add, the commands
-// of the daily canary of the X browser, and the tick handlers. The daily usage reports run where
-// Stripe is set up (STRIPE_SECRET_KEY); the notices of read-only access, whose links lead into
-// the web app, where APP_URL is set.
+// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9, 5.2, 6.5, 7.3, 7.4, 8.1
+// and 8.3): the system client for the scans across workspaces and the retention periods, app_user
+// for the changes of the token monitor in the tenant of each connection and for the plans, the
+// producers of the jobs the ticks add, the commands of the daily canary of the X browser, and the
+// tick handlers. The daily usage reports run where Stripe is set up (STRIPE_SECRET_KEY); the
+// notices of read-only access, whose links lead into the web app, where APP_URL is set.
 
 const SCHEDULER_CLIENTS = Symbol('SCHEDULER_CLIENTS');
 /** Variants per claim of tick.publish and per scan of the sweeper. */
@@ -124,9 +133,19 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
     batchSize: PUBLISH_BATCH,
   });
   const sweeper = new Sweeper({ plans, queue: publishQueue, producer: publishProducer });
+  const entitlements = new EntitlementsService({
+    subscriptions: new PrismaSubscriptionReader(database),
+    clock: systemClock,
+  });
   const maintenance = new Maintenance({
     rewrapSecrets: new RewrapSecrets({ store: new PrismaSealedSecretStore(system), rewrappers: sealers }),
     outbox,
+    retention: new ApplyRetention({
+      store: new PrismaRetentionStore(system),
+      analyticsHistoryDays: async (organizationId) =>
+        (await entitlements.of(organizationId)).limits.analyticsHistoryDays,
+      clock: systemClock,
+    }),
   });
   const tokenProducer = new TokenProducer(tokensQueue);
   const tokens = new MonitorTokens({
@@ -186,8 +205,8 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
     'tick.analytics': () => analytics.postMetrics(),
     'tick.account-metrics': () => analytics.accountMetrics(),
     'tick.maintenance': async () => {
-      const { secrets, outboxPurged } = await maintenance.run();
-      return { ...secrets, outboxPurged, ...(await analytics.nightlyRollups()) };
+      const { secrets, outboxPurged, retention } = await maintenance.run();
+      return { ...secrets, outboxPurged, ...retention, ...(await analytics.nightlyRollups()) };
     },
     ...(canaryTick ? { 'tick.xb-canary': () => canaryTick.run() } : {}),
     ...(usageTick ? { 'tick.usage-report': () => usageTick.run() } : {}),
