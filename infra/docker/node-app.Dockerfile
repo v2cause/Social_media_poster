@@ -9,7 +9,8 @@
 #
 # Stages: prune (turbo) -> deps (pnpm, frozen lockfile) -> build (turbo) -> runtime (production deps only).
 
-ARG NODE_IMAGE=node:24.21.0-slim
+# Debian 13 (trixie), the current stable release; glibc, as the prebuilt binaries of sharp need.
+ARG NODE_IMAGE=node:24.21.0-trixie-slim
 ARG APP=api
 ARG HEALTH_URL=http://127.0.0.1:3001/api/health/live
 
@@ -38,6 +39,10 @@ RUN pnpm exec turbo run build --filter=@smp/${APP}...
 RUN pnpm deploy --legacy --filter @smp/${APP} --prod --config.auto-install-peers=false /out
 
 FROM ${NODE_IMAGE} AS runtime
+# No package manager: the app runs with node alone, and npm, corepack and yarn bring dependencies
+# of their own (guide step 8.4).
+RUN rm -rf /usr/local/lib/node_modules /opt/yarn-* /usr/local/bin/corepack /usr/local/bin/npm \
+    /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg
 ARG HEALTH_URL
 ENV NODE_ENV=production
 ENV HEALTH_URL=${HEALTH_URL}

@@ -280,7 +280,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   1. `prune`: `turbo prune @smp/$APP --docker`
   2. `deps`: `pnpm install --frozen-lockfile` auf den gepruned-ten Manifests
   3. `build`: `turbo run build --filter=@smp/$APP...`
-  4. `runtime`: `node:24-slim`, `NODE_ENV=production`, nur Produktionsabhängigkeiten (`pnpm deploy --legacy --prod`), `USER node`, `HEALTHCHECK`, `CMD ["node","--require","@smp/observability/register","dist/main.js"]`
+  4. `runtime`: `node:24-slim` (seit Schritt 8.4 `node:24.21.0-trixie-slim` ohne npm, corepack und yarn), `NODE_ENV=production`, nur Produktionsabhängigkeiten (`pnpm deploy --legacy --prod`), `USER node`, `HEALTHCHECK`, `CMD ["node","--require","@smp/observability/register","dist/main.js"]`
 
   Das Web-Image nutzt den Next.js-Output `standalone`.
 - **Darauf achten**:

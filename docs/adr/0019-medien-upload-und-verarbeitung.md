@@ -53,6 +53,6 @@ Integrationstest des Workers gegen PostgreSQL, Redis und SeaweedFS (`apps/worker
 
 ## Konsequenzen
 
-- `@smp/media` bringt sharp mit. Die API lädt es mit, obwohl sie keine Bilder dekodiert; die Images basieren auf `node:24-slim` (glibc), passend zu den vorgebauten Binaries von sharp.
+- `@smp/media` bringt sharp mit. Die API lädt es mit, obwohl sie keine Bilder dekodiert; die Images basieren auf `node:24-slim` (glibc, seit Schritt 8.4 `node:24.21.0-trixie-slim` auf Debian 13), passend zu den vorgebauten Binaries von sharp.
 - Ein Job, der alle Versuche verbraucht, lässt das Asset auf `PROCESSING` stehen, und ein erneutes `complete` reiht ihn erst nach Ablauf des fehlgeschlagenen Jobs (ein Tag) wieder ein. `tick.maintenance` (Architektur, Abschnitte 7.4 und 9) soll solche Assets erneut einreihen oder ablehnen.
 - Das Aufräumen von `PENDING_UPLOAD` nach 24 h und gelöschten Assets nach 30 Tagen folgt mit `tick.maintenance`.

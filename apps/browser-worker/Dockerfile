@@ -8,7 +8,8 @@
 # its system libraries; its tag must match the exact Playwright version pinned in
 # apps/browser-worker/package.json.
 
-ARG NODE_IMAGE=node:24.21.0-slim
+# Debian 13 (trixie), the current stable release; glibc, as the prebuilt binaries of sharp need.
+ARG NODE_IMAGE=node:24.21.0-trixie-slim
 
 FROM ${NODE_IMAGE} AS base
 ENV PNPM_HOME=/pnpm
@@ -35,6 +36,10 @@ RUN pnpm exec turbo run build --filter=@smp/browser-worker...
 RUN pnpm deploy --legacy --filter @smp/browser-worker --prod --config.auto-install-peers=false /out
 
 FROM mcr.microsoft.com/playwright:v1.64.1-noble AS runtime
+# No package manager: the worker runs with node alone, and npm, corepack and yarn bring
+# dependencies of their own (guide step 8.4).
+RUN rm -rf /usr/lib/node_modules/corepack /usr/lib/node_modules/npm /usr/lib/node_modules/yarn \
+    /usr/bin/corepack /usr/bin/npm /usr/bin/npx /usr/bin/yarn /usr/bin/yarnpkg
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=pwuser:pwuser /out ./

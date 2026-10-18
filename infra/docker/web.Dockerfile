@@ -7,7 +7,8 @@
 # proxy in front of it routes /api to the API (locally: the "proxy" service in compose.yaml).
 # API_INTERNAL_URL is set at runtime for server-side calls only.
 
-ARG NODE_IMAGE=node:24.21.0-slim
+# Debian 13 (trixie), the current stable release; glibc, as the prebuilt binaries of sharp need.
+ARG NODE_IMAGE=node:24.21.0-trixie-slim
 
 FROM ${NODE_IMAGE} AS base
 ENV PNPM_HOME=/pnpm
@@ -31,6 +32,10 @@ COPY --from=prune /repo/out/full/ ./
 RUN pnpm exec turbo run build --filter=@smp/web...
 
 FROM ${NODE_IMAGE} AS runtime
+# No package manager: the app runs with node alone, and npm, corepack and yarn bring dependencies
+# of their own (guide step 8.4).
+RUN rm -rf /usr/local/lib/node_modules /opt/yarn-* /usr/local/bin/corepack /usr/local/bin/npm \
+    /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0

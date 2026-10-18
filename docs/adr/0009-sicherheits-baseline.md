@@ -32,7 +32,7 @@ Die Architektur nennt Härtung und Lieferkette (CSP mit Nonces, Log-Redaction, R
 - **Geprüfte Ausnahme** `semver@6.3.1` (seit Schritt 1.8): der Backport des ReDoS-Fixes (CVE-2022-25883) auf die 6.x-Linie, am 2023-07-10 vom npm-CLI-Maintainer veröffentlicht. Die Version erschien nach 7.5.2 bis 7.5.4, die einen Herkunftsnachweis haben; die Prüfung nach Veröffentlichungsdatum wertet sie deshalb als Downgrade. `@babel/core` (über `eslint-plugin-react-hooks`) braucht weiterhin semver 6.
 - **Audit**: `mysql2` und `js-yaml` 5 sind per `overrides` innerhalb der Major-Version gepatcht. Bewusst akzeptiert sind `GHSA-ggr8-5vv4-36mx` (`deepmerge-ts`, nur im Config-Loader der Prisma-CLI mit eigener Konfiguration; der Fix ist eine neue Major) und `GHSA-vfj7-8cjw-p6xm` (`braces`, nur in Lint-Werkzeugen, kein Fix vorhanden). Beides steht mit Begründung in `auditConfig`.
 - **pnpm selbst** ist über den sha512 in `packageManager` festgelegt; Corepack prüft ihn beim Download.
-- **Images** sind auf exakte Tags gepinnt (`node:24.21.0-slim`); Renovate pinnt zusätzlich die Digests, wartet drei Tage vor Updates und meldet OSV-Schwachstellen.
+- **Images** sind auf exakte Tags gepinnt (seit Schritt 8.4 `node:24.21.0-trixie-slim` auf Debian 13, vorher `node:24.21.0-slim` auf Debian 12); Renovate pinnt zusätzlich die Digests, wartet drei Tage vor Updates und meldet OSV-Schwachstellen. Die Runtime-Stages enthalten weder npm noch corepack oder yarn: Die Apps laufen mit `node` allein, und die mitgelieferten Abhängigkeiten von npm brachten die einzigen Befunde des Image-Scans.
 
 ### CI
 
