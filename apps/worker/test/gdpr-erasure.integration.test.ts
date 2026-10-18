@@ -443,6 +443,8 @@ describe('the erasure in the role "gdpr"', () => {
       exportsExpired: 0,
       exportsTimedOut: 0,
       erasuresQueued: 0,
+      mediaDeleted: 0,
+      mediaObjectsDeleted: 0,
     });
   });
 });

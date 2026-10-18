@@ -15,15 +15,18 @@ interface SweepResult {
   exportsExpired: number;
   exportsTimedOut: number;
   erasuresQueued: number;
+  mediaDeleted: number;
+  mediaObjectsDeleted: number;
 }
 
 /**
- * The jobs of the queue "gdpr" (guide steps 8.1 and 8.2). gdpr.export packs the data of an
+ * The jobs of the queue "gdpr" (guide steps 8.1 to 8.3). gdpr.export packs the data of an
  * organization into an archive; after its last attempt the request fails, so the owner can ask
  * again. gdpr.erase erases an organization 30 days after its deletion; it is never given up: the
- * sweep hands it on again. gdpr.sweep deletes the archives of expired exports and hands on the due
- * erasures. One job at a time per worker: an export reads and an erasure deletes every table of an
- * organization. Logs carry ids and counts, never data of the organization.
+ * sweep hands it on again. gdpr.sweep deletes the archives of expired exports, hands on the due
+ * erasures and cleans up the media library. One job at a time per worker: an export reads and an
+ * erasure deletes every table of an organization. Logs carry ids and counts, never data of the
+ * organization.
  */
 @Processor(GDPR_QUEUE, { concurrency: 1 })
 export class GdprProcessor extends WorkerHost {
@@ -53,7 +56,8 @@ export class GdprProcessor extends WorkerHost {
   private async sweep(): Promise<SweepResult> {
     const expired = await this.pipeline.expire.execute();
     const scheduled = await this.pipeline.schedule.execute();
-    return { ...expired, ...scheduled };
+    const media = await this.pipeline.media.execute();
+    return { ...expired, ...scheduled, ...media };
   }
 
   private async export(job: Job, requestId: string): Promise<ExportResult> {

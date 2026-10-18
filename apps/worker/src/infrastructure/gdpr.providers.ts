@@ -1,6 +1,7 @@
 import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import { createStripeClient, StripeBillingGateway } from '@smp/billing';
 import {
+  CleanUpMedia,
   EraseOrganization,
   ExpireExports,
   ExportOrganizationData,
@@ -15,6 +16,7 @@ import {
   createSystemPrismaClient,
   PrismaBillingDirectory,
   PrismaGdprRequestRunner,
+  PrismaMediaCleanupStore,
   PrismaOrganizationDataSource,
   PrismaOrganizationEraser,
   type SystemPrismaClient,
@@ -30,13 +32,14 @@ import { GDPR_PIPELINE } from '../worker.tokens';
 import { EmailGdprNotifier } from './gdpr-notifier';
 import { ZipExportArchives } from './zip-export-archives';
 
-// The adapters of the role "gdpr" (guide steps 8.1 and 8.2, ADR 0036 and 0037): the database as
-// app_system, because an export reads every workspace of an organization and an erasure outlives
-// it; the object storage, which takes the archive while it is written and holds the originals of
-// the media library; the queue of the role "notify" for the email to the owner, whose link leads
-// into the web app at APP_URL; the adapters of the platforms with the key ring of the tokens, to
-// revoke the grants of an erased organization; Stripe, when it is set up, to delete its customer;
-// and the queue "gdpr" itself, to which the sweep hands the due erasures.
+// The adapters of the role "gdpr" (guide steps 8.1 to 8.3, ADR 0036 to 0038): the database as
+// app_system, because an export reads every workspace of an organization, an erasure outlives it
+// and the clean-up of the media library spans all workspaces; the object storage, which takes the
+// archive while it is written and holds the media library; the queue of the role "notify" for the
+// email to the owner, whose link leads into the web app at APP_URL; the adapters of the platforms
+// with the key ring of the tokens, to revoke the grants of an erased organization; Stripe, when it
+// is set up, to delete its customer; and the queue "gdpr" itself, to which the sweep hands the due
+// erasures.
 
 /** What the processor of the queue "gdpr" runs. */
 export interface GdprPipeline {
@@ -44,6 +47,7 @@ export interface GdprPipeline {
   expire: ExpireExports;
   eraser: EraseOrganization;
   schedule: ScheduleErasures;
+  media: CleanUpMedia;
   requests: GdprRequestRunner;
 }
 
@@ -162,6 +166,7 @@ export function gdprPipeline(env: WorkerEnv): Provider[] {
       jobs: { erase: (requestId) => producer.erase({ requestId }) },
       clock: systemClock,
     }),
+    media: new CleanUpMedia({ store: new PrismaMediaCleanupStore(system), storage, clock: systemClock }),
     requests,
   };
   return [
