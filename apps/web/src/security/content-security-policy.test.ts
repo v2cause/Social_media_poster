@@ -37,7 +37,7 @@ describe('buildContentSecurityPolicy', () => {
     expect(directive(policy, 'frame-ancestors')).toBe("'none'");
     expect(directive(policy, 'object-src')).toBe("'none'");
     expect(directive(policy, 'form-action')).toBe("'self'");
-    expect(directive(policy, 'base-uri')).toBe("'self'");
+    expect(directive(policy, 'base-uri')).toBe("'none'");
   });
 });
 

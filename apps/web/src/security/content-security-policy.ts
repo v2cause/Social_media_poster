@@ -57,7 +57,8 @@ export function buildContentSecurityPolicy(
     'font-src': ["'self'"],
     'connect-src': ["'self'", ...storage],
     'object-src': ["'none'"],
-    'base-uri': ["'self'"],
+    // No page sets a <base> element, so an injected one is refused (ASVS 3.4.3).
+    'base-uri': ["'none'"],
     'form-action': ["'self'"],
     'frame-ancestors': ["'none'"],
   };
@@ -69,7 +70,8 @@ export function buildContentSecurityPolicy(
 
 /**
  * Headers for every response, including static assets. The CSP itself is set per request in the
- * proxy, because it carries the nonce. HSTS is set by the TLS-terminating reverse proxy.
+ * proxy, because it carries the nonce. HSTS comes from the TLS-terminating reverse proxy and, in
+ * production builds, from HSTS_HEADER as well; browsers ignore it on plain HTTP.
  */
 export const SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -82,3 +84,6 @@ export const SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
     value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
   },
 ];
+
+/** One year, for every subdomain; the reverse proxy of production sends the same. */
+export const HSTS_HEADER = { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' };

@@ -47,8 +47,9 @@ export function proxy(request: NextRequest): NextResponse {
 export const config = {
   matcher: [
     {
-      // Not for the API (it sets its own headers), static files, or link prefetches.
-      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      // Not for the API under /api/ (it sets its own headers), static files, or link prefetches.
+      // Other paths that only start with "api" are pages of the web app and get the policy.
+      source: '/((?!api/|_next/static|_next/image|favicon.ico).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },
