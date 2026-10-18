@@ -14,6 +14,11 @@ export interface RetentionStore {
    * rows of all tables.
    */
   clearConnectionData(before: Date, limit: number): Promise<number>;
+  /**
+   * Deletes the accounts created before the moment whose address was never verified, with their
+   * sessions and credentials. An account with a membership stays.
+   */
+  deleteUnverifiedUsers(createdBefore: Date, limit: number): Promise<number>;
   /** The organizations with workspaces after the cursor, ordered by id. */
   organizations(after: string | null, limit: number): Promise<string[]>;
   /**

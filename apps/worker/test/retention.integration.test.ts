@@ -21,8 +21,9 @@ import { TICK_HANDLERS } from '../src/worker.tokens';
 // tick.maintenance for 03:41 UTC, and the tick applies the retention periods: the raw data of an
 // AI generation older than 180 days is cleared, a webhook event processed more than 30 days ago
 // is deleted, an entry of the audit log older than 30 days loses its IP address and user agent,
-// and the metrics of an organization go beyond the history of its plan, here the 30 days of the
-// trial, which the nightly rollup stretches to 36.
+// an account never verified goes after a day (guide step 8.4), and the metrics of an
+// organization go beyond the history of its plan, here the 30 days of the trial, which the
+// nightly rollup stretches to 36.
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -33,6 +34,7 @@ describe('the retention periods in the nightly maintenance of the role "schedule
   let demo: { organizationId: string; workspaceId: string } | undefined;
   const generations = { old: randomUUID(), recent: randomUUID() };
   const entries = { old: randomUUID(), recent: randomUUID() };
+  const unverified = { old: randomUUID(), recent: randomUUID() };
 
   const ready = () => {
     if (!database || !redis || !worker || !demo) {
@@ -110,6 +112,17 @@ describe('the retention periods in the nightly maintenance of the role "schedule
       );
     }
 
+    for (const [id, createdAt] of [
+      [unverified.old, daysAgo(2)],
+      [unverified.recent, new Date()],
+    ] as const) {
+      await query(
+        `INSERT INTO users (id, email, name, email_verified, created_at, updated_at)
+         VALUES ($1, $2, 'Somebody', false, $3, now())`,
+        [id, `${id}@unverified.test`, createdAt],
+      );
+    }
+
     const key = (): string => `kek-test:${randomBytes(32).toString('base64')}`;
     const env = loadWorkerEnv({
       NODE_ENV: 'test',
@@ -150,7 +163,7 @@ describe('the retention periods in the nightly maintenance of the role "schedule
     }
   });
 
-  it('clears old raw data of AI and connection data, deletes old webhook events and the metrics beyond the history of the plan', async () => {
+  it('clears old raw data of AI and connection data, deletes old webhook events, old accounts never verified and the metrics beyond the history of the plan', async () => {
     const cutoff = daysAgo(MIN_METRICS_DAYS);
     const before = await metricsBefore(cutoff);
     const kept = (await metricsBefore(new Date())) - before;
@@ -164,6 +177,7 @@ describe('the retention periods in the nightly maintenance of the role "schedule
       aiRawDataCleared: 1,
       webhooksDeleted: 1,
       connectionDataCleared: 1,
+      unverifiedUsersDeleted: 1,
       metricsDeleted: before,
       metricsFailed: 0,
     });
@@ -187,6 +201,10 @@ describe('the retention periods in the nightly maintenance of the role "schedule
       { id: entries.old, ip: null },
       { id: entries.recent, ip: '203.0.113.7' },
     ]);
+    const users = await query<{ id: string }>(`SELECT id FROM users WHERE id = ANY($1)`, [
+      [unverified.old, unverified.recent],
+    ]);
+    expect(users).toEqual([{ id: unverified.recent }]);
     await expect(metricsBefore(cutoff)).resolves.toBe(0);
     await expect(metricsBefore(new Date())).resolves.toBe(kept);
   });

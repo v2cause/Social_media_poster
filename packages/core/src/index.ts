@@ -973,4 +973,5 @@ export {
   PROCESSED_WEBHOOK_DAYS,
   type RetentionDependencies,
   type RetentionReport,
+  UNVERIFIED_ACCOUNT_HOURS,
 } from './gdpr/application/retention';

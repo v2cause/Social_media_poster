@@ -7,23 +7,27 @@ import {
   MIN_METRICS_DAYS,
   PROCESSED_WEBHOOK_DAYS,
   type RetentionStore,
+  UNVERIFIED_ACCOUNT_HOURS,
 } from '../../src';
 import { fixedClock } from '../in-memory-content';
 
-// Guide step 8.3: every night the raw data of AI generations goes after 180 days, processed
-// webhook events and connection data after 30 days and the metrics of an organization beyond the
-// history of its plan, but never within the days the nightly rollup fills again. Large amounts go in batches, and an
-// organization whose plan cannot be read waits for the next night.
+// Guide steps 8.3 and 8.4: every night the raw data of AI generations goes after 180 days,
+// processed webhook events and connection data after 30 days, accounts never verified after a
+// day and the metrics of an organization beyond the history of its plan, but never within the
+// days the nightly rollup fills again. Large amounts go in batches, and an organization whose plan
+// cannot be read waits for the next night.
 
 const NOW = '2026-10-18T03:41:00Z';
 const DAY = 24 * 60 * 60 * 1000;
 const daysAgo = (days: number): Date => new Date(Date.parse(NOW) - days * DAY);
+const hoursAgo = (hours: number): Date => new Date(Date.parse(NOW) - hours * 60 * 60 * 1000);
 
 class MemoryRetention implements RetentionStore {
   readonly ai: { createdAt: Date; raw: boolean }[] = [];
   webhooks: { processedAt: Date | null }[] = [];
   /** Connection data by the moment it counts from: created, expired or last used. */
   readonly connections: { since: Date; held: boolean }[] = [];
+  users: { createdAt: Date; verified: boolean; member: boolean }[] = [];
   readonly metrics = new Map<string, Date[]>();
   readonly metricCutoffs = new Map<string, Date>();
   calls = 0;
@@ -57,6 +61,14 @@ class MemoryRetention implements RetentionStore {
     for (const row of due) {
       row.held = false;
     }
+    return Promise.resolve(due.length);
+  }
+
+  deleteUnverifiedUsers(createdBefore: Date, limit: number): Promise<number> {
+    const due = this.users
+      .filter((user) => !user.verified && !user.member && user.createdAt < createdBefore)
+      .slice(0, limit);
+    this.users = this.users.filter((user) => !due.includes(user));
     return Promise.resolve(due.length);
   }
 
@@ -109,6 +121,7 @@ describe('ApplyRetention', () => {
       aiRawDataCleared: 1,
       webhooksDeleted: 1,
       connectionDataCleared: 1,
+      unverifiedUsersDeleted: 0,
       metricsDeleted: 0,
       metricsFailed: 0,
     });
@@ -118,6 +131,18 @@ describe('ApplyRetention', () => {
       { processedAt: daysAgo(PROCESSED_WEBHOOK_DAYS - 1) },
       { processedAt: null },
     ]);
+  });
+
+  it('deletes accounts never verified a day after the sign-up, unless they belong to an organization', async () => {
+    const store = new MemoryRetention();
+    const stale = { createdAt: hoursAgo(UNVERIFIED_ACCOUNT_HOURS + 1), verified: false, member: false };
+    const fresh = { createdAt: hoursAgo(UNVERIFIED_ACCOUNT_HOURS - 1), verified: false, member: false };
+    const verified = { createdAt: daysAgo(400), verified: true, member: false };
+    const member = { createdAt: daysAgo(400), verified: false, member: true };
+    store.users = [stale, fresh, verified, member];
+
+    await expect(retention(store, {}).execute()).resolves.toMatchObject({ unverifiedUsersDeleted: 1 });
+    expect(store.users).toEqual([fresh, verified, member]);
   });
 
   it('keeps the metrics of the history of the plan, and never fewer days than the nightly rollup needs', async () => {

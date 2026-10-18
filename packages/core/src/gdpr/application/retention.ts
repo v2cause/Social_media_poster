@@ -6,12 +6,16 @@ import type { RetentionStore } from '../ports/retention-store';
 // the raw data of AI generations (the input without the rendered prompt, and the output) after
 // 180 days, processed webhook events and connection data after 30 days, and the metrics of an
 // organization beyond the analytics history of its plan. The counts and costs of the AI
-// generations stay for billing. What a run leaves because of its limits follows the next night.
+// generations stay for billing. Accounts whose address was not verified within a day go too
+// (guide step 8.4), so that nobody holds an address by signing up with it. What a run leaves
+// because of its limits follows the next night.
 
 export const AI_RAW_DATA_DAYS = 180;
 export const PROCESSED_WEBHOOK_DAYS = 30;
 /** IP addresses and user agents, as long as the logs keep them. */
 export const CONNECTION_DATA_DAYS = 30;
+/** The verification link is valid for an hour; a day later the address is free again. */
+export const UNVERIFIED_ACCOUNT_HOURS = 24;
 /**
  * Metrics stay at least as long as the nightly rollup fills days again, plus the day before its
  * first, whose snapshot the rollup takes the growth from.
@@ -23,12 +27,14 @@ const BATCH = 1_000;
 /** Statements per kind of data and night, and per organization for the metrics. */
 const MAX_BATCHES = 100;
 const ORGANIZATIONS_PER_PAGE = 200;
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
 export interface RetentionReport {
   aiRawDataCleared: number;
   webhooksDeleted: number;
   connectionDataCleared: number;
+  unverifiedUsersDeleted: number;
   metricsDeleted: number;
   /** Organizations whose plan could not be read; their metrics wait for the next night. */
   metricsFailed: number;
@@ -71,6 +77,9 @@ export class ApplyRetention {
     const connectionDataCleared = await drain((limit) =>
       store.clearConnectionData(daysBefore(now, CONNECTION_DATA_DAYS), limit),
     );
+    const unverifiedUsersDeleted = await drain((limit) =>
+      store.deleteUnverifiedUsers(new Date(now.getTime() - UNVERIFIED_ACCOUNT_HOURS * HOUR_MS), limit),
+    );
     let metricsDeleted = 0;
     let metricsFailed = 0;
     let after: string | null = null;
@@ -93,6 +102,13 @@ export class ApplyRetention {
       }
       after = organizations.at(-1) ?? null;
     }
-    return { aiRawDataCleared, webhooksDeleted, connectionDataCleared, metricsDeleted, metricsFailed };
+    return {
+      aiRawDataCleared,
+      webhooksDeleted,
+      connectionDataCleared,
+      unverifiedUsersDeleted,
+      metricsDeleted,
+      metricsFailed,
+    };
   }
 }
