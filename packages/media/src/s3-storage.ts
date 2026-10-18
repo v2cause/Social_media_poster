@@ -81,14 +81,21 @@ export class S3Storage implements StoragePort {
 
   async presignPut(
     key: string,
-    options: { contentType: string; expiresInSeconds: number },
+    options: { contentType: string; contentLength: number; expiresInSeconds: number },
   ): Promise<PresignedUpload> {
     const url = await getSignedUrl(
       this.signer,
-      new PutObjectCommand({ Bucket: this.config.bucket, Key: key, ContentType: options.contentType }),
-      // The upload must send exactly this content type; another one fails the signature.
-      { expiresIn: options.expiresInSeconds, signableHeaders: new Set(['content-type']) },
+      new PutObjectCommand({
+        Bucket: this.config.bucket,
+        Key: key,
+        ContentType: options.contentType,
+        ContentLength: options.contentLength,
+      }),
+      // The upload must send exactly this content type and length; others fail the signature, so
+      // nobody stores a larger file than the one announced (guide step 8.4).
+      { expiresIn: options.expiresInSeconds, signableHeaders: new Set(['content-type', 'content-length']) },
     );
+    // No Content-Length among the headers: browsers refuse to set it and send the length of the body.
     return { url, method: 'PUT', headers: { 'Content-Type': options.contentType } };
   }
 

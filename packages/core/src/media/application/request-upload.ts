@@ -71,6 +71,7 @@ export class RequestUpload {
     });
     const upload = await this.deps.storage.presignPut(asset.storageKey, {
       contentType: mimeType,
+      contentLength: input.size,
       expiresInSeconds: UPLOAD_URL_SECONDS,
     });
     const expiresAt = new Date(this.deps.clock.now().getTime() + UPLOAD_URL_SECONDS * 1000);

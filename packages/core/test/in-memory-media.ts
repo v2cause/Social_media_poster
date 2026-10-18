@@ -226,13 +226,14 @@ export class InMemoryMedia implements MediaUnitOfWork {
 
 export class MemoryStorage implements StoragePort {
   readonly objects = new Map<string, { bytes: Uint8Array; contentType: string }>();
-  readonly signed: string[] = [];
+  /** The uploads signed so far, with the type and length a real storage would insist on. */
+  readonly signed: { key: string; contentType: string; contentLength: number }[] = [];
 
   presignPut(
     key: string,
-    options: { contentType: string; expiresInSeconds: number },
+    options: { contentType: string; contentLength: number; expiresInSeconds: number },
   ): Promise<PresignedUpload> {
-    this.signed.push(key);
+    this.signed.push({ key, contentType: options.contentType, contentLength: options.contentLength });
     return Promise.resolve({
       url: `https://storage.test/${key}?expires=${String(options.expiresInSeconds)}`,
       method: 'PUT',
@@ -240,7 +241,7 @@ export class MemoryStorage implements StoragePort {
     });
   }
 
-  /** What a browser upload would store. */
+  /** What a browser upload would store; unlike a real storage it takes any length. */
   upload(key: string, bytes: Uint8Array, contentType: string): void {
     this.objects.set(key, { bytes, contentType });
   }

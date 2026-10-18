@@ -5,7 +5,10 @@
 export interface PresignedUpload {
   url: string;
   method: 'PUT';
-  /** Headers the upload must send exactly; the content type is part of the signature. */
+  /**
+   * Headers the upload must send exactly. Content type and length are part of the signature; the
+   * browser sets the length itself from the file (guide step 8.4).
+   */
   headers: Readonly<Record<string, string>>;
 }
 
@@ -15,10 +18,10 @@ export interface StoredObject {
 }
 
 export interface StoragePort {
-  /** A URL the browser uploads one object to, for a few minutes. */
+  /** A URL the browser uploads one object of exactly this type and length to, for a few minutes. */
   presignPut(
     key: string,
-    options: { contentType: string; expiresInSeconds: number },
+    options: { contentType: string; contentLength: number; expiresInSeconds: number },
   ): Promise<PresignedUpload>;
   /** Size and type of an object, or null when it does not exist. */
   head(key: string): Promise<StoredObject | null>;

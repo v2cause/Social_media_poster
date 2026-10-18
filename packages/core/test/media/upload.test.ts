@@ -53,6 +53,9 @@ describe('RequestUpload', () => {
       uploadedById: editor.userId,
     });
     expect(ticket.upload).toMatchObject({ method: 'PUT', headers: { 'Content-Type': 'image/jpeg' } });
+    expect(testbed.storage.signed).toEqual([
+      { key: ticket.asset.storageKey, contentType: 'image/jpeg', contentLength: JPEG_BYTES.byteLength },
+    ]);
     expect(ticket.expiresAt.toISOString()).toBe('2026-10-16T12:05:00.000Z');
     expect(testbed.unitOfWork.locks).toBe(1);
   });

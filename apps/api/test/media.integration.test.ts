@@ -207,7 +207,7 @@ describe('media API', () => {
     });
   });
 
-  it('answers 409 before the file arrived and rejects a file other than announced', async () => {
+  it('answers 409 before the file arrived, and the storage refuses a file other than announced', async () => {
     const pending = (
       await as(editor)
         .post(`${ws}/media/uploads`)
@@ -218,17 +218,17 @@ describe('media API', () => {
       (await as(editor).post(`${ws}/media/${pending.asset.id}/complete`).expect(409)).body,
     ).toMatchObject({ code: 'MEDIA_UPLOAD_MISSING' });
 
-    // The content type is part of the signature; the size is checked at completion.
-    const wrongType = await fetch(pending.upload.url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'text/html' },
-      body: '<html></html>',
-    });
-    expect(wrongType.status).toBe(403);
-    const bigger = await upload(await photo(), { size: 1000 });
-    const mismatch = await complete(bigger.asset.id);
-    expect(mismatch).toMatchObject({ status: 'REJECTED', rejectReason: 'SIZE_MISMATCH' });
-    expect(await objectExists(`ws/${workspaceId}/assets/${bigger.asset.id}/original`)).toBe(false);
+    // Content type and length are part of the signature (guide step 8.4): the storage refuses
+    // another type and a larger or smaller file than announced, so nothing arrives.
+    const send = (headers: Readonly<Record<string, string>>, size: number) =>
+      fetch(pending.upload.url, { method: 'PUT', headers, body: new Uint8Array(size) });
+    expect((await send({ 'Content-Type': 'text/html' }, 1000)).status).toBe(403);
+    expect((await send(pending.upload.headers, 1001)).status).toBe(403);
+    expect((await send(pending.upload.headers, 999)).status).toBe(403);
+    expect(await objectExists(`ws/${workspaceId}/assets/${pending.asset.id}/original`)).toBe(false);
+    expect(
+      (await as(editor).post(`${ws}/media/${pending.asset.id}/complete`).expect(409)).body,
+    ).toMatchObject({ code: 'MEDIA_UPLOAD_MISSING' });
   });
 
   it('keeps the uploads of an organization within the storage of its plan', async () => {

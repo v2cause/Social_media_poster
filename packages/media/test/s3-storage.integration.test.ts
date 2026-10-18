@@ -62,7 +62,11 @@ describe('S3 storage against SeaweedFS', () => {
   it('uploads through a presigned PUT and reports size and type', async () => {
     const key = originalKey(workspaceId, randomUUID());
     const body = jpegLike(2048);
-    const upload = await store().presignPut(key, { contentType: 'image/jpeg', expiresInSeconds: 300 });
+    const upload = await store().presignPut(key, {
+      contentType: 'image/jpeg',
+      contentLength: 2048,
+      expiresInSeconds: 300,
+    });
 
     const response = await fetch(upload.url, { method: upload.method, headers: upload.headers, body });
 
@@ -72,7 +76,11 @@ describe('S3 storage against SeaweedFS', () => {
 
   it('rejects an upload with another content type than the signed one', async () => {
     const key = originalKey(workspaceId, randomUUID());
-    const upload = await store().presignPut(key, { contentType: 'image/png', expiresInSeconds: 300 });
+    const upload = await store().presignPut(key, {
+      contentType: 'image/png',
+      contentLength: 64,
+      expiresInSeconds: 300,
+    });
 
     const response = await fetch(upload.url, {
       method: 'PUT',
@@ -82,6 +90,24 @@ describe('S3 storage against SeaweedFS', () => {
 
     expect(response.ok).toBe(false);
     await expect(store().head(key)).resolves.toBeNull();
+  });
+
+  it('rejects an upload longer or shorter than the signed length (guide step 8.4)', async () => {
+    const key = originalKey(workspaceId, randomUUID());
+    const upload = await store().presignPut(key, {
+      contentType: 'image/jpeg',
+      contentLength: 1024,
+      expiresInSeconds: 300,
+    });
+    const send = (size: number) =>
+      fetch(upload.url, { method: upload.method, headers: upload.headers, body: jpegLike(size) });
+
+    expect((await send(1025)).status).toBe(403);
+    expect((await send(20 * 1024 * 1024)).status).toBe(403);
+    expect((await send(1023)).status).toBe(403);
+    await expect(store().head(key)).resolves.toBeNull();
+    expect((await send(1024)).status).toBe(200);
+    await expect(store().head(key)).resolves.toEqual({ size: 1024, contentType: 'image/jpeg' });
   });
 
   it('reads an object through a signed GET and directly, within a size limit', async () => {
@@ -227,6 +253,7 @@ describe('S3 storage against SeaweedFS', () => {
 
     const upload = await outside.presignPut(originalKey(workspaceId, randomUUID()), {
       contentType: 'image/jpeg',
+      contentLength: 100,
       expiresInSeconds: 300,
     });
     const read = await outside.signedGetUrl('ws/x/y', { expiresInSeconds: 60 });
