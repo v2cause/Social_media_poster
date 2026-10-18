@@ -79,6 +79,15 @@ export interface EmailMessages {
   };
   /** To the owner who asked for an export (guide step 8.1). Placeholders: {organization}, {date}. */
   gdprExportReady: { subject: string; preview: string; intro: string; download: string; action: string };
+  /** To every owner when the organization was deleted (guide step 8.2). Placeholders: {organization}, {date}. */
+  gdprErasureScheduled: {
+    subject: string;
+    preview: string;
+    intro: string;
+    erase: string;
+    undo: string;
+    action: string;
+  };
 }
 
 /** Why an organization became read-only: its trial ended, a payment stayed out, or its subscription ended. */
@@ -226,6 +235,16 @@ export const messages: Record<Locale, EmailMessages> = {
         'Sie können das Archiv bis {date} auf der Seite Daten und Löschung herunterladen; danach wird es gelöscht. Aus Sicherheitsgründen enthält diese E-Mail keinen direkten Link zum Archiv: Der Download setzt eine Anmeldung voraus.',
       action: 'Datenexport öffnen',
     },
+    gdprErasureScheduled: {
+      subject: '{organization} wird am {date} endgültig gelöscht',
+      preview: 'Bis dahin können Sie die Löschung zurücknehmen.',
+      intro:
+        'die Organisation {organization} wurde gelöscht. Seitdem kann niemand mehr darin arbeiten, und geplante Posts werden nicht veröffentlicht.',
+      erase:
+        'Am {date} werden alle Daten der Organisation endgültig gelöscht: Inhalte, Medien, verbundene Konten, Statistiken und das Abo. Das lässt sich danach nicht rückgängig machen.',
+      undo: 'Bis dahin können Sie die Löschung auf der Seite Daten und Löschung zurücknehmen oder vorher die Daten exportieren.',
+      action: 'Löschung ansehen',
+    },
   },
   en: {
     common: {
@@ -363,6 +382,16 @@ export const messages: Record<Locale, EmailMessages> = {
       download:
         'You can download the archive on the Data and deletion page until {date}; after that it is deleted. For security this email holds no direct link to the archive: the download requires you to sign in.',
       action: 'Open data export',
+    },
+    gdprErasureScheduled: {
+      subject: '{organization} will be erased for good on {date}',
+      preview: 'Until then you can take the deletion back.',
+      intro:
+        'the organization {organization} was deleted. Since then nobody can work in it, and scheduled posts are not published.',
+      erase:
+        'On {date} all data of the organization is erased for good: content, media, connected accounts, statistics and the subscription. This cannot be undone afterwards.',
+      undo: 'Until then you can take the deletion back on the Data and deletion page, or export the data first.',
+      action: 'View deletion',
     },
   },
 };

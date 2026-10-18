@@ -282,4 +282,26 @@ describe('the billing emails of guide step 7.4', () => {
     expect(en.text).toContain('Open data export');
     await expect(renderEmail({ ...ready, locale: 'de', timeZone: 'Mars/Base' })).rejects.toThrow();
   });
+
+  it('tells every owner the day of the erasure and how to take the deletion back', async () => {
+    const scheduled = {
+      template: 'gdpr-erasure-scheduled' as const,
+      url: 'https://app.example.test/org/0192f000-0000-7000-8000-000000000001/data',
+      organizationName: 'Acme GmbH',
+      eraseAfter: '2026-11-16T23:30:00.000Z',
+    };
+    const de = await renderEmail({ ...scheduled, locale: 'de', name: 'Olga', timeZone: 'Europe/Berlin' });
+    const en = await renderEmail({ ...scheduled, locale: 'en', timeZone: 'America/New_York' });
+
+    // Half past midnight in Berlin is the next day already.
+    expect(de.subject).toBe('Acme GmbH wird am 17. November 2026 endgültig gelöscht');
+    expect(de.text).toContain('Seitdem kann niemand mehr darin arbeiten');
+    expect(de.text).toContain('Löschung auf der Seite Daten und Löschung zurücknehmen');
+    expect(de.text).toContain(scheduled.url);
+    expect(en.subject).toBe('Acme GmbH will be erased for good on November 16, 2026');
+    expect(en.text).toContain('View deletion');
+    await expect(
+      renderEmail({ ...scheduled, locale: 'de', timeZone: 'Europe/Berlin', eraseAfter: 'soon' }),
+    ).rejects.toThrow();
+  });
 });

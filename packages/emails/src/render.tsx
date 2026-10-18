@@ -100,6 +100,16 @@ export const emailTemplateSchema = z.discriminatedUnion('template', [
     expiresAt: z.iso.datetime(),
     timeZone: timezoneSchema,
   }),
+  // To every owner when the organization was deleted (guide step 8.2): the day of the erasure.
+  z.object({
+    template: z.literal('gdpr-erasure-scheduled'),
+    locale: localeSchema,
+    name,
+    url: httpUrl,
+    organizationName: z.string().trim().min(1).max(200),
+    eraseAfter: z.iso.datetime(),
+    timeZone: timezoneSchema,
+  }),
 ]);
 
 export type EmailTemplateInput = z.input<typeof emailTemplateSchema>;
@@ -301,6 +311,26 @@ function compose(email: EmailTemplate): ActionEmailText {
         preview: format(text.preview, values),
         greeting,
         intro: [format(text.intro, values), format(text.download, values)],
+        action: text.action,
+        notes: [],
+      };
+    }
+    case 'gdpr-erasure-scheduled': {
+      // The day of the erasure in the time zone of the owner.
+      const values = {
+        organization: email.organizationName,
+        date: new Intl.DateTimeFormat(email.locale, {
+          dateStyle: 'long',
+          timeZone: email.timeZone,
+        }).format(new Date(email.eraseAfter)),
+      };
+      const text = locale.gdprErasureScheduled;
+      return {
+        ...base,
+        subject: format(text.subject, values),
+        preview: format(text.preview, values),
+        greeting,
+        intro: [format(text.intro, values), format(text.erase, values), format(text.undo, values)],
         action: text.action,
         notes: [],
       };
