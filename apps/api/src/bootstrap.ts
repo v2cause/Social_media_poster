@@ -6,7 +6,9 @@ import express from 'express';
 import helmet from 'helmet';
 import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { Logger } from 'nestjs-pino';
+import { pinoHttp, type Options as HttpLoggingOptions } from 'pino-http';
 
+import { HTTP_LOGGING } from './common/logging/http-logging';
 import { authRateLimitEvents } from './common/logging/security-events';
 import { requestIdMiddleware } from './common/request-id.middleware';
 import { authBodyLimit, bodyErrors, noStore } from './common/security/body-limits.middleware';
@@ -36,9 +38,15 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv): void {
   app.use(createOriginCheckMiddleware(env.APP_URL));
 
   // Express 5 needs the named wildcard (Better Auth docs, Express integration). Better Auth reads
-  // the body without a limit, so the limit comes first.
+  // the body without a limit, so the limit comes first. It answers before the middleware of Nest,
+  // so its routes get their request line here.
   const server = app.getHttpAdapter().getInstance();
-  server.use('/api/auth', authBodyLimit, authRateLimitEvents);
+  server.use(
+    '/api/auth',
+    pinoHttp(app.get<HttpLoggingOptions>(HTTP_LOGGING)),
+    authBodyLimit,
+    authRateLimitEvents,
+  );
   server.all('/api/auth/*splat', toNodeHandler(app.get<Auth>(AUTH)));
 
   app.use('/api/webhooks', express.raw({ type: '*/*', limit: '1mb' }));
