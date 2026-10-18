@@ -6,7 +6,13 @@
 }
 
 :8080 {
+	# Only the methods the app answers reach it. Next.js fails on TRACE with an error in its log
+	# and serves pages for methods such as PROPFIND (pentest of guide step 8.4).
+	@unsupported not method GET HEAD POST PUT PATCH DELETE OPTIONS
+
 	handle /api/* {
+		header @unsupported Allow "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS"
+		respond @unsupported 405
 		# Uploads go straight to the object storage; the API takes JSON of at most 1 MB, and
 		# /api/auth at most 64 KB (guide step 8.4).
 		request_body {
@@ -25,6 +31,8 @@
 	}
 
 	handle {
+		header @unsupported Allow "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS"
+		respond @unsupported 405
 		# The web app takes forms and server actions only.
 		request_body {
 			max_size 1MB
