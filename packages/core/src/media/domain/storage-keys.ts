@@ -2,9 +2,12 @@
 // Every key starts with the workspace, so a whole workspace or asset can be removed by prefix,
 // and no key contains a file name the user chose.
 
+/** Everything that belongs to one workspace; the erasure of an organization removes it (step 8.2). */
+export const workspacePrefix = (workspaceId: string): string => `ws/${workspaceId}/`;
+
 /** Everything that belongs to one asset. */
 export const assetPrefix = (workspaceId: string, assetId: string): string =>
-  `ws/${workspaceId}/assets/${assetId}/`;
+  `${workspacePrefix(workspaceId)}assets/${assetId}/`;
 
 /** The uploaded file; only the pipeline reads it, it is never delivered. */
 export const originalKey = (workspaceId: string, assetId: string): string =>

@@ -562,7 +562,7 @@ export {
   VariantMediaInvalidError,
 } from './media/domain/errors';
 export { sniffImageType, type SniffedImageType } from './media/domain/file-signature';
-export { assetPrefix, originalKey, renditionKey } from './media/domain/storage-keys';
+export { assetPrefix, originalKey, renditionKey, workspacePrefix } from './media/domain/storage-keys';
 export type { PresignedUpload, StoragePort, StoredObject } from './media/ports/storage';
 export type {
   EncodedImage,

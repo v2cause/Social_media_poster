@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { CreateBucketCommand, ListMultipartUploadsCommand, S3Client } from '@aws-sdk/client-s3';
-import { assetPrefix, originalKey, renditionKey } from '@smp/core';
+import { assetPrefix, exportPrefixOf, originalKey, renditionKey, workspacePrefix } from '@smp/core';
 import { startObjectStorage, type StartedObjectStorage } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -193,6 +193,33 @@ describe('S3 storage against SeaweedFS', () => {
   it('never deletes by a prefix outside one workspace', async () => {
     await expect(store().deletePrefix('ws/')).rejects.toBeInstanceOf(RangeError);
     await expect(store().deletePrefix('')).rejects.toBeInstanceOf(RangeError);
+    await expect(store().deletePrefix('exports/')).rejects.toBeInstanceOf(RangeError);
+    await expect(store().deletePrefix(`ws/${randomUUID()}`)).rejects.toBeInstanceOf(RangeError);
+  });
+
+  it('deletes a whole workspace and the exports of an organization for the erasure (guide step 8.2)', async () => {
+    const workspaceId = randomUUID();
+    const organizationId = randomUUID();
+    const kept = originalKey(randomUUID(), randomUUID());
+    const keys = [
+      originalKey(workspaceId, randomUUID()),
+      renditionKey(workspaceId, randomUUID(), { profile: 'thumb', cropHash: 'crop', extension: 'webp' }),
+      `exports/${organizationId}/${randomUUID()}.zip`,
+    ];
+    for (const key of [...keys, kept]) {
+      await store().put(key, jpegLike(64), { contentType: 'image/jpeg' });
+    }
+
+    await expect(store().countPrefix(workspacePrefix(workspaceId))).resolves.toBe(2);
+    await expect(store().deletePrefix(workspacePrefix(workspaceId))).resolves.toBe(2);
+    await expect(store().deletePrefix(exportPrefixOf(organizationId))).resolves.toBe(1);
+    await expect(store().countPrefix(workspacePrefix(workspaceId))).resolves.toBe(0);
+    await expect(store().countPrefix('ws/')).rejects.toBeInstanceOf(RangeError);
+
+    for (const key of keys) {
+      await expect(store().head(key)).resolves.toBeNull();
+    }
+    await expect(store().head(kept)).resolves.not.toBeNull();
   });
 
   it('signs browser URLs for the public endpoint when one is set', async () => {

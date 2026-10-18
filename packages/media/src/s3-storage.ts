@@ -39,8 +39,9 @@ export class StorageObjectTooLargeError extends Error {
   }
 }
 
-// Only prefixes inside one workspace may be deleted at once, so a bug can never empty the bucket.
-const WORKSPACE_PREFIX = /^ws\/[0-9a-f-]{36}\/.+/;
+// Only prefixes of one workspace, or of the exports of one organization, may be deleted at once, so
+// a bug can never empty the bucket. The erasure of an organization removes both (guide step 8.2).
+const DELETABLE_PREFIX = /^(ws|exports)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\//;
 /**
  * The parts of a streamed upload. S3 takes at most 10,000 parts, so one stream holds up to about
  * 156 GiB; every part but the last must have at least 5 MiB.
@@ -213,9 +214,30 @@ export class S3Storage implements StoragePort {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }));
   }
 
+  /** How many objects lie under the prefix of one workspace or of the exports of one organization. */
+  async countPrefix(prefix: string): Promise<number> {
+    if (!DELETABLE_PREFIX.test(prefix)) {
+      throw new RangeError(
+        'Only the prefix of one workspace or of the exports of one organization can be counted.',
+      );
+    }
+    let count = 0;
+    let token: string | undefined;
+    do {
+      const page = await this.client.send(
+        new ListObjectsV2Command({ Bucket: this.config.bucket, Prefix: prefix, ContinuationToken: token }),
+      );
+      count += page.KeyCount ?? (page.Contents ?? []).length;
+      token = page.IsTruncated === true ? page.NextContinuationToken : undefined;
+    } while (token !== undefined);
+    return count;
+  }
+
   async deletePrefix(prefix: string): Promise<number> {
-    if (!WORKSPACE_PREFIX.test(prefix)) {
-      throw new RangeError('Only prefixes inside one workspace can be deleted.');
+    if (!DELETABLE_PREFIX.test(prefix)) {
+      throw new RangeError(
+        'Only the prefix of one workspace or of the exports of one organization can be deleted.',
+      );
     }
     let deleted = 0;
     let token: string | undefined;
