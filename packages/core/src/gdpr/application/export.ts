@@ -12,9 +12,9 @@ import type { GdprRequestRunner } from '../ports/gdpr-store';
 
 // The export of an organization (guide step 8.1, ADR 0036): one ZIP archive in the object
 // storage with a JSON file per table of the organization (data/<table>.json, secrets left out),
-// the originals of its media library (media/<workspace>/<asset>-<file name>) and a manifest of
-// what is inside. The owner who asked hears by email that it is ready; the archive is deleted
-// after 24 hours.
+// the checked originals of its media library (media/<workspace>/<asset>-<name>.<extension of
+// their type>) and a manifest of what is inside. The owner who asked hears by email that it is
+// ready; the archive is deleted after 24 hours.
 
 /** The largest original the upload accepts, with room to spare. */
 const MAX_ORIGINAL_BYTES = 25 * 1024 * 1024;
@@ -28,26 +28,49 @@ const EXPIRED_PER_TICK = 100;
 const README = `This archive holds the data of one organization of Social Media Poster.
 
 data/<table>.json     one JSON array per table, one object per row, times in UTC (ISO 8601)
-media/<workspace>/    the originals of the media library as they were uploaded
+media/<workspace>/    the originals of the media library that passed the checks of the upload,
+                      named after the type of their content
 manifest.json         the organization, the time of the export and how many rows each table has
 
 Secrets such as the tokens of connected accounts and the hashes of invitations are left out.
 
 Dieses Archiv enthält die Daten einer Organisation von Social Media Poster: eine JSON-Datei pro
-Tabelle unter data/ (eine Zeile pro Objekt, Zeiten in UTC), die Originale der Medienbibliothek
-unter media/ und eine Übersicht in manifest.json. Geheimnisse wie die Tokens verbundener Accounts
-sind nicht enthalten.
+Tabelle unter data/ (eine Zeile pro Objekt, Zeiten in UTC), die geprüften Originale der
+Medienbibliothek unter media/, benannt nach dem Typ ihres Inhalts, und eine Übersicht in
+manifest.json. Geheimnisse wie die Tokens verbundener Accounts sind nicht enthalten.
 `;
 
-/** A name inside the archive: no folders, no control characters, not too long. */
+/**
+ * A name inside the archive: no folders, no control characters, not too long. Invisible format
+ * characters go as well, so that a right-to-left override cannot show "gpj.exe" as "exe.jpg".
+ */
 export function archiveName(fileName: string): string {
   const cleaned = fileName
     .normalize('NFC')
-    .replace(/\p{Cc}/gu, '')
+    .replace(/[\p{Cc}\p{Cf}]/gu, '')
     .replace(/[\\/:*?"<>|]/g, '_')
     .replace(/^\.+/, '_')
     .trim();
   return (cleaned || 'file').slice(0, 120);
+}
+
+/** The extensions of the types the upload accepts. */
+const EXTENSIONS: Readonly<Record<string, string>> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+
+/**
+ * The name of an original inside the archive: the name the user gave it without its extension,
+ * then the extension of the type its content showed (guide step 8.4). A JPEG called
+ * "invoice.html" comes out as "invoice.jpg" and opens as an image, not in a browser.
+ */
+export function mediaArchiveName(fileName: string, mimeType: string | null): string {
+  const extension = (mimeType === null ? undefined : EXTENSIONS[mimeType]) ?? 'bin';
+  const base = archiveName(fileName).replace(/\.[a-z0-9]{1,10}$/i, '');
+  return `${base || 'image'}.${extension}`;
 }
 
 const encoder = new TextEncoder();
@@ -137,7 +160,7 @@ export class ExportOrganizationData {
       }
       const body = await storage.get(media.storageKey, { maxBytes: MAX_ORIGINAL_BYTES });
       await archive.addFile(
-        `media/${archiveName(media.workspaceSlug)}/${media.assetId}-${archiveName(media.fileName)}`,
+        `media/${archiveName(media.workspaceSlug)}/${media.assetId}-${mediaArchiveName(media.fileName, media.mimeType)}`,
         body,
         { compress: false },
       );

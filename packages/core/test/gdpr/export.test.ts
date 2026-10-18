@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { archiveName, ExpireExports, ExportOrganizationData, type GdprRequest } from '../../src';
+import {
+  archiveName,
+  ExpireExports,
+  ExportOrganizationData,
+  mediaArchiveName,
+  type GdprRequest,
+} from '../../src';
 import {
   MemoryArchives,
   MemoryDataSource,
@@ -68,12 +74,14 @@ describe('the export of an organization', () => {
         workspaceSlug: 'marketing',
         assetId: 'a1',
         fileName: 'Team/Foto: 1.jpg',
+        mimeType: 'image/jpeg',
         storageKey: `ws/${WS}/assets/a1/original`,
       },
       {
         workspaceSlug: 'marketing',
         assetId: 'a2',
         fileName: 'gone.png',
+        mimeType: 'image/png',
         storageKey: `ws/${WS}/assets/a2/original`,
       },
     );
@@ -233,5 +241,19 @@ describe('names inside the archive', () => {
     expect(archiveName('tab\there\u0000')).toBe('tabhere');
     expect(archiveName('   ')).toBe('file');
     expect(archiveName('x'.repeat(300))).toHaveLength(120);
+    expect(archiveName('photo\u202Egpj.exe')).toBe('photogpj.exe');
+    expect(archiveName('zero\u200Bwidth\uFEFF')).toBe('zerowidth');
+  });
+
+  it('names an original after the type of its content, not the extension it was given', () => {
+    expect(mediaArchiveName('Sommerfest 2026.jpg', 'image/jpeg')).toBe('Sommerfest 2026.jpg');
+    expect(mediaArchiveName('invoice.html', 'image/jpeg')).toBe('invoice.jpg');
+    expect(mediaArchiveName('screenshot.JPG', 'image/png')).toBe('screenshot.png');
+    expect(mediaArchiveName('setup.exe', 'image/gif')).toBe('setup.gif');
+    expect(mediaArchiveName('Mr. Smith at the party', 'image/webp')).toBe('Mr. Smith at the party.webp');
+    expect(mediaArchiveName('report\u202Efdp.jpg', 'image/jpeg')).toBe('reportfdp.jpg');
+    expect(mediaArchiveName('.jpg', 'image/jpeg')).toBe('_jpg.jpg');
+    expect(mediaArchiveName('unknown.svg', 'image/svg+xml')).toBe('unknown.bin');
+    expect(mediaArchiveName('unknown.png', null)).toBe('unknown.bin');
   });
 });

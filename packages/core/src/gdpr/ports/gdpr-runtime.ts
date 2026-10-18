@@ -9,11 +9,13 @@ export interface ExportedOrganization {
   workspaces: { id: string; slug: string; name: string }[];
 }
 
-/** An original of the media library, as the export packs it. */
+/** An original of the media library that passed the checks of the upload, as the export packs it. */
 export interface ExportedMedia {
   workspaceSlug: string;
   assetId: string;
   fileName: string;
+  /** The type the content showed; it names the file in the archive. */
+  mimeType: string | null;
   storageKey: string;
 }
 
@@ -27,7 +29,7 @@ export interface OrganizationDataSource {
    * JSON object, so that large numbers keep every digit.
    */
   rows(table: string, organization: ExportedOrganization): AsyncIterable<string>;
-  /** The originals of the media library. */
+  /** The originals of the media library that passed the checks, also those deleted but still kept. */
   media(organization: ExportedOrganization): AsyncIterable<ExportedMedia>;
 }
 

@@ -954,6 +954,7 @@ export {
   ExpireExports,
   ExportOrganizationData,
   archiveName,
+  mediaArchiveName,
   type ExportDependencies,
   type ExportResult,
 } from './gdpr/application/export';

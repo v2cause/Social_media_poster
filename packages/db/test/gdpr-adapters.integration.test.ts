@@ -203,10 +203,17 @@ describe('data protection adapters on PostgreSQL', () => {
       expect(small).toEqual(large);
     });
 
-    it('lists the originals of the media library', async () => {
-      const { system: client, demo: org } = clients();
+    it('lists the originals of the media library that passed the checks', async () => {
+      const { system: client, fixtures: sql, demo: org } = clients();
       const source = new PrismaOrganizationDataSource(client, 1);
       const organization = (await source.organization(org.organizationId)) as ExportedOrganization;
+      const unchecked = randomUUID();
+      await sql.query(
+        `INSERT INTO media_asset (id, workspace_id, status, file_name, declared_mime_type, declared_size, storage_key,
+                                  updated_at)
+         VALUES ($1, $2, 'PENDING_UPLOAD', 'unchecked.jpg', 'image/jpeg', 10, $3, now())`,
+        [unchecked, org.workspaceId, `ws/${org.workspaceId}/assets/${unchecked}/original`],
+      );
 
       const media = [];
       for await (const file of source.media(organization)) {
@@ -217,9 +224,12 @@ describe('data protection adapters on PostgreSQL', () => {
         expect.objectContaining({
           workspaceSlug: organization.workspaces[0]?.slug,
           fileName: 'team photo.jpg',
+          mimeType: 'image/jpeg',
         }),
       );
+      expect(media.map((file) => file.assetId)).not.toContain(unchecked);
       expect(media.every((file) => file.storageKey.startsWith(`ws/${org.workspaceId}/`))).toBe(true);
+      await sql.query(`DELETE FROM media_asset WHERE id = $1`, [unchecked]);
     });
   });
 

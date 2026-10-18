@@ -129,10 +129,15 @@ describe('the export in the role "gdpr"', () => {
     const assetId = randomUUID();
     const originalKey = `ws/${workspaceId}/assets/${assetId}/original`;
     await storage.put(originalKey, photo, { contentType: 'image/jpeg' });
+    // A file still in the pipeline is no original yet; the export leaves it out (guide step 8.4).
+    const uncheckedId = randomUUID();
+    const uncheckedKey = `ws/${workspaceId}/assets/${uncheckedId}/original`;
+    await storage.put(uncheckedKey, new TextEncoder().encode('<html></html>'), { contentType: 'image/jpeg' });
     await query(
-      `INSERT INTO media_asset (id, workspace_id, status, file_name, declared_mime_type, declared_size, storage_key, updated_at)
-       VALUES ($1, $2, 'READY', $3, 'image/jpeg', $4, $5, now()),
-              ($6, $2, 'READY', 'gone.png', 'image/png', 10, $7, now())`,
+      `INSERT INTO media_asset (id, workspace_id, status, file_name, declared_mime_type, declared_size, mime_type, storage_key, updated_at)
+       VALUES ($1, $2, 'READY', $3, 'image/jpeg', $4, 'image/jpeg', $5, now()),
+              ($6, $2, 'READY', 'gone.png', 'image/png', 10, 'image/png', $7, now()),
+              ($8, $2, 'PROCESSING', 'unchecked.html', 'image/jpeg', 13, NULL, $9, now())`,
       [
         assetId,
         workspaceId,
@@ -141,6 +146,8 @@ describe('the export in the role "gdpr"', () => {
         originalKey,
         randomUUID(),
         `ws/${workspaceId}/assets/gone/original`,
+        uncheckedId,
+        uncheckedKey,
       ],
     );
     const connectionId = randomUUID();

@@ -88,8 +88,9 @@ export async function fillOrganization(
   );
   const asset = randomUUID();
   await client.query(
-    `INSERT INTO media_asset (id, workspace_id, file_name, declared_mime_type, declared_size, storage_key, updated_at)
-     VALUES ($1, $2, 'team photo.jpg', 'image/jpeg', 1234, $3, now())`,
+    `INSERT INTO media_asset (id, workspace_id, status, file_name, declared_mime_type, declared_size, mime_type,
+                              size_bytes, storage_key, updated_at)
+     VALUES ($1, $2, 'READY', 'team photo.jpg', 'image/jpeg', 1234, 'image/jpeg', 1234, $3, now())`,
     [asset, workspaceId, `ws/${workspaceId}/assets/${asset}/original`],
   );
   await client.query(

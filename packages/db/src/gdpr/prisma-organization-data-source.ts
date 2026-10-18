@@ -205,10 +205,16 @@ export class PrismaOrganizationDataSource implements OrganizationDataSource {
     for (;;) {
       const page = await runInSystemScope(() =>
         this.system.mediaAsset.findMany({
-          where: { workspaceId: { in: workspaceIds }, ...(after ? { id: { gt: after } } : {}) },
+          // Only files that passed the checks of the upload (guide step 8.4); the others are no
+          // originals and the pipeline keeps or deletes them.
+          where: {
+            workspaceId: { in: workspaceIds },
+            status: 'READY',
+            ...(after ? { id: { gt: after } } : {}),
+          },
           orderBy: { id: 'asc' },
           take: this.pageSize,
-          select: { id: true, workspaceId: true, fileName: true, storageKey: true },
+          select: { id: true, workspaceId: true, fileName: true, mimeType: true, storageKey: true },
         }),
       );
       for (const asset of page) {
@@ -216,6 +222,7 @@ export class PrismaOrganizationDataSource implements OrganizationDataSource {
           workspaceSlug: slugs.get(asset.workspaceId) ?? asset.workspaceId,
           assetId: asset.id,
           fileName: asset.fileName,
+          mimeType: asset.mimeType,
           storageKey: asset.storageKey,
         };
       }
