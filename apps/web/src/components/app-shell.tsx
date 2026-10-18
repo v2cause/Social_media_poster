@@ -40,7 +40,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 
@@ -49,7 +49,7 @@ import { BillingNoticeBar } from '@/features/billing/billing-notice';
 import { DeletionNoticeBar, OrganizationDeletedNotice } from '@/features/data/deletion-notice';
 import { LiveEventsProvider } from '@/features/live/live-events-provider';
 import { NotificationBell } from '@/features/notifications/notification-bell';
-import { authClient } from '@/lib/auth-client';
+import { useSignOut } from '@/lib/use-sign-out';
 import { useStoredFlag } from '@/lib/use-stored-flag';
 
 import { LanguageSwitcher } from './language-switcher';
@@ -370,7 +370,7 @@ function UserMenu({
   memberships: MyMemberships['memberships'];
 }) {
   const t = useTranslations('shell');
-  const router = useRouter();
+  const signOut = useSignOut();
   const organizationId = area.kind === 'account' ? memberships[0]?.organizationId : area.organizationId;
   const initials = user.name
     .split(/\s+/)
@@ -378,12 +378,6 @@ function UserMenu({
     .join('')
     .slice(0, 2)
     .toUpperCase();
-
-  const signOut = async () => {
-    await authClient.signOut();
-    router.push('/login');
-    router.refresh();
-  };
 
   return (
     <DropdownMenu>

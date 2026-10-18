@@ -13,6 +13,7 @@ import { BREACHED_PASSWORD, UNCHECKABLE_PASSWORD } from './support/pwned-passwor
 // - the link verifies the address without signing in,
 // - failed sign-ins are limited per account and wrong passwords per user,
 // - no device is trusted to skip the second factor, and every code of it works once,
+// - a new sign-in ends the session the browser held, and a sign-out clears the site data,
 // - a sign-up with a known address tells its owner,
 // - a session ends seven days after the sign-in,
 // - reset tokens are kept as digests only,
@@ -21,6 +22,13 @@ import { BREACHED_PASSWORD, UNCHECKABLE_PASSWORD } from './support/pwned-passwor
 
 const WRONG_PASSWORD = 'wrong password 123';
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The session cookie a response sets, as a Cookie header. */
+const sessionCookieOf = (response: { headers: Record<string, unknown> }): string => {
+  const cookies = response.headers['set-cookie'];
+  const list = Array.isArray(cookies) ? (cookies as string[]) : typeof cookies === 'string' ? [cookies] : [];
+  return list.find((cookie) => cookie.startsWith('smp.session_token='))?.split(';', 1)[0] ?? '';
+};
 
 /** The cookies a response sets: supertest types the header as a string, Node hands an array. */
 const cookiesOf = (response: { headers: Record<string, unknown> }): string => {
@@ -302,6 +310,29 @@ describe('authentication with Better Auth', () => {
     const next = totpCode(totpURI, Date.now() + 30_000);
     await other.post('/api/auth/two-factor/verify-totp').send({ code: next }).expect(200);
     await other.get('/api/me').expect(200);
+  });
+
+  it('ends the session the browser held when it signs in again, and clears the site at sign-out', async () => {
+    const email = 'again@example.test';
+    const agent = await signUpVerified(started(), email);
+    const server = started().server;
+    const fromBrowser = (address: string) =>
+      request(server).post('/api/auth/sign-in/email').set('Origin', APP_ORIGIN).set('X-Real-IP', address);
+
+    const first = await fromBrowser('192.0.2.240').send({ email, password: PASSWORD }).expect(200);
+    const old = sessionCookieOf(first);
+    const second = await fromBrowser('192.0.2.240')
+      .set('Cookie', old)
+      .send({ email, password: PASSWORD })
+      .expect(200);
+    const fresh = sessionCookieOf(second);
+
+    expect(fresh).not.toBe(old);
+    await request(server).get('/api/me').set('Cookie', old).expect(401);
+    await request(server).get('/api/me').set('Cookie', fresh).expect(200);
+
+    const out = await agent.post('/api/auth/sign-out').send({}).expect(200);
+    expect(out.headers['clear-site-data']).toBe('"cache", "storage"');
   });
 
   it('ends a session seven days after the sign-in, however often it is used', async () => {

@@ -15,6 +15,8 @@ import type { PasswordContext, PasswordPolicy, PasswordProblem } from './passwor
 //   session, so a stolen session cannot guess the password and take over the second factor,
 // - no "trust this device": every sign-in asks for the second factor,
 // - every TOTP code works once per user, also across two sign-ins within its time window,
+// - a new sign-in ends the session the browser still held, and a sign-out asks the browser to
+//   drop its cache and storage of the app,
 // - the password policy for every new password (PasswordPolicy),
 // - a security event in the log for sign-ins, sign-ups, sign-outs, resets and every change of a
 //   factor or a session. Events name the user or a digest of the address, never the address.
@@ -157,6 +159,14 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
     }
   };
 
+  /** A new session became the one of the browser: the session its cookie named before goes. */
+  const endPreviousSession = async (ctx: GenericEndpointContext, token: string): Promise<void> => {
+    const previous = await ctx.getSignedCookie(ctx.context.authCookies.sessionToken.name, ctx.context.secret);
+    if (previous && previous !== token) {
+      await ctx.context.internalAdapter.deleteSession(previous);
+    }
+  };
+
   const refuseWeakPassword = async (ctx: GenericEndpointContext, field: string): Promise<void> => {
     const body = (ctx.body ?? {}) as Record<string, unknown>;
     const password = body[field];
@@ -236,6 +246,15 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
     // the second step. Devices are never trusted, so the second step always follows.
     const needsSecondFactor =
       isSignIn && (signedIn as { twoFactorEnabled?: boolean | null } | null)?.twoFactorEnabled === true;
+    const created = ctx.context.newSession?.session.token;
+    const isSignInStep = isSignIn || SECOND_FACTOR_PATHS.has(ctx.path);
+    if (isSignInStep && created && !failure && !needsSecondFactor) {
+      await endPreviousSession(ctx, created);
+    }
+    if (ctx.path === '/sign-out' && !failure) {
+      // Nothing of the account stays in this browser for the next person at it.
+      ctx.setHeader('Clear-Site-Data', '"cache", "storage"');
+    }
     const outcome = failure ? 'failed' : needsSecondFactor ? 'second_factor_required' : 'ok';
     logger.log(
       {

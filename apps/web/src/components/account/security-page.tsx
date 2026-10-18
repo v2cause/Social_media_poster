@@ -37,7 +37,6 @@ import {
   TableRow,
 } from '@smp/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -47,6 +46,7 @@ import { toast } from 'sonner';
 import { useAuthError } from '@/components/auth/auth-error';
 import { authClient } from '@/lib/auth-client';
 import { useFieldError } from '@/lib/use-field-error';
+import { useSignOut } from '@/lib/use-sign-out';
 
 /** Password, two-factor setup and signed-in devices (guide steps 1.9 and 8.4). */
 export function SecurityPage() {
@@ -388,7 +388,7 @@ function SessionsCard() {
   const tActions = useTranslations('actions');
   const tStates = useTranslations('states');
   const format = useFormatter();
-  const router = useRouter();
+  const signOut = useSignOut();
   const current = authClient.useSession();
   const sessions = useQuery({
     queryKey: ['auth', 'sessions'],
@@ -425,11 +425,7 @@ function SessionsCard() {
     await sessions.refetch();
   };
 
-  const signInAgain = async () => {
-    await authClient.signOut();
-    router.push('/login?next=/account/security');
-    router.refresh();
-  };
+  const signInAgain = () => signOut('/login?next=/account/security');
 
   const currentId = current.data?.session.id;
   return (
