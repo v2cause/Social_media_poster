@@ -368,7 +368,14 @@ describe('the connected accounts of the plan (guide step 7.4)', () => {
       connectionId: 'ch-1',
       accountIds: ['ch-2'],
     });
-    expect(bed.accounts.asked.slice(-2)).toEqual([1, 0]);
+    // The start asks early; the confirmation counts again under the lock of the organization.
+    expect(bed.accounts.asked).toEqual([
+      { adding: 1, locked: false },
+      { adding: 1, locked: true },
+      { adding: 1, locked: false },
+      { adding: 1, locked: true },
+      { adding: 0, locked: true },
+    ]);
   });
 });
 

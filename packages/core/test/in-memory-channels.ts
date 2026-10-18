@@ -24,7 +24,8 @@ import { fixedClock, ScopeViolation, sequentialIds } from './in-memory-content';
 
 // In-memory adapters for the channel use cases: a unit of work that hides other workspaces and
 // rolls back on errors, the Redis stores of the OAuth flow, a sealer that binds the AAD, and a
-// scriptable connector.
+// scriptable connector. The limit of the accounts notes whether the transaction held its lock
+// (guide step 8.4).
 
 interface State {
   connections: Map<string, SocialConnection>;
@@ -36,6 +37,8 @@ interface State {
 
 export class InMemoryChannels implements ChannelUnitOfWork {
   state: State = { connections: new Map(), accounts: new Map(), accountSettings: new Map(), audit: [] };
+  /** The organizations whose account limit the running transaction holds. */
+  readonly accountLocks = new Set<string>();
 
   async run<T>(scope: ChannelScope, work: (store: ChannelStore) => Promise<T>): Promise<T> {
     const snapshot = structuredClone(this.state);
@@ -44,12 +47,15 @@ export class InMemoryChannels implements ChannelUnitOfWork {
     } catch (error) {
       this.state = snapshot;
       throw error;
+    } finally {
+      this.accountLocks.clear();
     }
   }
 
   private storeFor(scope: ChannelScope): ChannelStore {
     // The state is replaced on a rollback, so the repositories read it through this getter.
     const state = (): State => this.state;
+    const locks = this.accountLocks;
     const assertScope = (workspaceId: string): void => {
       if (workspaceId !== scope.workspaceId) {
         throw new ScopeViolation(`workspace ${workspaceId} is outside the scope`);
@@ -174,6 +180,13 @@ export class InMemoryChannels implements ChannelUnitOfWork {
           if (write.settings) {
             state().accountSettings.set(write.id, { ...write.settings });
           }
+          return Promise.resolve();
+        },
+        lockAccountLimit: (organizationId) => {
+          if (organizationId !== scope.organizationId) {
+            throw new ScopeViolation(`organization ${organizationId} is outside the scope`);
+          }
+          locks.add(organizationId);
           return Promise.resolve();
         },
         disconnect: (workspaceId, id, at) => {
@@ -343,12 +356,13 @@ export const fakeConnectors = (
 /** The account limit of the plan over the connected accounts of the in-memory store. */
 export class MemoryAccountLimits implements AccountLimits {
   max = Number.POSITIVE_INFINITY;
-  readonly asked: number[] = [];
+  /** Every check, and whether a transaction held the lock of the organization meanwhile. */
+  readonly asked: { adding: number; locked: boolean }[] = [];
 
   constructor(private readonly channels: InMemoryChannels) {}
 
-  assertRoom(_organizationId: string, adding: number): Promise<void> {
-    this.asked.push(adding);
+  assertRoom(organizationId: string, adding: number): Promise<void> {
+    this.asked.push({ adding, locked: this.channels.accountLocks.has(organizationId) });
     const used = [...this.channels.state.accounts.values()].filter((a) => a.disconnectedAt === null).length;
     if (adding > 0 && used + adding > this.max) {
       return Promise.reject(new PlanLimitReachedError('maxSocialAccounts', this.max));

@@ -74,6 +74,12 @@ export interface SocialAccountRepository {
    * through the given connection. Its id must then be the id of the existing account.
    */
   upsert(account: SocialAccountWrite): Promise<void>;
+  /**
+   * Waits for other connections of the organization, in all its workspaces, until the transaction
+   * ends, so that the check of the accounts of its plan and the connection are atomic (guide step
+   * 8.4).
+   */
+  lockAccountLimit(organizationId: string): Promise<void>;
   /** Marks the account disconnected and drops its token; false when it was already. */
   disconnect(workspaceId: string, accountId: string, at: Date): Promise<boolean>;
   /** How many accounts of the connection are still connected. */

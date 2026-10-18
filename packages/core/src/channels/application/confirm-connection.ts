@@ -46,6 +46,8 @@ export class ConfirmConnection {
     const workspaceId = actor.workspaceId;
 
     const confirmed = await this.deps.unitOfWork.run(channelScopeOf(actor), async (store) => {
+      // Read and counted after the lock: a connection that held it before is committed by now.
+      await store.accounts.lockAccountLimit(actor.organizationId);
       const before = await store.accounts.findByExternalIds(workspaceId, pending.platform, selected);
       const connectedBefore = new Set(
         before.filter((account) => account.disconnectedAt === null).map((account) => account.externalId),

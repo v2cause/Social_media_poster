@@ -121,6 +121,11 @@ export function createPrismaChannelStore(
           update: { ...changes, disconnectedAt: null, ...bump },
         });
       },
+      async lockAccountLimit(organizationId) {
+        // Held until the transaction ends. Connections of other organizations do not wait; a
+        // collision of the hash only makes two of them wait for each other.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`plan.accounts.${organizationId}`}, 0))`;
+      },
       async disconnect(workspaceId, accountId, at) {
         const { count } = await tx.socialAccount.updateMany({
           where: { id: accountId, workspaceId, disconnectedAt: null },

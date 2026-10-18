@@ -1,15 +1,35 @@
 import { randomUUID } from 'node:crypto';
 
-import type { ChannelScope, ChannelStore, ConnectionGrant } from '@smp/core';
+import {
+  ConfirmConnection,
+  pendingSecretAad,
+  PlanLimitReachedError,
+  uuidV7Ids,
+  type AccountLimits,
+  type ChannelScope,
+  type ChannelStore,
+  type ConnectionGrant,
+  type PendingConnection,
+  type SecretSealer,
+} from '@smp/core';
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { ChannelReadModel, createPrismaClient, PrismaChannelUnitOfWork, type PrismaClient } from '../src';
+import {
+  ChannelReadModel,
+  createPrismaClient,
+  createSystemPrismaClient,
+  PrismaChannelUnitOfWork,
+  PrismaPlanUsage,
+  type PrismaClient,
+  type SystemPrismaClient,
+} from '../src';
 
 // The Prisma adapters of the channel ports against PostgreSQL with row-level security (guide step
 // 4.5): connections and accounts of one workspace stay invisible to another, a new grant renews a
 // connection, accounts come back under their id, and the read model shows no token. A browser
-// connection of X keeps a session instead of tokens (guide step 6.4).
+// connection of X keeps a session instead of tokens (guide step 6.4). Parallel confirmations stay
+// within the accounts of the plan (guide step 8.4).
 
 const orgA = randomUUID();
 const orgB = randomUUID();
@@ -32,10 +52,21 @@ const grant = (overrides: Partial<ConnectionGrant> = {}): ConnectionGrant => ({
   grantedAt: new Date('2026-10-16T12:00:00Z'),
   ...overrides,
 });
+/** Binds the AAD like the keyring, without keys. */
+const sealer: SecretSealer = {
+  seal: (plaintext, aad) => Promise.resolve(bytes(`${aad}|${plaintext}`)),
+  open(sealed, aad) {
+    const text = new TextDecoder().decode(sealed);
+    return text.startsWith(`${aad}|`)
+      ? Promise.resolve(text.slice(aad.length + 1))
+      : Promise.reject(new Error('INVALID'));
+  },
+};
 
 describe('channel adapters on PostgreSQL', () => {
   let database: TestDatabase | undefined;
   let base: PrismaClient | undefined;
+  let system: SystemPrismaClient | undefined;
   const connectionId = randomUUID();
   const accountIds = [randomUUID(), randomUUID()] as const;
 
@@ -71,10 +102,12 @@ describe('channel adapters on PostgreSQL', () => {
       [workspaceA, orgA, workspaceB, orgB],
     );
     base = createPrismaClient(database.url('app_user'));
+    system = createSystemPrismaClient(database.url('app_system'));
   }, 300_000);
 
   afterAll(async () => {
     await base?.$disconnect();
+    await system?.$disconnect();
     await database?.stop();
   });
 
@@ -294,5 +327,117 @@ describe('channel adapters on PostgreSQL', () => {
       [browserAccountId],
     );
     expect(account?.settings).toEqual({ locale: 'en' });
+  });
+
+  it('keeps parallel confirmations of an organization within the accounts of its plan', async () => {
+    const organizationId = randomUUID();
+    const workspaces = [randomUUID(), randomUUID()] as const;
+    await query(`INSERT INTO organization (id, name, updated_at) VALUES ($1, 'C', now())`, [organizationId]);
+    await query(
+      `INSERT INTO workspace (id, organization_id, slug, name, timezone, content_language, updated_at)
+       VALUES ($1, $3, 'channels-c1', 'C1', 'Europe/Berlin', 'de', now()),
+              ($2, $3, 'channels-c2', 'C2', 'Europe/Berlin', 'de', now())`,
+      [...workspaces, organizationId],
+    );
+    // One account is connected already, and the plan allows two.
+    const connected = randomUUID();
+    await query(
+      `INSERT INTO social_connection (id, workspace_id, platform, method, external_user_id, display_name,
+                                      access_token_sealed, updated_at)
+       VALUES ($1, $2, 'LINKEDIN', 'MOCK', 'ada', 'Ada', '\\x00', now())`,
+      [connected, workspaces[0]],
+    );
+    await query(
+      `INSERT INTO social_account (id, workspace_id, connection_id, platform, type, external_id, name, updated_at)
+       VALUES (gen_random_uuid(), $1, $2, 'LINKEDIN', 'PROFILE', 'urn:li:person:ada', 'Ada', now())`,
+      [workspaces[0], connected],
+    );
+    const accountsWithin = (max: number): AccountLimits => ({
+      async assertRoom(organization, adding) {
+        if (!system) {
+          throw new Error('database not ready');
+        }
+        const used = await new PrismaPlanUsage(system).socialAccounts(organization);
+        if (adding > 0 && used + adding > max) {
+          throw new PlanLimitReachedError('maxSocialAccounts', max);
+        }
+      },
+    });
+    // Three consents waiting for their selection, two in the first workspace and one in the second.
+    const pendings = new Map<string, PendingConnection>();
+    for (const [index, workspaceId] of [workspaces[0], workspaces[0], workspaces[1]].entries()) {
+      const id = randomUUID();
+      pendings.set(id, {
+        id,
+        userId,
+        organizationId,
+        workspaceId,
+        platform: 'LINKEDIN',
+        method: 'MOCK',
+        externalUserId: `user-${String(index)}`,
+        displayName: `User ${String(index)}`,
+        requestedScopes: [],
+        grantedScopes: [],
+        accounts: [
+          {
+            externalId: `urn:li:person:${String(index)}`,
+            type: 'PROFILE',
+            name: 'P',
+            handle: null,
+            avatarUrl: null,
+          },
+        ],
+        sealedSecrets: await sealer.seal(
+          JSON.stringify({
+            accessToken: 'access',
+            refreshToken: null,
+            accessTokenExpiresAt: null,
+            refreshTokenExpiresAt: null,
+            accounts: {},
+          }),
+          pendingSecretAad(workspaceId, id),
+        ),
+        reconnectAccountId: null,
+        expiresAt: new Date('2026-10-16T12:15:00Z'),
+      });
+    }
+    const confirm = new ConfirmConnection({
+      unitOfWork: unitOfWork(),
+      pendings: {
+        save: (pending) => {
+          pendings.set(pending.id, pending);
+          return Promise.resolve();
+        },
+        find: (id) => Promise.resolve(pendings.get(id) ?? null),
+        delete: (id) => {
+          pendings.delete(id);
+          return Promise.resolve();
+        },
+      },
+      sealer,
+      clock: { now: () => new Date('2026-10-16T12:00:00Z') },
+      ids: uuidV7Ids,
+      accounts: accountsWithin(2),
+    });
+
+    const outcomes = await Promise.allSettled(
+      [...pendings.values()].map((pending) =>
+        confirm.execute({
+          actor: { userId, organizationId, workspaceId: pending.workspaceId, role: 'OWNER' },
+          pendingId: pending.id,
+          externalIds: pending.accounts.map((account) => account.externalId),
+        }),
+      ),
+    );
+
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+    const refused = outcomes.filter((outcome) => outcome.status === 'rejected');
+    expect(refused).toHaveLength(2);
+    for (const outcome of refused) {
+      expect(outcome.reason).toBeInstanceOf(PlanLimitReachedError);
+    }
+    await expect(
+      new PrismaPlanUsage(system as SystemPrismaClient).socialAccounts(organizationId),
+    ).resolves.toBe(2);
   });
 });
