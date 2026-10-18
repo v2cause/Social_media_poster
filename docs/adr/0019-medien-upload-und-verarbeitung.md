@@ -2,7 +2,7 @@
 
 - **Status**: Akzeptiert
 - **Datum**: 2026-10-16
-- **Bezug**: Umsetzungsleitfaden, Schritte 3.1 bis 3.3; `docs/ARCHITECTURE.md`, Abschnitte 7.4 und 9; ADR 0002, ADR 0008
+- **Bezug**: Umsetzungsleitfaden, Schritte 3.1 bis 3.3 und 8.4; `docs/ARCHITECTURE.md`, Abschnitte 7.4 und 9; ADR 0002, ADR 0008, [ADR 0039](0039-security-review-und-haertung.md)
 
 ## Kontext
 
@@ -17,6 +17,13 @@ Bilder kommen per Presigned PUT direkt in den Objektspeicher (ADR 0008). Danach 
 - **Abweichende Dateien**: Weichen Größe oder Content-Type laut `HeadObject` von der Ankündigung ab, löscht die API das Objekt sofort und setzt `REJECTED` mit `SIZE_MISMATCH` oder `TYPE_MISMATCH`.
 - **Ablehnungsgründe**: `SIZE_MISMATCH`, `TYPE_MISMATCH`, `NOT_AN_IMAGE`, `UNSUPPORTED_FORMAT`, `HEIC_NOT_SUPPORTED`, `ANIMATED_NOT_SUPPORTED`, `DIMENSIONS_TOO_LARGE`, `CORRUPT_IMAGE`. Die UI übersetzt den Code. Abgelehnte Dateien und alles daraus Erzeugte werden sofort gelöscht (alle Objekte unter `ws/{ws}/assets/{id}/`).
 - **Löschen**: `DELETE` setzt `deletedAt` und schreibt `media.delete` ins Audit-Log. Ein Asset, das eine Variante verwendet, bleibt (409 `MEDIA_IN_USE`). Dateien und Zeile räumt der stündliche `gdpr.sweep` mit seinem nächsten Lauf ab (Architektur, Abschnitt 9; ADR 0038).
+
+### Upload-Objekt und Original (seit Schritt 8.4)
+
+- **Signierte Länge**: Die PUT-URL signiert neben dem Content-Type die angekündigte Länge. Der Speicher nimmt also keine größere oder kleinere Datei an als die, die die API gegen das Upload-Limit und den Speicher des Tarifs geprüft hat. Der Browser setzt die Länge aus der Datei selbst.
+- **Eigenes Upload-Objekt**: Der Browser lädt nach `ws/{ws}/assets/{id}/upload`, nicht in das Original. Der Worker liest das Upload-Objekt einmal, prüft Länge und Inhalt und speichert genau die geprüften Bytes als `ws/{ws}/assets/{id}/original`, mit dem Typ, den der Inhalt zeigte; dann löscht er das Upload-Objekt. Ein zweiter PUT mit dem Link, der fünf Minuten gilt, landet im Upload-Objekt, das niemand mehr liest. Eine Datei lässt sich nach ihren Prüfungen also nicht mehr austauschen.
+- **`media.drop-upload`**: Ein solcher PUT nach `READY`, einer Ablehnung oder dem Löschen legt das Upload-Objekt neu an, ohne dass es zur Quote zählt. Deshalb reiht die API mit jedem Ticket diesen Job ein. Er läuft eine Stunde nach Ablauf des Links und löscht das Upload-Objekt, außer das Asset wartet noch auf seine Datei oder wird gerade verarbeitet. Ein PUT, der länger als diese Stunde offen bleibt, ist ein akzeptiertes Restrisiko (ADR 0039).
+- **Export**: Der Datenexport enthält nur die Originale fertiger Assets, mit dem Namen der Nutzer ohne seine Endung und mit der Endung des erkannten Typs (ADR 0036).
 
 ### Prüfung im Worker (`media.process`)
 

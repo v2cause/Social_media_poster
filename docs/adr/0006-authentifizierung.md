@@ -2,7 +2,7 @@
 
 - **Status**: Akzeptiert. Spike (d) ist mit Schritt 1.4 bestanden.
 - **Datum**: 2026-10-15, Spike-Ergebnis 2026-10-16
-- **Bezug**: Umsetzungsleitfaden, Schritte 1.1, 1.4 und Spike 0.14(d); `docs/ARCHITECTURE.md`, Abschnitte 1 und 10
+- **Bezug**: Umsetzungsleitfaden, Schritte 1.1, 1.4, 8.4 und Spike 0.14(d); `docs/ARCHITECTURE.md`, Abschnitte 1 und 10; [ADR 0039](0039-security-review-und-haertung.md)
 
 ## Kontext
 
@@ -30,11 +30,11 @@ Better Auth ist ein reines ESM-Paket. Die API wird als CommonJS gebaut; Node 24 
 
 - **Mount**: `server.all('/api/auth/*splat', toNodeHandler(auth))` vor `express.json()`, in `apps/api/src/bootstrap.ts`, das auch die Integrationstests verwenden.
 - **Datenbank**: Prisma-Adapter mit dem Basis-Client als `app_user` ohne Tenant-Extension. Die Better-Auth-Modelle heißen in Prisma wie in Better Auth (`User`, `Session`, `Account`, `Verification`, `TwoFactor`, `RateLimit`); die Tabellen sind per `@@map` umbenannt (`users`, `auth_account`, ...). IDs erzeugt die App als UUID v7 (`advanced.database.generateId`). Die Schema-Prüfung von Better Auth (`validateSchema`, außerhalb von Produktion aktiv) meldet keine Abweichung.
-- **Passwörter**: mindestens 12, höchstens 128 Zeichen. Beim Zurücksetzen werden alle Sessions beendet.
-- **Verifizierung**: Pflicht vor der ersten Session; Organisationen setzen also eine verifizierte Adresse voraus. Nach dem Klick auf den Link ist der Nutzer angemeldet.
+- **Passwörter**: mindestens 12, höchstens 128 Zeichen. Beim Zurücksetzen werden alle Sessions beendet. Seit Schritt 8.4 lehnt eine Passwortrichtlinie häufige, geleakte und Passwörter mit Wörtern ihres Kontexts ab, und die Hashes nutzen scrypt mit den Parametern von OWASP (ADR 0039).
+- **Verifizierung**: Pflicht vor der ersten Session; Organisationen setzen also eine verifizierte Adresse voraus. Der Link bestätigt nur die Adresse, angemeldet wird erst mit dem Passwort (seit Schritt 8.4; vorher meldete der Link an, ADR 0039).
 - **Zusatzfelder**: `locale` und `timezone` mit zod-Validierung (`@smp/contracts`), `isPlatformAdmin` mit `input: false`.
 - **E-Mails** gehen im Hintergrund raus und werden nicht abgewartet, sonst verriete die Antwortzeit, ob eine Adresse existiert. Fehler werden ohne Adresse geloggt.
-- **Rate-Limits**: Speicher `database` (Tabelle `rate_limit`), aktiv außer in der Entwicklung. Better Auth begrenzt Login und 2FA strenger als den Rest (3 Anfragen in 10 s).
+- **Rate-Limits**: Speicher `database` (Tabelle `rate_limit`), aktiv außer in der Entwicklung. Better Auth begrenzt Login und 2FA strenger als den Rest (3 Anfragen in 10 s). Seit Schritt 8.4 kommen Limits je Konto, je Gerät, je Nutzer und je Adresse der E-Mails dazu; alle Werte stehen in ADR 0039.
 - **Client-Adresse**: Better Auth liest nur `X-Real-IP`. Der Reverse Proxy überschreibt den Header mit der Adresse des Gegenübers (`Caddyfile`); eine `X-Forwarded-For`-Kette wird nicht ausgewertet, weil ihr erster Eintrag vom Client stammt. Jeder Proxy vor der API muss `X-Real-IP` so setzen.
 - **CSRF**: Das Cookie ist `SameSite=Lax`. Zusätzlich weist eine Middleware vor dem Auth-Handler jede schreibende Anfrage ab, deren `Origin` nicht `APP_URL` ist oder deren `Sec-Fetch-Site` eine fremde Site meldet. Better Auth selbst lässt einen Login ohne Cookie von fremder Origin zu (Login-CSRF); die Middleware schließt das.
 - **Logs**: Better-Auth-Meldungen ab `warn` gehen ohne Zusatzargumente in pino, damit keine Anfragedaten im Log landen. Telemetrie ist aus.

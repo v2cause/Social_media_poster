@@ -2,7 +2,7 @@
 
 - **Status**: Akzeptiert
 - **Datum**: 2026-10-16
-- **Bezug**: `docs/ARCHITECTURE.md`, Abschnitte 10 und 12; Umsetzungsleitfaden, Schritte 0.1, 0.3, 0.6, 0.7, 0.9 und 0.13
+- **Bezug**: `docs/ARCHITECTURE.md`, Abschnitte 10 und 12; Umsetzungsleitfaden, Schritte 0.1, 0.3, 0.6, 0.7, 0.9, 0.13 und 8.4; [ADR 0039](0039-security-review-und-haertung.md)
 
 ## Kontext
 
@@ -12,15 +12,15 @@ Die Architektur nennt Härtung und Lieferkette (CSP mit Nonces, Log-Redaction, R
 
 ### Web
 
-- **CSP pro Request mit Nonce** in `apps/web/src/proxy.ts`: `script-src 'self' 'nonce-…' 'strict-dynamic'` (im Dev-Modus zusätzlich `'unsafe-eval'` für React), `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`. Next.js liest die Nonce aus dem Request-Header und setzt sie an seine Skripte. Geprüft mit Chromium gegen den Production-Build: alle Skripte tragen die Nonce, die Seite hydriert, keine Verstöße.
+- **CSP pro Request mit Nonce** in `apps/web/src/proxy.ts`: `script-src 'self' 'nonce-…' 'strict-dynamic'` (im Dev-Modus zusätzlich `'unsafe-eval'` für React), `object-src 'none'`, `base-uri 'self'` (seit Schritt 8.4 `'none'`), `form-action 'self'`, `frame-ancestors 'none'`. Next.js liest die Nonce aus dem Request-Header und setzt sie an seine Skripte. Geprüft mit Chromium gegen den Production-Build: alle Skripte tragen die Nonce, die Seite hydriert, keine Verstöße.
 - **`style-src 'self' 'unsafe-inline'`**: Next.js rendert `style`-Attribute (z.B. auf den eingebauten Fehlerseiten), und Attribute können keine Nonce tragen. Eingeschleustes CSS führt keinen Code aus.
 - **Feste Header** für jede Antwort (`next.config.ts`): `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Cross-Origin-Opener-Policy`, eine restriktive `Permissions-Policy`; kein `X-Powered-By`.
-- **HSTS** setzt der TLS-terminierende Reverse Proxy in Produktion, nicht die App.
+- **HSTS** setzt der TLS-terminierende Reverse Proxy in Produktion. Seit Schritt 8.4 sendet ihn auch die Web-App in Produktions-Builds (`max-age=31536000; includeSubDomains`); über HTTP ignorieren Browser ihn. Die API setzt die Policy von helmet mit `base-uri 'none'` und `frame-ancestors 'none'` (ADR 0039).
 - Phase 3 ergänzt den Objektspeicher in `img-src` und `connect-src` (umgesetzt in Schritt 3.6, [ADR 0022](0022-medien-im-web.md)).
 
 ### Logs und Fehlerberichte
 
-- **Request-Logs** der API enthalten nur Request-ID, Methode, Pfad ohne Query-String und Status. Header (Cookies, Tokens), Query-Strings (später OAuth-Codes) und die Client-Adresse (personenbezogen) werden nicht geloggt.
+- **Request-Logs** der API enthalten nur Request-ID, Methode, Pfad ohne Query-String und Status. Header (Cookies, Tokens), Query-Strings (später OAuth-Codes) und die Client-Adresse (personenbezogen) werden nicht geloggt. Seit Schritt 8.4 hat auch `/api/auth` eine Request-Zeile, mit maskiertem Token im Pfad des Reset-Links; die Client-Adresse nennen nur die Sicherheitsereignisse (ADR 0039).
 - **5xx-Fehler** werden mit dem Fehlerobjekt geloggt; die Antwort an den Client enthält bei 5xx nie den internen Text, auch nicht bei einer `HttpException`.
 - **Redaction** zensiert zusätzlich `set-cookie`, `proxy-authorization`, `x-api-key`, `token`, `idToken`, `secret` und `clientSecret`.
 - **Sentry 11** sammelt ohne Konfiguration Nutzerdaten, Cookies, Header, Bodies, Query-Parameter, Datenbank-Parameter, Queue-Payloads, lokale Variablen und KI-Ein- und -Ausgaben. Über `dataCollection` ist das abgeschaltet; nur `content-type`, `user-agent` und `x-request-id` bleiben. `beforeSend` entfernt Cookies, Body und Query-String zusätzlich.
@@ -32,7 +32,7 @@ Die Architektur nennt Härtung und Lieferkette (CSP mit Nonces, Log-Redaction, R
 - **Geprüfte Ausnahme** `semver@6.3.1` (seit Schritt 1.8): der Backport des ReDoS-Fixes (CVE-2022-25883) auf die 6.x-Linie, am 2023-07-10 vom npm-CLI-Maintainer veröffentlicht. Die Version erschien nach 7.5.2 bis 7.5.4, die einen Herkunftsnachweis haben; die Prüfung nach Veröffentlichungsdatum wertet sie deshalb als Downgrade. `@babel/core` (über `eslint-plugin-react-hooks`) braucht weiterhin semver 6.
 - **Audit**: `mysql2` und `js-yaml` 5 sind per `overrides` innerhalb der Major-Version gepatcht. Bewusst akzeptiert sind `GHSA-ggr8-5vv4-36mx` (`deepmerge-ts`, nur im Config-Loader der Prisma-CLI mit eigener Konfiguration; der Fix ist eine neue Major) und `GHSA-vfj7-8cjw-p6xm` (`braces`, nur in Lint-Werkzeugen, kein Fix vorhanden). Beides steht mit Begründung in `auditConfig`.
 - **pnpm selbst** ist über den sha512 in `packageManager` festgelegt; Corepack prüft ihn beim Download.
-- **Images** sind auf exakte Tags gepinnt (seit Schritt 8.4 `node:24.21.0-trixie-slim` auf Debian 13, vorher `node:24.21.0-slim` auf Debian 12); Renovate pinnt zusätzlich die Digests, wartet drei Tage vor Updates und meldet OSV-Schwachstellen. Die Runtime-Stages enthalten weder npm noch corepack oder yarn: Die Apps laufen mit `node` allein, und die mitgelieferten Abhängigkeiten von npm brachten die einzigen Befunde des Image-Scans.
+- **Images** sind auf exakte Tags gepinnt (seit Schritt 8.4 `node:24.21.0-trixie-slim` auf Debian 13, vorher `node:24.21.0-slim` auf Debian 12); Renovate ist so eingestellt, dass es zusätzlich die Digests pinnt (`docker:pinDigests`), drei Tage vor Updates wartet und OSV-Schwachstellen meldet. Bis Renovate auf dem Repository läuft, tragen die Images nur ihre Tags (Security-Review, ADR 0039). Die Runtime-Stages enthalten weder npm noch corepack oder yarn: Die Apps laufen mit `node` allein, und die mitgelieferten Abhängigkeiten von npm brachten die einzigen Befunde des Image-Scans.
 
 ### CI
 

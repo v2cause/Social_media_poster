@@ -510,7 +510,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 ## 9. Medien-Pipeline
 
-1. **Upload anfordern**: `POST /api/w/:ws/media/uploads` prüft Speicher-Quote, Größe (max. 20 MB) und MIME-Whitelist (JPEG, PNG, WebP, statisches GIF; kein SVG). Die API legt `MediaAsset(PENDING_UPLOAD)` an und liefert eine Presigned-PUT-URL (5 min gültig, Content-Type signiert). Die Quote ist der Speicher des Tarifs über alle Workspaces der Organisation und wird unter einer Advisory-Sperre pro Organisation geprüft ([ADR 0019](adr/0019-medien-upload-und-verarbeitung.md), [ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)).
+1. **Upload anfordern**: `POST /api/w/:ws/media/uploads` prüft Speicher-Quote, Größe (max. 20 MB) und MIME-Whitelist (JPEG, PNG, WebP, statisches GIF; kein SVG). Die API legt `MediaAsset(PENDING_UPLOAD)` an und liefert eine Presigned-PUT-URL (5 min gültig, Content-Type und Länge signiert, seit Schritt 8.4 für ein eigenes Upload-Objekt neben dem Original). Die Quote ist der Speicher des Tarifs über alle Workspaces der Organisation und wird unter einer Advisory-Sperre pro Organisation geprüft ([ADR 0019](adr/0019-medien-upload-und-verarbeitung.md), [ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)).
 2. **Upload**: Der Browser lädt direkt in den S3-Speicher hoch, mit Fortschrittsanzeige, und meldet dann `complete`. Die API prüft dabei per `HeadObject` die tatsächliche Größe und den Content-Type und löscht Objekte, die gegen die Regeln verstoßen.
 3. **`media.process`**:
    - Magic-Byte-Prüfung mit eigener Signaturprüfung (`sniffImageType` in `@smp/core`; `file-type` ist nur ESM, ADR 0019). HEIC wird mit eigenem Grund abgelehnt.
@@ -528,7 +528,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
    - Die Werte liegen zentral in `packages/platform-rules` und werden pro Adapter-Phase gegen die Doku geprüft. Umgesetzt sind JPEG-Renditions (Qualität 85, Instagram 1080 x 1350 als Box, Facebook und LinkedIn 2048, X 4096) mit Qualitäts- und Größenstufen bis zum Byte-Limit; Stand der Prüfung je Wert in [ADR 0020](adr/0020-renditions-und-zuschnitt.md).
    - Liegt ein Seitenverhältnis außerhalb des Erlaubten, schneidet der Nutzer pro Plattform zu (`react-easy-crop`) oder wählt Letterbox (weiße Ränder). Der Zuschnitt wird in Pixeln des angezeigten Originals an `PostMedia` gespeichert; `PUT /api/w/:ws/variants/:variantId/media` setzt die Medien einer Variante mit ihrer `version` und reiht `media.render` ein.
-5. **Öffentliche URLs für Meta**: Presigned GET mit 1 h Laufzeit und `.jpg`-Key. Als Fallback gibt es einen HMAC-signierten Medien-Proxy der API. Lokal laufen Tests über einen `cloudflared`-Tunnel oder den Mock-Adapter.
+5. **Öffentliche URLs für Meta**: Presigned GET mit 1 h Laufzeit und `.jpg`-Key. Als Fallback ist ein HMAC-signierter Medien-Proxy der API vorgesehen, falls Meta die signierten URLs nicht lädt; gebaut ist er nicht (Schritt 4.13 ist offen). Lokal laufen Tests über einen `cloudflared`-Tunnel oder den Mock-Adapter.
 6. **Aufräumen** (stündlich in `gdpr.sweep` der Rolle `gdpr`, [ADR 0038](adr/0038-aufbewahrungsfristen.md)): Assets, die nach 24 h noch auf `PENDING_UPLOAD` stehen, und gelöschte Assets, die keine Variante verwendet, mit dem nächsten Lauf; erst die Objekte, dann die Zeilen. Gelöschte Assets zählen nicht mehr zur Speicher-Quote, deshalb warten ihre Dateien nicht (Schritt 8.4; vorher 30 Tage). Nach Objekten ohne Asset sucht kein Job, weil keine Löschung sie zurücklässt. Der Browser lädt in ein eigenes Upload-Objekt, aus dem die Pipeline das geprüfte Original schreibt. Ein PUT, den der Link danach noch annimmt (nach `READY`, einer Ablehnung oder dem Löschen), legt es neu an; deshalb reiht die API mit jedem Ticket `media.drop-upload` ein, das das Upload-Objekt eine Stunde nach Ablauf des Links löscht, außer das Asset wartet noch auf seine Datei oder wird gerade verarbeitet. Unbenutzte, aber fertige Assets bleiben in der Bibliothek, und Thumbnails veröffentlichter Posts bleiben für die Historie erhalten.
 
 ---
@@ -536,10 +536,10 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 ## 10. Sicherheit, Auth, DSGVO
 
 - **Authentifizierung**: Better Auth unter `/api/auth/*`.
-  - E-Mail/Passwort mit Verifizierung und Reset, optional Google- oder Microsoft-Login.
+  - E-Mail/Passwort mit Verifizierung und Reset. Ein Login über Google oder Microsoft entfällt (Schritt 8.4). Passwortrichtlinie (häufige, geleakte und Passwörter mit Kontextwörtern werden abgelehnt), Hashes mit scrypt nach OWASP, Limits je Konto, Gerät und Nutzer sowie die Wege der Anmeldung stehen in [ADR 0039](adr/0039-security-review-und-haertung.md).
   - TOTP-2FA mit Backup-Codes, für Owner erzwingbar und für Plattform-Admins Pflicht. Passkeys später. Wer 2FA nutzt, bestätigt vor dem Abschalten, dem neuen Einrichten, dem Abruf des Schlüssels und neuen Backup-Codes einen Code mit der Session; die Bestätigung gilt fünf Minuten für eine Änderung (Schritt 8.4).
-  - Cookie mit `httpOnly; Secure; SameSite=Lax`. Alles läuft same-origin, also kein CORS.
-  - Rate-Limits pro Client-Adresse aus `X-Real-IP`, das der Reverse Proxy setzt. Details und Spike-Ergebnis in ADR 0006.
+  - Cookie mit `httpOnly; Secure; SameSite=Lax`, über https mit dem Präfix `__Host-`. Alles läuft same-origin, also kein CORS. Eine Session endet sieben Tage nach der Anmeldung, ohne Verlängerung; eine neue Anmeldung beendet die alte Session des Browsers (ADR 0039).
+  - Rate-Limits pro Client-Adresse aus `X-Real-IP`, das der Reverse Proxy setzt. Details und Spike-Ergebnis in ADR 0006, alle Werte in ADR 0039.
 - **Request-Pipeline** (globale Guards in dieser Reihenfolge, registriert im `AccessModule`):
   1. `AuthGuard`: prüft die Session.
   2. `WorkspaceGuard`: löst den Workspace-Slug (`@WorkspaceScope()`, Routen `/api/w/:ws`) bzw. die Organisation (`@OrgScope()`, Routen `/api/org/:org`) zu Mitgliedschaft und Rolle auf (60 s in Redis gecacht, bei Rollenwechsel, Entfernen und Austritt sofort invalidiert, nach Löschen und Zurücknehmen einer Organisation für alle Mitglieder; gecacht wird nur gewährter Zugriff). Fremde und unbekannte Mandanten liefern 404.
@@ -567,10 +567,11 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
   - Rotation über Schlüsselversionen und einen Re-Wrap-Job. Browser-Sessions nutzen einen eigenen Keyring.
 - **Härtung**:
   - zod-Validierung aller Eingaben, Jobs, Adapter-Antworten und der Env-Konfiguration beim Start.
-  - Rate Limiting eingehend (`@nestjs/throttler` mit Redis) und ausgehend pro Plattform, App und Account (`rate-limiter-flexible`, wertet die Rate-Header der Plattformen aus).
+  - Rate Limiting eingehend und ausgehend. Eingehend zählt `@nestjs/throttler` in Redis je Client-Adresse, je Nutzer und für teure Routen je Nutzer und Route, für alle Routen außer `/api/auth`; dort gelten die Limits von Better Auth und der eigenen Hooks (Werte in ADR 0039). Ausgehend gilt ein Limit pro Plattform, App und Account (`rate-limiter-flexible`, wertet die Rate-Header der Plattformen aus).
   - Origin-Check gegen CSRF für alle schreibenden Anfragen unter `/api`, auch für `/api/auth` (Login-CSRF), dazu CSP mit Nonces (der Objektspeicher nur in `img-src` und `connect-src`, ADR 0022), HSTS, helmet.
-  - Webhook-Signaturen prüfen: Stripe `constructEvent`; Meta `X-Hub-Signature-256` plus Deauthorize- und Data-Deletion-Callbacks (Pflicht für das App-Review).
-  - Log-Redaction für Tokens, Cookies und Sessions.
+  - Webhook-Signaturen prüfen: Stripe `constructEvent`; Meta `X-Hub-Signature-256` plus Deauthorize- und Data-Deletion-Callbacks (Pflicht für das App-Review). Die Endpunkte von Meta entstehen mit Schritt 4.13, der offen ist; bis dahin gibt es keinen Webhook von Meta.
+  - Log-Redaction für Tokens, Cookies und Sessions. Abgewiesene Anfragen und die Anmeldeflüsse schreiben Sicherheitsereignisse (`security.*`, `auth.event`) mit Client-Adresse, ohne Daten der Anfrage (ADR 0039).
+- **Security-Review** (Schritt 8.4): Checkliste nach ASVS 5.0 Level 2 (`docs/security/asvs-l2.md`), Pentest-Bericht und Inventare zu Kryptografie, Daten und Protokollen sowie Autorisierung und Grenzen unter `docs/security/`. Fristen nach Schwere, akzeptierte Abweichungen und verschobene Punkte stehen in ADR 0039.
 - **Lieferkette**: Renovate (3 Tage Wartezeit, Digest-Pinning), pnpm-Gates (`minimumReleaseAge`, `trustPolicy: no-downgrade`, `strictDepBuilds`), `pnpm audit`, CodeQL, Dependency Review, gitleaks, Trivy-Image-Scans und SBOMs. Die ersten Punkte gelten seit Phase 0, Image-Scans und SBOMs seit Schritt 8.4 (ADR 0009).
 - **DSGVO**:
   - Hosting in der EU, AV-Verträge und Liste der Unterauftragsverarbeiter (Anthropic, Stripe, E-Mail-Provider, Hosting) sowie ein Hinweis auf die Datenübermittlung an LinkedIn, Meta und X.
@@ -627,8 +628,8 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 
 ## 12. Observability, CI/CD, Umgebungen
 
-- **Logging**: pino (JSON) mit `requestId`, `traceId`, `workspaceId` und `jobId`; Secrets geschwärzt. Das Log-Backend hält die Logs 30 Tage ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
-- **Tracing**: OpenTelemetry über HTTP, Prisma, Redis und BullMQ, `traceparent` in den Job-Payloads. Fehler gehen an Sentry.
+- **Logging**: pino (JSON) mit `requestId`, `traceId`, `workspaceId` und `jobId`; Secrets geschwärzt. Fehler nur mit den Feldern einer Allowlist und ohne E-Mail-Adressen (ADR 0039). In der API setzt jede Anfrage ihren Kontext; im Worker schreiben ihn bisher die Prozessoren selbst, ein Kontext je Job folgt mit Schritt 8.7. Das Log-Backend hält die Logs 30 Tage ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
+- **Tracing**: OpenTelemetry über HTTP, Prisma, Redis und BullMQ, `traceparent` in den Job-Payloads. Spans enthalten keine Tokens und keine personenbezogenen Daten, URLs erscheinen ohne Query; über OTLP gehen nur Traces (ADR 0039). Fehler gehen an Sentry.
 - **Health und Queues**: Health-Checks (`/health/live`, `/health/ready`) für alle Dienste. Bull Board nur für Plattform-Admins.
 - **Metriken**: Erfolgsquote pro Plattform, Verzögerung beim Veröffentlichen, Queue-Tiefe, Verzögerung des Scheduler-Ticks, KI-Tokens, Kosten und Cache-Trefferquote, Refusals, X-Ausgaben pro Workspace, Fehler beim Token-Refresh, Browser-Challenges.
 - **Alarme**: Fehlerquote, Tick-Verzögerung über 60 s, Dead-Letter-Queue nicht leer, hängende QUEUED-Varianten, eine Welle von NEEDS_REAUTH, ausgelöster Kill-Switch.
@@ -641,7 +642,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   6. OpenAPI-Drift-Check (Integrationstest gegen `packages/api-client/openapi.json`, ADR 0013)
   7. Prisma-Migrationsprüfung (`migrate diff`, squawk)
   8. E2E mit Playwright gegen den gestarteten Stack (Compose-Infrastruktur, API, Worker, Web)
-  9. Docker-Build der fünf Images (`turbo prune`) mit SBOM (CycloneDX) und Trivy-Scan auf Schwachstellen und Secrets; der Push nach GHCR auf main folgt mit dem Deployment (Schritt 8.9)
+  9. Docker-Build der fünf Images (`turbo prune`) mit SBOM (CycloneDX) und Trivy-Scan auf Schwachstellen und Secrets, auch wöchentlich ohne neue Commits; der Push nach GHCR auf main folgt mit dem Deployment (Schritt 8.9)
 
   Nächtlich laufen optionale Live-Smoke-Tests gegen Test-Accounts und die KI-Eval-Suite mit Budget-Limit. Ein eigener Workflow `security.yml` führt CodeQL, Dependency Review, `pnpm audit` und gitleaks aus (ADR 0009).
 - **Umgebungen**: lokal (Mock-Modus), CI, Staging (echte Plattform-Apps im Dev-Modus, Stripe-Testmodus, Anthropic mit niedrigem Ausgabenlimit) und Produktion (EU).

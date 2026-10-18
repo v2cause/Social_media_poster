@@ -98,7 +98,7 @@ Die Rotation läuft in zwei Neustarts, damit jeder Dienst den neuen Schlüssel k
 
 - **SMTP**: neue Zugangsdaten beim Anbieter, `SMTP_URL` ersetzen, Worker neu starten. Prüfen: eine Passwort-vergessen-Mail an ein Testkonto kommt an.
 - **`ANTHROPIC_API_KEY`**: neuen Schlüssel in der Anthropic Console anlegen, setzen, API und Worker neu starten, alten Schlüssel widerrufen. Prüfen: ein KI-Entwurf im Composer.
-- **Plattform-Apps** (`LINKEDIN_CLIENT_SECRET`, `LINKEDIN_CM_CLIENT_SECRET`, `META_APP_SECRET`, `INSTAGRAM_APP_SECRET`, `X_CLIENT_SECRET`): im Entwicklerportal der Plattform ein neues Secret erzeugen, setzen, API und Worker neu starten. Die Tokens der Nutzer bleiben gültig; Erneuerungen laufen mit dem neuen Secret. `META_APP_SECRET` prüft auch die Signatur der Meta-Webhooks: neues Secret setzen, bevor Meta das alte verwirft. Prüfen: der Token-Monitor meldet keine neuen Fehler, ein Testbeitrag geht raus.
+- **Plattform-Apps** (`LINKEDIN_CLIENT_SECRET`, `LINKEDIN_CM_CLIENT_SECRET`, `META_APP_SECRET`, `INSTAGRAM_APP_SECRET`, `X_CLIENT_SECRET`): im Entwicklerportal der Plattform ein neues Secret erzeugen, setzen, API und Worker neu starten. Die Tokens der Nutzer bleiben gültig; Erneuerungen laufen mit dem neuen Secret. Mit den Webhooks von Meta (Schritt 4.13, noch offen) prüft `META_APP_SECRET` auch deren Signatur; dann ist das neue Secret zu setzen, bevor Meta das alte verwirft. Prüfen: der Token-Monitor meldet keine neuen Fehler, ein Testbeitrag geht raus.
 - **`SENTRY_DSN`**: bei einem Leck einen neuen DSN anlegen und den alten im Projekt deaktivieren.
 
 `SEED_USER_PASSWORD` gilt nur lokal; das Seed-Skript verweigert die Arbeit mit `NODE_ENV=production`.
