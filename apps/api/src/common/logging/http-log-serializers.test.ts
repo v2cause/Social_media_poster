@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { httpLogSerializers, pathOnly } from './http-log-serializers';
+import { httpLogSerializers } from './http-log-serializers';
 
-describe('pathOnly', () => {
-  it('drops the query string and the fragment', () => {
-    expect(pathOnly('/api/oauth/x/callback?code=secret&state=abc')).toBe('/api/oauth/x/callback');
-    expect(pathOnly('/api/w/acme/posts#top')).toBe('/api/w/acme/posts');
-    expect(pathOnly('/api/health/live')).toBe('/api/health/live');
-    expect(pathOnly(undefined)).toBeUndefined();
-  });
-});
+const pathOf = (url: string): unknown => httpLogSerializers.req({ id: 'req-1', method: 'GET', url }).path;
 
 describe('httpLogSerializers', () => {
+  it('drops query and fragment and masks the token of the reset link', () => {
+    expect(pathOf('/api/oauth/x/callback?code=secret&state=abc')).toBe('/api/oauth/x/callback');
+    expect(pathOf('/api/w/acme/posts#top')).toBe('/api/w/acme/posts');
+    expect(pathOf('/api/health/live')).toBe('/api/health/live');
+    expect(pathOf('/api/auth/reset-password/8m2VhQ0x?callbackURL=%2Freset')).toBe(
+      '/api/auth/reset-password/REDACTED',
+    );
+  });
+
   it('keeps only id, method and path of a request', () => {
     const serialized = httpLogSerializers.req({
       id: 'req-1',

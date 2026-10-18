@@ -30,12 +30,18 @@ describe('the request line of /api/auth', () => {
       res.status(401).json({ code: 'INVALID_EMAIL_OR_PASSWORD' });
     });
 
+    app.get('/api/auth/reset-password/:token', (_req, res) => {
+      res.redirect('/reset-password');
+    });
+
     await request(app)
       .post('/api/auth/sign-in/email?callbackURL=/after-the-secret-link')
       .set('Cookie', 'smp.session_token=token-of-the-session')
       .set('X-Real-IP', '198.51.100.9')
       .send({ email: 'ada@example.test', password: 'hunter2-secret' })
       .expect(401);
+    // The reset link carries its token in the path.
+    await request(app).get('/api/auth/reset-password/token-of-the-reset-link?callbackURL=/reset').expect(302);
 
     expect(lines).toEqual([
       expect.objectContaining({
@@ -43,7 +49,13 @@ describe('the request line of /api/auth', () => {
         res: { statusCode: 401 },
         msg: 'request completed',
       }),
+      expect.objectContaining({
+        req: { id: 'req-1', method: 'GET', path: '/api/auth/reset-password/REDACTED' },
+        res: { statusCode: 302 },
+      }),
     ]);
-    expect(JSON.stringify(lines)).not.toMatch(/secret|token-of-the-session|198\.51\.100\.9|ada@/);
+    expect(JSON.stringify(lines)).not.toMatch(
+      /secret|token-of-the-session|token-of-the-reset-link|198\.51\.100\.9|ada@/,
+    );
   });
 });

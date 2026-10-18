@@ -1,8 +1,9 @@
 import { Logger } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 
+import { privatePath } from '@smp/observability';
+
 import { clientAddress } from '../throttling/throttling';
-import { pathOnly } from './http-log-serializers';
 
 // The security events of the API (guide step 8.4, ADR 0039, ASVS 16.3): requests the pipeline
 // refuses and that may be an attack, each a warning with a message of its own. The log context
@@ -47,7 +48,7 @@ export const clipped = (value: unknown): string | null =>
 /** The route of a request: its pattern once Express matched it, otherwise the path. */
 export function routeOf(req: Pick<Request, 'originalUrl' | 'url'> & { route?: unknown }): string {
   const pattern = (req.route as { path?: unknown } | undefined)?.path;
-  return typeof pattern === 'string' ? pattern : (pathOnly(req.originalUrl || req.url) ?? '');
+  return typeof pattern === 'string' ? pattern : (privatePath(req.originalUrl || req.url) ?? '');
 }
 
 /** Logs the event with the method, the route and the client address of the request. */
