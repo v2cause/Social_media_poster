@@ -36,6 +36,22 @@ export interface AuthDependencies {
 
 const DAY_SECONDS = 24 * 60 * 60;
 
+/**
+ * Cookies over https carry the prefix __Host- (ASVS 3.3.3): Secure, Path=/ and no Domain, so no
+ * other host of the domain can set or replace them. Better Auth would put __Secure- in front of
+ * any name it makes secure, so it gets the prefix as a name and the attribute by default.
+ */
+export function authCookieOptions(env: Pick<ApiEnv, 'NODE_ENV' | 'BETTER_AUTH_URL'>): {
+  cookiePrefix: string;
+  useSecureCookies: false;
+  defaultCookieAttributes?: { secure: true };
+} {
+  const secure = env.NODE_ENV === 'production' || env.BETTER_AUTH_URL.startsWith('https://');
+  return secure
+    ? { cookiePrefix: '__Host-smp', useSecureCookies: false, defaultCookieAttributes: { secure: true } }
+    : { cookiePrefix: 'smp', useSecureCookies: false };
+}
+
 /** Better Auth under /api/auth (guide steps 1.4 and 8.4, ADR 0006 and 0039). */
 export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependencies) {
   // Mails go out in the background: awaiting them would make response times reveal whether an
@@ -116,8 +132,7 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
       max: 100,
     },
     advanced: {
-      cookiePrefix: 'smp',
-      useSecureCookies: env.NODE_ENV === 'production',
+      ...authCookieOptions(env),
       // The reverse proxy overwrites X-Real-IP with the peer address (Caddyfile). A forwarded
       // chain is not trusted, because its first entry is set by the client.
       ipAddress: { ipAddressHeaders: ['x-real-ip'] },

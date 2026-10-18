@@ -10,8 +10,8 @@ import { buildContentSecurityPolicy, createNonce, storageOrigins } from './secur
 // session against the API, and the API authorizes every call again.
 
 const PROTECTED = ['/w/', '/org/', '/account', '/onboarding'];
-// Better Auth's session cookie, with the "__Secure-" prefix when cookies are secure.
-const SESSION_COOKIES = ['smp.session_token', '__Secure-smp.session_token'];
+// Better Auth's session cookie, with the prefix "__Host-" when cookies are secure (guide step 8.4).
+const SESSION_COOKIES = ['smp.session_token', '__Host-smp.session_token'];
 
 function needsSignIn(request: NextRequest): boolean {
   const { pathname } = request.nextUrl;
