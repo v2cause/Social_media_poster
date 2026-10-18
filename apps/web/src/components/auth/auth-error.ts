@@ -12,7 +12,10 @@ const KNOWN = [
   'INVALID_CODE',
   'INVALID_TWO_FACTOR_COOKIE',
   'INVALID_PASSWORD',
-  // The limit of failed attempts per account or user of the API (guide step 8.4).
+  // The password policy and the limit of failed attempts of the API (guide step 8.4).
+  'PASSWORD_TOO_COMMON',
+  'PASSWORD_CONTAINS_CONTEXT',
+  'PASSWORD_COMPROMISED',
   'TOO_MANY_ATTEMPTS',
 ] as const;
 type KnownCode = (typeof KNOWN)[number];
