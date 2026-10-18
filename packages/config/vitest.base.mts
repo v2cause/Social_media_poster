@@ -10,6 +10,9 @@ export const baseVitestConfig = defineConfig({
   test: {
     environment: 'node',
     passWithNoTests: true,
+    // Each package keeps its own module cache. Vitest clears the cache when the lockfile changed,
+    // and packages whose tests start at the same time would clear one shared directory at once.
+    fsModuleCachePath: 'node_modules/.vitest-cache',
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
