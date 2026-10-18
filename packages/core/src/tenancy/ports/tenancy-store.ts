@@ -29,6 +29,11 @@ export interface OrganizationRepository {
    * members, until the transaction ends (guide step 7.4).
    */
   lockPlan(organizationId: string): Promise<void>;
+  /**
+   * Serializes the new organizations of a user until the transaction ends, so that parallel
+   * requests count each other (guide step 8.4).
+   */
+  lockNewOrganizationsOf(userId: string): Promise<void>;
   /** Whether every member needs a second factor to work in the organization (guide step 8.4). */
   setTwoFactorRequired(organizationId: string, required: boolean): Promise<void>;
 }
@@ -57,6 +62,8 @@ export interface MembershipRepository {
   /** Counts the owners and locks their rows until the transaction ends, so that two owners
    * cannot demote each other at the same time. */
   countOwnersForUpdate(organizationId: string): Promise<number>;
+  /** The organizations the user became owner of since then, across all organizations. */
+  countOwnedSince(userId: string, since: Date): Promise<number>;
   updateRole(organizationId: string, membershipId: string, role: MemberRole): Promise<void>;
   delete(organizationId: string, membershipId: string): Promise<void>;
 }

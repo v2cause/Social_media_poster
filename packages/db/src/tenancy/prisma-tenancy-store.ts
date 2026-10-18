@@ -33,6 +33,9 @@ export function createPrismaTenancyStore(
         // one after the other.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`plan.${organizationId}`}, 0))`;
       },
+      async lockNewOrganizationsOf(userId) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`organizations.new.${userId}`}, 0))`;
+      },
       async setTwoFactorRequired(organizationId, required) {
         await tx.organization.update({ where: { id: organizationId }, data: { requireTwoFactor: required } });
       },
@@ -137,6 +140,10 @@ export function createPrismaTenancyStore(
       },
       countIn(organizationId) {
         return tx.membership.count({ where: { organizationId } });
+      },
+      countOwnedSince(userId, since) {
+        // Policy own_memberships: the user's memberships are readable in every organization.
+        return tx.membership.count({ where: { userId, role: 'OWNER', createdAt: { gte: since } } });
       },
       async countOwnersForUpdate(organizationId) {
         const rows = await tx.$queryRaw<{ id: string }[]>`

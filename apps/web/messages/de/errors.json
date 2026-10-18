@@ -27,6 +27,7 @@
     "SLUG_UNAVAILABLE": "Für diesen Namen ist keine Adresse mehr frei. Bitte wählen Sie einen anderen.",
     "WORKSPACE_NOT_FOUND": "Diesen Workspace gibt es nicht, oder Sie haben keinen Zugriff.",
     "ORGANIZATION_NOT_FOUND": "Diese Organisation gibt es nicht, oder Sie sind kein Mitglied.",
+    "ORGANIZATION_LIMIT_REACHED": "Sie haben in den letzten 30 Tagen bereits drei Organisationen angelegt. Bitte arbeiten Sie in einer davon weiter; dort können Sie weitere Workspaces anlegen.",
     "UNSAFE_AUDIT_METADATA": "Auf dem Server ist ein Fehler aufgetreten.",
     "INVALID_CURSOR": "Die Seite ist nicht mehr gültig. Bitte laden Sie neu.",
     "QUOTA_EXCEEDED": "Das KI-Budget Ihrer Organisation für diesen Monat ist aufgebraucht.",

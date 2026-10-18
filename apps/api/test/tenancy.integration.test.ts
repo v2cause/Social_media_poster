@@ -70,6 +70,22 @@ describe('tenancy API', () => {
     expect((context.body as { permissions: string[] }).permissions).toContain('billing.manage');
   });
 
+  it('lets a user create three organizations in 30 days, also when the requests come at once', async () => {
+    const founder = await signUpVerified(started(), 'founder@acme.test', 'Frida Founder');
+    const create = (name: string) => founder.post('/api/organizations').send({ name, workspace });
+    await create('Erste GmbH').expect(201);
+
+    const parallel = await Promise.all(['Zweite GmbH', 'Dritte GmbH', 'Vierte GmbH'].map(create));
+
+    expect(parallel.map((response) => response.status).sort()).toEqual([201, 201, 429]);
+    expect(parallel.find((response) => response.status === 429)?.body).toMatchObject({
+      code: 'ORGANIZATION_LIMIT_REACHED',
+      params: { max: 3, days: 30 },
+    });
+    const memberships = await founder.get('/api/me/memberships').expect(200);
+    expect((memberships.body as { memberships: unknown[] }).memberships).toHaveLength(3);
+  });
+
   it('validates the onboarding input', async () => {
     const response = await owner
       .post('/api/organizations')

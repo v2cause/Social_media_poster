@@ -34,6 +34,8 @@ interface State {
   trials: Map<string, { id: string; trialEndsAt: Date; readOnlyAt: Date }>;
   /** The organizations that require a second factor of every member. */
   twoFactorRequired: Set<string>;
+  /** When each membership was created; seeded ones are old. */
+  membershipCreatedAt: Map<string, Date>;
 }
 
 const emptyState = (): State => ({
@@ -45,6 +47,7 @@ const emptyState = (): State => ({
   audit: [],
   trials: new Map(),
   twoFactorRequired: new Set(),
+  membershipCreatedAt: new Map(),
 });
 
 export class ScopeViolation extends Error {}
@@ -57,6 +60,10 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
   readonly scopes: TenancyScope[] = [];
   /** The organizations whose plan lock a transaction took. */
   readonly planLocks: string[] = [];
+  /** The users whose lock on new organizations a transaction took. */
+  readonly newOrganizationLocks: string[] = [];
+
+  constructor(private readonly clock: Clock = new FixedClock()) {}
 
   async run<T>(scope: TenancyScope, work: (store: TenancyStore) => Promise<T>): Promise<T> {
     this.scopes.push(scope);
@@ -137,6 +144,10 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
           this.planLocks.push(organizationId);
           return Promise.resolve();
         },
+        lockNewOrganizationsOf: (userId) => {
+          this.newOrganizationLocks.push(userId);
+          return Promise.resolve();
+        },
         setTwoFactorRequired: (organizationId, required) => {
           writeOrg(organizationId);
           if (required) {
@@ -212,6 +223,7 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
             throw new Error('unique violation: membership(organization_id, user_id)');
           }
           state().memberships.set(membership.id, membership);
+          state().membershipCreatedAt.set(membership.id, this.clock.now());
           return Promise.resolve();
         },
         findById: (organizationId, membershipId) =>
@@ -236,6 +248,16 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
           Promise.resolve(
             [...state().memberships.values()].filter(
               (m) => inOrg(organizationId) && m.organizationId === organizationId && m.role === 'OWNER',
+            ).length,
+          ),
+        // Like the policy own_memberships: the user's memberships in every organization.
+        countOwnedSince: (userId, since) =>
+          Promise.resolve(
+            [...state().memberships.values()].filter(
+              (m) =>
+                m.userId === userId &&
+                m.role === 'OWNER' &&
+                (state().membershipCreatedAt.get(m.id) ?? new Date(0)) >= since,
             ).length,
           ),
         updateRole: (organizationId, membershipId, role) => {
@@ -426,14 +448,17 @@ export interface TenancyTestbed extends TenancyDependencies {
   entitlements: FixedEntitlements;
 }
 
-export const createTestbed = (): TenancyTestbed => ({
-  unitOfWork: new InMemoryTenancy(),
-  clock: new FixedClock(),
-  ids: new SequentialIds(),
-  tokens: new FakeTokens(),
-  notifier: new RecordingNotifier(),
-  entitlements: new FixedEntitlements(),
-});
+export const createTestbed = (): TenancyTestbed => {
+  const clock = new FixedClock();
+  return {
+    unitOfWork: new InMemoryTenancy(clock),
+    clock,
+    ids: new SequentialIds(),
+    tokens: new FakeTokens(),
+    notifier: new RecordingNotifier(),
+    entitlements: new FixedEntitlements(),
+  };
+};
 
 export const PROFILE: WorkspaceProfile = {
   name: 'Marketing & Sales',

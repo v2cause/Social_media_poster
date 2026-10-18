@@ -2,7 +2,7 @@
 
 - **Status**: Akzeptiert
 - **Datum**: 2026-10-17
-- **Bezug**: Umsetzungsleitfaden, Schritte 7.1, 7.2, 7.4 und 7.5; `docs/ARCHITECTURE.md`, Abschnitte 6.2 und 6.4; [ADR 0034](0034-stripe-integration.md), [ADR 0035](0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)
+- **Bezug**: Umsetzungsleitfaden, Schritte 7.1, 7.2, 7.4, 7.5 und 8.4; `docs/ARCHITECTURE.md`, Abschnitte 6.2 und 6.4; [ADR 0034](0034-stripe-integration.md), [ADR 0035](0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)
 
 ## Kontext
 
@@ -31,7 +31,7 @@ Bis Phase 6 galten feste Limits aus Umgebungsvariablen (`AI_MONTHLY_CAP_MICROS`,
 
 ### Das Abo einer Organisation
 
-- **Anlage**: Eine neue Organisation bekommt in derselben Transaktion ihr Abo: Tarif `trial`, Status `TRIALING`, 14 Tage Testphase. Bestehende Organisationen bekamen mit der Migration ebenfalls 14 Tage Testphase; fehlt einer Organisation dennoch die Zeile, gilt sie als Testphase ohne Ende. Der Demo-Seed setzt die Demo-Organisation auf `agency` und `ACTIVE`.
+- **Anlage**: Eine neue Organisation bekommt in derselben Transaktion ihr Abo: Tarif `trial`, Status `TRIALING`, 14 Tage Testphase. Seit Schritt 8.4 legt ein Nutzer höchstens drei Organisationen in 30 Tagen an (`ORGANIZATION_LIMIT_REACHED`, 429), gezählt als Owner-Mitgliedschaften seit dem Stichtag unter einer Advisory-Sperre pro Nutzer, und die Route hat ein Limit von zehn Anfragen pro Stunde. Jede Testphase bringt KI-Guthaben und Speicher mit; ohne Grenze hätte ein Konto beliebig viele davon anlegen können. Bestehende Organisationen bekamen mit der Migration ebenfalls 14 Tage Testphase; fehlt einer Organisation dennoch die Zeile, gilt sie als Testphase ohne Ende. Der Demo-Seed setzt die Demo-Organisation auf `agency` und `ACTIVE`.
 - **Rechte**: `app_user` liest das Abo der eigenen Organisation, darf nur eine Testphase anlegen (Policy `trial_insert`) und nur den Stripe-Kunden speichern (Spaltenrecht auf `stripe_customer_id`). Tarif, Status und Zeitpunkte schreibt die Worker-Rolle `billing` als `app_system`.
 - **Status**: Die Werte folgen Stripe (`TRIALING`, `ACTIVE`, `PAST_DUE`, `CANCELED`, `UNPAID`, `INCOMPLETE`, `INCOMPLETE_EXPIRED`, `PAUSED`). Nur Webhooks ändern Tarif und Status (ADR 0034).
 - **Ab wann nur noch lesen** (`readOnlyAtOf`; der Zeitpunkt steht in `subscription.read_only_at`):

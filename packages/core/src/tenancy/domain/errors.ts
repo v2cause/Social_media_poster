@@ -129,3 +129,18 @@ export class TwoFactorSetupRequiredError extends DomainError {
     super('Set up your own second factor before you require one of every member.');
   }
 }
+
+/**
+ * The user created as many organizations as a period allows (guide step 8.4, HTTP 429). Each one
+ * starts a trial with AI credit and storage.
+ */
+export class OrganizationLimitReachedError extends DomainError {
+  readonly code = 'ORGANIZATION_LIMIT_REACHED';
+  readonly kind = 'rate_limited';
+  override readonly params: { max: number; days: number };
+
+  constructor(max: number, days: number) {
+    super(`A user creates at most ${String(max)} organizations in ${String(days)} days.`);
+    this.params = { max, days };
+  }
+}

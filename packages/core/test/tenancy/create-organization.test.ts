@@ -5,6 +5,7 @@ import {
   CreateWorkspace,
   EmailNotVerifiedError,
   NotPermittedError,
+  OrganizationLimitReachedError,
   SlugUnavailableError,
 } from '../../src';
 import { createTestbed, PROFILE, seedOrganization } from '../in-memory-tenancy';
@@ -65,6 +66,29 @@ describe('CreateOrganization', () => {
     testbed.unitOfWork.foreignSlugs.add('marketing-sales');
     const result = await new CreateOrganization(testbed).execute({ user, name: 'Acme', workspace: PROFILE });
     expect(result.workspaceSlug).toBe('marketing-sales-s1');
+  });
+
+  it('lets a user create three organizations in 30 days, one at a time', async () => {
+    const testbed = createTestbed();
+    // Memberships in other organizations do not count, and neither do older ones.
+    seedOrganization(testbed, [
+      { userId: 'user-1', email: 'u1@acme.test', role: 'EDITOR' },
+      { userId: 'user-2', email: 'u2@acme.test', role: 'OWNER' },
+    ]);
+    const create = (id = 'user-1') =>
+      new CreateOrganization(testbed).execute({ user: { ...user, id }, name: 'Acme', workspace: PROFILE });
+    for (const day of [0, 10, 20]) {
+      testbed.clock.current = new Date(Date.parse('2026-10-16T09:00:00Z') + day * 24 * 60 * 60 * 1000);
+      await create();
+    }
+
+    await expect(create()).rejects.toThrow(OrganizationLimitReachedError);
+    expect(testbed.unitOfWork.state.organizations.size).toBe(4);
+    expect(testbed.unitOfWork.newOrganizationLocks).toEqual(['user-1', 'user-1', 'user-1', 'user-1']);
+    await expect(create('user-2')).resolves.toMatchObject({ workspaceSlug: expect.any(String) as unknown });
+    // Once the first one is more than 30 days old, the user may create the next.
+    testbed.clock.current = new Date('2026-11-15T09:00:01Z');
+    await expect(create()).resolves.toMatchObject({ workspaceSlug: expect.any(String) as unknown });
   });
 
   it('gives up after five taken slugs and leaves nothing behind', async () => {

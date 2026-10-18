@@ -356,7 +356,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
 ### 6.4 Tarife, Abo und Limits
 
 - **Tarife** (`plan`): Referenzdaten der Migrationen mit Limits als zod-geprüftem JSON und dem Lookup-Key des Monatspreises in Stripe. Pro Organisation können die Betreiber einzelne Limits überschreiben ([ADR 0033](adr/0033-tarife-abo-und-nur-lesen.md)).
-- **Abo** (`subscription`, eines pro Organisation): Tarif, Status wie in Stripe, 14 Tage Testphase ab Anlage der Organisation, Beginn des Zahlungsverzugs, Nur-Lesen ab, Stripe-Kunde und -Abo. Nur die Webhooks von Stripe ändern Tarif und Status; die Worker-Rolle `billing` lädt dazu das Abo frisch von Stripe ([ADR 0034](adr/0034-stripe-integration.md)). Ereignisse eines Kunden, den keine Organisation kennt, verwirft sie, etwa die nach einer Löschung ([ADR 0037](adr/0037-loeschung-von-organisationen.md)).
+- **Abo** (`subscription`, eines pro Organisation): Tarif, Status wie in Stripe, 14 Tage Testphase ab Anlage der Organisation (ein Nutzer legt höchstens drei Organisationen in 30 Tagen an, Schritt 8.4), Beginn des Zahlungsverzugs, Nur-Lesen ab, Stripe-Kunde und -Abo. Nur die Webhooks von Stripe ändern Tarif und Status; die Worker-Rolle `billing` lädt dazu das Abo frisch von Stripe ([ADR 0034](adr/0034-stripe-integration.md)). Ereignisse eines Kunden, den keine Organisation kennt, verwirft sie, etwa die nach einer Löschung ([ADR 0037](adr/0037-loeschung-von-organisationen.md)).
 - **Nur-Lesen**: nach der Testphase ohne Kauf, 7 Tage nach Beginn eines Zahlungsverzugs und sofort nach dem Ende eines Abos.
   - Die API lehnt dann Änderungen mit 402 `SUBSCRIPTION_INACTIVE` ab; Bezahlen und Reduzieren bleiben möglich.
   - Der Scheduler übergeht geplante Posts der Organisation.

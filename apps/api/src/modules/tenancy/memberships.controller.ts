@@ -1,11 +1,13 @@
 import { Body, Controller, Get, Inject, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { hours } from '@nestjs/throttler';
 import type { CreateOrganizationResult } from '@smp/core';
 import { CreateOrganization } from '@smp/core';
 import type { TenancyReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
 
 import { UserScope } from '../../common/decorators/access.decorators';
+import { LimitPerUser } from '../../common/throttling/throttling';
 import { TENANCY_READ_MODEL } from '../../infrastructure/clients.module';
 import type { AuthSession } from '../identity/auth';
 import { CurrentUser } from '../identity/current-user.decorator';
@@ -28,8 +30,12 @@ export class MembershipsController {
     return { memberships: await this.readModel.membershipsOfUser(user.id) };
   }
 
-  /** Onboarding: organization, first workspace and owner membership in one step. */
+  /**
+   * Onboarding: organization, first workspace and owner membership in one step. Each organization
+   * starts a trial; the core allows three in 30 days per user (guide step 8.4).
+   */
   @Post('organizations')
+  @LimitPerUser(10, hours(1))
   @ZodResponse({ status: 201, type: CreateOrganizationResponseDto })
   createOrganization(
     @CurrentUser() user: AuthSession['user'],

@@ -27,6 +27,7 @@
     "SLUG_UNAVAILABLE": "No address is free for this name. Please choose another one.",
     "WORKSPACE_NOT_FOUND": "This workspace does not exist, or you have no access.",
     "ORGANIZATION_NOT_FOUND": "This organization does not exist, or you are no member.",
+    "ORGANIZATION_LIMIT_REACHED": "You have created three organizations in the last 30 days already. Please continue in one of them; you can add more workspaces there.",
     "UNSAFE_AUDIT_METADATA": "An error occurred on the server.",
     "INVALID_CURSOR": "The page is no longer valid. Please reload.",
     "QUOTA_EXCEEDED": "Your organization's AI budget for this month is used up.",
