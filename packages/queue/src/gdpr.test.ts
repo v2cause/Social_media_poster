@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   GDPR_ERASE,
+  GDPR_ERASE_JOB_OPTIONS,
   GDPR_EXPORT,
   GDPR_JOB_OPTIONS,
   GDPR_SWEEP,
@@ -33,9 +34,11 @@ describe('gdpr queue', () => {
       2,
       GDPR_ERASE,
       { requestId },
-      { ...GDPR_JOB_OPTIONS, jobId: `gdpr.${requestId}` },
+      { ...GDPR_ERASE_JOB_OPTIONS, jobId: `gdpr.${requestId}` },
     );
     expect(GDPR_JOB_OPTIONS.attempts).toBe(5);
+    // A failed erasure frees its id, so the sweep can hand it on again (guide step 8.2).
+    expect(GDPR_ERASE_JOB_OPTIONS).toMatchObject({ attempts: 5, removeOnFail: true });
   });
 
   it('keeps one sweep at a time and frees its id when it ends', async () => {

@@ -28,6 +28,12 @@ export const GDPR_JOB_OPTIONS: JobsOptions = {
 };
 
 /**
+ * An erasure is never given up (guide step 8.2): a job that failed its last attempt is removed, so
+ * that the hourly sweep can hand the erasure on again under the same id.
+ */
+export const GDPR_ERASE_JOB_OPTIONS: JobsOptions = { ...GDPR_JOB_OPTIONS, removeOnFail: true };
+
+/**
  * One sweep at a time: the job is removed when it ends, so the next tick can add the next one,
  * and a sweep that waits for a worker is not added twice.
  */
@@ -52,7 +58,10 @@ export class GdprProducer {
 
   async erase(job: GdprJob): Promise<void> {
     const payload = gdprJobSchema.parse(job);
-    await this.queue.add(GDPR_ERASE, payload, { ...GDPR_JOB_OPTIONS, jobId: gdprJobId(payload.requestId) });
+    await this.queue.add(GDPR_ERASE, payload, {
+      ...GDPR_ERASE_JOB_OPTIONS,
+      jobId: gdprJobId(payload.requestId),
+    });
   }
 
   async sweep(): Promise<void> {

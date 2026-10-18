@@ -98,6 +98,7 @@ export {
 } from './billing';
 export {
   GDPR_ERASE,
+  GDPR_ERASE_JOB_OPTIONS,
   GDPR_EXPORT,
   GDPR_JOB_OPTIONS,
   GDPR_QUEUE,
