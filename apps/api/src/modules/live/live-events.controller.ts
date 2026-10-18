@@ -18,6 +18,12 @@ const EVENT_STREAM = {
 
 /** The browser waits this long before it opens a lost stream again. */
 const RETRY_MS = 5_000;
+/**
+ * A stream ends after this long, and the browser opens it again through the guards (guide step
+ * 8.4): after a sign-out, an ended session or a removal from the workspace, no events follow
+ * beyond it. The browser reloads what it shows when the stream opens again.
+ */
+export const STREAM_LIFETIME_MS = 5 * 60_000;
 
 /** What the user of a stream may see of an event: a notification goes to its user only. */
 export function toLiveEventDto(event: LiveEvent, userId: string): LiveEventDto | null {
@@ -47,8 +53,9 @@ export class LiveEventsController {
 
   /**
    * The live events of the workspace as server-sent events (guide step 4.10). The access is
-   * checked when the stream opens; the events carry ids only, the browser reads the rest. A user
-   * keeps a limited number of streams open, in all workspaces together (guide step 8.4).
+   * checked when the stream opens, and again whenever the browser opens it after its lifetime;
+   * the events carry ids only, the browser reads the rest. A user keeps a limited number of
+   * streams open, in all workspaces together (guide step 8.4).
    */
   @Get()
   @RequirePermission('workspace.read')
@@ -96,8 +103,12 @@ export class LiveEventsController {
       res.write(': ping\n\n');
       void slot.renew();
     }, HEARTBEAT_MS);
+    const lifetime = setTimeout(() => {
+      res.end();
+    }, STREAM_LIFETIME_MS);
     res.on('close', () => {
       clearInterval(heartbeat);
+      clearTimeout(lifetime);
       void unsubscribe();
       void slot.release();
     });
