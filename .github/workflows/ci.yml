@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    # Weekly, so that the image scan finds new vulnerabilities in images whose code did not
+    # change (ADR 0039), after the weekly run of the security workflow.
+    - cron: '41 4 * * 1'
 
 # Read-only by default. Jobs that need more must say so explicitly.
 permissions:
