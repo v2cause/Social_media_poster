@@ -25,6 +25,8 @@
     "disable": "2FA ausschalten",
     "passwordTitle": "Passwort bestätigen",
     "passwordDescription": "Zur Sicherheit brauchen wir Ihr aktuelles Passwort.",
+    "disableDescription": "Zum Ausschalten bestätigen Sie Ihr Passwort und einen Code aus Ihrer Authenticator-App oder einen Backup-Code.",
+    "confirmCode": "Code aus der App oder Backup-Code",
     "scanTitle": "App verbinden",
     "scanDescription": "Scannen Sie den QR-Code mit Ihrer Authenticator-App oder geben Sie den Schlüssel von Hand ein.",
     "qrLabel": "QR-Code für die Authenticator-App",

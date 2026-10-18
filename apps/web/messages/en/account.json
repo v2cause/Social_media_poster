@@ -25,6 +25,8 @@
     "disable": "Turn off 2FA",
     "passwordTitle": "Confirm your password",
     "passwordDescription": "For your security we need your current password.",
+    "disableDescription": "To turn it off, confirm your password and a code from your authenticator app or a backup code.",
+    "confirmCode": "Code from the app or backup code",
     "scanTitle": "Connect your app",
     "scanDescription": "Scan the QR code with your authenticator app or enter the key by hand.",
     "qrLabel": "QR code for the authenticator app",

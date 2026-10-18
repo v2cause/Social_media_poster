@@ -351,6 +351,34 @@ describe('authentication with Better Auth', () => {
     await agent.get('/api/me').expect(401);
   });
 
+  it('asks for a code of the second factor before it changes or hands out the second factor', async () => {
+    const agent = await signUpVerified(started(), 'careful@example.test');
+    const enabled = await agent.post('/api/auth/two-factor/enable').send({ password: PASSWORD }).expect(200);
+    const { totpURI, backupCodes } = enabled.body as { totpURI: string; backupCodes: string[] };
+    const code = totpCodes(totpURI);
+    await agent.post('/api/auth/two-factor/verify-totp').send({ code: code() }).expect(200);
+
+    // The password of the session is not enough once the second factor is on.
+    for (const path of ['disable', 'get-totp-uri', 'generate-backup-codes', 'enable']) {
+      const refused = await agent.post(`/api/auth/two-factor/${path}`).send({ password: PASSWORD });
+      expect(refused.status).toBe(403);
+      expect(refused.body).toMatchObject({ code: 'SECOND_FACTOR_REQUIRED' });
+    }
+
+    // A confirmed code allows one change.
+    await agent.post('/api/auth/two-factor/verify-totp').send({ code: code() }).expect(200);
+    await agent.post('/api/auth/two-factor/get-totp-uri').send({ password: PASSWORD }).expect(200);
+    const spent = await agent.post('/api/auth/two-factor/generate-backup-codes').send({ password: PASSWORD });
+    expect(spent.status).toBe(403);
+
+    // A backup code confirms as well, and a wrong password keeps the confirmation.
+    await agent.post('/api/auth/two-factor/verify-backup-code').send({ code: backupCodes[0] }).expect(200);
+    await agent.post('/api/auth/two-factor/disable').send({ password: WRONG_PASSWORD }).expect(400);
+    await agent.post('/api/auth/two-factor/disable').send({ password: PASSWORD }).expect(200);
+    const me = await agent.get('/api/me').expect(200);
+    expect(me.body).toMatchObject({ twoFactorEnabled: false });
+  });
+
   it('takes every code of the second factor once, also across two sign-ins', async () => {
     const email = 'once@example.test';
     const agent = await signUpVerified(started(), email);

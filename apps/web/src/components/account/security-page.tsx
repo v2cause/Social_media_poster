@@ -178,6 +178,9 @@ function TwoFactorCard() {
   const [setup, setSetup] = useState<Setup | null>(null);
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
+  // Turning the second factor off takes a code of it as well (guide step 8.4). A confirmed code
+  // stays confirmed for a few minutes, so a wrong password does not use up the next code.
+  const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -185,7 +188,25 @@ function TwoFactorCard() {
     setSetup(null);
     setPassword('');
     setCode('');
+    setConfirmed(false);
     setError(null);
+  };
+
+  /** Confirms a code of the app or a backup code with the session. */
+  const confirmCode = async (): Promise<boolean> => {
+    if (confirmed) {
+      return true;
+    }
+    const entered = code.trim();
+    const result = /^\d{6}$/.test(entered)
+      ? await authClient.twoFactor.verifyTotp({ code: entered })
+      : await authClient.twoFactor.verifyBackupCode({ code: entered });
+    if (result.error) {
+      setError(authError(result.error));
+      return false;
+    }
+    setConfirmed(true);
+    return true;
   };
 
   const refreshMe = () => queryClient.invalidateQueries({ queryKey: getMeGetQueryKey() });
@@ -203,7 +224,7 @@ function TwoFactorCard() {
       } else if (result.data.method === 'totp') {
         setSetup({ phase: 'scan', totpURI: result.data.totpURI, backupCodes: result.data.backupCodes });
       }
-    } else {
+    } else if (await confirmCode()) {
       const result = await authClient.twoFactor.disable({ password });
       if (result.error) {
         setError(authError(result.error));
@@ -296,7 +317,11 @@ function TwoFactorCard() {
               }}
             >
               <DialogTitle>{t('account.twoFactor.passwordTitle')}</DialogTitle>
-              <DialogDescription>{t('account.twoFactor.passwordDescription')}</DialogDescription>
+              <DialogDescription>
+                {setup.mode === 'disable'
+                  ? t('account.twoFactor.disableDescription')
+                  : t('account.twoFactor.passwordDescription')}
+              </DialogDescription>
               {error ? <Alert variant="destructive" title={error} /> : null}
               <FormField id="current-password" label={t('auth.fields.password')}>
                 {(control) => (
@@ -312,11 +337,32 @@ function TwoFactorCard() {
                   />
                 )}
               </FormField>
+              {setup.mode === 'disable' && !confirmed ? (
+                <FormField id="disable-code" label={t('account.twoFactor.confirmCode')}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      autoComplete="one-time-code"
+                      value={code}
+                      onChange={(event) => {
+                        setCode(event.target.value);
+                      }}
+                    />
+                  )}
+                </FormField>
+              ) : null}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={close}>
                   {t('actions.cancel')}
                 </Button>
-                <Button type="submit" loading={busy} disabled={password.length === 0}>
+                <Button
+                  type="submit"
+                  loading={busy}
+                  disabled={
+                    password.length === 0 ||
+                    (setup.mode === 'disable' && !confirmed && code.trim().length < 6)
+                  }
+                >
                   {t('actions.continue')}
                 </Button>
               </DialogFooter>

@@ -17,6 +17,8 @@ import type { PasswordContext, PasswordPolicy, PasswordProblem } from './passwor
 //   session, so a stolen session cannot guess the password and take over the second factor,
 // - no "trust this device": every sign-in asks for the second factor,
 // - every TOTP code works once per user, also across two sign-ins within its time window,
+// - a user with a second factor confirms a code of it before turning it off, setting it up again
+//   or getting its secret or new backup codes: the password of a stolen session is not enough,
 // - a new sign-in ends the session the browser still held, and a sign-out asks the browser to
 //   drop its cache and storage of the app,
 // - the password policy for every new password (PasswordPolicy),
@@ -37,6 +39,8 @@ export const AUTH_FAILURE_WINDOW_SECONDS = 15 * 60;
  * the current one, so a code works for up to 90 seconds.
  */
 export const TOTP_USED_SECONDS = 120;
+/** How long a code confirmed with the session allows one change of the second factor. */
+export const SECOND_FACTOR_CONFIRMED_SECONDS = 5 * 60;
 
 /** The endpoints that check the password of the signed-in user. */
 const PASSWORD_PATHS = new Set([
@@ -47,6 +51,13 @@ const PASSWORD_PATHS = new Set([
   '/two-factor/generate-backup-codes',
 ]);
 const SECOND_FACTOR_PATHS = new Set(['/two-factor/verify-totp', '/two-factor/verify-backup-code']);
+/** The endpoints that change the second factor, or hand it out, once it is on. */
+const SECOND_FACTOR_CHANGE_PATHS = new Set([
+  '/two-factor/enable',
+  '/two-factor/disable',
+  '/two-factor/get-totp-uri',
+  '/two-factor/generate-backup-codes',
+]);
 /** The endpoints that set a new password, with the field of the body that carries it. */
 const NEW_PASSWORD_FIELDS = new Map([
   ['/sign-up/email', 'password'],
@@ -95,6 +106,7 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
   const deviceKey = (device: string): string => `auth:device-failures:${device}`;
   const userKey = (userId: string): string => `auth:password-failures:${userId}`;
   const totpKey = (userId: string, code: string): string => `auth:totp-used:${userId}:${code}`;
+  const confirmedKey = (sessionId: string): string => `auth:second-factor-confirmed:${sessionId}`;
   const count = async (key: string): Promise<number> => Number((await redis.get(key)) ?? 0);
   const increment = async (key: string): Promise<void> => {
     await redis.eval(INCREMENT, 1, key, String(AUTH_FAILURE_WINDOW_SECONDS));
@@ -240,6 +252,20 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
         logger.warn({ path: ctx.path, outcome: 'blocked', userId: session.user.id }, 'auth.event');
         throw tooMany();
       }
+      const usesSecondFactor =
+        (session?.user as { twoFactorEnabled?: boolean | null } | undefined)?.twoFactorEnabled === true;
+      if (
+        session &&
+        usesSecondFactor &&
+        SECOND_FACTOR_CHANGE_PATHS.has(ctx.path) &&
+        (await redis.exists(confirmedKey(session.session.id))) === 0
+      ) {
+        logger.warn({ path: ctx.path, outcome: 'unconfirmed', userId: session.user.id }, 'auth.event');
+        throw APIError.from('FORBIDDEN', {
+          code: 'SECOND_FACTOR_REQUIRED',
+          message: 'Confirm a code of the second factor first.',
+        });
+      }
     }
     const passwordField = NEW_PASSWORD_FIELDS.get(ctx.path);
     if (passwordField) {
@@ -285,6 +311,14 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
     }
     if (isPasswordPath && userId && failure && code === 'INVALID_PASSWORD') {
       await increment(userKey(userId));
+    }
+    // A code confirmed with a session allows one change of the second factor, for a few minutes.
+    const session = ctx.context.session?.session ?? null;
+    if (SECOND_FACTOR_PATHS.has(ctx.path) && !failure && !ctx.context.newSession && session) {
+      await redis.set(confirmedKey(session.id), '1', 'EX', SECOND_FACTOR_CONFIRMED_SECONDS);
+    }
+    if (SECOND_FACTOR_CHANGE_PATHS.has(ctx.path) && !failure && session) {
+      await redis.del(confirmedKey(session.id));
     }
 
     // This hook runs before the one of the two-factor plugin, which then swaps the new session for

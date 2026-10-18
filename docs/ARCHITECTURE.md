@@ -537,7 +537,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 - **Authentifizierung**: Better Auth unter `/api/auth/*`.
   - E-Mail/Passwort mit Verifizierung und Reset, optional Google- oder Microsoft-Login.
-  - TOTP-2FA mit Backup-Codes, für Owner erzwingbar. Passkeys später.
+  - TOTP-2FA mit Backup-Codes, für Owner erzwingbar. Passkeys später. Wer 2FA nutzt, bestätigt vor dem Abschalten, dem neuen Einrichten, dem Abruf des Schlüssels und neuen Backup-Codes einen Code mit der Session; die Bestätigung gilt fünf Minuten für eine Änderung (Schritt 8.4).
   - Cookie mit `httpOnly; Secure; SameSite=Lax`. Alles läuft same-origin, also kein CORS.
   - Rate-Limits pro Client-Adresse aus `X-Real-IP`, das der Reverse Proxy setzt. Details und Spike-Ergebnis in ADR 0006.
 - **Request-Pipeline** (globale Guards in dieser Reihenfolge, registriert im `AccessModule`):
