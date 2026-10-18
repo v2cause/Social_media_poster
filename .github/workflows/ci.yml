@@ -172,3 +172,79 @@ jobs:
             turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+
+  images:
+    # Architecture 12, CI step 9 (guide step 8.4): every image builds from its Dockerfile, gets an
+    # SBOM (CycloneDX) as an artifact and passes Trivy without fixable HIGH or CRITICAL
+    # vulnerabilities and without secrets. The push to a registry follows with the deployment
+    # (guide step 8.9).
+    name: Image (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            dockerfile: infra/docker/node-app.Dockerfile
+            app: api
+          - image: worker
+            dockerfile: infra/docker/node-app.Dockerfile
+            app: worker
+          - image: egress-proxy
+            dockerfile: infra/docker/node-app.Dockerfile
+            app: egress-proxy
+            health-url: http://127.0.0.1:3128/health
+          - image: web
+            dockerfile: infra/docker/web.Dockerfile
+          - image: browser-worker
+            dockerfile: apps/browser-worker/Dockerfile
+            # A lower layer of the Playwright image keeps the npm cache and log of its "npm install
+            # -g yarn", with a signed URL (SAS token) of Azure storage in them; a later layer deletes
+            # /root/.npm, but Trivy reads every layer.
+            skip-dirs: /root/.npm
+    env:
+      IMAGE: smp-${{ matrix.image }}:ci
+      SBOM: sbom-${{ matrix.image }}.cdx.json
+      TRIVY_VERSION: 0.75.0
+      TRIVY_SHA256: c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
+      # Trivy sends nothing home and asks for no updates.
+      TRIVY_SKIP_VERSION_CHECK: 'true'
+      TRIVY_DISABLE_TELEMETRY: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build
+        env:
+          DOCKERFILE: ${{ matrix.dockerfile }}
+          APP: ${{ matrix.app }}
+          HEALTH_URL: ${{ matrix.health-url }}
+        run: |
+          args=()
+          if [ -n "$APP" ]; then args+=(--build-arg "APP=$APP"); fi
+          if [ -n "$HEALTH_URL" ]; then args+=(--build-arg "HEALTH_URL=$HEALTH_URL"); fi
+          docker build --file "$DOCKERFILE" "${args[@]}" --tag "$IMAGE" .
+      - name: Install Trivy (checksum pinned)
+        run: |
+          curl -sSfL -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  trivy.tar.gz" | sha256sum -c -
+          tar -xzf trivy.tar.gz trivy
+      - name: SBOM
+        run: ./trivy image --format cyclonedx --output "$SBOM" "$IMAGE"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-${{ matrix.image }}
+          path: ${{ env.SBOM }}
+          if-no-files-found: error
+          retention-days: 90
+      - name: Scan
+        # Fails on what a newer base image or package fixes; issues without a fix do not block.
+        env:
+          SKIP_DIRS: ${{ matrix.skip-dirs }}
+        run: |
+          args=()
+          if [ -n "$SKIP_DIRS" ]; then args+=(--skip-dirs "$SKIP_DIRS"); fi
+          ./trivy image --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed \
+            --exit-code 1 --no-progress "${args[@]}" "$IMAGE"

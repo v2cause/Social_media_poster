@@ -37,6 +37,7 @@ Die Architektur nennt Härtung und Lieferkette (CSP mit Nonces, Log-Redaction, R
 ### CI
 
 - Workflow `Security`: CodeQL (`security-extended`) für TypeScript und die Workflows selbst, Dependency Review auf Pull Requests (Abbruch ab Schweregrad hoch), `pnpm audit --audit-level high`, gitleaks über die ganze Historie mit prüfsummengesicherter Binärdatei. Läuft auf Pull Requests, Pushes nach `main` und wöchentlich.
+- Job `images` im Workflow `CI` (seit Schritt 8.4): baut die fünf Images (api, worker, egress-proxy, web, browser-worker), legt je ein SBOM im Format CycloneDX als Artefakt für 90 Tage ab und scannt jedes Image mit Trivy 0.75.0 (prüfsummengesicherte Binärdatei) auf Schwachstellen und Secrets. Er scheitert an einem Befund ab Schweregrad hoch, für den es einen Fix gibt. Im browser-worker bleibt `/root/.npm` ausgenommen: Eine untere Schicht des Playwright-Images enthält dort Cache und Log einer npm-Installation mit einer signierten Azure-URL (SAS-Token). Eine spätere Schicht löscht das Verzeichnis, Trivy liest aber jede Schicht. Das Pushen nach GHCR folgt mit dem Deployment (Schritt 8.9).
 - Jedes Paket deklariert `eslint` und `typescript` selbst; Lint und Tests bauen vorher die Abhängigkeiten. Vorher liefen sie nur dort, wo globale Werkzeuge im `PATH` lagen.
 
 ### Container und Datenbank

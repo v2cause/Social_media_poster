@@ -571,7 +571,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
   - Origin-Check gegen CSRF für alle schreibenden Anfragen unter `/api`, auch für `/api/auth` (Login-CSRF), dazu CSP mit Nonces (der Objektspeicher nur in `img-src` und `connect-src`, ADR 0022), HSTS, helmet.
   - Webhook-Signaturen prüfen: Stripe `constructEvent`; Meta `X-Hub-Signature-256` plus Deauthorize- und Data-Deletion-Callbacks (Pflicht für das App-Review).
   - Log-Redaction für Tokens, Cookies und Sessions.
-- **Lieferkette**: Renovate (3 Tage Wartezeit, Digest-Pinning), pnpm-Gates (`minimumReleaseAge`, `trustPolicy: no-downgrade`, `strictDepBuilds`), `pnpm audit`, CodeQL, Dependency Review, gitleaks, Trivy-Image-Scans, SBOM. Die ersten Punkte gelten seit Phase 0 (ADR 0009).
+- **Lieferkette**: Renovate (3 Tage Wartezeit, Digest-Pinning), pnpm-Gates (`minimumReleaseAge`, `trustPolicy: no-downgrade`, `strictDepBuilds`), `pnpm audit`, CodeQL, Dependency Review, gitleaks, Trivy-Image-Scans und SBOMs. Die ersten Punkte gelten seit Phase 0, Image-Scans und SBOMs seit Schritt 8.4 (ADR 0009).
 - **DSGVO**:
   - Hosting in der EU, AV-Verträge und Liste der Unterauftragsverarbeiter (Anthropic, Stripe, E-Mail-Provider, Hosting) sowie ein Hinweis auf die Datenübermittlung an LinkedIn, Meta und X.
   - Datenexport als ZIP über die Worker-Rolle `gdpr`: jede Tabelle mit Mandantenspalte als JSON, die Originale der Medien und ein Manifest, ohne Geheimnisse. Das Archiv liegt 24 Stunden im Objektspeicher; die E-Mail führt zur Datenseite, wo jeder Download einen Link von fünf Minuten erzeugt und im Audit-Log steht ([ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)).
@@ -641,7 +641,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   6. OpenAPI-Drift-Check (Integrationstest gegen `packages/api-client/openapi.json`, ADR 0013)
   7. Prisma-Migrationsprüfung (`migrate diff`, squawk)
   8. E2E mit Playwright gegen den gestarteten Stack (Compose-Infrastruktur, API, Worker, Web)
-  9. Docker-Build (`turbo prune`, Trivy, Push nach GHCR auf main)
+  9. Docker-Build der fünf Images (`turbo prune`) mit SBOM (CycloneDX) und Trivy-Scan auf Schwachstellen und Secrets; der Push nach GHCR auf main folgt mit dem Deployment (Schritt 8.9)
 
   Nächtlich laufen optionale Live-Smoke-Tests gegen Test-Accounts und die KI-Eval-Suite mit Budget-Limit. Ein eigener Workflow `security.yml` führt CodeQL, Dependency Review, `pnpm audit` und gitleaks aus (ADR 0009).
 - **Umgebungen**: lokal (Mock-Modus), CI, Staging (echte Plattform-Apps im Dev-Modus, Stripe-Testmodus, Anthropic mit niedrigem Ausgabenlimit) und Produktion (EU).
