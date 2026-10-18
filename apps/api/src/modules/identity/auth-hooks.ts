@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 import type { Logger } from '@nestjs/common';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@smp/contracts';
@@ -10,7 +10,9 @@ import type { PasswordContext, PasswordPolicy, PasswordProblem } from './passwor
 
 // What the auth flows need beyond Better Auth (guide step 8.4, ADR 0039). Better Auth limits the
 // requests per client address and path; these hooks add:
-// - a limit of failed sign-ins per account, so a pool of addresses cannot try passwords on it,
+// - a limit of failed sign-ins per account, so a pool of addresses cannot try passwords on it;
+//   a browser that signed in to the account before keeps a limit of its own (device cookie), so
+//   failures of others cannot lock the owner out, and a password reset lifts the limit,
 // - a limit of failed password checks per user on the endpoints that take the password of a
 //   session, so a stolen session cannot guess the password and take over the second factor,
 // - no "trust this device": every sign-in asks for the second factor,
@@ -23,6 +25,10 @@ import type { PasswordContext, PasswordPolicy, PasswordProblem } from './passwor
 
 /** Failed sign-ins per account and window, from whatever addresses they come. */
 export const SIGN_IN_FAILURES_PER_ACCOUNT = 10;
+/** Failed sign-ins per device of the account and window, once the account is locked. */
+export const SIGN_IN_FAILURES_PER_DEVICE = 5;
+/** How long a browser counts as a device of the account after a complete sign-in. */
+export const DEVICE_COOKIE_SECONDS = 180 * 24 * 60 * 60;
 /** Failed password checks per user and window on the endpoints that take the password again. */
 export const PASSWORD_FAILURES_PER_USER = 5;
 export const AUTH_FAILURE_WINDOW_SECONDS = 15 * 60;
@@ -86,6 +92,7 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
   // A counter lives for the window from its first failure on, so failures never split across
   // two windows.
   const accountKey = (email: string): string => `auth:sign-in-failures:${accountDigest(email)}`;
+  const deviceKey = (device: string): string => `auth:device-failures:${device}`;
   const userKey = (userId: string): string => `auth:password-failures:${userId}`;
   const totpKey = (userId: string, code: string): string => `auth:totp-used:${userId}:${code}`;
   const count = async (key: string): Promise<number> => Number((await redis.get(key)) ?? 0);
@@ -102,6 +109,29 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
     return typeof email === 'string' && email.length > 0 ? email : null;
   };
   const textOf = (value: unknown): string | null => (typeof value === 'string' ? value : null);
+
+  /**
+   * The device cookie of the request, when it names this account: signed with the secret of
+   * Better Auth, it holds the digest of the address and a random id of the device.
+   */
+  const deviceOf = async (ctx: GenericEndpointContext, email: string): Promise<string | null> => {
+    const cookie = ctx.context.createAuthCookie('device');
+    const value: unknown = await ctx.getSignedCookie(cookie.name, ctx.context.secret);
+    const [digest, device] = typeof value === 'string' ? value.split(':') : [];
+    return digest === accountDigest(email) && device ? device : null;
+  };
+
+  /** After a complete sign-in the browser becomes a device of the account. */
+  const trustDevice = async (ctx: GenericEndpointContext, email: string): Promise<void> => {
+    const cookie = ctx.context.createAuthCookie('device', { maxAge: DEVICE_COOKIE_SECONDS });
+    const device = (await deviceOf(ctx, email)) ?? randomBytes(16).toString('base64url');
+    await ctx.setSignedCookie(
+      cookie.name,
+      `${accountDigest(email)}:${device}`,
+      ctx.context.secret,
+      cookie.attributes,
+    );
+  };
 
   /** Whose new password it is: from the sign-up, the session or the user of the reset token. */
   const passwordContext = async (
@@ -188,10 +218,21 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
     if (ctx.path === '/sign-in/email') {
       const email = emailOf(ctx.body);
       if (email && (await count(accountKey(email))) >= SIGN_IN_FAILURES_PER_ACCOUNT) {
-        logger.warn({ path: ctx.path, outcome: 'blocked', account: accountDigest(email) }, 'auth.event');
-        throw tooMany();
+        const device = await deviceOf(ctx, email);
+        if (!device || (await count(deviceKey(device))) >= SIGN_IN_FAILURES_PER_DEVICE) {
+          logger.warn({ path: ctx.path, outcome: 'blocked', account: accountDigest(email) }, 'auth.event');
+          throw tooMany();
+        }
       }
       return;
+    }
+    if (ctx.path === '/reset-password') {
+      // Whoever holds a valid reset link reads the mailbox of the account: the limit of failed
+      // sign-ins of others ends with it.
+      const { email } = await passwordContext(ctx, (ctx.body ?? {}) as Record<string, unknown>);
+      if (email) {
+        await redis.del(accountKey(email));
+      }
     }
     if (PASSWORD_PATHS.has(ctx.path)) {
       const session = await getSessionFromCtx(ctx);
@@ -234,6 +275,10 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
     if (isSignIn && email) {
       if (failure?.statusCode === 401) {
         await increment(accountKey(email));
+        const device = await deviceOf(ctx, email);
+        if (device) {
+          await increment(deviceKey(device));
+        }
       } else if (!failure) {
         await redis.del(accountKey(email));
       }
@@ -250,6 +295,9 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
     const isSignInStep = isSignIn || SECOND_FACTOR_PATHS.has(ctx.path);
     if (isSignInStep && created && !failure && !needsSecondFactor) {
       await endPreviousSession(ctx, created);
+      if (signedIn?.email) {
+        await trustDevice(ctx, signedIn.email);
+      }
     }
     if (ctx.path === '/sign-out' && !failure) {
       // Nothing of the account stays in this browser for the next person at it.

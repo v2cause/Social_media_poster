@@ -3,7 +3,11 @@ import { totpCode, totpCodes } from '@smp/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { PASSWORD_FAILURES_PER_USER, SIGN_IN_FAILURES_PER_ACCOUNT } from '../src/modules/identity/auth-hooks';
+import {
+  PASSWORD_FAILURES_PER_USER,
+  SIGN_IN_FAILURES_PER_ACCOUNT,
+  SIGN_IN_FAILURES_PER_DEVICE,
+} from '../src/modules/identity/auth-hooks';
 import { revokeSessions } from '../src/modules/identity/revoke-sessions';
 import { APP_ORIGIN, startApiTestApp, type ApiTestApp } from './support/api-app';
 import { browser as openBrowser, PASSWORD, signUpVerified } from './support/browser';
@@ -13,7 +17,8 @@ import { BREACHED_PASSWORD, UNCHECKABLE_PASSWORD } from './support/pwned-passwor
 // sign-in, getSession in the AuthGuard, sign-out and two-factor authentication against the real
 // API, with the hardening of step 8.4:
 // - the link verifies the address without signing in,
-// - failed sign-ins are limited per account and wrong passwords per user,
+// - failed sign-ins are limited per account and wrong passwords per user; a browser that signed
+//   in before keeps a limit of its own, and a password reset lifts the one of the account,
 // - no device is trusted to skip the second factor, and every code of it works once,
 // - a new sign-in ends the session the browser held, a sign-out clears the site data, and
 //   operators can end the sessions of one user or of everybody,
@@ -248,6 +253,59 @@ describe('authentication with Better Auth', () => {
     const blocked = await signIn(browser(), email);
     expect(blocked.status).toBe(429);
     expect(blocked.body).toMatchObject({ code: 'TOO_MANY_ATTEMPTS' });
+  });
+
+  /** Fails the sign-ins of the account from new client addresses until it is locked. */
+  const lockOut = async (email: string): Promise<void> => {
+    for (let attempt = 0; attempt < SIGN_IN_FAILURES_PER_ACCOUNT; attempt += 1) {
+      await signIn(browser(), email, WRONG_PASSWORD).expect(401);
+    }
+    await signIn(browser(), email).expect(429);
+  };
+
+  it('lets a browser that signed in before sign in while the failures of others lock the account', async () => {
+    const email = 'device-owner@example.test';
+    const owner = await signUpVerified(started(), email);
+    await owner.post('/api/auth/sign-out').send({}).expect(200);
+
+    await lockOut(email);
+
+    await signIn(owner, email).expect(200);
+    await owner.get('/api/me').expect(200);
+  });
+
+  it('gives a browser of the account a few failures of its own once the account is locked', async () => {
+    const email = 'guessing-device@example.test';
+    const device = await signUpVerified(started(), email);
+    await device.post('/api/auth/sign-out').send({}).expect(200);
+    await lockOut(email);
+
+    // From changing client addresses, so that the limit of Better Auth per address never applies.
+    for (let attempt = 0; attempt < SIGN_IN_FAILURES_PER_DEVICE; attempt += 1) {
+      await signIn(device, email, WRONG_PASSWORD)
+        .set('X-Real-IP', `203.0.113.${String(attempt + 1)}`)
+        .expect(401);
+    }
+    const blocked = await signIn(device, email).set('X-Real-IP', '203.0.113.99');
+    expect(blocked.status).toBe(429);
+    expect(blocked.body).toMatchObject({ code: 'TOO_MANY_ATTEMPTS' });
+  });
+
+  it('lifts the lock of an account with a password reset', async () => {
+    const email = 'locked-out@example.test';
+    await signUpVerified(started(), email);
+    await lockOut(email);
+
+    await browser()
+      .post('/api/auth/request-password-reset')
+      .send({ email, redirectTo: '/reset-password' })
+      .expect(200);
+    const message = await started().mailpit.waitForMessage(email, { subject: 'Passwort zurücksetzen' });
+    const token = /reset-password\/([\w-]+)/.exec(message.Text)?.[1] ?? '';
+    const newPassword = 'a fresh passphrase after the lock';
+    await browser().post('/api/auth/reset-password').send({ token, newPassword }).expect(200);
+
+    await signIn(browser(), email, newPassword).expect(200);
   });
 
   it('blocks the password checks of a signed-in user after five wrong passwords', async () => {
