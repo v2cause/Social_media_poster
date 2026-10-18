@@ -13,7 +13,8 @@ import {
 
 // Guide step 4.3: the relay claims pending events with SKIP LOCKED and marks them only after a
 // successful dispatch, so two relays running at once hand on every event exactly once, and an
-// event whose dispatch failed stays pending for a later try.
+// event whose dispatch failed stays pending for a later try. Guide step 8.5: one run relays batch
+// after batch while they come back full.
 
 const org = randomUUID();
 const workspaces = [randomUUID(), randomUUID()] as const;
@@ -34,13 +35,23 @@ describe('PrismaOutboxRelay', () => {
       await client.end();
     }
   };
-  const relay = (index: number, batchSize = 20): PrismaOutboxRelay => {
+  const relay = (
+    index: number,
+    options: { batchSize?: number; maxBatches?: number } = {},
+  ): PrismaOutboxRelay => {
     const client = clients[index];
     if (!client) {
       throw new Error('client missing');
     }
-    return new PrismaOutboxRelay(client, { batchSize });
+    return new PrismaOutboxRelay(client, { batchSize: 20, ...options });
   };
+  const addEvents = (count: number): Promise<unknown[]> =>
+    query(
+      `INSERT INTO outbox_event (id, workspace_id, type, payload)
+       SELECT gen_random_uuid(), $1, 'publish.requested', '{}' FROM generate_series(1, $2::int)`,
+      [workspaces[0], count],
+    );
+  const delivered = (): Promise<void> => Promise.resolve();
 
   beforeAll(async () => {
     database = await startTestDatabase();
@@ -137,6 +148,32 @@ describe('PrismaOutboxRelay', () => {
       return Promise.resolve();
     });
     expect(seen.map((pending) => [pending.id, pending.attempts])).toEqual([[event?.id, 1]]);
+  });
+
+  it('relays batch after batch in one run while they come back full, up to its bound', async () => {
+    await addEvents(50);
+    const bounded = relay(0, { maxBatches: 2 });
+
+    await expect(bounded.relay(delivered)).resolves.toEqual({ relayed: 40, failed: 0 });
+    // The rest fits in a batch that is not full, and the run ends with it.
+    await expect(bounded.relay(delivered)).resolves.toEqual({ relayed: 10, failed: 0 });
+    await expect(bounded.relay(delivered)).resolves.toEqual({ relayed: 0, failed: 0 });
+  });
+
+  it('ends the run after a batch with a failed dispatch', async () => {
+    await addEvents(30);
+    let calls = 0;
+    const firstFails = (): Promise<void> => {
+      calls += 1;
+      return calls === 1 ? Promise.reject(new Error('Redis is not reachable')) : Promise.resolve();
+    };
+
+    await expect(relay(0, { batchSize: 10 }).relay(firstFails)).resolves.toEqual({ relayed: 9, failed: 1 });
+    // The next run takes the other events; the failed one waits for its pause.
+    await expect(relay(0, { batchSize: 10 }).relay(delivered)).resolves.toEqual({ relayed: 20, failed: 0 });
+
+    await query(`UPDATE outbox_event SET available_at = now() WHERE processed_at IS NULL`);
+    await expect(relay(0, { batchSize: 10 }).relay(delivered)).resolves.toEqual({ relayed: 1, failed: 0 });
   });
 
   it('purges processed events after their retention', async () => {
