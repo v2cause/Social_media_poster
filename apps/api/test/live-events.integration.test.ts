@@ -6,11 +6,13 @@ import { LiveEventPublisher } from '@smp/queue';
 import Redis from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { DEFAULT_LIVE_STREAM_LIMITS, LiveStreamSlots } from '../src/modules/live/live-stream-slots';
 import { APP_ORIGIN, startApiTestApp, type ApiTestApp } from './support/api-app';
 
 // Guide step 4.10: GET /api/w/:ws/events passes the live events of its workspace to the browser
 // as server-sent events: the status of variants to every member, a new notification to its user
-// only. The access is checked when the stream opens.
+// only. The access is checked when the stream opens, and a user keeps a limited number of streams
+// open (guide step 8.4).
 
 const SEED_PASSWORD = 'seed-password-for-the-live-events-test';
 const ws = `/api/w/${DEMO_WORKSPACE_SLUG}`;
@@ -192,5 +194,57 @@ describe('live events API', () => {
     const foreign = await open('EDITOR', '/api/w/no-such-workspace/events');
     expect(foreign.response.status).toBe(404);
     foreign.abort();
+  });
+
+  it('keeps the open streams of a user within the limit and frees a slot when one closes', async () => {
+    const slots = `live:streams:${ids.viewer}`;
+    const until = async (condition: () => Promise<boolean>): Promise<void> => {
+      for (let waited = 0; !(await condition()) && waited < 5_000; waited += 50) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    };
+    // The streams of the tests before are closed, but the API frees their slots on its own time.
+    await until(async () => (await started().redis.zcard(slots)) === 0);
+    const streams: Awaited<ReturnType<typeof open>>[] = [];
+    try {
+      for (let index = 0; index < DEFAULT_LIVE_STREAM_LIMITS.perUser; index += 1) {
+        const opened = await open('VIEWER');
+        streams.push(opened);
+        expect(opened.response.status).toBe(200);
+      }
+      const refused = await open('VIEWER');
+      expect(refused.response.status).toBe(429);
+      expect(await refused.response.json()).toMatchObject({ code: 'HTTP_429' });
+
+      streams.shift()?.abort();
+      await until(async () => (await started().redis.zcard(slots)) < DEFAULT_LIVE_STREAM_LIMITS.perUser);
+      const next = await open('VIEWER');
+      streams.push(next);
+      expect(next.response.status).toBe(200);
+    } finally {
+      for (const opened of streams) {
+        opened.abort();
+      }
+    }
+  });
+
+  it('frees the slots of a process that died once their leases run out', async () => {
+    const slots = new LiveStreamSlots(started().redis, { perUser: 2, leaseMs: 1_000 });
+    const userId = '0192f5d4-0000-7000-8000-0000000000aa';
+
+    // Taken and never released, as by a process that stopped.
+    expect(await slots.acquire(userId)).not.toBeNull();
+    const renewed = await slots.acquire(userId);
+    expect(await slots.acquire(userId)).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await renewed?.renew();
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    // The renewed slot still counts, the other one ran out.
+    const next = await slots.acquire(userId);
+    expect(next).not.toBeNull();
+    expect(await slots.acquire(userId)).toBeNull();
+    await Promise.all([next?.release(), renewed?.release()]);
+    expect(await started().redis.zcard(`live:streams:${userId}`)).toBe(0);
   });
 });

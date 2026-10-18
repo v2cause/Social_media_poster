@@ -1,4 +1,4 @@
-import { Controller, Get, Res } from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { liveEventDtoSchema, type LiveEventDto } from '@smp/contracts';
 import type { LiveEvent } from '@smp/queue';
@@ -8,6 +8,7 @@ import { RequirePermission, WorkspaceScope } from '../../common/decorators/acces
 import { Access, MissingAccessError, type RequestAccess } from '../../common/guards/request-access';
 import { HEARTBEAT_MS } from '../content/sse';
 import { LiveEventHub } from './live-event-hub';
+import { LiveStreamSlots } from './live-stream-slots';
 
 const EVENT_STREAM = {
   description:
@@ -39,11 +40,15 @@ export function toLiveEventDto(event: LiveEvent, userId: string): LiveEventDto |
 @WorkspaceScope()
 @Controller('w/:ws/events')
 export class LiveEventsController {
-  constructor(private readonly hub: LiveEventHub) {}
+  constructor(
+    private readonly hub: LiveEventHub,
+    private readonly slots: LiveStreamSlots,
+  ) {}
 
   /**
    * The live events of the workspace as server-sent events (guide step 4.10). The access is
-   * checked when the stream opens; the events carry ids only, the browser reads the rest.
+   * checked when the stream opens; the events carry ids only, the browser reads the rest. A user
+   * keeps a limited number of streams open, in all workspaces together (guide step 8.4).
    */
   @Get()
   @RequirePermission('workspace.read')
@@ -53,15 +58,28 @@ export class LiveEventsController {
     if (!workspaceId) {
       throw new MissingAccessError();
     }
-    const unsubscribe = await this.hub.subscribe(workspaceId, (event) => {
-      const dto = res.destroyed ? null : toLiveEventDto(event, userId);
-      if (dto) {
-        res.write(`event: ${dto.type}\ndata: ${JSON.stringify(dto)}\n\n`);
-      }
-    });
+    const slot = await this.slots.acquire(userId);
+    if (!slot) {
+      throw new HttpException(
+        'Too many live streams are open; close another tab.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    let unsubscribe: () => Promise<void>;
+    try {
+      unsubscribe = await this.hub.subscribe(workspaceId, (event) => {
+        const dto = res.destroyed ? null : toLiveEventDto(event, userId);
+        if (dto) {
+          res.write(`event: ${dto.type}\ndata: ${JSON.stringify(dto)}\n\n`);
+        }
+      });
+    } catch (error) {
+      await slot.release();
+      throw error;
+    }
     if (res.destroyed) {
       // The browser left while the subscription started.
-      await unsubscribe();
+      await Promise.all([unsubscribe(), slot.release()]);
       return;
     }
 
@@ -74,10 +92,14 @@ export class LiveEventsController {
     });
     res.flushHeaders();
     res.write(`retry: ${String(RETRY_MS)}\n\n`);
-    const heartbeat = setInterval(() => res.write(': ping\n\n'), HEARTBEAT_MS);
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+      void slot.renew();
+    }, HEARTBEAT_MS);
     res.on('close', () => {
       clearInterval(heartbeat);
       void unsubscribe();
+      void slot.release();
     });
   }
 }
