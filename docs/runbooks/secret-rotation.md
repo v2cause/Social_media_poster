@@ -46,11 +46,13 @@ Den Ablauf deckt `apps/api/test/auth-rotation.integration.test.ts` ab.
 
 ## TOKEN_KEKS und SESSION_KEKS
 
-Envelope-Verschlüsselung (`packages/crypto`): `TOKEN_KEKS` schützt die Tokens der Plattformen, `SESSION_KEKS` die versiegelten Logins und Sitzungen des X-Browsers. Format: `<key-id>:<base64 32 Byte>`, durch Kommas getrennt; `*_KEK_ACTIVE` nennt den Schlüssel für neue Daten.
+Envelope-Verschlüsselung (`packages/crypto`): `TOKEN_KEKS` schützt die Tokens der Plattformen und die E-Mails in der Queue `notifications`, `SESSION_KEKS` die versiegelten Logins und Sitzungen des X-Browsers. Format: `<key-id>:<base64 32 Byte>`, durch Kommas getrennt; `*_KEK_ACTIVE` nennt den Schlüssel für neue Daten.
 
-1. Neuen KEK mit `pnpm gen:keys` erzeugen und an `TOKEN_KEKS` (bzw. `SESSION_KEKS`) anhängen, `TOKEN_KEK_ACTIVE` (bzw. `SESSION_KEK_ACTIVE`) auf die neue Key-ID setzen.
-2. API, Worker und (bei `SESSION_KEKS`) browser-worker neu starten.
-3. Der nächste Lauf von `tick.maintenance` (03:41 UTC) wrappt alle Datenschlüssel mit dem aktiven KEK neu (`RewrapSecrets`), ohne etwas zu entschlüsseln. Im Ergebnis des Ticks: `rewrapped` größer 0 oder alles bereits aktuell, `failed` gleich 0.
+Die Rotation läuft in zwei Neustarts, damit jeder Dienst den neuen Schlüssel kennt, bevor ein anderer damit versiegelt:
+
+1. Neuen KEK mit `pnpm gen:keys` erzeugen und an `TOKEN_KEKS` (bzw. `SESSION_KEKS`) anhängen. `TOKEN_KEK_ACTIVE` (bzw. `SESSION_KEK_ACTIVE`) bleibt beim bisherigen Schlüssel. API, Worker und (bei `SESSION_KEKS`) browser-worker neu starten.
+2. `TOKEN_KEK_ACTIVE` (bzw. `SESSION_KEK_ACTIVE`) auf die neue Key-ID setzen und die Dienste erneut neu starten. Eine E-Mail mit einem Schlüssel, den die Rolle `notify` noch nicht kennt, wiederholt sie einige Minuten lang und meldet dabei `notify.unknown_key` mit der Key-ID.
+3. Der nächste Lauf von `tick.maintenance` (03:41 UTC) wrappt alle Datenschlüssel mit dem aktiven KEK neu (`RewrapSecrets`), ohne etwas zu entschlüsseln. Im Ergebnis des Ticks: `rewrapped` größer 0 oder alles bereits aktuell, `failed` gleich 0. Die E-Mails in der Queue wrappt er nicht; sie sind bis dahin längst versendet, ihre Wiederholungen enden nach wenigen Minuten.
 4. Den alten KEK aus der Liste entfernen und die Dienste neu starten.
 
 ## Passwörter der Datenbankrollen

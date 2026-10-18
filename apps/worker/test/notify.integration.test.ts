@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import type { INestApplicationContext } from '@nestjs/common';
@@ -35,7 +35,8 @@ import { openedEmail, tokenKeys } from './support/sealed-email';
 // the outbox reaches the managers of a connection in the app and by email, once, also when it
 // is dispatched again; guide step 4.10: the new notification is announced as a live event.
 // Guide step 8.4: an email waits in Redis sealed with the token keyring; one the keyring of the
-// worker cannot open fails at once, as does one in the format from before the seal.
+// worker cannot open fails at once, as does one in the format from before the seal, while one
+// sealed with a key the worker does not know yet is retried.
 
 const org = randomUUID();
 const workspace = randomUUID();
@@ -249,6 +250,34 @@ describe('notify worker', () => {
     expect(await failed?.getState()).toBe('failed');
     expect(failed?.attemptsMade).toBe(1);
     expect(await emailsTo('foreign@example.test')).toBe(0);
+  });
+
+  it('retries an email sealed with a key the role does not know yet', async () => {
+    const { queue: notifications, events: queueEvents } = started();
+    // Retried means delayed by the backoff; a job that fails at once ends the wait as well.
+    const outcome = new Promise<{ jobId: string; retried: boolean }>((resolve) => {
+      queueEvents.once('delayed', ({ jobId }) => {
+        resolve({ jobId, retried: true });
+      });
+      queueEvents.once('failed', ({ jobId }) => {
+        resolve({ jobId, retried: false });
+      });
+    });
+    const next = {
+      TOKEN_KEKS: `kek-next:${randomBytes(32).toString('base64')}`,
+      TOKEN_KEK_ACTIVE: 'kek-next',
+    };
+    await new NotificationProducer(notifications, sealerFromEnv('tokens', next)).dispatchEmail(
+      'later@example.test',
+      { ...invitation, locale: 'en' },
+    );
+    const { jobId, retried } = await outcome;
+    expect(retried).toBe(true);
+    const job = await notifications.getJob(jobId);
+    expect(await job?.getState()).toBe('delayed');
+    expect(job?.attemptsMade).toBe(1);
+    expect(job?.failedReason).toBe('The sealed secret was wrapped with a key that is not configured.');
+    await job?.remove();
   });
 
   it('fails an invalid payload at once instead of retrying it', async () => {

@@ -1,6 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject } from '@nestjs/common';
 import type { DeliverNotification, DeliveryReport, MailPort, SecretSealer } from '@smp/core';
+import { keyIdOf, SealedSecretError } from '@smp/crypto';
 import { deliverEmail } from '@smp/emails';
 import {
   NOTIFICATIONS_QUEUE,
@@ -21,8 +22,8 @@ import { DELIVER_NOTIFICATION, EMAIL_SEALER, MAIL_PORT } from '../worker.tokens'
  * Delivers notifications (guide steps 1.8 and 4.9). An email is opened with the token keyring
  * (guide step 8.4), rendered in the recipient's language and sent over SMTP. An event of the
  * outbox goes to its recipients: in the app, and by email as one job per recipient. Failures are
- * retried by BullMQ; payloads that do not validate or open fail at once. Logs carry the job id,
- * never an address.
+ * retried by BullMQ; payloads that do not validate or open fail at once, except an email sealed
+ * with a key the role does not know yet. Logs carry the job id, never an address.
  */
 @Processor(NOTIFICATIONS_QUEUE)
 export class NotifyProcessor extends WorkerHost {
@@ -80,11 +81,27 @@ export class NotifyProcessor extends WorkerHost {
     }
   }
 
-  /** A damaged envelope, one of another key or content that is no email: no retry helps. */
+  /**
+   * A damaged envelope, one of another keyring or content that is no email: no retry helps. A key
+   * id the keyring does not know is retried: while the services restart with a new key, the
+   * sender may know it before this role does (docs/runbooks/secret-rotation.md).
+   */
   private async open(job: Job, payload: Extract<NotifyDispatch, { channel: 'email' }>): Promise<SealedEmail> {
     try {
       return await openNotifyEmail(this.sealer, payload);
-    } catch {
+    } catch (error) {
+      if (error instanceof SealedSecretError && error.code === 'UNKNOWN_KEY') {
+        jobsTotal.inc({ queue: NOTIFICATIONS_QUEUE, status: 'failed' });
+        this.logger.warn(
+          {
+            jobId: job.id,
+            attempt: job.attemptsMade + 1,
+            keyId: keyIdOf(Buffer.from(payload.sealed, 'base64')),
+          },
+          'notify.unknown_key',
+        );
+        throw error;
+      }
       this.logger.error({ jobId: job.id }, 'notify.unreadable_email');
       jobsTotal.inc({ queue: NOTIFICATIONS_QUEUE, status: 'invalid' });
       throw new UnrecoverableError('unreadable notify.dispatch email');

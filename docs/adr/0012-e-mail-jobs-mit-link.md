@@ -14,7 +14,7 @@ Job-Payloads enthalten nach der Architektur nur IDs; der Job liest den Rest aus 
 - Seit Schritt 8.4 sind Empfänger und E-Mail im Payload versiegelt: mit der Envelope-Verschlüsselung aus Schritt 4.2, dem Token-Keyring (`TOKEN_KEKS`) und der AAD `notify.email`. Der Payload ist `{ channel: 'email', sealed }`. Der Producer prüft die E-Mail vor dem Versiegeln, die Rolle `notify` öffnet sie direkt vor dem Versand und prüft sie erneut. Das gilt für alle E-Mails der Queue, auch für die Benachrichtigungen aus der Outbox (ADR 0025).
 - Jobs werden nach dem Versand sofort gelöscht (`removeOnComplete`), fehlgeschlagene nach einem Tag (`removeOnFail`). Wiederholt wird bis zu sechsmal mit exponentiellem Backoff ab 10 s.
 - Logs des Workers enthalten Job-ID und Template, nie Adresse oder Link.
-- Ein Umschlag, der sich nicht öffnen lässt (beschädigt, mit einem anderen Schlüssel oder ohne gültige E-Mail), scheitert sofort ohne Wiederholung (`notify.unreadable_email`).
+- Ein Umschlag, der sich nicht öffnen lässt (beschädigt, mit einem anderen Schlüssel desselben Namens oder ohne gültige E-Mail), scheitert sofort ohne Wiederholung (`notify.unreadable_email`). Eine Key-ID, die der Keyring nicht kennt, wiederholt die Rolle dagegen: Beim Neustart nach einer Rotation kann der Absender den neuen Schlüssel schon kennen (`notify.unknown_key`, `docs/runbooks/secret-rotation.md`).
 - Die Links bleiben kurzlebig: Verifizierung und Reset eine Stunde, Einladungen sieben Tage und nur einmal verwendbar.
 - Redis ist nur im internen Netz erreichbar und hält auch sonst Sitzungs- und Sperrdaten.
 
