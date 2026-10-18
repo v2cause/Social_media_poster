@@ -956,3 +956,13 @@ export {
   type ErasureResult,
 } from './gdpr/application/erasure';
 export { SubscriptionDeletionBilling } from './billing/application/deletion-billing';
+export type { RetentionStore } from './gdpr/ports/retention-store';
+export {
+  AI_RAW_DATA_DAYS,
+  ApplyRetention,
+  CONNECTION_DATA_DAYS,
+  MIN_METRICS_DAYS,
+  PROCESSED_WEBHOOK_DAYS,
+  type RetentionDependencies,
+  type RetentionReport,
+} from './gdpr/application/retention';
