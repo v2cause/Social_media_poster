@@ -29,4 +29,14 @@ describe('safeNext', () => {
     expect(safeNext('/\u0000/evil.example')).toBe('/');
     expect(safeNext('/\u007f')).toBe('/');
   });
+
+  it('refuses dot segments that leave two leading slashes, a path of another host', () => {
+    expect(safeNext('/..//evil.example')).toBe('/');
+    expect(safeNext('/.//evil.example')).toBe('/');
+    expect(safeNext('/a/..//evil.example')).toBe('/');
+    expect(safeNext('/%2e%2e//evil.example')).toBe('/');
+    expect(safeNext('/%2E%2e//evil.example/x?y#z')).toBe('/');
+    // A dot segment that stays on this site is fine.
+    expect(safeNext('/w/demo/../other/posts')).toBe('/w/other/posts');
+  });
 });

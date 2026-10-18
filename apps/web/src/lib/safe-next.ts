@@ -1,6 +1,8 @@
 // The URL parser drops tabs and line breaks and reads a backslash like a slash, so "/\t/evil" and
 // "/\evil" would lead to another site. Such values are refused before the path is resolved
-// against a placeholder origin; only a path that stays on that origin is kept.
+// against a placeholder origin; only a path that stays on that origin is kept. Dot segments can
+// leave a path with two leading slashes ("/..//evil" becomes "//evil"), which a browser reads as
+// another host, so the resolved path is checked once more.
 const BASE = 'https://app.invalid';
 
 /** Control characters (U+0000 to U+001F, U+007F) and backslashes. */
@@ -21,7 +23,7 @@ export function safeNext(next: string | null | undefined): string {
   } catch {
     return '/';
   }
-  if (url.origin !== BASE) {
+  if (url.origin !== BASE || url.pathname.startsWith('//')) {
     return '/';
   }
   return `${url.pathname}${url.search}${url.hash}`;
