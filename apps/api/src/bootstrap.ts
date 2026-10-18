@@ -8,6 +8,7 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { Logger } from 'nestjs-pino';
 
 import { requestIdMiddleware } from './common/request-id.middleware';
+import { authBodyLimit } from './common/security/body-limits.middleware';
 import { createOriginCheckMiddleware } from './common/security/origin-check.middleware';
 import type { ApiEnv } from './config/api-env';
 import { AUTH, type Auth } from './modules/identity/auth';
@@ -32,8 +33,10 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv): void {
   // which would allow login CSRF.
   app.use(createOriginCheckMiddleware(env.APP_URL));
 
-  // Express 5 needs the named wildcard (Better Auth docs, Express integration).
+  // Express 5 needs the named wildcard (Better Auth docs, Express integration). Better Auth reads
+  // the body without a limit, so the limit comes first.
   const server = app.getHttpAdapter().getInstance();
+  server.use('/api/auth', authBodyLimit);
   server.all('/api/auth/*splat', toNodeHandler(app.get<Auth>(AUTH)));
 
   app.use('/api/webhooks', express.raw({ type: '*/*', limit: '1mb' }));
