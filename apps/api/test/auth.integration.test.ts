@@ -12,9 +12,11 @@ import { browser as openBrowser, PASSWORD, signUpVerified } from './support/brow
 // - the link verifies the address without signing in,
 // - failed sign-ins are limited per account and wrong passwords per user,
 // - no device is trusted to skip the second factor,
-// - a sign-up with a known address tells its owner.
+// - a sign-up with a known address tells its owner,
+// - a session ends seven days after the sign-in.
 
 const WRONG_PASSWORD = 'wrong password 123';
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The cookies a response sets: supertest types the header as a string, Node hands an array. */
 const cookiesOf = (response: { headers: Record<string, unknown> }): string => {
@@ -281,5 +283,29 @@ describe('authentication with Better Auth', () => {
     const second = await signIn(agent, email).expect(200);
     expect(second.body).toMatchObject({ twoFactorRedirect: true });
     await agent.get('/api/me').expect(401);
+  });
+
+  it('ends a session seven days after the sign-in, however often it is used', async () => {
+    const email = 'busy@example.test';
+    const agent = await signUpVerified(started(), email);
+    const system = await started().database.connectAs('app_system');
+    try {
+      // Five days left: Better Auth would push the end out again on the next use.
+      const fiveDays = new Date(Date.now() + 5 * DAY_MS);
+      await system.query(
+        `UPDATE session SET expires_at = $2 WHERE user_id = (SELECT id FROM users WHERE email = $1)`,
+        [email, fiveDays],
+      );
+      await agent.get('/api/auth/get-session').expect(200);
+      await agent.get('/api/me').expect(200);
+
+      const { rows } = await system.query<{ expires_at: Date }>(
+        `SELECT expires_at FROM session WHERE user_id = (SELECT id FROM users WHERE email = $1)`,
+        [email],
+      );
+      expect(rows.map((row) => row.expires_at.getTime())).toEqual([fiveDays.getTime()]);
+    } finally {
+      await system.end();
+    }
   });
 });

@@ -88,7 +88,8 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
         isPlatformAdmin: { type: 'boolean', defaultValue: false, input: false },
       },
     },
-    session: { expiresIn: 7 * DAY_SECONDS, updateAge: DAY_SECONDS },
+    // At most seven days after the sign-in, however often the session is used (ASVS 7.3.2).
+    session: { expiresIn: 7 * DAY_SECONDS, disableSessionRefresh: true },
     hooks: createAuthHooks({ redis, logger }),
     rateLimit: {
       // Better Auth keeps it off in development; tests check it.
