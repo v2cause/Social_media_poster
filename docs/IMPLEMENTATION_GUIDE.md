@@ -1324,17 +1324,49 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
 
 ## B.10 Phase 8: Härtung, DSGVO, Betrieb
 
-| Schritt | Erstellen | Fertig, wenn |
-|---|---|---|
-| 8.1 Datenexport | `gdpr.export`: alle Daten der Organisation als JSON pro Entität plus Medien-Originale als ZIP in S3; signierter Link (24 h) per E-Mail | Export vollständig und lesbar |
-| 8.2 Löschung | Soft-Delete, nach 30 Tagen `gdpr.erase`: DB-Kaskade, S3-Prefix löschen, Plattform-Tokens widerrufen, Stripe-Kunde löschen bzw. anonymisieren; Audit-Eintrag anonymisiert | keine Restdaten (Prüfskript) |
-| 8.3 Aufbewahrung | Jobs: KI-Rohdaten 180 Tage, Screenshots 7 Tage, Logs 30 Tage, Metriken nach Tarif | Jobs laufen nachts |
-| 8.4 Security-Review | Checkliste OWASP ASVS Level 2, Pentest, Runbook zur Secret-Rotation, CSP-Prüfung, Tuning der Rate-Limits | keine offenen kritischen oder hohen Befunde |
-| 8.5 Lasttest | k6-Skripte: 10.000 fällige Varianten pro Minute, API-p95 unter 300 ms für Lesezugriffe | Ziele erreicht |
-| 8.6 Backup | PITR, Restore-Probe, RPO 15 min und RTO 4 h dokumentiert | Restore erfolgreich geübt |
-| 8.7 Betrieb | SLOs, Alarme, `docs/runbooks/*.md` (Plattform-Ausfall, massenhafter Token-Ablauf, X-Drift, Redis-Verlust, hängende Queue) | Runbooks durchgespielt |
-| 8.8 Barrierefreiheit | axe-Checks in Playwright, manuelle Tastaturprüfung | keine kritischen Verstöße |
-| 8.9 Deployment | Produktions-Vorlage, z.B. Compose für eine VM mit Caddy/Traefik und TLS oder ein Helm-Chart (Entscheidung gemeinsam mit dir) | Staging aus der Vorlage deployt |
+#### 8.1 Datenexport
+- **Erstellen**: `gdpr.export`: alle Daten der Organisation als JSON pro Entität plus Medien-Originale als ZIP in S3; signierter Link (24 h) per E-Mail.
+- **Fertig, wenn**: Export vollständig und lesbar.
+- **Umgesetzt** ([ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)):
+  - Tabelle `gdpr_request` für Exporte und Löschungen (Migrationen `0020_gdpr`, `0021_rls_gdpr`): höchstens eine offene Anfrage pro Art und Organisation, Owner lesen und legen an, nur `app_system` ändert.
+  - Recht `org.export` (nur Owner), auch im Nur-Lesen-Zustand. API: `POST`/`GET /api/org/:org/data-exports` und `POST /api/org/:org/data-exports/:exportId/download`.
+  - Worker-Rolle `gdpr`: ZIP mit `data/<tabelle>.json` für jede Tabelle mit `organization_id` oder `workspace_id` (dazu Organisation und Mitglieder), den Originalen unter `media/<workspace>/`, `manifest.json` und `README.txt`. Geheimnisse (versiegelte Tokens und Sessions, Einladungs-Hashes) werden nicht selektiert. archiver schreibt direkt in einen Multipart-Upload unter `exports/{organizationId}/`.
+  - E-Mail `gdpr-export-ready` an den Owner, der angefordert hat; `tick.gdpr` übergibt der Rolle stündlich `gdpr.sweep`, der Archive nach 24 Stunden löscht und hängende Exporte nach 12 Stunden aufgibt.
+  - Web: Seite `/org/:org/data` ("Daten und Löschung") in der Navigation der Organisation.
+  - Tests: `packages/core/test/gdpr/`, `packages/db/test/gdpr-adapters.integration.test.ts` (Abdeckung aller Tabellen gegen den Katalog, keine binären Spalten, Seiten, Zeiten in UTC, Mandantentrennung, RLS), `packages/media/test/s3-storage.integration.test.ts` (Multipart-Upload, Dateiname des Downloads), `apps/worker/test/gdpr-export.integration.test.ts` (das ZIP mit eigenem Leser geprüft: jede Tabelle mit den Zeilen des Manifests, Originale Byte für Byte, keine Geheimnisse, E-Mail, Sweep), `apps/api/test/gdpr.integration.test.ts`, die Rechte-Matrix und `apps/web/e2e/data-export.spec.ts`.
+- **Stand**: Abweichung vom Leitfaden: Die E-Mail enthält keinen Link zum Archiv, sondern zur Datenseite; dort erzeugt jeder Download einen signierten Link von fünf Minuten, der im Audit-Log steht. Das Archiv bleibt 24 Stunden (Begründung in ADR 0036).
+
+#### 8.2 Löschung
+- **Erstellen**: Soft-Delete, nach 30 Tagen `gdpr.erase`: DB-Kaskade, S3-Prefix löschen, Plattform-Tokens widerrufen, Stripe-Kunde löschen bzw. anonymisieren; Audit-Eintrag anonymisiert.
+- **Fertig, wenn**: keine Restdaten (Prüfskript).
+
+#### 8.3 Aufbewahrung
+- **Erstellen**: Jobs: KI-Rohdaten 180 Tage, Screenshots 7 Tage, Logs 30 Tage, Metriken nach Tarif.
+- **Fertig, wenn**: Jobs laufen nachts.
+
+#### 8.4 Security-Review
+- **Erstellen**: Checkliste OWASP ASVS Level 2, Pentest, Runbook zur Secret-Rotation, CSP-Prüfung, Tuning der Rate-Limits.
+- **Fertig, wenn**: keine offenen kritischen oder hohen Befunde.
+
+#### 8.5 Lasttest
+- **Erstellen**: k6-Skripte: 10.000 fällige Varianten pro Minute, API-p95 unter 300 ms für Lesezugriffe.
+- **Fertig, wenn**: Ziele erreicht.
+
+#### 8.6 Backup
+- **Erstellen**: PITR, Restore-Probe, RPO 15 min und RTO 4 h dokumentiert.
+- **Fertig, wenn**: Restore erfolgreich geübt.
+
+#### 8.7 Betrieb
+- **Erstellen**: SLOs, Alarme, `docs/runbooks/*.md` (Plattform-Ausfall, massenhafter Token-Ablauf, X-Drift, Redis-Verlust, hängende Queue).
+- **Fertig, wenn**: Runbooks durchgespielt.
+
+#### 8.8 Barrierefreiheit
+- **Erstellen**: axe-Checks in Playwright, manuelle Tastaturprüfung.
+- **Fertig, wenn**: keine kritischen Verstöße.
+
+#### 8.9 Deployment
+- **Erstellen**: Produktions-Vorlage, z.B. Compose für eine VM mit Caddy/Traefik und TLS oder ein Helm-Chart (Entscheidung gemeinsam mit dir).
+- **Fertig, wenn**: Staging aus der Vorlage deployt.
 
 ---
 

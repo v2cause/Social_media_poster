@@ -326,7 +326,7 @@ Der System-Prompt liegt versioniert in `packages/ai/prompts/system/v1.md`. `PROM
 - **Analytics**: `MetricSnapshot` (append-only, kumulative Zähler plus Rohdaten und Mapping-Version), `PostMetricLatest` (für schnelle Listen und Top-Posts), `AccountMetricSnapshot` (ein Eintrag pro Account und lokalem Tag: Follower, Reichweite, Profilaufrufe), `AnalyticsDaily` (Rollup pro Account und lokalem Tag; Reichweite der Accounts und Summe der Post-Reichweiten getrennt; [ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)).
 - **KI und Kosten**: `AiGeneration`, `UsageRecord` (Ledger, idempotent pro Quelle), `UsageCounter` (atomare Quoten-Zähler), `ApiCostRecord` (X-Kosten pro Operation), `PriceBook`.
 - **Billing**: `Plan` (Limits als zod-validiertes JSON: Workspaces, Accounts, Mitglieder, KI-Guthaben und Mehrverbrauch, Posts pro Monat, Speicher, Analytics-Historie, X-Browser erlaubt, X-Ausgabenlimit; dazu der Lookup-Key des Stripe-Preises), `Subscription` (eine pro Organisation: Tarif, Status, Testphase, Beginn des Zahlungsverzugs, Nur-Lesen ab, Overrides der Limits, Stripe-IDs). `UsageRecord` und `ApiCostRecord` tragen `reportedToStripeAt`.
-- **Querschnitt**: `FeatureFlag` (global, pro Organisation oder pro Workspace, inkl. Kill-Switches), `RiskAcknowledgement`, `AuditLog` (append-only), `Notification` und `NotificationPreference`, `WorkspaceSettings` (Dry-Run, Verhalten bei verpasstem Zeitfenster, Effort-Overrides), `GdprRequest`.
+- **Querschnitt**: `FeatureFlag` (global, pro Organisation oder pro Workspace, inkl. Kill-Switches), `RiskAcknowledgement`, `AuditLog` (append-only), `Notification` und `NotificationPreference`, `WorkspaceSettings` (Dry-Run, Verhalten bei verpasstem Zeitfenster, Effort-Overrides), `GdprRequest` (Export und Löschung einer Organisation mit Status, Archiv und Zählern; ohne Fremdschlüssel auf die Organisation, höchstens eine offene Anfrage pro Art; [ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)).
 
 **Kernfelder von `PostVariant`**:
 - Inhalt und Zuordnung: `socialAccountId`, `platform`, `text`, `hashtags`, `firstComment`, `linkUrl`.
@@ -442,7 +442,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 | Queue | Jobs | Dedupe (Job-ID) | Verarbeitet von (`WORKER_ROLES`) |
 |---|---|---|---|
-| `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (stündlich; pro Workspace einmal am Tag ab 03:00 Ortszeit, gestaffelt), `tick.maintenance` (nachts), `tick.xb-canary` (täglich, nur mit Test-Account), `tick.usage-report` (täglich 00:07 UTC, nur mit Stripe), `tick.read-only` (15 min, mit `APP_URL`) | Job-Scheduler-ID | `scheduler` |
+| `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (stündlich; pro Workspace einmal am Tag ab 03:00 Ortszeit, gestaffelt), `tick.maintenance` (nachts), `tick.xb-canary` (täglich, nur mit Test-Account), `tick.usage-report` (täglich 00:07 UTC, nur mit Stripe), `tick.read-only` (15 min, mit `APP_URL`), `tick.gdpr` (stündlich, reiht `gdpr.sweep` ein) | Job-Scheduler-ID | `scheduler` |
 | `publish` | `publish.variant { workspaceId, variantId, scheduleVersion, trigger, traceparent }` | `pub.{variantId}.{scheduleVersion}` | `publisher` |
 | `publish-dead` | `publish.dead` (Kopie eines endgültig gescheiterten Publish-Jobs, nur zum Ansehen in Bull Board) | `dead.pub.{variantId}.{scheduleVersion}` | - |
 | `xb-commands` / `xb-results` | `xb.publish`, `xb.reconcile`, `xb.metrics`, `xb.account-metrics`, `xb.verify-session`, `xb.delete`, `xb.login.start`, `xb.canary` / `xb.result` (Sitzung, Drift, Canary, Login-Schritte) | `xb.{op}.{commandId}`, `xb.login.start.{loginId}` | browser-worker / `publisher` |
@@ -452,7 +452,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 | `ai` | `ai.topic-ideas`, `ai.alt-text` (für Vorschläge im Hintergrund; auf Knopfdruck laufen beide synchron, ADR 0016 und 0021) | - | `ai` |
 | `notifications` | `notify.dispatch`: ein Outbox-Ereignis (in der App und per E-Mail an seine Empfänger) oder eine E-Mail an eine Adresse | `ntf.{outboxId}` für das Ereignis, `ntf.{outboxId}.{userId}` für seine E-Mails | `notify` |
 | `billing` | `stripe.webhook`, `usage.report` | `stripe.{eventId}`, `usage.{organizationId}.{Tag}` | `billing` |
-| `gdpr` | `gdpr.export`, `gdpr.erase` | `gdpr.{requestId}` | `gdpr` |
+| `gdpr` | `gdpr.export`, `gdpr.erase`, `gdpr.sweep` (löscht abgelaufene Archive) | `gdpr.{requestId}`, `gdpr.sweep` (höchstens einer wartet) | `gdpr` |
 
 - **Job-IDs ohne Doppelpunkt**: BullMQ lehnt eigene Job-IDs mit `:` ab (`Custom Id cannot contain :`; geduldet wird nur eine Altform mit genau drei Segmenten). Deshalb trennt der Punkt die Bestandteile. Redis-Schlüssel für Locks und Pub/Sub (`lock:conn:{id}`, `ws:{workspaceId}:events`) sind davon nicht betroffen.
 - **Payloads**: enthalten nur IDs und werden im Job neu aus der DB gelesen. Ausnahmen sind die `xb-*`-Queues, weil der browser-worker keinen DB-Zugriff hat, und die E-Mails in `notifications`, die Adresse und Text tragen. E-Mails mit Link (Verifizierung, Passwort-Reset, Einladung) tragen den Link, weil nur der Hash des Tokens gespeichert ist; sie verlassen Redis direkt nach dem Versand, fehlgeschlagene nach einem Tag (ADR 0012). Die Jobs eines Outbox-Ereignisses und seine E-Mails bleiben nach dem Lauf einen Tag, damit ihre Job-ID einen zweiten Versand verhindert (ADR 0025).
@@ -550,7 +550,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
 | Rechte | Owner | Admin | Editor | Viewer |
 |---|---|---|---|---|
-| Billing, Organisation löschen, Ownership übertragen | x | | | |
+| Billing, Daten exportieren, Organisation löschen, Ownership übertragen | x | | | |
 | Mitglieder, Workspaces, Einstellungen, Accounts verbinden, Brand Voices, X-Browser aktivieren, Audit-Log | x | x | | |
 | Posts erstellen, bearbeiten, planen, veröffentlichen, löschen; Medien, KI, Ideen | x | x | x | |
 | Kalender, Posts, Analytics, Ideen lesen | x | x | x | x |
@@ -572,7 +572,8 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 - **Lieferkette**: Renovate (3 Tage Wartezeit, Digest-Pinning), pnpm-Gates (`minimumReleaseAge`, `trustPolicy: no-downgrade`, `strictDepBuilds`), `pnpm audit`, CodeQL, Dependency Review, gitleaks, Trivy-Image-Scans, SBOM. Die ersten Punkte gelten seit Phase 0 (ADR 0009).
 - **DSGVO**:
   - Hosting in der EU, AV-Verträge und Liste der Unterauftragsverarbeiter (Anthropic, Stripe, E-Mail-Provider, Hosting) sowie ein Hinweis auf die Datenübermittlung an LinkedIn, Meta und X.
-  - Datenexport (ZIP) und Löschung (30 Tage Soft-Delete, dann endgültig) als asynchrone Jobs.
+  - Datenexport als ZIP über die Worker-Rolle `gdpr`: jede Tabelle mit Mandantenspalte als JSON, die Originale der Medien und ein Manifest, ohne Geheimnisse. Das Archiv liegt 24 Stunden im Objektspeicher; die E-Mail führt zur Datenseite, wo jeder Download einen Link von fünf Minuten erzeugt und im Audit-Log steht ([ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)).
+  - Löschung (30 Tage Soft-Delete, dann endgültig) als asynchroner Job.
   - Beim Trennen eines Accounts werden die Tokens bei der Plattform widerrufen.
   - Aufbewahrungsfristen, nur essenzielle Cookies, eine DSFA für die Browser-Automation (Session-Cookies sind faktisch Zugangsdaten).
 
@@ -598,7 +599,7 @@ onboarding/                      Organisation, Workspace, Profil (Branche, Zielg
                                  /accounts/connect/select: Auswahl der Accounts nach der Zustimmung
 (app)/w/[ws]/brand-voices        Brand Voices (versioniert) und eigene Stile, "Stimme testen"
 (app)/w/[ws]/settings            Profil, Zeitzone, Sprache, Publishing-Defaults, Dry-Run, X-Browser (Risikobestätigung)
-(app)/org/[org]/members | workspaces | billing | audit-log | settings
+(app)/org/[org]/members | workspaces | billing | data | audit-log | settings
 (app)/account                    Profil, Sprache, Zeitzone, Sicherheit (2FA, Sessions), Benachrichtigungen
 admin/                           Plattform-Admins: Feature-Flags, Kill-Switches, Link zu Bull Board
 ```
@@ -611,6 +612,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   - Planen: Datum und Uhrzeit in der Workspace-Zeitzone, Account und Zeitpunkt pro Variante überschreibbar, "Jetzt posten", Kostenhinweis bei X, Hinweis auf ablaufende Zugänge. Planungen laufen in der Warteschlange des Auto-Speicherns nach den offenen Speicherungen; der Status folgt den Live-Events, und eine Variante, die veröffentlicht wird oder wurde, ist gesperrt ([ADR 0026](adr/0026-planen-im-web.md)).
   - Entwürfe werden automatisch gespeichert: 800 ms nach der letzten Änderung, nacheinander und mit Optimistic Locking; ein neuer Beitrag entsteht, sobald Briefing und eine Plattform da sind ([ADR 0017](adr/0017-composer-zustand-und-auto-speichern.md)).
 - **Kalender**: eigener Kalender (CSS-Grid, `dnd-kit`) mit Varianten als Plattform-Kürzel, Uhrzeit, Textanfang und Status-Icon. Umplanen per Drag & Drop auf einen anderen Tag mit optimistischem Update und Rollback; vergangene Tage nehmen nichts an. Für Tastaturnutzer und neue Uhrzeiten gibt es einen Umplanen-Dialog ([ADR 0026](adr/0026-planen-im-web.md)).
+- **Daten und Löschung** (nur Owner): Export anfordern, seinen Fortschritt verfolgen und das Archiv 24 Stunden lang herunterladen ([ADR 0036](adr/0036-datenschutz-anfragen-und-datenexport.md)).
 - **Abrechnung** (nur Owner): Tarif mit Status und Terminen, ein Verbrauchsbalken pro Limit (über dem Limit rot, mit der Bitte zu reduzieren), die Tarife mit Checkout oder Wechsel (der Dialog nennt, was nach einem Downgrade über den Limits läge), Kundenportal und Rechnungen. Über jeder Seite der Organisation steht für alle Mitglieder ein Hinweis bei Nur-Lesen, Zahlungsverzug und endender Testphase ([ADR 0033](adr/0033-tarife-abo-und-nur-lesen.md)).
 - **Analytics**: eigene SVG-Diagramme (Liniendiagramm, Balkenliste, Sparklines). Jede Plattform hat feste Farbe, Strichmuster und Marker. Das Liniendiagramm lässt sich mit den Pfeiltasten bedienen und hat eine Tabelle derselben Zahlen. Fehlende Werte erscheinen als "n. v.", nie als 0 ([ADR 0028](adr/0028-analytics-im-web.md)).
 - **Bibliotheken**: TanStack Query (Orval-Hooks), react-hook-form + zodResolver (dieselben Schemas wie die API), der URL-State über einen kleinen Hook mit zod-Schema, der Composer-State als getesteter Reducer unter `useReducer` (Zustand-Stores nur für State, den mehrere Seiten teilen; ADR 0017), shadcn/ui + Tailwind 4, lucide, sonner, `dnd-kit`, Datum und Zeitzonen über `Intl` (ADR 0026); für Analytics die Tabellen von `@smp/ui` und eigene Diagramme statt TanStack Table und Recharts (ADR 0028).
@@ -653,9 +655,9 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 | Unit (Application) | Use Cases mit In-Memory-Fakes für die Ports | Vitest |
 | Prompts | Snapshot-Tests der gerenderten Prompts (byte-stabil wegen Caching), Schema-Konformität | Vitest |
 | Adapter-Contract | eine gemeinsame Suite, die jeder Adapter inkl. Mock bestehen muss: Fehler-Mapping 401/403/429/5xx, Normalisierung, Reconcile; aufgezeichnete und bereinigte Fixtures pro API-Version | msw v2 |
-| Integration | RLS-Isolation (zwei Mandanten), Scheduler-Tick mit 2 parallelen Workern (kein doppeltes Einreihen), Absturz während des Publishings führt zu Reconcile ohne Duplikat, Outbox, Token-Refresh-Lock, Medien mit SeaweedFS, Abrechnung gegen den Fake-Stripe (optional gegen die Test Clocks von Stripe) | Testcontainers |
+| Integration | RLS-Isolation (zwei Mandanten), Scheduler-Tick mit 2 parallelen Workern (kein doppeltes Einreihen), Absturz während des Publishings führt zu Reconcile ohne Duplikat, Outbox, Token-Refresh-Lock, Medien mit SeaweedFS, Abrechnung gegen den Fake-Stripe (optional gegen die Test Clocks von Stripe), Datenexport (jede Tabelle mit Mandantenspalte, keine Geheimnisse, ZIP mit eigenem Leser geprüft) | Testcontainers |
 | API-E2E | Auth-Flows, Rechte-Matrix (Rolle x Endpunkt), Quoten, Webhook-Signaturen | supertest |
-| Web-E2E | Registrieren, Onboarding, Mock-Account verbinden, KI-Post (Mock), Bild hochladen, für +1 min planen, veröffentlicht, Analytics gefüllt; Kalender-Drag & Drop; Einladung; Viewer nur lesend; Abrechnung mit dem Fake-Stripe (Checkout, Downgrade, past_due, Kündigung) | Playwright |
+| Web-E2E | Registrieren, Onboarding, Mock-Account verbinden, KI-Post (Mock), Bild hochladen, für +1 min planen, veröffentlicht, Analytics gefüllt; Kalender-Drag & Drop; Einladung; Viewer nur lesend; Abrechnung mit dem Fake-Stripe (Checkout, Downgrade, past_due, Kündigung); Datenexport mit Download | Playwright |
 | Browser-Adapter | lokale, bereinigte DOM-Fixtures von Login, Composer und Challenge-Seite plus aufgezeichnete JSON-Antworten; Challenge führt zur Pause; Drift-Fehlerpfad | Playwright |
 | KI-Eval (optional) | Golden Briefs (DE/EN x Stile x Plattformen): Schema, Längen, verbotene Wörter, Sprache, Refusal-Quote, Kosten; Pflicht vor Prompt- oder Modellwechseln | Vitest + echte API mit Budget |
 | Last | 10.000 fällige Varianten in derselben Minute, Durchsatz der Analytics-Batches | k6 |
