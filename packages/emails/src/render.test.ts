@@ -24,6 +24,18 @@ describe('renderEmail', () => {
     expect(email.text).toContain('Choose a new password');
   });
 
+  it('tells the owner of an address that someone signed up with it, in both languages', async () => {
+    const login = 'http://localhost:3000/login';
+    const de = await renderEmail({ template: 'existing-account', locale: 'de', name: 'Ada', url: login });
+    const en = await renderEmail({ template: 'existing-account', locale: 'en', name: 'Ada', url: login });
+
+    expect(de.subject).toBe('Es gibt bereits ein Konto mit Ihrer E-Mail-Adresse');
+    expect(de.text).toContain('Zur Anmeldung');
+    expect(de.text).toContain(login);
+    expect(en.subject).toBe('There is already an account with your email address');
+    expect(en.text).toContain('Nothing has changed in your account.');
+  });
+
   it('escapes the name and loads nothing remote', async () => {
     const email = await renderEmail({
       template: 'verify-email',

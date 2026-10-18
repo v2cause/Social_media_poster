@@ -30,6 +30,8 @@ export interface EmailMessages {
   failureReasons: Record<PublishFailureCode, string>;
   verifyEmail: ActionEmailMessages;
   resetPassword: ActionEmailMessages;
+  /** When someone signs up with the address of an existing account. */
+  existingAccount: ActionEmailMessages;
   /** Placeholders: {organization}, {inviter}, {role}. */
   invitation: ActionEmailMessages;
   /** Placeholders: {accounts}, {platform}, {date}. */
@@ -139,6 +141,17 @@ export const messages: Record<Locale, EmailMessages> = {
       expiry: 'Der Link ist eine Stunde gültig und funktioniert nur einmal.',
       ignore:
         'Wenn Sie das nicht angefordert haben, ignorieren Sie diese E-Mail. Ihr Passwort bleibt unverändert.',
+    },
+    existingAccount: {
+      subject: 'Es gibt bereits ein Konto mit Ihrer E-Mail-Adresse',
+      preview: 'Jemand wollte sich mit Ihrer Adresse neu registrieren.',
+      intro:
+        'jemand hat versucht, mit Ihrer E-Mail-Adresse ein neues Konto anzulegen. Für diese Adresse gibt es bereits ein Konto.',
+      action: 'Zur Anmeldung',
+      expiry:
+        'Wenn Sie das waren, melden Sie sich an. Kennen Sie Ihr Passwort nicht mehr, setzen Sie es auf der Anmeldeseite zurück.',
+      ignore:
+        'Wenn Sie das nicht waren, ignorieren Sie diese E-Mail. An Ihrem Konto hat sich nichts geändert.',
     },
     invitation: {
       subject: 'Einladung zu {organization}',
@@ -289,6 +302,15 @@ export const messages: Record<Locale, EmailMessages> = {
       action: 'Choose a new password',
       expiry: 'The link is valid for one hour and works only once.',
       ignore: 'If you did not ask for this, ignore this email. Your password stays the same.',
+    },
+    existingAccount: {
+      subject: 'There is already an account with your email address',
+      preview: 'Someone tried to sign up again with your address.',
+      intro:
+        'someone tried to create a new account with your email address. There already is an account for it.',
+      action: 'Go to sign-in',
+      expiry: 'If it was you, sign in. If you no longer know your password, reset it on the sign-in page.',
+      ignore: 'If it was not you, ignore this email. Nothing has changed in your account.',
     },
     invitation: {
       subject: 'Invitation to {organization}',

@@ -27,6 +27,8 @@ const preview = z.string().max(PREVIEW_MAX_UNITS);
 export const emailTemplateSchema = z.discriminatedUnion('template', [
   z.object({ template: z.literal('verify-email'), locale: localeSchema, name, url: httpUrl }),
   z.object({ template: z.literal('reset-password'), locale: localeSchema, name, url: httpUrl }),
+  // To the address of an existing account when someone signs up with it (guide step 8.4).
+  z.object({ template: z.literal('existing-account'), locale: localeSchema, name, url: httpUrl }),
   z.object({
     template: z.literal('invitation'),
     locale: localeSchema,
@@ -135,8 +137,14 @@ function compose(email: EmailTemplate): ActionEmailText {
       : common.greetingWithoutName;
   switch (email.template) {
     case 'verify-email':
-    case 'reset-password': {
-      const text = email.template === 'verify-email' ? locale.verifyEmail : locale.resetPassword;
+    case 'reset-password':
+    case 'existing-account': {
+      const text =
+        email.template === 'verify-email'
+          ? locale.verifyEmail
+          : email.template === 'reset-password'
+            ? locale.resetPassword
+            : locale.existingAccount;
       return {
         ...base,
         subject: text.subject,
