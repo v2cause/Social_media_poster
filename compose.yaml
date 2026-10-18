@@ -183,6 +183,8 @@ services:
       S3_ENDPOINT: http://s3:8333
       # Upload and preview URLs are signed for the address the browser reaches.
       S3_PUBLIC_ENDPOINT: http://127.0.0.1:8333
+      # Production checks new passwords against known breaches.
+      PWNED_PASSWORDS_API_URL: ${PWNED_PASSWORDS_API_URL:-https://api.pwnedpasswords.com}
     ports:
       - '127.0.0.1:3001:3001'
     depends_on:

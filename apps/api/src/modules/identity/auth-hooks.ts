@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto';
 
 import type { Logger } from '@nestjs/common';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@smp/contracts';
+import type { GenericEndpointContext } from 'better-auth';
 import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api';
 import type Redis from 'ioredis';
+
+import type { PasswordContext, PasswordPolicy, PasswordProblem } from './password-policy';
 
 // What the auth flows need beyond Better Auth (guide step 8.4, ADR 0039). Better Auth limits the
 // requests per client address and path; these hooks add:
@@ -10,6 +14,7 @@ import type Redis from 'ioredis';
 // - a limit of failed password checks per user on the endpoints that take the password of a
 //   session, so a stolen session cannot guess the password and take over the second factor,
 // - no "trust this device": every sign-in asks for the second factor,
+// - the password policy for every new password (PasswordPolicy),
 // - a security event in the log for sign-ins, sign-ups, sign-outs, resets and every change of a
 //   factor or a session. Events name the user or a digest of the address, never the address.
 
@@ -28,6 +33,18 @@ const PASSWORD_PATHS = new Set([
   '/two-factor/generate-backup-codes',
 ]);
 const SECOND_FACTOR_PATHS = new Set(['/two-factor/verify-totp', '/two-factor/verify-backup-code']);
+/** The endpoints that set a new password, with the field of the body that carries it. */
+const NEW_PASSWORD_FIELDS = new Map([
+  ['/sign-up/email', 'password'],
+  ['/change-password', 'newPassword'],
+  ['/reset-password', 'newPassword'],
+]);
+const PASSWORD_PROBLEMS: Record<PasswordProblem, string> = {
+  PASSWORD_TOO_COMMON: 'The password is one of the most common passwords.',
+  PASSWORD_CONTAINS_CONTEXT:
+    'The password contains the name of the product, the address or the name of the user.',
+  PASSWORD_COMPROMISED: 'The password appeared in a known data breach.',
+};
 /** Further endpoints whose outcome is a security event. */
 const EVENT_PATHS = new Set([
   '/sign-up/email',
@@ -54,9 +71,10 @@ export const accountDigest = (email: string): string =>
 export interface AuthHookDependencies {
   redis: Redis;
   logger: Logger;
+  passwordPolicy: PasswordPolicy;
 }
 
-export function createAuthHooks({ redis, logger }: AuthHookDependencies) {
+export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDependencies) {
   // A counter lives for the window from its first failure on, so failures never split across
   // two windows.
   const accountKey = (email: string): string => `auth:sign-in-failures:${accountDigest(email)}`;
@@ -74,6 +92,43 @@ export function createAuthHooks({ redis, logger }: AuthHookDependencies) {
     const email = (body as { email?: unknown } | undefined)?.email;
     return typeof email === 'string' && email.length > 0 ? email : null;
   };
+  const textOf = (value: unknown): string | null => (typeof value === 'string' ? value : null);
+
+  /** Whose new password it is: from the sign-up, the session or the user of the reset token. */
+  const passwordContext = async (
+    ctx: GenericEndpointContext,
+    body: Record<string, unknown>,
+  ): Promise<PasswordContext> => {
+    if (ctx.path === '/sign-up/email') {
+      return { email: textOf(body['email']), name: textOf(body['name']) };
+    }
+    if (ctx.path === '/change-password') {
+      const session = await getSessionFromCtx(ctx);
+      return { email: session?.user.email ?? null, name: session?.user.name ?? null };
+    }
+    const token = textOf(body['token']);
+    const adapter = ctx.context.internalAdapter;
+    const verification = token ? await adapter.findVerificationValue(`reset-password:${token}`) : null;
+    const user = verification ? await adapter.findUserById(verification.value) : null;
+    return { email: user?.email ?? null, name: user?.name ?? null };
+  };
+
+  const refuseWeakPassword = async (ctx: GenericEndpointContext, field: string): Promise<void> => {
+    const body = (ctx.body ?? {}) as Record<string, unknown>;
+    const password = body[field];
+    // Better Auth answers a missing password or one of the wrong length itself.
+    if (
+      typeof password !== 'string' ||
+      password.length < PASSWORD_MIN_LENGTH ||
+      password.length > PASSWORD_MAX_LENGTH
+    ) {
+      return;
+    }
+    const problem = await passwordPolicy.problem(password, await passwordContext(ctx, body));
+    if (problem) {
+      throw APIError.from('BAD_REQUEST', { code: problem, message: PASSWORD_PROBLEMS[problem] });
+    }
+  };
 
   const before = createAuthMiddleware(async (ctx) => {
     if (ctx.path === '/sign-in/email') {
@@ -90,6 +145,10 @@ export function createAuthHooks({ redis, logger }: AuthHookDependencies) {
         logger.warn({ path: ctx.path, outcome: 'blocked', userId: session.user.id }, 'auth.event');
         throw tooMany();
       }
+    }
+    const passwordField = NEW_PASSWORD_FIELDS.get(ctx.path);
+    if (passwordField) {
+      await refuseWeakPassword(ctx, passwordField);
       return;
     }
     if (SECOND_FACTOR_PATHS.has(ctx.path)) {

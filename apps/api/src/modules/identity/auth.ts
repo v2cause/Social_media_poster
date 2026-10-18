@@ -17,6 +17,8 @@ import { uuidv7 } from 'uuidv7';
 import type { ApiEnv } from '../../config/api-env';
 import { createAuthHooks } from './auth-hooks';
 import type { AuthMailer } from './auth-mailer';
+import { createBreachCheck, noBreachCheck } from './breached-passwords';
+import { PasswordPolicy } from './password-policy';
 
 export const AUTH = Symbol('AUTH');
 
@@ -41,6 +43,13 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
       logger.error({ err: error }, event);
     });
   };
+
+  // New passwords go to the breach check where PWNED_PASSWORDS_API_URL names one (production).
+  const passwordPolicy = new PasswordPolicy(
+    env.PWNED_PASSWORDS_API_URL
+      ? createBreachCheck({ baseUrl: env.PWNED_PASSWORDS_API_URL, logger })
+      : noBreachCheck,
+  );
 
   return betterAuth({
     appName: 'Social Media Poster',
@@ -94,7 +103,7 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
     verification: { storeIdentifier: 'hashed' },
     // The API checks the password itself (PasswordCheck, with a limit per user); browsers may not.
     disabledPaths: ['/verify-password'],
-    hooks: createAuthHooks({ redis, logger }),
+    hooks: createAuthHooks({ redis, logger, passwordPolicy }),
     rateLimit: {
       // Better Auth keeps it off in development; tests check it.
       enabled: env.NODE_ENV !== 'development',

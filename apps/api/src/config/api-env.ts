@@ -29,6 +29,9 @@ export const apiEnvSchema = z
     // step 6.4); required once the X browser is offered.
     SESSION_KEKS: z.preprocess(unsetIfEmpty, z.string().optional()),
     SESSION_KEK_ACTIVE: z.preprocess(unsetIfEmpty, z.string().optional()),
+    // The breach check of new passwords (guide step 8.4): the range API of Have I Been Pwned or a
+    // mirror of it. Empty turns the check off; production needs it.
+    PWNED_PASSWORDS_API_URL: z.preprocess(unsetIfEmpty, z.url({ protocol: /^https?$/ }).optional()),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true, DATABASE_SYSTEM_URL: true }).shape)
   .extend(storageEnvSchema.shape)
@@ -46,6 +49,15 @@ export const apiEnvSchema = z
         code: 'custom',
         path: ['STRIPE_WEBHOOK_SECRET'],
         message: 'STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are set together or not at all',
+      });
+    }
+  })
+  .superRefine((env, context) => {
+    if (env.NODE_ENV === 'production' && !env.PWNED_PASSWORDS_API_URL?.startsWith('https://')) {
+      context.addIssue({
+        code: 'custom',
+        path: ['PWNED_PASSWORDS_API_URL'],
+        message: 'an https URL is required in production, for example https://api.pwnedpasswords.com',
       });
     }
   })

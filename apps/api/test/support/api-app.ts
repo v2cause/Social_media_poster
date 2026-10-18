@@ -40,6 +40,7 @@ import { configureApp } from '../../src/bootstrap';
 import { loadApiEnv, type ApiEnv } from '../../src/config/api-env';
 import { AI_RATE_LIMITS, type AiRateLimits } from '../../src/modules/content/ai-rate-limiter';
 import { INVITATION_NOTIFIER } from '../../src/modules/tenancy/invitation-notifier';
+import { startPwnedPasswords, type StartedPwnedPasswords } from './pwned-passwords';
 
 export const APP_ORIGIN = 'http://localhost:3000';
 /** The token keyring of the tests, as in .env.test. */
@@ -54,6 +55,8 @@ export interface ApiTestApp {
   env: ApiEnv;
   database: TestDatabase;
   mailpit: StartedMailpit;
+  /** The stand-in of the breach check of new passwords. */
+  pwnedPasswords: StartedPwnedPasswords;
   /** Invitations "sent" so far, with their tokens. */
   invitations: InvitationMessage[];
   /** SeaweedFS, when the app was started with objectStorage. */
@@ -109,11 +112,12 @@ async function startStorage(): Promise<{ storage: StartedObjectStorage; env: Rec
  * notifications queue that delivers like the worker role "notify" does.
  */
 export async function startApiTestApp(options: ApiTestOptions = {}): Promise<ApiTestApp> {
-  const [database, redis, mailpit, objectStorage] = await Promise.all([
+  const [database, redis, mailpit, objectStorage, pwnedPasswords] = await Promise.all([
     startTestDatabase(),
     startRedis(),
     startMailpit(),
     options.objectStorage ? startStorage() : Promise.resolve(null),
+    startPwnedPasswords(),
   ]);
   const env = loadApiEnv({
     NODE_ENV: 'test',
@@ -138,6 +142,7 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
     SESSION_KEK_ACTIVE: 'test-session-kek',
     // The deterministic mock provider; automated tests never call the Claude API (architecture 7).
     AI_PROVIDER: 'mock',
+    PWNED_PASSWORDS_API_URL: pwnedPasswords.url,
     ...options.env,
   });
 
@@ -186,6 +191,7 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
     env,
     database,
     mailpit,
+    pwnedPasswords,
     invitations,
     objectStorage: objectStorage?.storage ?? null,
     close: async () => {
@@ -193,7 +199,13 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
       await notifications.close();
       await media?.close();
       mailer.close();
-      await Promise.all([database.stop(), redis.stop(), mailpit.stop(), objectStorage?.storage.stop()]);
+      await Promise.all([
+        database.stop(),
+        redis.stop(),
+        mailpit.stop(),
+        objectStorage?.storage.stop(),
+        pwnedPasswords.stop(),
+      ]);
     },
   };
 }

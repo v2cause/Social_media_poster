@@ -77,6 +77,7 @@ describe('loadApiEnv with AI settings', () => {
       NODE_ENV: 'production',
       AI_PROVIDER: 'anthropic',
       ANTHROPIC_API_KEY: 'sk-ant-secret-value',
+      PWNED_PASSWORDS_API_URL: 'https://api.pwnedpasswords.com',
     });
     expect(env.AI_PROVIDER).toBe('anthropic');
   });
@@ -116,5 +117,29 @@ describe('loadApiEnv with AI settings', () => {
         STRIPE_API_BASE: 'http://127.0.0.1:12111',
       }),
     ).toThrow(/STRIPE_API_BASE: STRIPE_API_BASE is for tests only/);
+  });
+});
+
+describe('loadApiEnv with the breach check of passwords', () => {
+  const production = {
+    ...validEnv,
+    NODE_ENV: 'production',
+    AI_PROVIDER: 'anthropic',
+    ANTHROPIC_API_KEY: 'sk-ant-x',
+  };
+
+  it('leaves the check off when the URL is empty, outside production', () => {
+    expect(loadApiEnv({ ...validEnv, PWNED_PASSWORDS_API_URL: '' }).PWNED_PASSWORDS_API_URL).toBeUndefined();
+  });
+
+  it('needs an https URL of the range API in production', () => {
+    expect(() => loadApiEnv(production)).toThrow(/PWNED_PASSWORDS_API_URL: an https URL is required/);
+    expect(() => loadApiEnv({ ...production, PWNED_PASSWORDS_API_URL: 'http://range.example' })).toThrow(
+      /PWNED_PASSWORDS_API_URL/,
+    );
+    expect(
+      loadApiEnv({ ...production, PWNED_PASSWORDS_API_URL: 'https://api.pwnedpasswords.com' })
+        .PWNED_PASSWORDS_API_URL,
+    ).toBe('https://api.pwnedpasswords.com');
   });
 });

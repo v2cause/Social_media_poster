@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PASSWORD_FAILURES_PER_USER, SIGN_IN_FAILURES_PER_ACCOUNT } from '../src/modules/identity/auth-hooks';
 import { APP_ORIGIN, startApiTestApp, type ApiTestApp } from './support/api-app';
 import { browser as openBrowser, PASSWORD, signUpVerified } from './support/browser';
+import { BREACHED_PASSWORD, UNCHECKABLE_PASSWORD } from './support/pwned-passwords';
 
 // Spike 0.14(d) and guide steps 1.4 and 8.4: sign-up, email verification through Mailpit,
 // sign-in, getSession in the AuthGuard, sign-out and two-factor authentication against the real
@@ -15,7 +16,8 @@ import { browser as openBrowser, PASSWORD, signUpVerified } from './support/brow
 // - a sign-up with a known address tells its owner,
 // - a session ends seven days after the sign-in,
 // - reset tokens are kept as digests only,
-// - the password check of Better Auth is closed to browsers.
+// - the password check of Better Auth is closed to browsers,
+// - new passwords may be neither common, nor contain words of their context, nor be breached.
 
 const WRONG_PASSWORD = 'wrong password 123';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -338,5 +340,60 @@ describe('authentication with Better Auth', () => {
   it('does not offer the password check of Better Auth to browsers', async () => {
     const agent = await signUpVerified(started(), 'password-check@example.test');
     await agent.post('/api/auth/verify-password').send({ password: PASSWORD }).expect(404);
+  });
+
+  it('refuses a common password at sign-up, for a new address as for a known one', async () => {
+    const fresh = await signUp(browser(), 'common@example.test', { password: '1qaz2wsx3edc' });
+    const known = await signUp(browser(), 'ada@example.test', { password: '1QAZ2WSX3EDC' });
+    for (const response of [fresh, known]) {
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ code: 'PASSWORD_TOO_COMMON' });
+    }
+  });
+
+  it('refuses a password with the name or the address of the user', async () => {
+    const response = await signUp(browser(), 'charles.babbage@example.test', {
+      name: 'Charles Babbage',
+      password: 'the BABBAGE engine of 1822',
+    });
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ code: 'PASSWORD_CONTAINS_CONTEXT' });
+  });
+
+  it('refuses a breached password, and lets one pass when the breach check is down', async () => {
+    const asked = started().pwnedPasswords.prefixes.length;
+    const breached = await signUp(browser(), 'reused@example.test', { password: BREACHED_PASSWORD });
+    expect(breached.status).toBe(400);
+    expect(breached.body).toMatchObject({ code: 'PASSWORD_COMPROMISED' });
+
+    await signUp(browser(), 'unlucky@example.test', { password: UNCHECKABLE_PASSWORD }).expect(200);
+    // Only the first five characters of the hashes went out.
+    const prefixes = started().pwnedPasswords.prefixes.slice(asked);
+    expect(prefixes).toHaveLength(2);
+    expect(prefixes.every((prefix) => /^[0-9A-F]{5}$/.test(prefix))).toBe(true);
+  });
+
+  it('applies the password policy to the change and the reset of a password', async () => {
+    const email = 'mary@example.test';
+    const agent = await signUpVerified(started(), email, 'Mary Somerville');
+    const changed = await agent
+      .post('/api/auth/change-password')
+      .send({ currentPassword: PASSWORD, newPassword: 'somerville wrote on physics' });
+    expect(changed.status).toBe(400);
+    expect(changed.body).toMatchObject({ code: 'PASSWORD_CONTAINS_CONTEXT' });
+
+    await browser()
+      .post('/api/auth/request-password-reset')
+      .send({ email, redirectTo: '/reset-password' })
+      .expect(200);
+    const message = await started().mailpit.waitForMessage(email, { subject: 'Passwort zurücksetzen' });
+    const token = /reset-password\/([\w-]+)/.exec(message.Text)?.[1] ?? '';
+    const reset = (newPassword: string) =>
+      browser().post('/api/auth/reset-password').send({ token, newPassword });
+    // The reset knows its user by the token only, and still checks the name.
+    await reset('mary somerville again').expect(400, /PASSWORD_CONTAINS_CONTEXT/);
+    await reset(BREACHED_PASSWORD).expect(400, /PASSWORD_COMPROMISED/);
+    await reset('a quiet river under the old bridge').expect(200);
+    await signIn(browser(), email, 'a quiet river under the old bridge').expect(200);
   });
 });
