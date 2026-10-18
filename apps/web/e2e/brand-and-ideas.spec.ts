@@ -7,7 +7,7 @@ import { signUpOwner } from './accounts';
 // through the ideas the mock provider suggests.
 
 const run = Date.now().toString(36);
-const owner = { name: 'Bruno Brand', email: `brand-${run}@example.test`, password: 'brand password 2026' };
+const owner = { name: 'Bruno Brand', email: `brand-${run}@example.test`, password: 'voices and ideas 2026' };
 
 const QUESTIONS = 'Drei Fragen, die uns Kunden am häufigsten stellen';
 const BACKSTAGE = 'Ein Blick hinter die Kulissen';

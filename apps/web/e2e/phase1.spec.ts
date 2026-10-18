@@ -7,11 +7,11 @@ import { linkFromEmail } from './mailpit';
 // invitation, acceptance, and the viewer sees no write actions.
 
 const run = Date.now().toString(36);
-const owner = { name: 'Olivia Owner', email: `owner-${run}@example.test`, password: 'owner password 2026' };
+const owner = { name: 'Olivia Owner', email: `owner-${run}@example.test`, password: 'first account of 2026' };
 const viewer = {
   name: 'Victor Viewer',
   email: `viewer-${run}@example.test`,
-  password: 'viewer password 2026',
+  password: 'read only access 2026',
 };
 
 test('from sign-up to an invited viewer without write actions', async ({ browser }) => {

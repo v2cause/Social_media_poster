@@ -9,7 +9,7 @@ const run = Date.now().toString(36);
 const owner = {
   name: 'Clara Composer',
   email: `composer-${run}@example.test`,
-  password: 'composer password 2026',
+  password: 'drafting posts in 2026',
 };
 
 const HOOK = 'Letzte Woche stand unser Team vor einer Frage, die alles verändert hat';

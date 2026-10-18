@@ -64,7 +64,7 @@ test('upgrade, downgrade, a failed renewal and the cancellation reach the billin
   const owner: Person = {
     name: 'Bea Billing',
     email: `billing-${stamp}@e2e.test`,
-    password: 'a-long-password-for-billing',
+    password: 'a-long-password-for-the-invoices',
   };
   await signUpOwner(page, owner, `Abrechnung ${stamp}`);
 
