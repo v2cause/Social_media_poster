@@ -1,4 +1,4 @@
-import { observabilityEnvSchema } from '@smp/observability';
+import { checkProductionEnv, observabilityEnvSchema } from '@smp/observability';
 import { egressHostsEnvSchema } from '@smp/x-browser';
 import { z } from 'zod';
 
@@ -24,8 +24,15 @@ export const browserWorkerEnvSchema = z
     XB_CONCURRENCY: z.coerce.number().int().min(1).max(2).default(1),
     // A preinstalled Chromium outside the image of Playwright, for example in development.
     PLAYWRIGHT_CHROMIUM_EXECUTABLE: z.preprocess(unsetIfEmpty, z.string().optional()),
+    // Only for the rules of production: on a loopback address it is a production build on this
+    // machine (compose profile "xb"), which may keep the example values.
+    APP_URL: z.preprocess(unsetIfEmpty, z.url({ protocol: /^https?$/ }).optional()),
   })
   .extend(observabilityEnvSchema.pick({ NODE_ENV: true, LOG_LEVEL: true }).shape)
+  // No value of .env.example in production (guide step 8.4), as for API and worker.
+  .superRefine((env, context) => {
+    checkProductionEnv(env, context, {});
+  })
   .superRefine((env, context) => {
     if (env.FEATURE_X_BROWSER_GLOBAL && (!env.SESSION_KEKS || !env.SESSION_KEK_ACTIVE)) {
       context.addIssue({

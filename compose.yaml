@@ -366,6 +366,8 @@ services:
     environment:
       REDIS_URL: redis://browser-worker:${XB_REDIS_PASSWORD:?set XB_REDIS_PASSWORD in .env}@redis:6379
       NODE_ENV: production
+      # A production build on this machine, like the API: it may keep the example values.
+      APP_URL: http://localhost:8080
       LOG_LEVEL: info
       FEATURE_X_BROWSER_GLOBAL: 'true'
       # Only this container opens the sessions of X.

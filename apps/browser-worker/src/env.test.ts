@@ -49,4 +49,16 @@ describe('loadBrowserWorkerEnv', () => {
   it('requires Redis and names it when missing', () => {
     expect(() => loadBrowserWorkerEnv({})).toThrow(/REDIS_URL/);
   });
+
+  it('refuses the example values of .env.example in production, except on this machine', () => {
+    const production = {
+      NODE_ENV: 'production',
+      REDIS_URL: 'redis://browser-worker:change-me-xb-redis@redis:6379',
+    };
+
+    expect(() => loadBrowserWorkerEnv(production)).toThrow(/REDIS_URL: an example value/);
+    expect(loadBrowserWorkerEnv({ ...production, APP_URL: 'http://localhost:8080' }).NODE_ENV).toBe(
+      'production',
+    );
+  });
 });

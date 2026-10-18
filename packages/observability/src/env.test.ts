@@ -48,6 +48,7 @@ describe('the rules of production', () => {
       NODE_ENV: 'production',
       APP_URL: 'http://app.example.com',
       DATABASE_URL: 'postgresql://app_user:change-me-app-user@db:5432/smp',
+      S3_SECRET_ACCESS_KEY: 'smp-local-secret-key',
     };
 
     const issues = issuesOf(env, { APP_URL: env.APP_URL, S3_ENDPOINT: 'https://s3.example.com' });
@@ -59,8 +60,13 @@ describe('the rules of production', () => {
         path: ['DATABASE_URL'],
         message: 'an example value of .env.example is not allowed in production',
       },
+      {
+        code: 'custom',
+        path: ['S3_SECRET_ACCESS_KEY'],
+        message: 'an example value of .env.example is not allowed in production',
+      },
     ]);
-    expect(JSON.stringify(issues)).not.toContain('change-me-app-user');
+    expect(JSON.stringify(issues)).not.toMatch(/change-me-app-user|smp-local-secret-key/);
   });
 
   it('leaves development and a production build on this machine alone', () => {

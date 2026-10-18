@@ -30,8 +30,11 @@ export function isLoopbackUrl(url: string | undefined): boolean {
   }
 }
 
-/** Every example value of .env.example contains it. */
-const EXAMPLE_VALUE = 'change-me';
+/**
+ * Every example value of .env.example contains one of them: "change-me", or "smp-local-" in the
+ * key pair of the local storage, which infra/docker/seaweedfs/s3.json shares.
+ */
+const EXAMPLE_VALUES = ['change-me', 'smp-local-'];
 
 /**
  * The rules of production (guide step 8.4), for superRefine: the browser and the recipients of
@@ -52,7 +55,7 @@ export function checkProductionEnv(
     }
   }
   for (const [name, value] of Object.entries(env)) {
-    if (typeof value === 'string' && value.includes(EXAMPLE_VALUE)) {
+    if (typeof value === 'string' && EXAMPLE_VALUES.some((example) => value.includes(example))) {
       ctx.addIssue({
         code: 'custom',
         path: [name],
