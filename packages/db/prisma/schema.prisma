@@ -784,6 +784,9 @@ model MediaAsset {
   postMedia  PostMedia[]
 
   @@index([workspaceId, createdAt(sort: Desc)])
+  // For the clean-up of the media library: assets removed from it and uploads still pending.
+  @@index([deletedAt], map: "media_asset_deleted_idx", where: raw("deleted_at IS NOT NULL"))
+  @@index([createdAt], map: "media_asset_pending_idx", where: raw("status = 'PENDING_UPLOAD'"))
   @@map("media_asset")
 }
 

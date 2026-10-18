@@ -45,6 +45,7 @@ export {
 } from './content/content-read-model';
 export { PrismaAiGenerationLog } from './ai/prisma-ai-generation-log';
 export { PrismaMediaUnitOfWork } from './media/prisma-media-unit-of-work';
+export { PrismaMediaCleanupStore } from './media/prisma-media-cleanup-store';
 export {
   MediaReadModel,
   type MediaAssetView,
