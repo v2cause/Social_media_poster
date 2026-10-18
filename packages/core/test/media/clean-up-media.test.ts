@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CleanUpMedia,
-  DELETED_MEDIA_DAYS,
   PENDING_UPLOAD_HOURS,
   type ExpiredAsset,
   type ExpiredMediaCutoffs,
@@ -10,10 +9,10 @@ import {
 } from '../../src';
 import { fixedClock } from '../in-memory-content';
 
-// Guide step 8.3 with architecture 9: an asset removed from the library goes 30 days later and an
-// upload that never completed after 24 hours, unless a variant uses it. The objects under the
-// prefix of the asset go before its row; a failed deletion of the objects leaves the row for the
-// next run.
+// Guide steps 8.3 and 8.4 with architecture 9: an asset removed from the library goes with the
+// next run and an upload that never completed after 24 hours, unless a variant uses it. The
+// objects under the prefix of the asset go before its row; a failed deletion of the objects leaves
+// the row for the next run.
 
 const NOW = '2026-10-18T05:00:00Z';
 const HOUR = 60 * 60 * 1000;
@@ -87,12 +86,13 @@ const filesOf = (objects: MemoryObjects, id: string): void => {
 };
 
 describe('CleanUpMedia', () => {
-  it('deletes removed assets after 30 days and uncompleted uploads after 24 hours, objects first', async () => {
+  it('deletes removed assets with the next run and uncompleted uploads after 24 hours, objects first', async () => {
     const store = new MemoryMedia();
     const objects = new MemoryObjects();
     store.rows = [
-      asset('removed-old', { deletedAt: hoursAgo(DELETED_MEDIA_DAYS * 24 + 1) }),
-      asset('removed-recent', { deletedAt: hoursAgo(DELETED_MEDIA_DAYS * 24 - 1) }),
+      asset('removed', { deletedAt: hoursAgo(0.5) }),
+      // Removed at the moment of the run: the next one takes it.
+      asset('removed-now', { deletedAt: hoursAgo(0) }),
       asset('pending-old', { status: 'PENDING_UPLOAD', createdAt: hoursAgo(PENDING_UPLOAD_HOURS + 1) }),
       asset('pending-recent', { status: 'PENDING_UPLOAD', createdAt: hoursAgo(PENDING_UPLOAD_HOURS - 1) }),
       // Used by a variant despite its removal: it stays with its files.
@@ -107,14 +107,14 @@ describe('CleanUpMedia', () => {
     await expect(cleanUp.execute()).resolves.toEqual({ mediaDeleted: 2, mediaObjectsDeleted: 4 });
 
     expect(store.rows.map((row) => row.id)).toEqual([
-      'removed-recent',
+      'removed-now',
       'pending-recent',
       'removed-used',
       'library',
     ]);
-    expect([...objects.keys].some((key) => key.includes('removed-old') || key.includes('pending-old'))).toBe(
-      false,
-    );
+    expect(
+      [...objects.keys].some((key) => key.includes('/assets/removed/') || key.includes('pending-old')),
+    ).toBe(false);
     expect(objects.keys.size).toBe(8);
   });
 

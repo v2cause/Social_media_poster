@@ -23,10 +23,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
 
-// Guide step 8.3 with architecture 9: the hourly sweep of the role "gdpr" cleans up the media
-// library in SeaweedFS and PostgreSQL. An asset removed from the library more than 30 days ago
-// and an upload still pending after 24 hours lose their objects and their rows; a recently removed
-// asset, a fresh upload and an asset of the library keep theirs.
+// Guide steps 8.3 and 8.4 with architecture 9: the hourly sweep of the role "gdpr" cleans up the
+// media library in SeaweedFS and PostgreSQL. An asset removed from the library, also one removed
+// minutes ago, and an upload still pending after 24 hours lose their objects and their rows; a
+// fresh upload and an asset of the library keep theirs.
 
 const BUCKET = 'smp-test-media-cleanup';
 const DAY = 24 * 60 * 60 * 1000;
@@ -42,7 +42,7 @@ describe('the clean-up of the media library in the sweep of the role "gdpr"', ()
   let workspaceId = '';
   const assets = {
     removedOld: randomUUID(),
-    removedRecent: randomUUID(),
+    removedRecently: randomUUID(),
     pendingOld: randomUUID(),
     pendingRecent: randomUUID(),
     library: randomUUID(),
@@ -131,7 +131,7 @@ describe('the clean-up of the media library in the sweep of the role "gdpr"', ()
     }
     for (const [id, status, createdAt, deletedAt] of [
       [assets.removedOld, 'READY', ago(90), ago(31)],
-      [assets.removedRecent, 'READY', ago(90), ago(29)],
+      [assets.removedRecently, 'READY', ago(90), ago(0.01)],
       [assets.pendingOld, 'PENDING_UPLOAD', ago(1.1), null],
       [assets.pendingRecent, 'PENDING_UPLOAD', ago(0.5), null],
       [assets.library, 'READY', ago(400), null],
@@ -188,14 +188,12 @@ describe('the clean-up of the media library in the sweep of the role "gdpr"', ()
   });
 
   it('deletes the objects and rows of expired assets and keeps the others', async () => {
-    await expect(sweep()).resolves.toMatchObject({ mediaDeleted: 2, mediaObjectsDeleted: 3 });
+    await expect(sweep()).resolves.toMatchObject({ mediaDeleted: 3, mediaObjectsDeleted: 5 });
 
     const rows = await query<{ id: string }>(`SELECT id FROM media_asset WHERE id = ANY($1)`, [
       Object.values(assets),
     ]);
-    expect(rows.map((row) => row.id).sort()).toEqual(
-      [assets.removedRecent, assets.pendingRecent, assets.library].sort(),
-    );
+    expect(rows.map((row) => row.id).sort()).toEqual([assets.pendingRecent, assets.library].sort());
     const objects = Object.fromEntries(
       await Promise.all(
         Object.entries(assets).map(
@@ -206,8 +204,8 @@ describe('the clean-up of the media library in the sweep of the role "gdpr"', ()
     );
     expect(objects).toMatchObject({
       removedOld: null,
+      removedRecently: null,
       pendingOld: null,
-      removedRecent: { size: 4 },
       pendingRecent: { size: 4 },
       library: { size: 4 },
     });

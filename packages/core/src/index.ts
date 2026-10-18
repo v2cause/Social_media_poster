@@ -623,7 +623,6 @@ export {
 export type { ExpiredAsset, ExpiredMediaCutoffs, MediaCleanupStore } from './media/ports/media-cleanup-store';
 export {
   CleanUpMedia,
-  DELETED_MEDIA_DAYS,
   PENDING_UPLOAD_HOURS,
   type MediaCleanupDependencies,
   type MediaCleanupReport,

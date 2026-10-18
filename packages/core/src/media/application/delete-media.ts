@@ -3,7 +3,8 @@ import { MediaInUseError, MediaNotFoundError } from '../domain/errors';
 import { assertCanWriteMedia, mediaScopeOf, type MediaDependencies } from './dependencies';
 
 // Removes an asset from the library (architecture 9). An asset a variant still uses stays; the
-// user detaches it first. CleanUpMedia deletes its files and its row 30 days later.
+// user detaches it first. CleanUpMedia deletes its files and its row with its next run, within the
+// hour (guide step 8.4).
 
 export interface DeleteMediaInput {
   actor: ContentActor;

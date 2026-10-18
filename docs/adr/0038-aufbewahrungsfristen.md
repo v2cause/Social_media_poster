@@ -2,7 +2,7 @@
 
 - **Status**: Akzeptiert
 - **Datum**: 2026-10-18
-- **Bezug**: Umsetzungsleitfaden, Schritt 8.3; `docs/ARCHITECTURE.md`, Abschnitte 4.3, 5.3, 6.2, 6.4, 7.4, 8, 9, 10 und 12; [ADR 0019](0019-medien-upload-und-verarbeitung.md), [ADR 0027](0027-analytics-kaskade-rollup-und-api.md), [ADR 0032](0032-canary-und-circuit-breaker.md), [ADR 0033](0033-tarife-abo-und-nur-lesen.md), [ADR 0037](0037-loeschung-von-organisationen.md)
+- **Bezug**: Umsetzungsleitfaden, Schritte 8.3 und 8.4; `docs/ARCHITECTURE.md`, Abschnitte 4.3, 5.3, 6.2, 6.4, 7.4, 8, 9, 10 und 12; [ADR 0019](0019-medien-upload-und-verarbeitung.md), [ADR 0027](0027-analytics-kaskade-rollup-und-api.md), [ADR 0032](0032-canary-und-circuit-breaker.md), [ADR 0033](0033-tarife-abo-und-nur-lesen.md), [ADR 0037](0037-loeschung-von-organisationen.md)
 
 ## Kontext
 
@@ -14,7 +14,7 @@ Der Leitfaden verlangt in Schritt 8.3 Jobs für vier Fristen:
 
 Fertig ist der Schritt, wenn die Jobs nachts laufen. Zwei Zusagen warteten auf diesen Schritt:
 - ADR 0037 überlässt ihm verarbeitete Webhook-Ereignisse.
-- Abschnitt 9 der Architektur sieht ein Aufräumen der Medien vor: gelöschte Assets nach 30 Tagen, hängende Uploads nach 24 Stunden. Es fehlte bisher. Gelöschte Dateien blieben also im Objektspeicher, und hängende Uploads zählten weiter gegen den Speicher des Tarifs.
+- Abschnitt 9 der Architektur sah ein Aufräumen der Medien vor: gelöschte Assets nach 30 Tagen, hängende Uploads nach 24 Stunden. Es fehlte bisher. Gelöschte Dateien blieben also im Objektspeicher, und hängende Uploads zählten weiter gegen den Speicher des Tarifs.
 
 ## Entscheidung
 
@@ -26,7 +26,7 @@ Fertig ist der Schritt, wenn die Jobs nachts laufen. Zwei Zusagen warteten auf d
 | Verarbeitete Webhook-Ereignisse | 30 Tage nach der Verarbeitung | Sie werden gelöscht; wartende bleiben. |
 | Verbindungsdaten: IP-Adresse und User-Agent | 30 Tage | Einträge des Audit-Logs verlieren beide Felder, der Eintrag selbst bleibt. Sessions gehen 30 Tage nach ihrem Ablauf, die Zähler der Rate-Limits von Better Auth (Schlüssel aus IP-Adresse und Pfad) 30 Tage nach ihrer letzten Anfrage. |
 | Metriken | Analytics-Historie des Tarifs, mindestens 36 Tage | `metric_snapshot` nach dem Zeitpunkt der Messung, `account_metric_snapshot` und `analytics_daily` nach ihrem Tag in UTC |
-| Medien | 30 Tage nach dem Entfernen aus der Bibliothek; Uploads ohne Abschluss nach 24 Stunden | Die Objekte gehen, dann die Zeile mit ihren Renditions. |
+| Medien | Mit dem nächsten stündlichen Lauf nach dem Entfernen aus der Bibliothek (bis Schritt 8.4: 30 Tage); Uploads ohne Abschluss nach 24 Stunden | Die Objekte gehen, dann die Zeile mit ihren Renditions. |
 | Screenshots | entfällt | Der browser-worker speichert keine (ADR 0032). |
 | Anwendungslogs | 30 Tage | Das stellt das Log-Backend ein, die Vorlage aus Schritt 8.9. |
 
@@ -82,7 +82,7 @@ Fertig ist der Schritt, wenn die Jobs nachts laufen. Zwei Zusagen warteten auf d
   - Nach einer Testphase ohne Kauf bleiben 36 Tage.
 - **Audit-Log**: `app_user` kann Einträge weiterhin weder ändern noch löschen. Nur der Job leert als `app_system` IP-Adresse und User-Agent.
 - **Medien**:
-  - Beim Löschen sagt die Bibliothek, dass die Datei nach 30 Tagen endgültig gelöscht wird. Bis dahin ließe sie sich in der Datenbank wiederherstellen; eine Oberfläche dafür gibt es nicht.
+  - Beim Löschen sagt die Bibliothek, dass die Datei innerhalb einer Stunde endgültig gelöscht wird. Bis Schritt 8.4 blieben entfernte Dateien 30 Tage und ließen sich in der Datenbank wiederherstellen, eine Oberfläche dafür gab es nicht. Weil ein entferntes Asset nicht mehr gegen den Speicher des Tarifs zählt, hätte Hochladen und Löschen im Wechsel Speicher außerhalb jeder Quote belegt: bis zu 300 Uploads je Stunde und Nutzer zu 20 MB, jeweils 30 Tage lang. Die Frist entfällt deshalb (Security-Review, ADR 0039).
   - Hängende Uploads zählen nach 24 Stunden nicht mehr gegen den Speicher des Tarifs.
 - **Abweichung von Abschnitt 9 der Architektur**:
   - Das Aufräumen der Medien läuft stündlich in der Rolle `gdpr` statt nachts in `tick.maintenance`.

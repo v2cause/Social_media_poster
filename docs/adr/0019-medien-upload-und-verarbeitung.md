@@ -16,7 +16,7 @@ Bilder kommen per Presigned PUT direkt in den Objektspeicher (ADR 0008). Danach 
 - **`POST /media/:id/complete` ist wiederholbar**: Steht das Asset schon auf `PROCESSING`, wird der Job erneut eingereiht; die Job-ID `media.{assetId}` verhindert einen zweiten, solange der erste wartet oder läuft. Jeder andere Zustand kommt unverändert zurück. Fehlt die Datei noch, antwortet die API mit 409 `MEDIA_UPLOAD_MISSING`.
 - **Abweichende Dateien**: Weichen Größe oder Content-Type laut `HeadObject` von der Ankündigung ab, löscht die API das Objekt sofort und setzt `REJECTED` mit `SIZE_MISMATCH` oder `TYPE_MISMATCH`.
 - **Ablehnungsgründe**: `SIZE_MISMATCH`, `TYPE_MISMATCH`, `NOT_AN_IMAGE`, `UNSUPPORTED_FORMAT`, `HEIC_NOT_SUPPORTED`, `ANIMATED_NOT_SUPPORTED`, `DIMENSIONS_TOO_LARGE`, `CORRUPT_IMAGE`. Die UI übersetzt den Code. Abgelehnte Dateien und alles daraus Erzeugte werden sofort gelöscht (alle Objekte unter `ws/{ws}/assets/{id}/`).
-- **Löschen**: `DELETE` setzt `deletedAt` und schreibt `media.delete` ins Audit-Log. Ein Asset, das eine Variante verwendet, bleibt (409 `MEDIA_IN_USE`). Die Dateien räumt später `tick.maintenance` nach 30 Tagen ab (Architektur, Abschnitt 9).
+- **Löschen**: `DELETE` setzt `deletedAt` und schreibt `media.delete` ins Audit-Log. Ein Asset, das eine Variante verwendet, bleibt (409 `MEDIA_IN_USE`). Dateien und Zeile räumt der stündliche `gdpr.sweep` mit seinem nächsten Lauf ab (Architektur, Abschnitt 9; ADR 0038).
 
 ### Prüfung im Worker (`media.process`)
 
