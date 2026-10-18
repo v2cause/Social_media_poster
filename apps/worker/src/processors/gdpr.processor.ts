@@ -1,7 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject } from '@nestjs/common';
-import { systemClock, type ExportResult } from '@smp/core';
-import { GDPR_EXPORT, GDPR_QUEUE, GDPR_SWEEP, parseGdprJob, parseGdprSweep } from '@smp/queue';
+import { systemClock, type ErasureResult, type ExportResult } from '@smp/core';
+import { GDPR_ERASE, GDPR_EXPORT, GDPR_QUEUE, GDPR_SWEEP, parseGdprJob, parseGdprSweep } from '@smp/queue';
 import { type Job, UnrecoverableError } from 'bullmq';
 import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 import { ZodError } from 'zod';
@@ -10,11 +10,20 @@ import type { GdprPipeline } from '../infrastructure/gdpr.providers';
 import { jobsTotal } from '../metrics';
 import { GDPR_PIPELINE } from '../worker.tokens';
 
+/** What the sweep did. */
+interface SweepResult {
+  exportsExpired: number;
+  exportsTimedOut: number;
+  erasuresQueued: number;
+}
+
 /**
- * The jobs of the queue "gdpr" (guide step 8.1). gdpr.export packs the data of an organization
- * into an archive; after its last attempt the request fails, so the owner can ask again.
- * gdpr.sweep deletes the archives of expired exports. One job at a time per worker: an export
- * reads every table of an organization. Logs carry ids and counts, never data of the export.
+ * The jobs of the queue "gdpr" (guide steps 8.1 and 8.2). gdpr.export packs the data of an
+ * organization into an archive; after its last attempt the request fails, so the owner can ask
+ * again. gdpr.erase erases an organization 30 days after its deletion; it is never given up: the
+ * sweep hands it on again. gdpr.sweep deletes the archives of expired exports and hands on the due
+ * erasures. One job at a time per worker: an export reads and an erasure deletes every table of an
+ * organization. Logs carry ids and counts, never data of the organization.
  */
 @Processor(GDPR_QUEUE, { concurrency: 1 })
 export class GdprProcessor extends WorkerHost {
@@ -25,16 +34,26 @@ export class GdprProcessor extends WorkerHost {
     super();
   }
 
-  process(job: Job): Promise<ExportResult | { exportsExpired: number; exportsTimedOut: number }> {
+  process(job: Job): Promise<ExportResult | ErasureResult | SweepResult> {
     if (job.name === GDPR_EXPORT) {
       const { requestId } = this.parse(job, parseGdprJob);
       return this.run(job, { requestId }, () => this.export(job, requestId));
     }
+    if (job.name === GDPR_ERASE) {
+      const { requestId } = this.parse(job, parseGdprJob);
+      return this.run(job, { requestId }, () => this.pipeline.eraser.execute(requestId));
+    }
     if (job.name === GDPR_SWEEP) {
       this.parse(job, parseGdprSweep);
-      return this.run(job, {}, () => this.pipeline.expire.execute());
+      return this.run(job, {}, () => this.sweep());
     }
     throw new UnrecoverableError(`unknown job ${job.name}`);
+  }
+
+  private async sweep(): Promise<SweepResult> {
+    const expired = await this.pipeline.expire.execute();
+    const scheduled = await this.pipeline.schedule.execute();
+    return { ...expired, ...scheduled };
   }
 
   private async export(job: Job, requestId: string): Promise<ExportResult> {

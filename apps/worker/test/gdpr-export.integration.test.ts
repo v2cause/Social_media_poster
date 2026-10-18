@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import type { INestApplicationContext } from '@nestjs/common';
@@ -165,6 +165,9 @@ describe('the export in the role "gdpr"', () => {
       DATABASE_URL: database.url('app_user'),
       DATABASE_SYSTEM_URL: database.url('app_system'),
       APP_URL: 'http://localhost:3000/',
+      // The role revokes the grants of an erased organization with the key ring of the tokens.
+      TOKEN_KEKS: `kek-test:${randomBytes(32).toString('base64')}`,
+      TOKEN_KEK_ACTIVE: 'kek-test',
       S3_ENDPOINT: config.endpoint,
       S3_REGION: config.region,
       S3_BUCKET: BUCKET,
@@ -304,7 +307,7 @@ describe('the export in the role "gdpr"', () => {
 
     const result = await run(() => new GdprProducer(ready().gdpr).sweep(), 'gdpr.sweep');
 
-    expect(result).toEqual({ exportsExpired: 1, exportsTimedOut: 0 });
+    expect(result).toEqual({ exportsExpired: 1, exportsTimedOut: 0, erasuresQueued: 0 });
     await expect(store.head(`exports/${org.organizationId}/${requestId}.zip`)).resolves.toBeNull();
     const [request] = await query<{ object_key: string | null }>(
       `SELECT object_key FROM gdpr_request WHERE id = $1`,
