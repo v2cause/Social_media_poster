@@ -7,3 +7,4 @@ export const TICK_HANDLERS = Symbol('TICK_HANDLERS');
 export const PUBLISH_PIPELINE = Symbol('PUBLISH_PIPELINE');
 export const ANALYTICS_PIPELINE = Symbol('ANALYTICS_PIPELINE');
 export const BILLING_PIPELINE = Symbol('BILLING_PIPELINE');
+export const GDPR_PIPELINE = Symbol('GDPR_PIPELINE');

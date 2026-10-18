@@ -23,6 +23,8 @@ import {
   AnalyticsProducer,
   BILLING_QUEUE,
   BillingProducer,
+  GDPR_QUEUE,
+  GdprProducer,
   LiveEventPublisher,
   NOTIFICATIONS_QUEUE,
   NotificationProducer,
@@ -47,12 +49,12 @@ import type { WorkerEnv } from '../worker-env';
 import { TICK_HANDLERS } from '../worker.tokens';
 import { EmailBillingNotifier } from './billing-notifier';
 
-// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9, 5.2, 6.5, 7.3 and 7.4): the
-// system client for the scans across workspaces, app_user for the changes of the token monitor in
-// the tenant of each connection, the producers of the jobs the ticks add, the commands of the
-// daily canary of the X browser, and the tick handlers. The daily usage reports run where Stripe
-// is set up (STRIPE_SECRET_KEY); the notices of read-only access, whose links lead into the web
-// app, where APP_URL is set.
+// The adapters of the role "scheduler" (guide steps 4.2, 4.3, 4.7, 4.9, 5.2, 6.5, 7.3, 7.4 and
+// 8.1): the system client for the scans across workspaces, app_user for the changes of the token
+// monitor in the tenant of each connection, the producers of the jobs the ticks add, the commands
+// of the daily canary of the X browser, and the tick handlers. The daily usage reports run where
+// Stripe is set up (STRIPE_SECRET_KEY); the notices of read-only access, whose links lead into
+// the web app, where APP_URL is set.
 
 const SCHEDULER_CLIENTS = Symbol('SCHEDULER_CLIENTS');
 /** Variants per claim of tick.publish and per scan of the sweeper. */
@@ -104,6 +106,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
   const notificationsQueue = new Queue(NOTIFICATIONS_QUEUE, { connection: producers });
   const tokensQueue = new Queue(TOKENS_QUEUE, { connection: producers });
   const analyticsQueue = new Queue(ANALYTICS_QUEUE, { connection: producers });
+  const gdprQueue = new Queue(GDPR_QUEUE, { connection: producers });
   // Live events go out on a plain connection that fails fast as well.
   const live = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1, enableOfflineQueue: false });
   const outbox = new PrismaOutboxRelay(system);
@@ -174,6 +177,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
         clock: systemClock,
       })
     : null;
+  const gdprProducer = new GdprProducer(gdprQueue);
   const handlers: TickHandlers = {
     'tick.publish': () => publishTick.run(),
     'tick.sweep-queued': () => sweeper.run(),
@@ -188,6 +192,11 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
     ...(canaryTick ? { 'tick.xb-canary': () => canaryTick.run() } : {}),
     ...(usageTick ? { 'tick.usage-report': () => usageTick.run() } : {}),
     ...(readOnly ? { 'tick.read-only': async () => ({ ...(await readOnly.execute()) }) } : {}),
+    // The role "gdpr" reaches the object storage; the tick only hands it the sweep.
+    'tick.gdpr': async () => {
+      await gdprProducer.sweep();
+      return {};
+    },
   };
   return [
     {
@@ -200,6 +209,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
           notificationsQueue,
           tokensQueue,
           analyticsQueue,
+          gdprQueue,
           ...(canary ? [canary.queue] : []),
           ...(billingQueue ? [billingQueue] : []),
         ],

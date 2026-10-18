@@ -184,6 +184,7 @@ describe('outbox relay of the worker', () => {
     expect(schedulers.map((scheduler) => scheduler.key).sort()).toEqual([
       'tick.account-metrics',
       'tick.analytics',
+      'tick.gdpr',
       'tick.maintenance',
       'tick.outbox-relay',
       'tick.publish',

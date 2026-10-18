@@ -15,6 +15,7 @@ import { createLogger } from '@smp/observability';
 import {
   ANALYTICS_QUEUE,
   BILLING_QUEUE,
+  GDPR_QUEUE,
   MEDIA_QUEUE,
   NOTIFICATIONS_QUEUE,
   PUBLISH_QUEUE,
@@ -27,11 +28,13 @@ import { LoggerModule } from 'nestjs-pino';
 import { HealthServer } from './health/health.server';
 import { analyticsPipeline } from './infrastructure/analytics.providers';
 import { billingPipeline } from './infrastructure/billing.providers';
+import { gdprPipeline } from './infrastructure/gdpr.providers';
 import { notifyPipeline } from './infrastructure/notify.providers';
 import { publisherPipeline } from './infrastructure/publisher.providers';
 import { schedulerTicks } from './infrastructure/scheduler.providers';
 import { AnalyticsProcessor } from './processors/analytics.processor';
 import { BillingProcessor } from './processors/billing.processor';
+import { GdprProcessor } from './processors/gdpr.processor';
 import { MediaProcessor } from './processors/media.processor';
 import { NotifyProcessor } from './processors/notify.processor';
 import { SchedulerProcessor } from './processors/scheduler.processor';
@@ -118,6 +121,7 @@ const WIRING_BY_ROLE: Partial<Record<WorkerRole, RoleWiring>> = {
   media: { queues: [MEDIA_QUEUE], processors: [MediaProcessor], providers: mediaPipeline },
   notify: { queues: [NOTIFICATIONS_QUEUE], processors: [NotifyProcessor], providers: notifyPipeline },
   billing: { queues: [BILLING_QUEUE], processors: [BillingProcessor], providers: billingPipeline },
+  gdpr: { queues: [GDPR_QUEUE], processors: [GdprProcessor], providers: gdprPipeline },
 };
 
 @Module({})
