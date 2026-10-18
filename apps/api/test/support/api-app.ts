@@ -38,6 +38,7 @@ import type { Server } from 'node:http';
 import { AppModule } from '../../src/app.module';
 import { configureApp } from '../../src/bootstrap';
 import { loadApiEnv, type ApiEnv } from '../../src/config/api-env';
+import { INBOUND_RATE_LIMITS, type InboundRateLimits } from '../../src/common/throttling/throttling';
 import { AI_RATE_LIMITS, type AiRateLimits } from '../../src/modules/content/ai-rate-limiter';
 import { INVITATION_NOTIFIER } from '../../src/modules/tenancy/invitation-notifier';
 import { startPwnedPasswords, type StartedPwnedPasswords } from './pwned-passwords';
@@ -72,6 +73,11 @@ export interface ApiTestOptions {
   captureInvitations?: boolean;
   /** Other limits of the AI routes, for tests that make many AI calls in a minute. */
   aiRateLimits?: AiRateLimits;
+  /**
+   * The inbound rate limits (guide step 8.4). By default so high, and without the limits of single
+   * routes, that only the tests of the limits meet them.
+   */
+  inboundRateLimits?: InboundRateLimits;
   /** Further environment variables, for example STRIPE_API_BASE. */
   env?: Record<string, string>;
   /**
@@ -177,6 +183,13 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
   if (options.aiRateLimits) {
     builder.overrideProvider(AI_RATE_LIMITS).useValue(options.aiRateLimits);
   }
+  builder.overrideProvider(INBOUND_RATE_LIMITS).useValue(
+    options.inboundRateLimits ?? {
+      perAddressPerMinute: 1_000_000,
+      perUserPerMinute: 1_000_000,
+      routeLimits: false,
+    },
+  );
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     bodyParser: false,

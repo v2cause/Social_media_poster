@@ -5,6 +5,7 @@ import { createLogger } from '@smp/observability';
 import { uuidv7 } from 'uuidv7';
 
 import { RequestContextModule } from './common/cls/request-context.module';
+import { ThrottlingModule } from './common/throttling/throttling';
 import { ProblemDetailsFilter } from './common/filters/problem-details.filter';
 import { httpLogSerializers } from './common/logging/http-log-serializers';
 import type { ApiEnv } from './config/api-env';
@@ -51,6 +52,7 @@ export class AppModule {
         LoggerModule.forRoot(pinoParams),
         RequestContextModule,
         ClientsModule,
+        ThrottlingModule,
         PlanModule,
         HealthModule,
         IdentityModule,
