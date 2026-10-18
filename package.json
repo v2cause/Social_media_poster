@@ -25,6 +25,7 @@
     "check:i18n": "tsx tools/check-i18n.ts",
     "check:rls": "tsx --env-file-if-exists=.env tools/check-rls.ts",
     "check:erasure": "tsx --env-file-if-exists=.env tools/check-erasure.ts",
+    "auth:reencrypt": "pnpm --filter @smp/api auth:reencrypt",
     "stripe:sync": "tsx --env-file-if-exists=.env tools/stripe-sync.ts"
   },
   "prettier": "@smp/config/prettier",

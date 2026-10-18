@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.mts"
+    "test:integration": "vitest run --config vitest.integration.config.mts",
+    "auth:reencrypt": "node --env-file-if-exists=../../.env dist/scripts/reencrypt-two-factor.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",
