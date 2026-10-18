@@ -91,6 +91,7 @@
       "SELECTOR_DRIFT": "The interface of X has changed. Signing in is not possible for the time being.",
       "TIMEOUT": "The sign-in took too long. Please start it again.",
       "ACCOUNT_MISMATCH": "You signed in with another X account than the one to reconnect.",
+      "PLAN_LIMIT_REACHED": "Your plan does not allow another account. The owner of your organization can choose a larger plan under Billing.",
       "UNAVAILABLE": "The X browser is not available right now. Please try again later.",
       "TRANSIENT": "The sign-in failed. Please try again later."
     }

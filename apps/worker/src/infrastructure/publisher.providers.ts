@@ -8,6 +8,7 @@ import {
   type XBrowserBreaker,
   systemClock,
   uuidV7Ids,
+  type AccountLimits,
   type AdapterResolver,
   type ConnectionLock,
   type PublishJobDependencies,
@@ -58,6 +59,11 @@ import {
 /** How long the lock of a connection lasts, and how long a run waits for it. */
 const CONNECTION_LOCK_TTL_MS = 30_000;
 const CONNECTION_LOCK_WAIT_MS = 15_000;
+
+/** Without the X browser no login reports; one that does anyway connects nothing. */
+const NO_BROWSER_ACCOUNTS: AccountLimits = {
+  assertRoom: () => Promise.reject(new Error('The X browser is off in this worker.')),
+};
 
 /** What the publish worker and the token refresh need, apart from their loggers. */
 export interface PublishPipeline {
@@ -139,7 +145,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
   });
   const deadLetterQueue = new Queue(PUBLISH_DEAD_LETTER_QUEUE, { connection: deadLetterConnection });
   const xBrowser = xBrowserWiring(env, database);
-  const breaker = xBrowserBreakerOf(env, redis);
+  const breaker = xBrowserBreakerOf(env, redis, database);
   // Fails at the start when a platform is live without its adapter.
   const registry = createAdapterRegistry({
     env,
@@ -160,6 +166,8 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
     logins: new RedisBrowserLoginStore(redis),
     events: new LiveBrowserLoginEvents(new LiveEventPublisher(redis)),
     unitOfWork: new PrismaChannelUnitOfWork(database),
+    // A new account of a login needs room in the plan when it connects (guide step 8.4).
+    accounts: breaker?.accounts ?? NO_BROWSER_ACCOUNTS,
     clock: systemClock,
     ids: uuidV7Ids,
   };

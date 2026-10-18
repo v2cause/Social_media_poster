@@ -324,4 +324,36 @@ describe('the interactive login of X', () => {
     expect(t.channels.state.connections.size).toBe(1);
     expect(t.channels.state.audit).toHaveLength(1);
   });
+
+  it('connects a new account only while the plan still has room, counted under the lock (guide step 8.4)', async () => {
+    const t = setup();
+    const first = await t.start();
+    const second = await t.start();
+    // Another connection filled the plan while the first login ran.
+    t.accounts.max = 1;
+    const connected = await t.complete(second.id, { ...demoUser, id: '555', handle: 'smp_other' });
+    if (connected.status !== 'connected') {
+      throw new Error(`not connected: ${connected.status}`);
+    }
+
+    await expect(t.complete(first.id)).resolves.toEqual({ status: 'plan_limit_reached' });
+    await expect(t.get(first.id)).resolves.toMatchObject({ status: 'FAILED', failure: 'PLAN_LIMIT_REACHED' });
+    expect(t.events.events.at(-1)).toMatchObject({ status: 'FAILED', userId: 'user-owner' });
+    expect(t.channels.state.connections.size).toBe(1);
+    expect(t.channels.state.audit).toHaveLength(1);
+    // The starts asked early, the completions under the lock of the organization.
+    expect(t.accounts.asked).toEqual([
+      { adding: 1, locked: false },
+      { adding: 1, locked: false },
+      { adding: 1, locked: true },
+      { adding: 1, locked: true },
+    ]);
+
+    // An account that is still connected needs no room for a new login.
+    const again = await t.start(owner, connected.accountId);
+    await expect(t.complete(again.id, { ...demoUser, id: '555', handle: 'smp_other' })).resolves.toEqual(
+      connected,
+    );
+    expect(t.accounts.asked).toHaveLength(4);
+  });
 });

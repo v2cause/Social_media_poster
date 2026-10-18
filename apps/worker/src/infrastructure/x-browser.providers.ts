@@ -1,7 +1,17 @@
 import { riskTextOf, X_BROWSER_RISK } from '@smp/contracts';
-import { systemClock, XBrowserBreaker, XBrowserGate, type SocialPlatformAdapter } from '@smp/core';
+import {
+  EntitlementsService,
+  planAccountLimits,
+  systemClock,
+  XBrowserBreaker,
+  XBrowserGate,
+  type AccountLimits,
+  type SocialPlatformAdapter,
+} from '@smp/core';
 import {
   createSystemPrismaClient,
+  PrismaPlanUsage,
+  PrismaSubscriptionReader,
   PrismaXBrowserAdminStore,
   PrismaXBrowserOperations,
   PrismaXBrowserUnitOfWork,
@@ -86,16 +96,24 @@ export function xBrowserWiring(env: WorkerEnv, database: PrismaClient): XBrowser
 
 export interface BreakerWiring {
   breaker: XBrowserBreaker;
+  /** The connected accounts the plans allow, which a login of X needs room in (guide step 8.4). */
+  accounts: AccountLimits;
   close(): Promise<void>;
 }
 
 /**
- * The circuit breaker of the role "publisher" (guide step 6.5), which reads the drifts and the
- * canary on xb-results. As app_system it switches the global flag off and finds the platform
- * admins, whom it alerts by email with a link to the admin page at APP_URL. Without
+ * What the role "publisher" does as app_system for the X browser. The circuit breaker (guide step
+ * 6.5) reads the drifts and the canary on xb-results, switches the global flag off and alerts the
+ * platform admins by email with a link to the admin page at APP_URL. The account limits of the
+ * logins of X it completes there (guide step 8.4) count the accounts of an organization in all
+ * its workspaces and read the plan from the subscription as app_user. Without
  * FEATURE_X_BROWSER_GLOBAL no browser worker runs and nothing reports.
  */
-export function xBrowserBreakerOf(env: WorkerEnv, redis: Redis): BreakerWiring | null {
+export function xBrowserBreakerOf(
+  env: WorkerEnv,
+  redis: Redis,
+  database: PrismaClient,
+): BreakerWiring | null {
   if (!env.FEATURE_X_BROWSER_GLOBAL) {
     return null;
   }
@@ -122,6 +140,10 @@ export function xBrowserBreakerOf(env: WorkerEnv, redis: Redis): BreakerWiring |
   });
   return {
     breaker,
+    accounts: planAccountLimits(
+      new EntitlementsService({ subscriptions: new PrismaSubscriptionReader(database), clock: systemClock }),
+      new PrismaPlanUsage(system),
+    ),
     close: async () => {
       await notifications.close();
       await system.$disconnect();

@@ -91,6 +91,7 @@
       "SELECTOR_DRIFT": "Die Oberfläche von X hat sich geändert. Die Anmeldung ist vorübergehend nicht möglich.",
       "TIMEOUT": "Die Anmeldung hat zu lange gedauert. Bitte starten Sie sie neu.",
       "ACCOUNT_MISMATCH": "Sie haben sich mit einem anderen X-Account angemeldet als dem, der neu verbunden werden sollte.",
+      "PLAN_LIMIT_REACHED": "Ihr Tarif lässt keinen weiteren Account mehr zu. Der Owner Ihrer Organisation kann unter Abrechnung einen größeren Tarif wählen.",
       "UNAVAILABLE": "Der X-Browser ist gerade nicht verfügbar. Bitte versuchen Sie es später erneut.",
       "TRANSIENT": "Die Anmeldung ist fehlgeschlagen. Bitte versuchen Sie es später erneut."
     }

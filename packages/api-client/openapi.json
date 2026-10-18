@@ -10987,6 +10987,7 @@
               "SELECTOR_DRIFT",
               "TIMEOUT",
               "ACCOUNT_MISMATCH",
+              "PLAN_LIMIT_REACHED",
               "UNAVAILABLE",
               "TRANSIENT"
             ]

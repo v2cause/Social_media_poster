@@ -199,7 +199,10 @@ export type XbOutcome<O extends XbOperation> = z.output<(typeof xbOutcomeSchemas
 export const parseXbOutcome = <O extends XbOperation>(operation: O, data: unknown): XbOutcome<O> =>
   xbOutcomeSchemas[operation].parse(data) as XbOutcome<O>;
 
-/** Why a login ended without a connection; mirrors XB_LOGIN_FAILURES of @smp/contracts. */
+/**
+ * Why a login ended without a connection, as the browser worker reports it: XB_LOGIN_FAILURES of
+ * @smp/contracts without PLAN_LIMIT_REACHED, which the role "publisher" decides.
+ */
 export const XB_LOGIN_FAILURE_CODES = [
   'INVALID_CREDENTIALS',
   'INVALID_CODE',

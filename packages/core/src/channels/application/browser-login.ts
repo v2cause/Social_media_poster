@@ -1,4 +1,5 @@
 import type { AccountLimits } from '../../billing/application/plan-limits';
+import { PlanLimitReachedError } from '../../billing/domain/errors';
 import type { ContentActor } from '../../content/domain/types';
 import type { Clock } from '../../shared/ports/clock';
 import type { IdGenerator } from '../../shared/ports/ids';
@@ -30,7 +31,8 @@ import type { XBrowserGate } from './x-browser-access';
 // sealed through Redis (VERIFYING), and in the end the X user with the sealed storage state,
 // which the role "publisher" stores as the browser connection of X with its account (SUCCEEDED),
 // or why the login ended without one (FAILED). Each step reaches the browser of the user who
-// started the login.
+// started the login. The plan is checked when the login starts and again, under the lock of the
+// organization, before a new account connects (guide step 8.4).
 
 /** The whole login, codes included, ends after this. */
 export const BROWSER_LOGIN_TTL_MS = 5 * 60_000;
@@ -255,13 +257,14 @@ export interface CompleteBrowserLoginInput extends LoginReport {
 export type BrowserLoginCompletion =
   | { status: 'connected'; connectionId: string; accountId: string }
   | { status: 'account_mismatch' }
+  | { status: 'plan_limit_reached' }
   | { status: 'ignored' };
 
 export class CompleteBrowserLogin {
   constructor(
     private readonly deps: Pick<
       BrowserLoginDependencies,
-      'logins' | 'events' | 'unitOfWork' | 'clock' | 'ids'
+      'logins' | 'events' | 'unitOfWork' | 'clock' | 'ids' | 'accounts'
     >,
   ) {}
 
@@ -271,17 +274,64 @@ export class CompleteBrowserLogin {
     if (!login) {
       return { status: 'ignored' };
     }
+    let connected: { connectionId: string; accountId: string } | null;
+    try {
+      connected = await this.connect(login, input);
+    } catch (error) {
+      if (!(error instanceof PlanLimitReachedError)) {
+        throw error;
+      }
+      await this.fail(login, 'PLAN_LIMIT_REACHED');
+      return { status: 'plan_limit_reached' };
+    }
+    if (!connected) {
+      await this.fail(login, 'ACCOUNT_MISMATCH');
+      return { status: 'account_mismatch' };
+    }
+    await changed(
+      deps,
+      await deps.logins.transition(login.id, OPEN_BROWSER_LOGIN_STATUSES, {
+        status: 'SUCCEEDED',
+        accountId: connected.accountId,
+      }),
+    );
+    return { status: 'connected', ...connected };
+  }
+
+  private async fail(login: BrowserLogin, failure: BrowserLoginFailure): Promise<void> {
+    await changed(
+      this.deps,
+      await this.deps.logins.transition(login.id, OPEN_BROWSER_LOGIN_STATUSES, { status: 'FAILED', failure }),
+    );
+  }
+
+  /**
+   * Stores the connection with its account; null when another X user signed in than the one to
+   * reconnect. Throws PlanLimitReachedError, with nothing stored, when a new account finds no
+   * room in the plan any more.
+   */
+  private connect(
+    login: BrowserLogin,
+    input: CompleteBrowserLoginInput,
+  ): Promise<{ connectionId: string; accountId: string } | null> {
+    const { deps } = this;
     const { workspaceId, organizationId } = login;
     const { user } = input;
     const name = user.name === '' ? user.handle : user.name;
     const scope = { userId: login.userId, organizationId, workspaceId };
 
-    const connected = await deps.unitOfWork.run(scope, async (store) => {
+    return deps.unitOfWork.run(scope, async (store) => {
       if (login.reconnectAccountId !== null) {
         const account = await store.accounts.find(workspaceId, login.reconnectAccountId);
         if (account && account.externalId !== user.id) {
           return null;
         }
+      }
+      // Read and counted after the lock: a connection that held it before is committed by now.
+      await store.accounts.lockAccountLimit(organizationId);
+      const [known] = await store.accounts.findByExternalIds(workspaceId, 'X', [user.id]);
+      if (!known || known.disconnectedAt !== null) {
+        await deps.accounts.assertRoom(organizationId, 1);
       }
       const existing = await store.connections.findByExternalUser(workspaceId, 'X', 'BROWSER', user.id);
       const connectionId = existing?.id ?? deps.ids.newId();
@@ -308,7 +358,6 @@ export class CompleteBrowserLogin {
           ...grant,
         });
       }
-      const [known] = await store.accounts.findByExternalIds(workspaceId, 'X', [user.id]);
       const accountId = known?.id ?? deps.ids.newId();
       await store.accounts.upsert({
         id: accountId,
@@ -335,24 +384,5 @@ export class CompleteBrowserLogin {
       });
       return { connectionId, accountId };
     });
-
-    if (!connected) {
-      await changed(
-        deps,
-        await deps.logins.transition(login.id, OPEN_BROWSER_LOGIN_STATUSES, {
-          status: 'FAILED',
-          failure: 'ACCOUNT_MISMATCH',
-        }),
-      );
-      return { status: 'account_mismatch' };
-    }
-    await changed(
-      deps,
-      await deps.logins.transition(login.id, OPEN_BROWSER_LOGIN_STATUSES, {
-        status: 'SUCCEEDED',
-        accountId: connected.accountId,
-      }),
-    );
-    return { status: 'connected', ...connected };
   }
 }
