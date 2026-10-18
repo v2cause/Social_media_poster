@@ -8,7 +8,7 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { Logger } from 'nestjs-pino';
 
 import { requestIdMiddleware } from './common/request-id.middleware';
-import { authBodyLimit, noStore } from './common/security/body-limits.middleware';
+import { authBodyLimit, bodyErrors, noStore } from './common/security/body-limits.middleware';
 import { createOriginCheckMiddleware } from './common/security/origin-check.middleware';
 import type { ApiEnv } from './config/api-env';
 import { AUTH, type Auth } from './modules/identity/auth';
@@ -42,6 +42,7 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv): void {
 
   app.use('/api/webhooks', express.raw({ type: '*/*', limit: '1mb' }));
   app.use(express.json({ limit: '1mb' }));
+  app.use(bodyErrors);
 
   app.useGlobalPipes(new ZodValidationPipe());
   // Responses pass through the DTO schema, so internal fields cannot leak out.
