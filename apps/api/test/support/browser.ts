@@ -20,20 +20,29 @@ export function browser(server: Server, address = `192.0.2.${String((nextAddress
   return request.agent(server).set('Origin', APP_ORIGIN).set('X-Real-IP', address);
 }
 
-/** Signs up, opens the verification link from Mailpit and returns the signed-in browser. */
-export async function signUpVerified(api: ApiTestApp, email: string, name = 'Test User'): Promise<Browser> {
-  const agent = browser(api.server);
-  await agent
-    .post('/api/auth/sign-up/email')
-    .send({ email, password: PASSWORD, name, callbackURL: '/onboarding' })
-    .expect(200);
+/** The path and query of the verification link that Mailpit received for the address. */
+export async function verificationLink(api: ApiTestApp, email: string): Promise<string> {
   const message = await api.mailpit.waitForMessage(email);
   const link = /https?:\/\/\S+verify-email\S+/.exec(message.Text)?.[0];
   if (!link) {
     throw new Error(`no verification link for ${email}`);
   }
   const url = new URL(link);
-  await agent.get(`${url.pathname}${url.search}`).expect(302);
+  return `${url.pathname}${url.search}`;
+}
+
+/**
+ * Signs up, opens the verification link from Mailpit and signs in: the link verifies the address
+ * but does not sign in (guide step 8.4), so the browser comes back signed in by the password.
+ */
+export async function signUpVerified(api: ApiTestApp, email: string, name = 'Test User'): Promise<Browser> {
+  const agent = browser(api.server);
+  await agent
+    .post('/api/auth/sign-up/email')
+    .send({ email, password: PASSWORD, name, callbackURL: '/onboarding' })
+    .expect(200);
+  await agent.get(await verificationLink(api, email)).expect(302);
+  await agent.post('/api/auth/sign-in/email').send({ email, password: PASSWORD }).expect(200);
   return agent;
 }
 

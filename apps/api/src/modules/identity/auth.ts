@@ -28,7 +28,7 @@ export interface AuthDependencies {
 
 const DAY_SECONDS = 24 * 60 * 60;
 
-/** Better Auth under /api/auth (guide step 1.4, ADR 0006). */
+/** Better Auth under /api/auth (guide steps 1.4 and 8.4, ADR 0006 and 0039). */
 export function createAuth({ env, prisma, mailer, logger }: AuthDependencies) {
   // Mails go out in the background: awaiting them would make response times reveal whether an
   // address exists. Failures are logged without the address.
@@ -59,7 +59,9 @@ export function createAuth({ env, prisma, mailer, logger }: AuthDependencies) {
     },
     emailVerification: {
       sendOnSignUp: true,
-      autoSignInAfterVerification: true,
+      // The link only verifies; signing in needs the password. Otherwise whoever registered an
+      // address first, with a password of their own, would hold the account its owner verifies.
+      autoSignInAfterVerification: false,
       expiresIn: 60 * 60,
       sendVerificationEmail: async ({ user, url }) => {
         dispatch('auth.verification_mail_failed', mailer.sendVerificationEmail(user, url));

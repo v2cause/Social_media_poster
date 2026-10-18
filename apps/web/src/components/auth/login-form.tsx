@@ -22,17 +22,31 @@ import { useForm } from 'react-hook-form';
 
 import { authClient } from '@/lib/auth-client';
 import { useFieldError } from '@/lib/use-field-error';
+import { verificationCallback } from '@/lib/verification-callback';
 
 import { useAuthError, type AuthClientError } from './auth-error';
 import { TwoFactorStep } from './two-factor-step';
 
-export function LoginForm({ next }: { next: string | null }) {
+/** After the verification link: whether it verified the address or failed. */
+export type VerificationOutcome = 'verified' | 'failed' | null;
+
+export function LoginForm({
+  next,
+  verification = null,
+}: {
+  next: string | null;
+  verification?: VerificationOutcome;
+}) {
   const t = useTranslations('auth');
   const router = useRouter();
   const fieldError = useFieldError();
   const authError = useAuthError();
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    verification === 'failed' ? t('login.verificationFailed') : null,
+  );
+  const [notice, setNotice] = useState<string | null>(
+    verification === 'verified' ? t('login.verified') : null,
+  );
   const [twoFactor, setTwoFactor] = useState(false);
   const form = useForm<SignInRequest>({
     resolver: zodResolver(signInSchema),
@@ -51,7 +65,10 @@ export function LoginForm({ next }: { next: string | null }) {
     if (result.error) {
       const failure = result.error as AuthClientError;
       if (failure.code === 'EMAIL_NOT_VERIFIED') {
-        await authClient.sendVerificationEmail({ email: values.email, callbackURL: next ?? '/onboarding' });
+        await authClient.sendVerificationEmail({
+          email: values.email,
+          callbackURL: verificationCallback(next),
+        });
         setNotice(t('login.notVerified'));
         return;
       }

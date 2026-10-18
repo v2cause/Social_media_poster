@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { authClient } from '@/lib/auth-client';
+import { verificationCallback } from '@/lib/verification-callback';
 import { useFieldError } from '@/lib/use-field-error';
 
 import { useAuthError } from './auth-error';
@@ -39,13 +40,17 @@ export function SignupForm({ next, email }: { next: string | null; email: string
 
   const submit = form.handleSubmit(async (values) => {
     setError(null);
-    const callbackURL = next ?? '/onboarding';
-    const result = await authClient.signUp.email({ ...values, locale, callbackURL });
+    const destination = next ?? '/onboarding';
+    const result = await authClient.signUp.email({
+      ...values,
+      locale,
+      callbackURL: verificationCallback(destination),
+    });
     if (result.error) {
       setError(authError(result.error));
       return;
     }
-    const query = new URLSearchParams({ email: values.email, next: callbackURL });
+    const query = new URLSearchParams({ email: values.email, next: destination });
     router.push(`/verify-email?${query.toString()}`);
   });
 

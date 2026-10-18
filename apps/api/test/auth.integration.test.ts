@@ -5,8 +5,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startApiTestApp, type ApiTestApp } from './support/api-app';
 import { browser as openBrowser, PASSWORD } from './support/browser';
 
-// Spike 0.14(d) and guide step 1.4: sign-up, email verification through Mailpit, sign-in,
-// getSession in the AuthGuard, sign-out and two-factor authentication against the real API.
+// Spike 0.14(d) and guide steps 1.4 and 8.4: sign-up, email verification through Mailpit,
+// sign-in, getSession in the AuthGuard, sign-out and two-factor authentication against the real
+// API, with the hardening of step 8.4:
+// - the link verifies the address without signing in.
+
+/** The cookies a response sets: supertest types the header as a string, Node hands an array. */
+const cookiesOf = (response: { headers: Record<string, unknown> }): string => {
+  const cookies = response.headers['set-cookie'];
+  return Array.isArray(cookies) ? cookies.join('; ') : typeof cookies === 'string' ? cookies : '';
+};
 
 describe('authentication with Better Auth', () => {
   let api: ApiTestApp | undefined;
@@ -34,6 +42,8 @@ describe('authentication with Better Auth', () => {
     const url = new URL(link);
     return { message, response: await agent.get(`${url.pathname}${url.search}`) };
   };
+  const signIn = (agent: ReturnType<typeof browser>, email: string, password = PASSWORD) =>
+    agent.post('/api/auth/sign-in/email').send({ email, password });
 
   beforeAll(async () => {
     api = await startApiTestApp();
@@ -53,7 +63,7 @@ describe('authentication with Better Auth', () => {
     await request(started().server).get('/api/health/live').expect(200);
   });
 
-  it('signs up, verifies the address from the email and opens a session', async () => {
+  it('signs up, verifies the address from the email and signs in with the password', async () => {
     const agent = browser();
     await signUp(agent, 'ada@example.test').expect(200);
 
@@ -61,7 +71,12 @@ describe('authentication with Better Auth', () => {
     expect(message.Subject).toBe('Bestätigen Sie Ihre E-Mail-Adresse');
     expect(response.status).toBe(302);
     expect(response.headers['location']).toBe('/onboarding');
+    // The link verifies the address but opens no session: whoever signed up with an address
+    // first must not hold the account its owner verifies.
+    expect(cookiesOf(response)).not.toContain('session_token');
+    await agent.get('/api/me').expect(401);
 
+    await signIn(agent, 'ada@example.test').expect(200);
     const me = await agent.get('/api/me').expect(200);
     expect(me.body).toMatchObject({
       email: 'ada@example.test',
@@ -109,6 +124,7 @@ describe('authentication with Better Auth', () => {
     const agent = browser();
     await signUp(agent, 'linus@example.test').expect(200);
     await verify(agent, 'linus@example.test');
+    await signIn(agent, 'linus@example.test').expect(200);
     await agent.get('/api/me').expect(200);
 
     await agent.post('/api/auth/sign-out').send({}).expect(200);
@@ -125,6 +141,7 @@ describe('authentication with Better Auth', () => {
     const agent = browser();
     await signUp(agent, 'margaret@example.test').expect(200);
     await verify(agent, 'margaret@example.test');
+    await signIn(agent, 'margaret@example.test').expect(200);
 
     const enabled = await agent.post('/api/auth/two-factor/enable').send({ password: PASSWORD }).expect(200);
     const body = enabled.body as { totpURI: string; backupCodes: string[] };
@@ -141,11 +158,8 @@ describe('authentication with Better Auth', () => {
       });
 
     await agent.post('/api/auth/sign-out').send({}).expect(200);
-    const signIn = await agent
-      .post('/api/auth/sign-in/email')
-      .send({ email: 'margaret@example.test', password: PASSWORD })
-      .expect(200);
-    expect(signIn.body).toMatchObject({ twoFactorRedirect: true });
+    const again = await signIn(agent, 'margaret@example.test').expect(200);
+    expect(again.body).toMatchObject({ twoFactorRedirect: true });
     await agent.get('/api/me').expect(401);
 
     await agent

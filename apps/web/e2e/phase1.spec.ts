@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { signUp } from './accounts';
+import { signInAfterVerification, signUp } from './accounts';
 import { linkFromEmail } from './mailpit';
 
 // Guide step 1.9, "Fertig, wenn": sign-up, verification email (Mailpit API), onboarding,
@@ -23,6 +23,8 @@ test('from sign-up to an invited viewer without write actions', async ({ browser
   const verification = await linkFromEmail(owner.email, /http:\/\/\S+\/api\/auth\/verify-email\S+/);
   expect(verification.subject).toBe('Bestätigen Sie Ihre E-Mail-Adresse');
   await ownerPage.goto(verification.url);
+  // The link only verifies; the password signs in (guide step 8.4).
+  await signInAfterVerification(ownerPage, owner);
   await expect(ownerPage).toHaveURL(/\/onboarding$/);
 
   // Onboarding in three steps.
@@ -64,6 +66,7 @@ test('from sign-up to an invited viewer without write actions', async ({ browser
   await signUp(viewerPage, viewer);
   const viewerVerification = await linkFromEmail(viewer.email, /http:\/\/\S+\/api\/auth\/verify-email\S+/);
   await viewerPage.goto(viewerVerification.url);
+  await signInAfterVerification(viewerPage, viewer);
   await expect(viewerPage).toHaveURL(/\/invite\//);
   await viewerPage.getByRole('button', { name: 'Einladung annehmen' }).click();
   await expect(viewerPage).toHaveURL(new RegExp(`${workspacePath}$`));

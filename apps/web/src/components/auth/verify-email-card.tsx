@@ -15,8 +15,12 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { authClient } from '@/lib/auth-client';
+import { verificationCallback } from '@/lib/verification-callback';
 
-/** After sign-up: check the inbox. The link leads to the onboarding or back to the invitation. */
+/**
+ * After sign-up: check the inbox. The link verifies the address and leads to the sign-in, then on
+ * to the onboarding or back to the invitation.
+ */
 export function VerifyEmailCard({ email, next }: { email: string | null; next: string }) {
   const t = useTranslations('auth.verifyEmail');
   const [sending, setSending] = useState(false);
@@ -28,7 +32,9 @@ export function VerifyEmailCard({ email, next }: { email: string | null; next: s
     }
     setSending(true);
     // The answer is the same for every address, so it reveals nothing.
-    await authClient.sendVerificationEmail({ email, callbackURL: next }).catch(() => undefined);
+    await authClient
+      .sendVerificationEmail({ email, callbackURL: verificationCallback(next) })
+      .catch(() => undefined);
     setSending(false);
     setResent(true);
   };
