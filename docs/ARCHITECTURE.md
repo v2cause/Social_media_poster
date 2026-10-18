@@ -362,7 +362,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
   - Der Scheduler übergeht geplante Posts der Organisation.
   - Owner bekommen E-Mails, alle Mitglieder einen Hinweis in der App.
 - **Limits**: Neun Stellen in API und Worker prüfen sie.
-  - Workspaces, Mitglieder und Speicher zählt die API exakt unter Advisory-Sperren, Accounts und Posts pro Monat über bestätigte Daten als `app_system`.
+  - Workspaces, Mitglieder, Speicher, Accounts und Posts pro Monat zählt die API exakt unter Advisory-Sperren der Organisation, die bis zum Ende der Transaktion gelten; Accounts, Posts und Speicher über bestätigte Daten als `app_system`, nach der Sperre (seit Schritt 8.4, ASVS 2.3.4). Den Account eines Logins des X-Browsers prüft die Rolle `publisher` beim Abschluss noch einmal so.
   - Der Ausgaben-Deckel der X-API sitzt um deren Adapter.
   - Nach einem Downgrade bleibt Bestehendes, nur Neues wird blockiert ([ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)). Ausnahme sind Metriken über die Analytics-Historie des neuen Tarifs hinaus: Sie löscht die nächste Nacht ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
 - **Nutzungsabrechnung**: Täglich gehen der KI-Mehrverbrauch und die X-Kosten des Vortags als Meter-Events an Stripe, jeder Batch einmal dank fester Identifier und `reportedToStripeAt`.

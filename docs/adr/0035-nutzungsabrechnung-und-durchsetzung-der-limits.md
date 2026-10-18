@@ -28,9 +28,9 @@ Bezahlte Tarife enthalten ein KI-Guthaben pro Monat; was darüber hinausgeht, bi
 | Workspace anlegen | `maxWorkspaces` | `CreateWorkspace` | exakt: als `app_user` in der Transaktion unter der Advisory-Sperre `plan.{organizationId}` |
 | Mitglied einladen | `maxMembers` | `InviteMember` | exakt unter derselben Sperre: Mitglieder plus offene Einladungen ohne die an dieselbe Adresse |
 | Einladung annehmen | `maxMembers` | `AcceptInvitation` | exakt unter derselben Sperre: Mitglieder (die Einladung zählte schon) |
-| Account verbinden | `maxSocialAccounts` | Start der Verbindung, Bestätigen der Auswahl (mit der Zahl der Accounts), Login des X-Browsers | als `app_system` über alle Workspaces |
+| Account verbinden | `maxSocialAccounts` | Start der Verbindung, Bestätigen der Auswahl (mit der Zahl der Accounts), Start und Abschluss des Logins des X-Browsers | als `app_system` über alle Workspaces; beim Bestätigen und beim Abschluss des Logins exakt nach der Advisory-Sperre `plan.accounts.{organizationId}` (seit Schritt 8.4) |
 | KI-Aufruf | `aiCreditsMicros` + `aiOverageCapMicros` | Reservierung der Quote vor dem Aufruf | exakt: bedingtes `UPDATE` des Monatszählers |
-| Post planen | `scheduledPostsPerMonth` | Planen einer Variante | als `app_system`: geplante, laufende und veröffentlichte Varianten des Monats (`COALESCE(published_at, scheduled_at)`), ohne die Variante selbst |
+| Post planen | `scheduledPostsPerMonth` | Planen, Jetzt posten und Erneut versuchen einer Variante | exakt: als `app_system` nach der Advisory-Sperre `plan.posts.{organizationId}` (seit Schritt 8.4): geplante, laufende und veröffentlichte Varianten des Monats (`COALESCE(published_at, scheduled_at)`), ohne die Variante selbst |
 | Upload | `storageBytes` | Upload anfordern | exakt: als `app_system` über alle Workspaces, gezählt erst nach der Advisory-Sperre `media.storage.{organizationId}`, wenn ein Upload, der sie vorher hielt, bestätigt ist |
 | Analytics-Zeitraum | `analyticsHistoryDays` | Abfragen der Analytics | ein früherer Beginn ergibt `ANALYTICS_HISTORY_EXCEEDED` |
 | X-Browser aktivieren | `xBrowserAllowed` | Freischaltung und Registry | der Tarif erlaubt es oder ein Plattform-Admin hat die Organisation freigeschaltet |
@@ -46,7 +46,7 @@ Bezahlte Tarife enthalten ein KI-Guthaben pro Monat; was darüber hinausgeht, bi
 ## Konsequenzen
 
 Akzeptierte Risiken:
-- **Paralleles Anlegen**: Accounts und Posts pro Monat werden als `app_system` über bestätigte Daten gezählt. Zwei gleichzeitige Anfragen können ein Limit um eins überschreiten. Eine Sperre über alle Workspaces einer Organisation würde jedes Planen serialisieren; das Überschreiten um eins wiegt weniger.
+- **Paralleles Anlegen** (bis Schritt 8.4): Accounts und Posts pro Monat wurden ohne Sperre als `app_system` über bestätigte Daten gezählt. Das Security-Review zeigte, dass n gleichzeitige Anfragen ein Limit um bis zu n-1 überschreiten (ASVS 2.3.4). Seit Schritt 8.4 ([ADR 0039](0039-security-review-und-haertung.md)) zählen beide nach einer Advisory-Sperre der Organisation, die bis zum Ende der Transaktion gilt. Das serialisiert nur Planungen bzw. Verbindungen derselben Organisation, und nur von der Zählung bis zum Commit.
 - **Doppelt gemeldeter Batch**: Scheitert das Bestätigen eines gemeldeten Batches länger als 24 Stunden, kann Stripe den erneut gesendeten Batch ein zweites Mal zählen, weil Stripe Identifier nur mindestens 24 Stunden kennt.
 - **Abgleich ohne Deckel**: Der Abgleich nach unklarem Ausgang liest auch bei erreichtem Deckel, damit kein Post doppelt erscheint; seine Kosten können den Deckel geringfügig übersteigen.
 

@@ -1293,9 +1293,9 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
     - `packages/db/test/plan-usage.integration.test.ts`, `packages/platform-adapters/src/spend-capped-adapter.test.ts`
     - `apps/api/test/read-only.integration.test.ts` und die Limits in den Integrationstests von Tenancy, Channels, Content, Media, Publishing, Analytics und X-Browser
     - `apps/worker/test/scheduler.integration.test.ts` (Pause), `apps/worker/test/publish.integration.test.ts` (Ausgaben-Deckel), `apps/worker/test/read-only.integration.test.ts`
-- **Stand**: Akzeptierte Risiken (ADR 0035):
-  - Zwei gleichzeitige Anfragen können die Limits für Accounts und Posts pro Monat um eins überschreiten.
-  - Der Abgleich nach unklarem Ausgang ist vom Ausgaben-Deckel der X-API ausgenommen.
+- **Stand**:
+  - Akzeptiertes Risiko (ADR 0035): Der Abgleich nach unklarem Ausgang ist vom Ausgaben-Deckel der X-API ausgenommen.
+  - Die Limits für Accounts und Posts pro Monat ließen sich zunächst durch gleichzeitige Anfragen überschreiten; seit Schritt 8.4 zählen beide nach einer Advisory-Sperre der Organisation.
 
 #### 7.5 Web: Billing
 - **So sieht es aus**: aktueller Plan, Verbrauchsbalken pro Limit, Buttons "Upgrade" (führt zum Checkout) und "Verwalten" (führt zum Kundenportal), Liste der Rechnungen.
