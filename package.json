@@ -24,6 +24,7 @@
     "check:format": "prettier --check .",
     "check:i18n": "tsx tools/check-i18n.ts",
     "check:rls": "tsx --env-file-if-exists=.env tools/check-rls.ts",
+    "check:erasure": "tsx --env-file-if-exists=.env tools/check-erasure.ts",
     "stripe:sync": "tsx --env-file-if-exists=.env tools/stripe-sync.ts"
   },
   "prettier": "@smp/config/prettier",
@@ -35,7 +36,9 @@
     "@formatjs/icu-messageformat-parser": "^3.5.21",
     "@smp/billing": "workspace:*",
     "@smp/config": "workspace:*",
+    "@smp/core": "workspace:*",
     "@smp/db": "workspace:*",
+    "@smp/media": "workspace:*",
     "@tanstack/react-query": "^5.104.3",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
@@ -45,6 +48,7 @@
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "turbo": "^2.11.8",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "^4.6.7"
   }
 }
