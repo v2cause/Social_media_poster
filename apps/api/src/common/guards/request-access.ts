@@ -9,6 +9,8 @@ export interface RequestAccess {
   organizationName: string;
   role: MemberRole;
   workspaceId?: string;
+  /** Since when the organization waits for its erasure (ISO 8601), or null (guide step 8.2). */
+  deletedAt: string | null;
 }
 
 export type RequestWithAccess = Request & { access?: RequestAccess };

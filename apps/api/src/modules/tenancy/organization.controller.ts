@@ -27,11 +27,17 @@ import {
 import type { TenancyReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
 
-import { AllowWhenReadOnly, OrgScope, RequirePermission } from '../../common/decorators/access.decorators';
+import {
+  AllowWhenDeleted,
+  AllowWhenReadOnly,
+  OrgScope,
+  RequirePermission,
+} from '../../common/decorators/access.decorators';
 import { AccessCache } from '../../common/guards/access-cache';
 import { Access, Actor, type RequestAccess } from '../../common/guards/request-access';
 import { TENANCY_READ_MODEL } from '../../infrastructure/clients.module';
 import { toBillingStateDto } from '../billing/billing.mappers';
+import { toOrganizationDeletionDto } from '../gdpr/gdpr.mappers';
 import {
   ChangeMemberRoleDto,
   CreateWorkspaceResponseDto,
@@ -64,9 +70,13 @@ export class OrganizationController {
     private readonly entitlements: EntitlementsService,
   ) {}
 
-  /** The organization with the caller's role and permissions and the state of the subscription. */
+  /**
+   * The organization with the caller's role and permissions, the state of the subscription and,
+   * while it waits for its erasure, its deletion.
+   */
   @Get()
   @RequirePermission('org.read')
+  @AllowWhenDeleted()
   @ZodResponse({ type: OrganizationContextDto })
   async context(@Access() access: RequestAccess): Promise<OrganizationContextDto> {
     return {
@@ -74,6 +84,7 @@ export class OrganizationController {
       role: access.role,
       permissions: permissionsOf(access.role),
       billing: toBillingStateDto(await this.entitlements.of(access.organizationId)),
+      deletion: toOrganizationDeletionDto(access.deletedAt),
     };
   }
 

@@ -1,6 +1,6 @@
-import { isDownloadable, type GdprRequest } from '@smp/core';
+import { erasureDateOf, isDownloadable, type GdprRequest } from '@smp/core';
 
-import type { DataExportDto } from './gdpr.dto';
+import type { DataExportDto, OrganizationDeletionDto } from './gdpr.dto';
 
 /** An export as the data page shows it; the key of its archive stays on the server. */
 export const toDataExportDto = (request: GdprRequest, now: Date): DataExportDto => {
@@ -15,3 +15,7 @@ export const toDataExportDto = (request: GdprRequest, now: Date): DataExportDto 
     sizeBytes: typeof bytes === 'number' && request.status === 'COMPLETED' ? bytes : null,
   };
 };
+
+/** The deletion of an organization as the contexts show it, from the moment it was deleted. */
+export const toOrganizationDeletionDto = (deletedAt: string | null): OrganizationDeletionDto | null =>
+  deletedAt ? { deletedAt, eraseAfter: erasureDateOf(new Date(deletedAt)).toISOString() } : null;

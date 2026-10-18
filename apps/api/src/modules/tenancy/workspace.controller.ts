@@ -5,10 +5,15 @@ import { EntitlementsService, UpdateWorkspaceSettings, WorkspaceNotFoundError } 
 import type { TenancyReadModel } from '@smp/db';
 import { ZodResponse } from 'nestjs-zod';
 
-import { RequirePermission, WorkspaceScope } from '../../common/decorators/access.decorators';
+import {
+  AllowWhenDeleted,
+  RequirePermission,
+  WorkspaceScope,
+} from '../../common/decorators/access.decorators';
 import { Access, type RequestAccess } from '../../common/guards/request-access';
 import { TENANCY_READ_MODEL } from '../../infrastructure/clients.module';
 import { toBillingStateDto } from '../billing/billing.mappers';
+import { toOrganizationDeletionDto } from '../gdpr/gdpr.mappers';
 import { UpdateWorkspaceSettingsDto, WorkspaceContextDto, WorkspaceSettingsDto } from './tenancy.dto';
 
 type WorkspaceAccess = RequestAccess & { workspaceId: string };
@@ -32,11 +37,12 @@ export class WorkspaceController {
   ) {}
 
   /**
-   * The workspace with the caller's role and permissions and the state of the subscription; the
-   * app shell loads it first.
+   * The workspace with the caller's role and permissions, the state of the subscription and, while
+   * the organization waits for its erasure, its deletion; the app shell loads it first.
    */
   @Get()
   @RequirePermission('workspace.read')
+  @AllowWhenDeleted()
   @ZodResponse({ type: WorkspaceContextDto })
   async context(@Access() access: RequestAccess): Promise<WorkspaceContextDto> {
     const { userId, workspaceId } = workspaceOf(access);
@@ -54,6 +60,7 @@ export class WorkspaceController {
       role: access.role,
       permissions: permissionsOf(access.role),
       billing: toBillingStateDto(entitlements),
+      deletion: toOrganizationDeletionDto(access.deletedAt),
     };
   }
 

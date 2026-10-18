@@ -68,6 +68,7 @@ export class WorkspaceGuard implements CanActivate {
       organizationName: resolved.organization.name,
       role: resolved.role,
       workspaceId: resolved.workspace.id,
+      deletedAt: resolved.organization.deletedAt?.toISOString() ?? null,
     };
     await this.cache.set(userId, field, access);
     return access;
@@ -90,6 +91,7 @@ export class WorkspaceGuard implements CanActivate {
       organizationId: resolved.organization.id,
       organizationName: resolved.organization.name,
       role: resolved.role,
+      deletedAt: resolved.organization.deletedAt?.toISOString() ?? null,
     };
     await this.cache.set(userId, field, access);
     return access;

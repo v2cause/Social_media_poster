@@ -14,8 +14,10 @@ const cachedAccess = z.object({
   organizationName: z.string(),
   role: z.enum(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']),
   workspaceId: z.string().optional(),
+  // Since when the organization waits for its erasure (guide step 8.2).
+  deletedAt: z.iso.datetime().nullable().default(null),
 });
-export type CachedAccess = z.infer<typeof cachedAccess>;
+export type CachedAccess = z.output<typeof cachedAccess>;
 
 const keyOf = (userId: string) => `smp:access:${userId}`;
 
@@ -53,8 +55,16 @@ export class AccessCache {
 
   /** Drops every cached access of a user, after a role change, removal or leave. */
   async invalidateUser(userId: string): Promise<void> {
+    await this.invalidateUsers([userId]);
+  }
+
+  /** Drops the cached access of several users, for example of every member after a deletion. */
+  async invalidateUsers(userIds: readonly string[]): Promise<void> {
+    if (userIds.length === 0) {
+      return;
+    }
     try {
-      await this.redis.del(keyOf(userId));
+      await this.redis.del(...userIds.map(keyOf));
     } catch (error) {
       this.logger.warn({ err: error }, 'access_cache.invalidate_failed');
     }

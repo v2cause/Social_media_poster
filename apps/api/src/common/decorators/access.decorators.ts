@@ -9,6 +9,7 @@ export const USER_SCOPE = 'smp:user-scope';
 export const TENANT_SCOPE = 'smp:tenant-scope';
 export const REQUIRED_PERMISSION = 'smp:required-permission';
 export const ALLOW_WHEN_READ_ONLY = 'smp:allow-when-read-only';
+export const ALLOW_WHEN_DELETED = 'smp:allow-when-deleted';
 
 export type TenantScopeKind = 'organization' | 'workspace';
 
@@ -40,3 +41,9 @@ export const RequirePermission = (permission: Permission): MethodDecorator =>
  */
 export const AllowWhenReadOnly = (): MethodDecorator & ClassDecorator =>
   SetMetadata(ALLOW_WHEN_READ_ONLY, true);
+
+/**
+ * A route an organization keeps while it waits for its erasure (guide step 8.2): the contexts,
+ * which show the deletion, the data exports and taking the deletion back.
+ */
+export const AllowWhenDeleted = (): MethodDecorator & ClassDecorator => SetMetadata(ALLOW_WHEN_DELETED, true);

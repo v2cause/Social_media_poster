@@ -170,6 +170,21 @@ const ENDPOINTS: Endpoint[] = [
     permission: 'org.export',
     path: (i) => `/api/org/${i.organizationId}/data-exports/${unknownId}/download`,
   },
+  // The deletion of the organization (guide step 8.2): owners only. The wrong name deletes
+  // nothing, and there is no deletion to take back.
+  {
+    method: 'post',
+    route: '/api/org/:org/deletion',
+    permission: 'org.delete',
+    path: (i) => `/api/org/${i.organizationId}/deletion`,
+    body: () => ({ confirmName: 'Not the name of the organization' }),
+  },
+  {
+    method: 'delete',
+    route: '/api/org/:org/deletion',
+    permission: 'org.delete',
+    path: (i) => `/api/org/${i.organizationId}/deletion`,
+  },
   // Content and AI (guide step 2.7): unknown ids where possible; the creating calls create.
   {
     method: 'get',

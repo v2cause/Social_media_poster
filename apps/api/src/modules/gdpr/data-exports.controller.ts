@@ -9,7 +9,12 @@ import {
 } from '@smp/core';
 import { ZodResponse } from 'nestjs-zod';
 
-import { AllowWhenReadOnly, OrgScope, RequirePermission } from '../../common/decorators/access.decorators';
+import {
+  AllowWhenDeleted,
+  AllowWhenReadOnly,
+  OrgScope,
+  RequirePermission,
+} from '../../common/decorators/access.decorators';
 import { Actor } from '../../common/guards/request-access';
 import { DataExportDownloadDto, DataExportDto, DataExportListDto } from './gdpr.dto';
 import { toDataExportDto } from './gdpr.mappers';
@@ -21,8 +26,9 @@ import { toDataExportDto } from './gdpr.mappers';
  */
 @ApiTags('data-exports')
 @OrgScope()
-// The right to the data does not depend on a paid plan.
+// The right to the data does not depend on a paid plan, and it lasts until the erasure.
 @AllowWhenReadOnly()
+@AllowWhenDeleted()
 @Controller('org/:org/data-exports')
 export class DataExportsController {
   constructor(

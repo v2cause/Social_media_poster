@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { billingStateSchema } from './billing';
+import { organizationDeletionSchema } from './gdpr';
 import { localeSchema } from './locale';
 import { PERMISSIONS, roleSchema } from './permissions';
 import { timezoneSchema } from './timezone';
@@ -91,13 +92,17 @@ export const membershipSummarySchema = z.object({
 export const myMembershipsSchema = z.object({ memberships: z.array(membershipSummarySchema) });
 export type MyMemberships = z.infer<typeof myMembershipsSchema>;
 
-/** The workspace of a /w/:ws route with the caller's role and permissions. */
+/**
+ * The workspace of a /w/:ws route with the caller's role and permissions. deletion is set while
+ * the organization waits for its erasure (guide step 8.2); nothing else works then.
+ */
 export const workspaceContextSchema = z.object({
   workspace: workspaceSchema,
   organization: z.object({ id: z.uuid(), name: z.string() }),
   role: roleSchema,
   permissions: z.array(z.enum(PERMISSIONS)),
   billing: billingStateSchema,
+  deletion: organizationDeletionSchema.nullable(),
 });
 export type WorkspaceContext = z.infer<typeof workspaceContextSchema>;
 
@@ -106,6 +111,7 @@ export const organizationContextSchema = z.object({
   role: roleSchema,
   permissions: z.array(z.enum(PERMISSIONS)),
   billing: billingStateSchema,
+  deletion: organizationDeletionSchema.nullable(),
 });
 export type OrganizationContext = z.infer<typeof organizationContextSchema>;
 
