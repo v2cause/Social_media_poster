@@ -13,7 +13,8 @@ import { browser as openBrowser, PASSWORD, signUpVerified } from './support/brow
 // - failed sign-ins are limited per account and wrong passwords per user,
 // - no device is trusted to skip the second factor,
 // - a sign-up with a known address tells its owner,
-// - a session ends seven days after the sign-in.
+// - a session ends seven days after the sign-in,
+// - reset tokens are kept as digests only.
 
 const WRONG_PASSWORD = 'wrong password 123';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -304,6 +305,30 @@ describe('authentication with Better Auth', () => {
         [email],
       );
       expect(rows.map((row) => row.expires_at.getTime())).toEqual([fiveDays.getTime()]);
+    } finally {
+      await system.end();
+    }
+  });
+
+  it('keeps only a digest of a reset token in the database', async () => {
+    const email = 'forgetful@example.test';
+    await signUpVerified(started(), email);
+    await browser()
+      .post('/api/auth/request-password-reset')
+      .send({ email, redirectTo: '/reset-password' })
+      .expect(200);
+    const message = await started().mailpit.waitForMessage(email, { subject: 'Passwort zurücksetzen' });
+    const token = /reset-password\/([\w-]+)/.exec(message.Text)?.[1] ?? '';
+    expect(token.length).toBeGreaterThan(10);
+
+    const system = await started().database.connectAs('app_system');
+    try {
+      const { rows } = await system.query<{ identifier: string }>(
+        `SELECT identifier FROM verification WHERE value = (SELECT id::text FROM users WHERE email = $1)`,
+        [email],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.identifier).not.toContain(token);
     } finally {
       await system.end();
     }
