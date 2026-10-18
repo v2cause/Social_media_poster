@@ -13,6 +13,7 @@ import {
   StorageQuotaExceededError,
   UpdateMediaAltText,
   UploadMissingError,
+  uploadKey,
   VersionConflictError,
 } from '../../src';
 import { actorOf } from '../in-memory-content';
@@ -30,17 +31,20 @@ async function requested(testbed: MediaTestbed, overrides: { size?: number; mime
   });
 }
 
+/** Where the browser sends the file of an asset. */
+const uploadOf = (assetId: string) => uploadKey(editor.workspaceId, assetId);
+
 /** An asset whose file arrived and whose upload is reported complete. */
 async function uploaded(testbed: MediaTestbed, bytes: Uint8Array = JPEG_BYTES) {
   const ticket = await requested(testbed, { size: bytes.byteLength });
-  testbed.storage.upload(ticket.asset.storageKey, bytes, 'image/jpeg');
+  testbed.storage.upload(uploadOf(ticket.asset.id), bytes, 'image/jpeg');
   return new CompleteUpload(testbed).execute({ actor: editor, assetId: ticket.asset.id });
 }
 
 const job = (assetId: string) => ({ organizationId: 'org-1', workspaceId: 'ws-1', assetId });
 
 describe('RequestUpload', () => {
-  it('creates an asset waiting for its file and a presigned PUT under the workspace', async () => {
+  it('creates an asset waiting for its file and a presigned PUT apart from the original', async () => {
     const testbed = createMediaTestbed();
 
     const ticket = await requested(testbed);
@@ -54,7 +58,11 @@ describe('RequestUpload', () => {
     });
     expect(ticket.upload).toMatchObject({ method: 'PUT', headers: { 'Content-Type': 'image/jpeg' } });
     expect(testbed.storage.signed).toEqual([
-      { key: ticket.asset.storageKey, contentType: 'image/jpeg', contentLength: JPEG_BYTES.byteLength },
+      {
+        key: `ws/ws-1/assets/${ticket.asset.id}/upload`,
+        contentType: 'image/jpeg',
+        contentLength: JPEG_BYTES.byteLength,
+      },
     ]);
     expect(ticket.expiresAt.toISOString()).toBe('2026-10-16T12:05:00.000Z');
     expect(testbed.unitOfWork.locks).toBe(1);
@@ -125,7 +133,7 @@ describe('CompleteUpload', () => {
       new CompleteUpload(testbed).execute({ actor: editor, assetId: ticket.asset.id }),
     ).rejects.toBeInstanceOf(UploadMissingError);
 
-    testbed.storage.upload(ticket.asset.storageKey, JPEG_BYTES, 'image/jpeg');
+    testbed.storage.upload(uploadOf(ticket.asset.id), JPEG_BYTES, 'image/jpeg');
     await new CompleteUpload(testbed).execute({ actor: editor, assetId: ticket.asset.id });
     await new CompleteUpload(testbed).execute({ actor: editor, assetId: ticket.asset.id });
     expect(testbed.jobs.jobs).toHaveLength(2);
@@ -134,12 +142,12 @@ describe('CompleteUpload', () => {
   it('rejects and deletes a file that differs from what was announced', async () => {
     const testbed = createMediaTestbed();
     const ticket = await requested(testbed, { size: 10 });
-    testbed.storage.upload(ticket.asset.storageKey, new Uint8Array(5000), 'image/jpeg');
+    testbed.storage.upload(uploadOf(ticket.asset.id), new Uint8Array(5000), 'image/jpeg');
 
     const asset = await new CompleteUpload(testbed).execute({ actor: editor, assetId: ticket.asset.id });
 
     expect(asset).toMatchObject({ status: 'REJECTED', rejectReason: 'SIZE_MISMATCH' });
-    expect(testbed.storage.objects.has(ticket.asset.storageKey)).toBe(false);
+    expect(testbed.storage.objects.has(uploadOf(ticket.asset.id))).toBe(false);
     expect(testbed.jobs.jobs).toEqual([]);
   });
 
@@ -176,6 +184,47 @@ describe('ProcessAsset', () => {
     expect(testbed.storage.objects.has(`ws/ws-1/assets/${asset.id}/renditions/thumb_320-full.webp`)).toBe(
       true,
     );
+    // The checked bytes are the original now, with the type the content showed; the upload went.
+    expect(testbed.storage.objects.get(asset.storageKey)).toEqual({
+      bytes: JPEG_BYTES,
+      contentType: 'image/jpeg',
+    });
+    expect(testbed.storage.objects.has(uploadOf(asset.id))).toBe(false);
+  });
+
+  it('keeps the checked original when the link of the upload is used again', async () => {
+    const testbed = createMediaTestbed();
+    const asset = await uploaded(testbed);
+    await new ProcessAsset(testbed).execute(job(asset.id));
+
+    // The presigned PUT works for five minutes; a second file lands in the upload object only.
+    const html = new TextEncoder().encode('<html><script>alert(1)</script></html>');
+    testbed.storage.upload(uploadOf(asset.id), html, 'image/jpeg');
+    await expect(new ProcessAsset(testbed).execute(job(asset.id))).resolves.toBe('SKIPPED');
+
+    expect(testbed.storage.objects.get(asset.storageKey)?.bytes).toEqual(JPEG_BYTES);
+  });
+
+  it('takes the stored original again when an earlier run stopped after storing it', async () => {
+    const testbed = createMediaTestbed();
+    const asset = await uploaded(testbed);
+    // A run that stored the original and deleted the upload, then lost the worker.
+    testbed.storage.upload(asset.storageKey, JPEG_BYTES, 'image/jpeg');
+    testbed.storage.objects.delete(uploadOf(asset.id));
+
+    await expect(new ProcessAsset(testbed).execute(job(asset.id))).resolves.toBe('READY');
+    expect(testbed.storage.objects.get(asset.storageKey)?.bytes).toEqual(JPEG_BYTES);
+  });
+
+  it('rejects a file whose length changed after the upload was checked', async () => {
+    const testbed = createMediaTestbed();
+    const asset = await uploaded(testbed);
+    // Only a storage that ignores the signed length takes this.
+    testbed.storage.upload(uploadOf(asset.id), new Uint8Array(JPEG_BYTES.byteLength + 1), 'image/jpeg');
+
+    await expect(new ProcessAsset(testbed).execute(job(asset.id))).resolves.toBe('REJECTED');
+    expect(testbed.unitOfWork.state.assets.get(asset.id)?.rejectReason).toBe('SIZE_MISMATCH');
+    expect([...testbed.storage.objects.keys()].some((key) => key.includes(asset.id))).toBe(false);
   });
 
   it('refuses files that are no image, whatever they were called', async () => {

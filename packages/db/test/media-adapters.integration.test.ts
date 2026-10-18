@@ -12,6 +12,7 @@ import {
   StorageQuotaExceededError,
   systemClock,
   UpdateMediaAltText,
+  uploadKey,
   uuidV7Ids,
   VersionConflictError,
   type ContentActor,
@@ -180,7 +181,7 @@ describe('media adapters on PostgreSQL', () => {
       mimeType: 'image/jpeg',
       size,
     });
-    await storage.put(ticket.asset.storageKey, jpeg(size), { contentType: 'image/jpeg' });
+    await storage.put(uploadKey(who.workspaceId, ticket.asset.id), jpeg(size), { contentType: 'image/jpeg' });
     return new CompleteUpload(deps()).execute({ actor: who, assetId: ticket.asset.id });
   };
 
@@ -235,7 +236,7 @@ describe('media adapters on PostgreSQL', () => {
       ticket.asset.id,
     );
 
-    await storage.put(ticket.asset.storageKey, jpeg(3 * MB), { contentType: 'image/jpeg' });
+    await storage.put(uploadKey(workspaceA, ticket.asset.id), jpeg(3 * MB), { contentType: 'image/jpeg' });
     const processing = await new CompleteUpload(deps()).execute({ actor: editor, assetId: ticket.asset.id });
     expect(processing).toMatchObject({ status: 'PROCESSING', sizeBytes: 3 * MB, version: 1 });
     expect(jobs.at(-1)).toEqual({ organizationId: orgA, workspaceId: workspaceA, assetId: ticket.asset.id });
@@ -310,12 +311,12 @@ describe('media adapters on PostgreSQL', () => {
       mimeType: 'image/jpeg',
       size: 1000,
     });
-    await storage.put(ticket.asset.storageKey, jpeg(5000), { contentType: 'image/jpeg' });
+    await storage.put(uploadKey(workspaceA, ticket.asset.id), jpeg(5000), { contentType: 'image/jpeg' });
 
     const rejected = await new CompleteUpload(deps()).execute({ actor: editor, assetId: ticket.asset.id });
 
     expect(rejected).toMatchObject({ status: 'REJECTED', rejectReason: 'SIZE_MISMATCH', sizeBytes: 5000 });
-    expect(storage.objects.has(ticket.asset.storageKey)).toBe(false);
+    expect(storage.objects.has(uploadKey(workspaceA, ticket.asset.id))).toBe(false);
     expect(await readModel().list(refA, { status: 'REJECTED' }, { limit: 10 })).toMatchObject({
       assets: [{ id: ticket.asset.id, rejectReason: 'SIZE_MISMATCH', thumbnails: [] }],
     });

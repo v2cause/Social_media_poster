@@ -1,13 +1,14 @@
 import type { ContentActor } from '../../content/domain/types';
 import { MediaNotFoundError, UploadMissingError } from '../domain/errors';
 import { MAX_UPLOAD_BYTES } from '../domain/rules';
+import { uploadKey } from '../domain/storage-keys';
 import type { MediaAsset, MediaRejectReason } from '../domain/types';
 import { assertCanWriteMedia, mediaScopeOf, type MediaDependencies } from './dependencies';
 
 // Step 2 of an upload (architecture 9): the browser reports the file as uploaded. The storage
-// says what really arrived; an object that breaks the rules is deleted and the asset rejected,
-// otherwise media.process takes over. Calling it again is harmless: a processing asset is
-// queued once more, every other state is returned as it is.
+// says what really arrived in the upload object; one that breaks the rules is deleted and the
+// asset rejected, otherwise media.process takes over. Calling it again is harmless: a processing
+// asset is queued once more, every other state is returned as it is.
 
 export interface CompleteUploadInput {
   actor: ContentActor;
@@ -36,7 +37,8 @@ export class CompleteUpload {
       return asset;
     }
 
-    const object = await this.deps.storage.head(asset.storageKey);
+    const upload = uploadKey(asset.workspaceId, asset.id);
+    const object = await this.deps.storage.head(upload);
     if (!object) {
       throw new UploadMissingError();
     }
@@ -49,7 +51,7 @@ export class CompleteUpload {
 
     if (reason !== null) {
       const rejection = reason;
-      await this.deps.storage.delete(asset.storageKey);
+      await this.deps.storage.delete(upload);
       await this.deps.unitOfWork.run(scope, (store) =>
         store.assets.reject(actor.workspaceId, asset.id, rejection, object.size),
       );

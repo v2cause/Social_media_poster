@@ -3,16 +3,17 @@ import { RENDITION_PROFILES } from '@smp/platform-rules';
 import { ImageRejectedError } from '../domain/errors';
 import { sniffImageType } from '../domain/file-signature';
 import { FULL_IMAGE, isUploadMimeType, MAX_UPLOAD_BYTES, THUMBNAIL_PROFILES } from '../domain/rules';
-import { assetPrefix, renditionKey } from '../domain/storage-keys';
+import { assetPrefix, renditionKey, uploadKey } from '../domain/storage-keys';
 import type { MediaAsset, MediaRejectReason, MediaRendition } from '../domain/types';
 import type { MediaJob } from '../ports/media-jobs';
 import type { MediaScope } from '../ports/media-store';
 import type { MediaDependencies } from './dependencies';
 
 // media.process (guide step 3.3, architecture 9): the worker checks the content, not the
-// announced type: magic bytes, then the decoder with its pixel limit. Accepted images get WebP
-// thumbnails, their size after the EXIF orientation and the SHA-256 of the file. A refused file
-// is deleted from the storage. The original itself is never delivered.
+// announced type: length, magic bytes, then the decoder with its pixel limit. Accepted images get
+// WebP thumbnails, their size after the EXIF orientation and the SHA-256 of the file, and the
+// checked bytes become the original; the upload object goes (guide step 8.4). A refused file is
+// deleted from the storage. The original itself is never delivered.
 
 export type ProcessOutcome = 'READY' | 'REJECTED' | 'SKIPPED';
 
@@ -45,7 +46,13 @@ export class ProcessAsset {
       return 'SKIPPED';
     }
 
-    const bytes = await this.deps.storage.get(asset.storageKey, { maxBytes: MAX_UPLOAD_BYTES });
+    const upload = uploadKey(asset.workspaceId, asset.id);
+    // The file the browser sent; after an earlier run that stopped short, the original it stored.
+    const source = (await this.deps.storage.head(upload)) ? upload : asset.storageKey;
+    const bytes = await this.deps.storage.get(source, { maxBytes: MAX_UPLOAD_BYTES });
+    if (bytes.byteLength !== asset.sizeBytes) {
+      return this.reject(scope, asset, 'SIZE_MISMATCH');
+    }
     const type = sniffImageType(bytes);
     const typeReason = reasonOfType(type);
     if (typeReason !== null || type === null) {
@@ -79,6 +86,12 @@ export class ProcessAsset {
           height: encoded.height,
           sizeBytes: encoded.bytes.byteLength,
         });
+      }
+      // Only the pipeline writes the original, from the bytes it checked: what the presigned link
+      // still sends lands in the upload object, which nothing reads any more.
+      if (source === upload) {
+        await this.deps.storage.put(asset.storageKey, bytes, { contentType: type });
+        await this.deps.storage.delete(upload);
       }
       const result = {
         mimeType: type,

@@ -9,9 +9,19 @@ export const workspacePrefix = (workspaceId: string): string => `ws/${workspaceI
 export const assetPrefix = (workspaceId: string, assetId: string): string =>
   `${workspacePrefix(workspaceId)}assets/${assetId}/`;
 
-/** The uploaded file; only the pipeline reads it, it is never delivered. */
+/**
+ * The file as the pipeline checked it. Only the pipeline writes it, from the upload, and nothing
+ * delivers it; renditions and the export read it.
+ */
 export const originalKey = (workspaceId: string, assetId: string): string =>
   `${assetPrefix(workspaceId, assetId)}original`;
+
+/**
+ * Where the browser uploads the file (guide step 8.4). The pipeline reads it once and deletes it;
+ * what the presigned link still sends later lands here, never in the checked original.
+ */
+export const uploadKey = (workspaceId: string, assetId: string): string =>
+  `${assetPrefix(workspaceId, assetId)}upload`;
 
 /** A thumbnail or platform rendition, for example renditions/instagram_feed-full.jpg. */
 export const renditionKey = (

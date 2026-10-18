@@ -168,6 +168,11 @@ describe('media API', () => {
       expect(thumbnail.url).not.toContain('/original');
     }
     expect(JSON.stringify(ready)).not.toMatch(/storageKey|\/original/);
+    // The browser sent the file to its own object; the worker stored the checked bytes as the
+    // original and removed the upload (guide step 8.4).
+    expect(new URL(ticket.upload.url).pathname).toMatch(new RegExp(`/assets/${ticket.asset.id}/upload$`));
+    expect(await objectExists(`ws/${workspaceId}/assets/${ticket.asset.id}/original`)).toBe(true);
+    expect(await objectExists(`ws/${workspaceId}/assets/${ticket.asset.id}/upload`)).toBe(false);
 
     const library = (await as(viewer).get(`${ws}/media`).expect(200)).body as MediaPageDto;
     expect(library.assets.map(({ id }) => id)).toContain(ticket.asset.id);
@@ -225,7 +230,7 @@ describe('media API', () => {
     expect((await send({ 'Content-Type': 'text/html' }, 1000)).status).toBe(403);
     expect((await send(pending.upload.headers, 1001)).status).toBe(403);
     expect((await send(pending.upload.headers, 999)).status).toBe(403);
-    expect(await objectExists(`ws/${workspaceId}/assets/${pending.asset.id}/original`)).toBe(false);
+    expect(await objectExists(`ws/${workspaceId}/assets/${pending.asset.id}/upload`)).toBe(false);
     expect(
       (await as(editor).post(`${ws}/media/${pending.asset.id}/complete`).expect(409)).body,
     ).toMatchObject({ code: 'MEDIA_UPLOAD_MISSING' });

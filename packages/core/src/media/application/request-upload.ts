@@ -1,14 +1,15 @@
 import type { ContentActor } from '../../content/domain/types';
 import { MediaTooLargeError, MediaTypeNotAllowedError, StorageQuotaExceededError } from '../domain/errors';
 import { displayFileName, isUploadMimeType, MAX_UPLOAD_BYTES, UPLOAD_URL_SECONDS } from '../domain/rules';
-import { originalKey } from '../domain/storage-keys';
+import { originalKey, uploadKey } from '../domain/storage-keys';
 import type { MediaAsset } from '../domain/types';
 import type { PresignedUpload } from '../ports/storage';
 import { assertCanWriteMedia, mediaScopeOf, type MediaDependencies } from './dependencies';
 
 // Step 1 of an upload (architecture 9): type and size as announced by the browser, the storage the
 // plan of the organization allows in all its workspaces (guide step 7.4), then an asset waiting
-// for its file and a presigned PUT for it.
+// for its file and a presigned PUT for exactly that type and length into the upload object, apart
+// from the original the pipeline writes after its checks (guide step 8.4).
 
 export interface RequestUploadInput {
   actor: ContentActor;
@@ -69,7 +70,7 @@ export class RequestUpload {
       }
       await store.assets.insert(asset);
     });
-    const upload = await this.deps.storage.presignPut(asset.storageKey, {
+    const upload = await this.deps.storage.presignPut(uploadKey(actor.workspaceId, assetId), {
       contentType: mimeType,
       contentLength: input.size,
       expiresInSeconds: UPLOAD_URL_SECONDS,
