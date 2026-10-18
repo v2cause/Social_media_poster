@@ -1,8 +1,10 @@
+import { createPrismaClient } from '@smp/db';
 import { totpCode, totpCodes } from '@smp/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PASSWORD_FAILURES_PER_USER, SIGN_IN_FAILURES_PER_ACCOUNT } from '../src/modules/identity/auth-hooks';
+import { revokeSessions } from '../src/modules/identity/revoke-sessions';
 import { APP_ORIGIN, startApiTestApp, type ApiTestApp } from './support/api-app';
 import { browser as openBrowser, PASSWORD, signUpVerified } from './support/browser';
 import { BREACHED_PASSWORD, UNCHECKABLE_PASSWORD } from './support/pwned-passwords';
@@ -13,7 +15,8 @@ import { BREACHED_PASSWORD, UNCHECKABLE_PASSWORD } from './support/pwned-passwor
 // - the link verifies the address without signing in,
 // - failed sign-ins are limited per account and wrong passwords per user,
 // - no device is trusted to skip the second factor, and every code of it works once,
-// - a new sign-in ends the session the browser held, and a sign-out clears the site data,
+// - a new sign-in ends the session the browser held, a sign-out clears the site data, and
+//   operators can end the sessions of one user or of everybody,
 // - a sign-up with a known address tells its owner,
 // - a session ends seven days after the sign-in,
 // - reset tokens are kept as digests only,
@@ -333,6 +336,30 @@ describe('authentication with Better Auth', () => {
 
     const out = await agent.post('/api/auth/sign-out').send({}).expect(200);
     expect(out.headers['clear-site-data']).toBe('"cache", "storage"');
+  });
+
+  it('lets operators end the sessions of one user or of everybody', async () => {
+    const revoked = await signUpVerified(started(), 'revoked@example.test');
+    const kept = await signUpVerified(started(), 'kept@example.test');
+    const prisma = createPrismaClient(started().database.url('app_user'));
+    try {
+      await expect(revokeSessions(prisma, { email: ' Revoked@Example.test ' })).resolves.toEqual({
+        found: true,
+        sessions: 1,
+      });
+      await revoked.get('/api/me').expect(401);
+      await kept.get('/api/me').expect(200);
+      await expect(revokeSessions(prisma, { email: 'nobody@example.test' })).resolves.toEqual({
+        found: false,
+        sessions: 0,
+      });
+
+      const all = await revokeSessions(prisma, { all: true });
+      expect(all.sessions).toBeGreaterThan(0);
+      await kept.get('/api/me').expect(401);
+    } finally {
+      await prisma.$disconnect();
+    }
   });
 
   it('ends a session seven days after the sign-in, however often it is used', async () => {

@@ -2,6 +2,7 @@ import { createCookieGetter, getCookies } from 'better-auth/cookies';
 import { describe, expect, it } from 'vitest';
 
 import { authCookieOptions } from './auth';
+import { revokeTargetOf } from './revoke-sessions';
 
 // Guide step 8.4: what Better Auth makes of the cookie options of the API.
 
@@ -37,5 +38,16 @@ describe('the cookies of Better Auth', () => {
 
     expect(cookies.sessionToken.name).toBe('smp.session_token');
     expect(cookies.sessionToken.attributes.secure).toBe(false);
+  });
+});
+
+describe('revokeTargetOf', () => {
+  it('reads --user <email> and --all and nothing else', () => {
+    expect(revokeTargetOf(['--user', 'ada@example.test'])).toEqual({ email: 'ada@example.test' });
+    expect(revokeTargetOf(['--all'])).toEqual({ all: true });
+    expect(revokeTargetOf([])).toBeNull();
+    expect(revokeTargetOf(['--user'])).toBeNull();
+    expect(revokeTargetOf(['--user', 'not-an-address'])).toBeNull();
+    expect(revokeTargetOf(['--all', '--user', 'ada@example.test'])).toBeNull();
   });
 });

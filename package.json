@@ -26,6 +26,7 @@
     "check:rls": "tsx --env-file-if-exists=.env tools/check-rls.ts",
     "check:erasure": "tsx --env-file-if-exists=.env tools/check-erasure.ts",
     "auth:reencrypt": "pnpm --filter @smp/api auth:reencrypt",
+    "auth:revoke-sessions": "pnpm --filter @smp/api auth:revoke-sessions",
     "stripe:sync": "tsx --env-file-if-exists=.env tools/stripe-sync.ts"
   },
   "prettier": "@smp/config/prettier",
