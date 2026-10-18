@@ -56,9 +56,11 @@ services:
     restart: unless-stopped
     # BullMQ needs noeviction, otherwise Redis may delete job data under memory pressure. Nobody
     # works without a password (ADR 0039): the default user is off, API and worker sign in as
-    # "app", the healthcheck as "health", which may only PING, and the user "browser-worker" reaches
-    # only the keys and queues of the X browser (XB_REDIS_ACL in packages/x-browser). The tests of
-    # the browser worker start Redis with these users.
+    # "app", which may run no dangerous command (FLUSHALL, CONFIG, KEYS, DEBUG and the like) apart
+    # from INFO, which BullMQ asks on connect, the healthcheck as "health", which may only PING,
+    # and the user "browser-worker" reaches only the keys and queues of the X browser
+    # (XB_REDIS_ACL in packages/x-browser). The tests of the browser worker start Redis with these
+    # users.
     command:
       - redis-server
       - --appendonly
@@ -75,6 +77,8 @@ services:
       - '~*'
       - '&*'
       - '+@all'
+      - '-@dangerous'
+      - '+info'
       - --user
       - health
       - 'on'
