@@ -608,6 +608,14 @@ export {
   type SetVariantMediaInput,
   type VariantMediaItem,
 } from './media/application/set-variant-media';
+export type { ExpiredAsset, ExpiredMediaCutoffs, MediaCleanupStore } from './media/ports/media-cleanup-store';
+export {
+  CleanUpMedia,
+  DELETED_MEDIA_DAYS,
+  PENDING_UPLOAD_HOURS,
+  type MediaCleanupDependencies,
+  type MediaCleanupReport,
+} from './media/application/clean-up-media';
 
 // Publishing (architecture 7, guide steps 4.6 ff.)
 export { canTransition, VARIANT_TRANSITIONS } from './publishing/domain/variant-state-machine';
