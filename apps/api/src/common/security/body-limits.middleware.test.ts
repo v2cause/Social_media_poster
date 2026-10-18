@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AUTH_BODY_LIMIT_BYTES, authBodyLimit } from './body-limits.middleware';
+import { AUTH_BODY_LIMIT_BYTES, authBodyLimit, noStore } from './body-limits.middleware';
 
 function run(headers: Record<string, string>) {
   const req = { id: 'req-1', get: (name: string) => headers[name.toLowerCase()] } as unknown as Request;
@@ -34,5 +34,15 @@ describe('the body limit of /api/auth', () => {
     const result = run({ 'transfer-encoding': 'chunked' });
     expect(result.next).not.toHaveBeenCalled();
     expect(result.status).toHaveBeenCalledWith(411);
+  });
+});
+
+describe('noStore', () => {
+  it('marks the answer as not to be stored', () => {
+    const setHeader = vi.fn();
+    const next = vi.fn();
+    noStore({} as Request, { setHeader } as unknown as Response, next);
+    expect(setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
+    expect(next).toHaveBeenCalled();
   });
 });

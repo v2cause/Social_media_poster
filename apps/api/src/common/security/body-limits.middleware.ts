@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 
-// Request bodies of the API (guide step 8.4, ADR 0039).
+// Request bodies and caching of the API (guide step 8.4, ADR 0039).
 //
 // Better Auth reads the whole body of a request before it looks at it, without a limit of its own.
 // Its requests are small JSON documents, so a body above AUTH_BODY_LIMIT_BYTES, or one sent in
@@ -46,3 +46,11 @@ export function authBodyLimit(req: Request, res: Response, next: NextFunction): 
   next();
 }
 
+/**
+ * Answers of the API are for the one who asked: no browser or proxy keeps them (ASVS 14.3.2). A
+ * route that allows caching sets its own header after this one.
+ */
+export function noStore(_req: Request, res: Response, next: NextFunction): void {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+}

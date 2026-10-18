@@ -8,7 +8,7 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { Logger } from 'nestjs-pino';
 
 import { requestIdMiddleware } from './common/request-id.middleware';
-import { authBodyLimit } from './common/security/body-limits.middleware';
+import { authBodyLimit, noStore } from './common/security/body-limits.middleware';
 import { createOriginCheckMiddleware } from './common/security/origin-check.middleware';
 import type { ApiEnv } from './config/api-env';
 import { AUTH, type Auth } from './modules/identity/auth';
@@ -28,6 +28,7 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv): void {
   app.use(
     helmet({ contentSecurityPolicy: { directives: { baseUri: ["'none'"], frameAncestors: ["'none'"] } } }),
   );
+  app.use(noStore);
 
   // Before the auth handler: Better Auth accepts a sign-in without cookies from any origin,
   // which would allow login CSRF.
