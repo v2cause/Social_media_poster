@@ -186,6 +186,14 @@ describe('billing adapters on PostgreSQL', () => {
     await expect(notices.due(new Date('2026-10-21T00:00:00Z'), 10)).resolves.toEqual([
       { organizationId: org, status: 'CANCELED', readOnlyAt: moment },
     ]);
+    // The owners of a deleted organization hear of its erasure instead (guide step 8.2).
+    const deletedAt = async (at: Date | null) =>
+      runInSystemScope(() =>
+        clients().system.organization.update({ where: { id: org }, data: { deletedAt: at } }),
+      );
+    await deletedAt(moment);
+    await expect(notices.due(new Date('2026-10-21T00:00:00Z'), 10)).resolves.toEqual([]);
+    await deletedAt(null);
     // A moment that moved meanwhile stays due.
     await notices.markSent(org, new Date('2026-10-19T00:00:00Z'), new Date('2026-10-21T00:00:00Z'));
     await expect(notices.due(new Date('2026-10-21T00:00:00Z'), 10)).resolves.toHaveLength(1);

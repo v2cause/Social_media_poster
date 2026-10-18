@@ -128,6 +128,7 @@ interface ExpiringRow {
 /**
  * The scan of tick.tokens across all workspaces: usable connections whose access, as the user
  * sees it (the refresh token when there is one, else the access token), runs out until then.
+ * Deleted organizations are left alone until their erasure (guide step 8.2).
  */
 export class PrismaExpiringConnectionScanner implements ExpiringConnectionScanner {
   constructor(private readonly system: SystemPrismaClient) {}
@@ -139,11 +140,13 @@ export class PrismaExpiringConnectionScanner implements ExpiringConnectionScanne
                c.expiry_notice_days, x.access_expires_at
           FROM social_connection c
           JOIN workspace w ON w.id = c.workspace_id
+          JOIN organization o ON o.id = w.organization_id
           CROSS JOIN LATERAL (
             SELECT CASE WHEN c.refresh_token_sealed IS NOT NULL THEN c.refresh_token_expires_at
                         ELSE c.access_token_expires_at END AS access_expires_at
           ) x
          WHERE c.status IN ('ACTIVE', 'EXPIRING')
+           AND o.deleted_at IS NULL
            AND x.access_expires_at IS NOT NULL
            AND x.access_expires_at <= ${until}
          ORDER BY x.access_expires_at

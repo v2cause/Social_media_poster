@@ -4,7 +4,7 @@ import { runInSystemScope, type SystemPrismaClient } from '../system-client';
 
 // The scans of the analytics planner across workspaces (guide step 5.2, architecture 6.3): as
 // app_system, returning ids and the workspace only. The jobs read everything else again in the
-// tenant of their account.
+// tenant of their account. Deleted organizations are left alone until their erasure (step 8.2).
 
 interface DueAccountRow {
   account_id: string;
@@ -35,7 +35,9 @@ export class PrismaMetricsPlanScanner implements MetricsPlanScanner {
         SELECT v.social_account_id AS account_id, v.workspace_id, w.organization_id
           FROM post_variant v
           JOIN workspace w ON w.id = v.workspace_id
+          JOIN organization o ON o.id = w.organization_id
          WHERE v.status = 'PUBLISHED'
+           AND o.deleted_at IS NULL
            AND v.metrics_next_at <= ${now}::timestamptz
            AND v.social_account_id IS NOT NULL
          GROUP BY v.social_account_id, v.workspace_id, w.organization_id
@@ -58,11 +60,13 @@ export class PrismaMetricsPlanScanner implements MetricsPlanScanner {
           FROM social_account a
           JOIN social_connection c ON c.id = a.connection_id
           JOIN workspace w ON w.id = a.workspace_id
+          JOIN organization o ON o.id = w.organization_id
           CROSS JOIN LATERAL (
             SELECT (${now}::timestamptz AT TIME ZONE w.timezone)::date AS local_day,
                    extract(hour FROM ${now}::timestamptz AT TIME ZONE w.timezone) AS local_hour
           ) l
          WHERE w.timezone IN (SELECT name FROM pg_timezone_names)
+           AND o.deleted_at IS NULL
            AND a.disconnected_at IS NULL
            AND c.status IN ('ACTIVE', 'EXPIRING')
            AND l.local_hour >= ${ACCOUNT_METRICS_HOUR}
@@ -86,7 +90,9 @@ export class PrismaMetricsPlanScanner implements MetricsPlanScanner {
         SELECT w.id AS workspace_id, w.organization_id,
                to_char((${now}::timestamptz AT TIME ZONE w.timezone)::date, 'YYYY-MM-DD') AS today
           FROM workspace w
+          JOIN organization o ON o.id = w.organization_id
          WHERE w.timezone IN (SELECT name FROM pg_timezone_names)
+           AND o.deleted_at IS NULL
            AND EXISTS (SELECT 1 FROM social_account a WHERE a.workspace_id = w.id)
          ORDER BY w.id`,
     );

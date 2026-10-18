@@ -68,10 +68,12 @@ const RETRYING_STALE_MS = 3 * 60 * 60_000;
 
 const seconds = (ms: number): number => Math.round(ms / 1000);
 
-/** The organization of the variant v is read-only now. */
-const READ_ONLY_ORGANIZATION = Prisma.sql`
-  SELECT 1 FROM workspace o JOIN subscription sub ON sub.organization_id = o.organization_id
-   WHERE o.id = v.workspace_id AND sub.read_only_at <= now()`;
+/** The organization of the variant v is read-only now, or deleted (guide steps 7.4 and 8.2). */
+const PAUSED_ORGANIZATION = Prisma.sql`
+  SELECT 1 FROM workspace pw
+    JOIN organization po ON po.id = pw.organization_id
+    LEFT JOIN subscription sub ON sub.organization_id = pw.organization_id
+   WHERE pw.id = v.workspace_id AND (sub.read_only_at <= now() OR po.deleted_at IS NOT NULL)`;
 
 export class PrismaPublishScheduler {
   constructor(
@@ -94,7 +96,7 @@ export class PrismaPublishScheduler {
              WHERE v.status = 'SCHEDULED'
                AND v.scheduled_at < now() - make_interval(secs => ${window})
                AND COALESCE(s.missed_window_behavior, 'FAIL') = 'FAIL'
-               AND NOT EXISTS (${READ_ONLY_ORGANIZATION})
+               AND NOT EXISTS (${PAUSED_ORGANIZATION})
              ORDER BY v.scheduled_at
              LIMIT ${batch}
                FOR UPDATE OF v SKIP LOCKED
@@ -128,7 +130,7 @@ export class PrismaPublishScheduler {
               FROM post_variant v
              WHERE v.status = 'SCHEDULED'
                AND v.scheduled_at <= now() + make_interval(secs => ${lead})
-               AND NOT EXISTS (${READ_ONLY_ORGANIZATION})
+               AND NOT EXISTS (${PAUSED_ORGANIZATION})
              ORDER BY v.scheduled_at
              LIMIT ${batch}
                FOR UPDATE SKIP LOCKED

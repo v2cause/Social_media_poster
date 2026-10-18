@@ -398,6 +398,16 @@ describe('analytics adapters on PostgreSQL', () => {
     ]);
     expect(accounts.some((account) => account.accountId === notDue)).toBe(false);
 
+    // A deleted organization is left alone until its erasure (guide step 8.2).
+    await query(`UPDATE organization SET deleted_at = now() WHERE id = $1`, [org]);
+    const whileDeleted = [
+      ...(await scanner.dueAccounts(NOW, 1_000)).map((entry) => entry.organizationId),
+      ...(await scanner.accountDaysDue(NOW, 1_000)).map((entry) => entry.organizationId),
+      ...(await scanner.rollupWorkspaces(NOW)).map((entry) => entry.organizationId),
+    ];
+    expect(whileDeleted).not.toContain(org);
+    await query(`UPDATE organization SET deleted_at = NULL WHERE id = $1`, [org]);
+
     // 12:00 UTC is 08:00 in New York: past 03:00, so the numbers of October 15 are due.
     const disconnected = await seedAccount('LINKEDIN', { ws: otherWorkspace, disconnected: true });
     const reauth = await seedAccount('LINKEDIN', { ws: otherWorkspace, status: 'NEEDS_REAUTH' });

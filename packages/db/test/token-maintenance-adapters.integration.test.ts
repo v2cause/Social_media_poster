@@ -234,6 +234,21 @@ describe('the token monitor on PostgreSQL', () => {
     ]);
   });
 
+  it('leaves the connections of a deleted organization alone (guide step 8.2)', async () => {
+    const { connectionId } = await seed('ACTIVE', 3);
+    const scanner = new PrismaExpiringConnectionScanner(ready().system);
+    const until = new Date(NOW.getTime() + 30 * DAY_MS);
+    const found = async () => (await scanner.expiring(until, 1_000)).map((entry) => entry.connectionId);
+    expect(await found()).toContain(connectionId);
+
+    await query('UPDATE organization SET deleted_at = now() WHERE id = $1', [org]);
+    try {
+      expect(await found()).not.toContain(connectionId);
+    } finally {
+      await query('UPDATE organization SET deleted_at = NULL WHERE id = $1', [org]);
+    }
+  });
+
   it('asks for the refresh of an active connection and renews it under its lock', async () => {
     const { connectionId } = await seed('ACTIVE', 10);
     const requested: string[] = [];

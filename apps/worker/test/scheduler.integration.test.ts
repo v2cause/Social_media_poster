@@ -203,6 +203,31 @@ describe('scheduler ticks of the worker', () => {
     expect([await statusOf(due?.id), await statusOf(missed?.id)]).toEqual(['QUEUED', 'FAILED']);
   });
 
+  it('pauses the plans of a deleted organization until an owner takes it back (guide step 8.2)', async () => {
+    const deleted = randomUUID();
+    const workspace = randomUUID();
+    await query(
+      `INSERT INTO organization (id, name, deleted_at, updated_at) VALUES ($1, 'Deleted', now(), now())`,
+      [deleted],
+    );
+    await query(
+      `INSERT INTO workspace (id, organization_id, slug, name, timezone, content_language, updated_at)
+       VALUES ($1, $2, 'ticks-deleted', 'Deleted', 'Europe/Berlin', 'de', now())`,
+      [workspace, deleted],
+    );
+    const [due] = await plan(workspace, 1, -1);
+    const { tick } = workerParts();
+    const statusOf = async (id: string | undefined) =>
+      (await query<{ status: string }>('SELECT status FROM post_variant WHERE id = $1', [id]))[0]?.status;
+
+    await tick.run();
+    expect(await statusOf(due?.id)).toBe('SCHEDULED');
+
+    await query(`UPDATE organization SET deleted_at = NULL WHERE id = $1`, [deleted]);
+    await tick.run();
+    expect(await statusOf(due?.id)).toBe('QUEUED');
+  });
+
   it('gives lost jobs back and restarts failed ones, leaving running ones alone', async () => {
     const { tick, sweeper } = workerParts();
     const queue = publishQueue();

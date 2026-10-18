@@ -178,14 +178,17 @@ export class PrismaBillingDirectory {
   }
 }
 
-/** The organizations that became read-only and whose owners have not heard of it (app_system). */
+/**
+ * The organizations that became read-only and whose owners have not heard of it (app_system).
+ * The owners of a deleted organization heard of its erasure instead (guide step 8.2).
+ */
 export class PrismaReadOnlyNotices implements ReadOnlyNotices {
   constructor(private readonly system: SystemPrismaClient) {}
 
   async due(now: Date, limit: number) {
     const rows = await runInSystemScope(() =>
       this.system.subscription.findMany({
-        where: { readOnlyAt: { lte: now }, readOnlyNotifiedAt: null },
+        where: { readOnlyAt: { lte: now }, readOnlyNotifiedAt: null, organization: { deletedAt: null } },
         select: { organizationId: true, status: true, readOnlyAt: true },
         orderBy: { readOnlyAt: 'asc' },
         take: limit,
