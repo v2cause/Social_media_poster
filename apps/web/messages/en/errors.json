@@ -85,7 +85,9 @@
     "DATA_EXPORT_UNAVAILABLE": "The export is no longer available. Please request a new one.",
     "ORGANIZATION_NAME_MISMATCH": "The name you entered does not match the name of the organization.",
     "ORGANIZATION_DELETION_PENDING": "This organization was deleted and waits for its erasure. An owner can restore it on the Data and deletion page.",
-    "ERASURE_NOT_PENDING": "No deletion is waiting that could be taken back."
+    "ERASURE_NOT_PENDING": "No deletion is waiting that could be taken back.",
+    "TWO_FACTOR_REQUIRED": "Your organization requires a second factor. Please set it up in your security settings.",
+    "TWO_FACTOR_SETUP_REQUIRED": "Set up your own second factor first before you require it of everyone."
   },
   "validation": {
     "required": "Please fill in this field.",

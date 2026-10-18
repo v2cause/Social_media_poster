@@ -111,3 +111,21 @@ export class OrganizationNotFoundError extends DomainError {
     super('The organization does not exist.');
   }
 }
+
+/** The organization requires a second factor, and the user has none yet (guide step 8.4). */
+export class TwoFactorRequiredError extends DomainError {
+  readonly code = 'TWO_FACTOR_REQUIRED';
+  readonly kind = 'forbidden';
+  constructor() {
+    super('The organization requires a second factor; set one up on the security page first.');
+  }
+}
+
+/** An owner without a second factor cannot require one of everybody, including themselves. */
+export class TwoFactorSetupRequiredError extends DomainError {
+  readonly code = 'TWO_FACTOR_SETUP_REQUIRED';
+  readonly kind = 'conflict';
+  constructor() {
+    super('Set up your own second factor before you require one of every member.');
+  }
+}

@@ -85,6 +85,9 @@ export const ERROR_CODES = [
   'ORGANIZATION_NAME_MISMATCH',
   'ORGANIZATION_DELETION_PENDING',
   'ERASURE_NOT_PENDING',
+  // The organization requires a second factor (guide step 8.4).
+  'TWO_FACTOR_REQUIRED',
+  'TWO_FACTOR_SETUP_REQUIRED',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

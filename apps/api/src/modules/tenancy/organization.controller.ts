@@ -9,6 +9,8 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
+  Req,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { hours } from '@nestjs/throttler';
@@ -22,6 +24,7 @@ import {
   RemoveMember,
   ResendInvitation,
   RevokeInvitation,
+  SetTwoFactorRequirement,
   systemClock,
   type OrganizationActor,
 } from '@smp/core';
@@ -38,6 +41,7 @@ import { AccessCache } from '../../common/guards/access-cache';
 import { Access, Actor, type RequestAccess } from '../../common/guards/request-access';
 import { LimitPerUser } from '../../common/throttling/throttling';
 import { TENANCY_READ_MODEL } from '../../infrastructure/clients.module';
+import type { AuthenticatedRequest } from '../identity/auth.guard';
 import { toBillingStateDto } from '../billing/billing.mappers';
 import { toOrganizationDeletionDto } from '../gdpr/gdpr.mappers';
 import {
@@ -48,6 +52,7 @@ import {
   InviteMemberResponseDto,
   MemberListDto,
   OrganizationContextDto,
+  OrganizationSecurityDto,
   WorkspaceListDto,
   WorkspaceProfileDto,
 } from './tenancy.dto';
@@ -68,6 +73,7 @@ export class OrganizationController {
     private readonly inviteMember: InviteMember,
     private readonly resendInvitationUseCase: ResendInvitation,
     private readonly revokeInvitationUseCase: RevokeInvitation,
+    private readonly setTwoFactorRequirement: SetTwoFactorRequirement,
     private readonly createWorkspace: CreateWorkspace,
     private readonly entitlements: EntitlementsService,
   ) {}
@@ -87,7 +93,33 @@ export class OrganizationController {
       permissions: permissionsOf(access.role),
       billing: toBillingStateDto(await this.entitlements.of(access.organizationId)),
       deletion: toOrganizationDeletionDto(access.deletedAt),
+      security: { requireTwoFactor: access.requireTwoFactor },
     };
+  }
+
+  /**
+   * An owner requires a second factor of every member, or drops the requirement (guide step
+   * 8.4). The cached access of every member goes at once, so that the next request checks it.
+   * Allowed while read-only: security does not wait for a payment.
+   */
+  @Put('security')
+  @RequirePermission('org.security')
+  @AllowWhenReadOnly()
+  @ZodResponse({ type: OrganizationSecurityDto })
+  async setSecurity(
+    @Actor() actor: OrganizationActor,
+    @Body() body: OrganizationSecurityDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<OrganizationSecurityDto> {
+    const user = request.auth?.user as { twoFactorEnabled?: boolean | null } | undefined;
+    const result = await this.setTwoFactorRequirement.execute({
+      actor,
+      required: body.requireTwoFactor,
+      actorUsesTwoFactor: user?.twoFactorEnabled === true,
+    });
+    const members = await this.readModel.listMembers(actor);
+    await this.cache.invalidateUsers(members.map((member) => member.userId));
+    return result;
   }
 
   @Get('members')

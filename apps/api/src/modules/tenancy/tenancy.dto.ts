@@ -12,6 +12,7 @@ import {
   memberListSchema,
   myMembershipsSchema,
   organizationContextSchema,
+  organizationSecuritySchema,
   updateWorkspaceSettingsSchema,
   workspaceContextSchema,
   workspaceListSchema,
@@ -35,6 +36,7 @@ export class InvitationPreviewDto extends createZodDto(invitationPreviewSchema) 
 export class AcceptInvitationResponseDto extends createZodDto(acceptInvitationResponseSchema) {}
 export class MyMembershipsDto extends createZodDto(myMembershipsSchema) {}
 export class OrganizationContextDto extends createZodDto(organizationContextSchema) {}
+export class OrganizationSecurityDto extends createZodDto(organizationSecuritySchema) {}
 export class WorkspaceContextDto extends createZodDto(workspaceContextSchema) {}
 export class MemberListDto extends createZodDto(memberListSchema) {}
 export class InvitationListDto extends createZodDto(invitationListSchema) {}

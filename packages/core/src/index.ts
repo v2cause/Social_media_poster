@@ -522,6 +522,10 @@ export {
 } from './tenancy/application/manage-invitation';
 export { RemoveMember, type RemoveMemberInput } from './tenancy/application/remove-member';
 export {
+  SetTwoFactorRequirement,
+  type SetTwoFactorRequirementInput,
+} from './tenancy/application/two-factor-requirement';
+export {
   UpdateWorkspaceSettings,
   type UpdateWorkspaceSettingsInput,
 } from './tenancy/application/update-workspace-settings';

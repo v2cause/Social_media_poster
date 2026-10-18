@@ -33,6 +33,9 @@ export function createPrismaTenancyStore(
         // one after the other.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`plan.${organizationId}`}, 0))`;
       },
+      async setTwoFactorRequired(organizationId, required) {
+        await tx.organization.update({ where: { id: organizationId }, data: { requireTwoFactor: required } });
+      },
     },
 
     workspaces: {

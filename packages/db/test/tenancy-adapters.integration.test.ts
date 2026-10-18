@@ -7,6 +7,7 @@ import {
   InviteMember,
   LastOwnerError,
   PlanLimitReachedError,
+  SetTwoFactorRequirement,
   systemClock,
   uuidV7Ids,
   type InvitationMessage,
@@ -225,6 +226,36 @@ describe('tenancy adapters on PostgreSQL', () => {
         role: 'ADMIN',
       }),
     ).rejects.toThrow(LastOwnerError);
+  });
+
+  it('stores the requirement of a second factor and hands it to the guards (guide step 8.4)', async () => {
+    const create = new CreateOrganization(deps());
+    const strict = await create.execute({ user: users.carol, name: 'Strict', workspace: profile('Vault') });
+    const relaxed = await create.execute({
+      user: users.carol,
+      name: 'Relaxed',
+      workspace: profile('Lounge'),
+    });
+    const readModel = new TenancyReadModel(client());
+    expect(await readModel.resolveOrganization(users.carol.id, strict.organizationId)).toMatchObject({
+      organization: { requireTwoFactor: false },
+    });
+
+    await new SetTwoFactorRequirement(deps()).execute({
+      actor: { userId: users.carol.id, organizationId: strict.organizationId, role: 'OWNER' },
+      required: true,
+      actorUsesTwoFactor: true,
+    });
+
+    expect(await readModel.resolveOrganization(users.carol.id, strict.organizationId)).toMatchObject({
+      organization: { id: strict.organizationId, requireTwoFactor: true },
+    });
+    expect(await readModel.resolveWorkspace(users.carol.id, strict.workspaceSlug)).toMatchObject({
+      organization: { requireTwoFactor: true },
+    });
+    expect(await readModel.resolveOrganization(users.carol.id, relaxed.organizationId)).toMatchObject({
+      organization: { requireTwoFactor: false },
+    });
   });
 
   it('keeps workspaces and members within the trial of a new organization', async () => {

@@ -16,6 +16,8 @@ const cachedAccess = z.object({
   workspaceId: z.string().optional(),
   // Since when the organization waits for its erasure (guide step 8.2).
   deletedAt: z.iso.datetime().nullable().default(null),
+  // Whether its members need a second factor (guide step 8.4).
+  requireTwoFactor: z.boolean().default(false),
 });
 export type CachedAccess = z.output<typeof cachedAccess>;
 

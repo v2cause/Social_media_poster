@@ -106,6 +106,48 @@
         ]
       }
     },
+    "/api/org/{org}/security": {
+      "put": {
+        "operationId": "organizationSetSecurity",
+        "parameters": [
+          {
+            "name": "org",
+            "required": true,
+            "in": "path",
+            "description": "Organization id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationSecurityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationSecurityDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
     "/api/org/{org}/members": {
       "get": {
         "operationId": "organizationMembers",
@@ -4242,7 +4284,8 @@
                 "billing.manage",
                 "org.export",
                 "org.delete",
-                "ownership.transfer"
+                "ownership.transfer",
+                "org.security"
               ]
             }
           },
@@ -4310,6 +4353,18 @@
               "eraseAfter"
             ],
             "additionalProperties": false
+          },
+          "security": {
+            "type": "object",
+            "properties": {
+              "requireTwoFactor": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "requireTwoFactor"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -4317,7 +4372,31 @@
           "role",
           "permissions",
           "billing",
-          "deletion"
+          "deletion",
+          "security"
+        ],
+        "additionalProperties": false
+      },
+      "OrganizationSecurityDto": {
+        "type": "object",
+        "properties": {
+          "requireTwoFactor": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requireTwoFactor"
+        ]
+      },
+      "OrganizationSecurityDto_Output": {
+        "type": "object",
+        "properties": {
+          "requireTwoFactor": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requireTwoFactor"
         ],
         "additionalProperties": false
       },
@@ -4783,7 +4862,8 @@
                 "billing.manage",
                 "org.export",
                 "org.delete",
-                "ownership.transfer"
+                "ownership.transfer",
+                "org.security"
               ]
             }
           },

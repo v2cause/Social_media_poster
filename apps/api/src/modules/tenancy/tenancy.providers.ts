@@ -10,6 +10,7 @@ import {
   RemoveMember,
   ResendInvitation,
   RevokeInvitation,
+  SetTwoFactorRequirement,
   systemClock,
   UpdateWorkspaceSettings,
   uuidV7Ids,
@@ -34,6 +35,7 @@ const USE_CASES = [
   RemoveMember,
   ResendInvitation,
   RevokeInvitation,
+  SetTwoFactorRequirement,
   UpdateWorkspaceSettings,
 ] as const;
 

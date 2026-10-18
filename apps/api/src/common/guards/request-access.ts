@@ -11,6 +11,8 @@ export interface RequestAccess {
   workspaceId?: string;
   /** Since when the organization waits for its erasure (ISO 8601), or null (guide step 8.2). */
   deletedAt: string | null;
+  /** Whether the members of the organization need a second factor (guide step 8.4). */
+  requireTwoFactor: boolean;
 }
 
 export type RequestWithAccess = Request & { access?: RequestAccess };

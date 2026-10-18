@@ -33,7 +33,8 @@ const MANAGE = [
   'x_browser.enable',
   'audit.read',
 ] as const;
-const OWN = ['billing.manage', 'org.export', 'org.delete', 'ownership.transfer'] as const;
+// org.security: whether every member needs a second factor (architecture 10, guide step 8.4).
+const OWN = ['billing.manage', 'org.export', 'org.delete', 'ownership.transfer', 'org.security'] as const;
 
 export const PERMISSIONS = [...READ, ...WRITE, ...MANAGE, ...OWN] as const;
 export type Permission = (typeof PERMISSIONS)[number];

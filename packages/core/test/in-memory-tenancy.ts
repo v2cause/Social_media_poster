@@ -32,6 +32,8 @@ interface State {
   invitations: Map<string, Invitation>;
   audit: (AuditEntry & { scopeUserId: string })[];
   trials: Map<string, { id: string; trialEndsAt: Date; readOnlyAt: Date }>;
+  /** The organizations that require a second factor of every member. */
+  twoFactorRequired: Set<string>;
 }
 
 const emptyState = (): State => ({
@@ -42,6 +44,7 @@ const emptyState = (): State => ({
   invitations: new Map(),
   audit: [],
   trials: new Map(),
+  twoFactorRequired: new Set(),
 });
 
 export class ScopeViolation extends Error {}
@@ -132,6 +135,15 @@ export class InMemoryTenancy implements TenancyUnitOfWork {
         lockPlan: (organizationId) => {
           writeOrg(organizationId);
           this.planLocks.push(organizationId);
+          return Promise.resolve();
+        },
+        setTwoFactorRequired: (organizationId, required) => {
+          writeOrg(organizationId);
+          if (required) {
+            state().twoFactorRequired.add(organizationId);
+          } else {
+            state().twoFactorRequired.delete(organizationId);
+          }
           return Promise.resolve();
         },
       },

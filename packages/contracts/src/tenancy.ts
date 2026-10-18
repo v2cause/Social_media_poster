@@ -106,12 +106,20 @@ export const workspaceContextSchema = z.object({
 });
 export type WorkspaceContext = z.infer<typeof workspaceContextSchema>;
 
+/**
+ * PUT /api/org/:org/security (guide step 8.4): an owner requires a second factor of every member.
+ * Members without one reach none of the routes of the organization until they set one up.
+ */
+export const organizationSecuritySchema = z.object({ requireTwoFactor: z.boolean() });
+export type OrganizationSecurity = z.infer<typeof organizationSecuritySchema>;
+
 export const organizationContextSchema = z.object({
   organization: z.object({ id: z.uuid(), name: z.string() }),
   role: roleSchema,
   permissions: z.array(z.enum(PERMISSIONS)),
   billing: billingStateSchema,
   deletion: organizationDeletionSchema.nullable(),
+  security: organizationSecuritySchema,
 });
 export type OrganizationContext = z.infer<typeof organizationContextSchema>;
 

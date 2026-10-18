@@ -29,6 +29,8 @@ export interface OrganizationRepository {
    * members, until the transaction ends (guide step 7.4).
    */
   lockPlan(organizationId: string): Promise<void>;
+  /** Whether every member needs a second factor to work in the organization (guide step 8.4). */
+  setTwoFactorRequired(organizationId: string, required: boolean): Promise<void>;
 }
 
 export interface WorkspaceRepository {

@@ -185,6 +185,15 @@ const ENDPOINTS: Endpoint[] = [
     permission: 'org.delete',
     path: (i) => `/api/org/${i.organizationId}/deletion`,
   },
+  // The second factor of every member (guide step 8.4): owners only. Dropping the requirement
+  // needs no second factor of the owner.
+  {
+    method: 'put',
+    route: '/api/org/:org/security',
+    permission: 'org.security',
+    path: (i) => `/api/org/${i.organizationId}/security`,
+    body: () => ({ requireTwoFactor: false }),
+  },
   // Content and AI (guide step 2.7): unknown ids where possible; the creating calls create.
   {
     method: 'get',

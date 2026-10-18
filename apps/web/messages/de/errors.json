@@ -85,7 +85,9 @@
     "DATA_EXPORT_UNAVAILABLE": "Der Export ist nicht mehr verfügbar. Bitte fordern Sie einen neuen an.",
     "ORGANIZATION_NAME_MISMATCH": "Der eingegebene Name stimmt nicht mit dem Namen der Organisation überein.",
     "ORGANIZATION_DELETION_PENDING": "Diese Organisation wurde gelöscht und wartet auf die endgültige Löschung. Ein Owner kann sie auf der Seite Daten und Löschung wiederherstellen.",
-    "ERASURE_NOT_PENDING": "Es wartet keine Löschung, die sich zurücknehmen ließe."
+    "ERASURE_NOT_PENDING": "Es wartet keine Löschung, die sich zurücknehmen ließe.",
+    "TWO_FACTOR_REQUIRED": "Ihre Organisation verlangt einen zweiten Faktor. Bitte richten Sie ihn in Ihren Sicherheitseinstellungen ein.",
+    "TWO_FACTOR_SETUP_REQUIRED": "Richten Sie zuerst Ihren eigenen zweiten Faktor ein, bevor Sie ihn von allen verlangen."
   },
   "validation": {
     "required": "Bitte füllen Sie dieses Feld aus.",

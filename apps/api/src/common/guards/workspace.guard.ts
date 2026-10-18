@@ -74,6 +74,7 @@ export class WorkspaceGuard implements CanActivate {
       role: resolved.role,
       workspaceId: resolved.workspace.id,
       deletedAt: resolved.organization.deletedAt?.toISOString() ?? null,
+      requireTwoFactor: resolved.organization.requireTwoFactor,
     };
     await this.cache.set(userId, field, access);
     return access;
@@ -97,6 +98,7 @@ export class WorkspaceGuard implements CanActivate {
       organizationName: resolved.organization.name,
       role: resolved.role,
       deletedAt: resolved.organization.deletedAt?.toISOString() ?? null,
+      requireTwoFactor: resolved.organization.requireTwoFactor,
     };
     await this.cache.set(userId, field, access);
     return access;

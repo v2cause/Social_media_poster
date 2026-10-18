@@ -8,6 +8,8 @@ describe('permission matrix', () => {
     expect(can('ADMIN', 'billing.manage')).toBe(false);
     expect(can('OWNER', 'org.export')).toBe(true);
     expect(can('ADMIN', 'org.export')).toBe(false);
+    expect(can('OWNER', 'org.security')).toBe(true);
+    expect(can('ADMIN', 'org.security')).toBe(false);
     expect(can('ADMIN', 'member.manage')).toBe(true);
     expect(can('EDITOR', 'member.manage')).toBe(false);
     expect(can('EDITOR', 'post.publish')).toBe(true);
