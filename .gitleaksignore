@@ -2,3 +2,6 @@
 # tests of the password policy expect to be refused (guide step 8.4). No secrets.
 2f5737ac755ef7119a7f82c2937cbb54dc7ee1c3:apps/api/test/auth.integration.test.ts:generic-api-key:346
 2f5737ac755ef7119a7f82c2937cbb54dc7ee1c3:apps/api/test/auth.integration.test.ts:generic-api-key:347
+# The secret of the TOTP test vector of RFC 6238 ("12345678901234567890" in base32), public by
+# definition; the test helper of the second factor checks itself against it (guide step 8.4).
+43271774e3775acf6182faf15684a9b41a0b044e:packages/testing/src/totp.test.ts:generic-api-key:19
