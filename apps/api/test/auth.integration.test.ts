@@ -2,13 +2,17 @@ import { totpCode } from '@smp/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { PASSWORD_FAILURES_PER_USER, SIGN_IN_FAILURES_PER_ACCOUNT } from '../src/modules/identity/auth-hooks';
 import { startApiTestApp, type ApiTestApp } from './support/api-app';
-import { browser as openBrowser, PASSWORD } from './support/browser';
+import { browser as openBrowser, PASSWORD, signUpVerified } from './support/browser';
 
 // Spike 0.14(d) and guide steps 1.4 and 8.4: sign-up, email verification through Mailpit,
 // sign-in, getSession in the AuthGuard, sign-out and two-factor authentication against the real
 // API, with the hardening of step 8.4:
-// - the link verifies the address without signing in.
+// - the link verifies the address without signing in,
+// - failed sign-ins are limited per account and wrong passwords per user.
+
+const WRONG_PASSWORD = 'wrong password 123';
 
 /** The cookies a response sets: supertest types the header as a string, Node hands an array. */
 const cookiesOf = (response: { headers: Record<string, unknown> }): string => {
@@ -198,9 +202,42 @@ describe('authentication with Better Auth', () => {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const response = await browser('198.51.100.7')
         .post('/api/auth/sign-in/email')
-        .send({ email: 'ada@example.test', password: 'wrong password 123' });
+        .send({ email: 'ada@example.test', password: WRONG_PASSWORD });
       statuses.push(response.status);
     }
     expect(statuses).toContain(429);
+  });
+
+  it('blocks the sign-in to an account after ten failures, from whatever addresses they come', async () => {
+    const email = 'besieged@example.test';
+    await signUpVerified(started(), email);
+
+    // A new client address for each attempt, so that the limit per address never applies.
+    for (let attempt = 0; attempt < SIGN_IN_FAILURES_PER_ACCOUNT; attempt += 1) {
+      await signIn(browser(), email, WRONG_PASSWORD).expect(401);
+    }
+    const blocked = await signIn(browser(), email);
+    expect(blocked.status).toBe(429);
+    expect(blocked.body).toMatchObject({ code: 'TOO_MANY_ATTEMPTS' });
+  });
+
+  it('blocks the password checks of a signed-in user after five wrong passwords', async () => {
+    const agent = await signUpVerified(started(), 'stolen-session@example.test');
+
+    // Better Auth allows three requests per path and ten seconds, so the guesses go to two paths.
+    for (let attempt = 0; attempt < PASSWORD_FAILURES_PER_USER; attempt += 1) {
+      const response =
+        attempt < 3
+          ? await agent
+              .post('/api/auth/change-password')
+              .send({ currentPassword: WRONG_PASSWORD, newPassword: 'a brand new password 456' })
+          : await agent.post('/api/auth/two-factor/enable').send({ password: WRONG_PASSWORD });
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ code: 'INVALID_PASSWORD' });
+    }
+    // Even the right password is refused now, so the second factor cannot be taken over.
+    const blocked = await agent.post('/api/auth/two-factor/enable').send({ password: PASSWORD });
+    expect(blocked.status).toBe(429);
+    expect(blocked.body).toMatchObject({ code: 'TOO_MANY_ATTEMPTS' });
   });
 });

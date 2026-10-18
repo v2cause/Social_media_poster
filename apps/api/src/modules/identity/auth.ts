@@ -11,9 +11,11 @@ import type { PrismaClient } from '@smp/db';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { twoFactor } from 'better-auth/plugins';
+import type Redis from 'ioredis';
 import { uuidv7 } from 'uuidv7';
 
 import type { ApiEnv } from '../../config/api-env';
+import { createAuthHooks } from './auth-hooks';
 import type { AuthMailer } from './auth-mailer';
 
 export const AUTH = Symbol('AUTH');
@@ -23,13 +25,15 @@ export interface AuthDependencies {
   /** app_user without tenant extension: the auth tables are global and have no RLS. */
   prisma: PrismaClient;
   mailer: AuthMailer;
+  /** The limits of failed attempts per account and per user (guide step 8.4). */
+  redis: Redis;
   logger: Logger;
 }
 
 const DAY_SECONDS = 24 * 60 * 60;
 
 /** Better Auth under /api/auth (guide steps 1.4 and 8.4, ADR 0006 and 0039). */
-export function createAuth({ env, prisma, mailer, logger }: AuthDependencies) {
+export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependencies) {
   // Mails go out in the background: awaiting them would make response times reveal whether an
   // address exists. Failures are logged without the address.
   const dispatch = (event: string, task: Promise<void>): void => {
@@ -77,6 +81,7 @@ export function createAuth({ env, prisma, mailer, logger }: AuthDependencies) {
       },
     },
     session: { expiresIn: 7 * DAY_SECONDS, updateAge: DAY_SECONDS },
+    hooks: createAuthHooks({ redis, logger }),
     rateLimit: {
       // Better Auth keeps it off in development; tests check it.
       enabled: env.NODE_ENV !== 'development',

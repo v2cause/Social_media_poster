@@ -12,6 +12,8 @@ const KNOWN = [
   'INVALID_CODE',
   'INVALID_TWO_FACTOR_COOKIE',
   'INVALID_PASSWORD',
+  // The limit of failed attempts per account or user of the API (guide step 8.4).
+  'TOO_MANY_ATTEMPTS',
 ] as const;
 type KnownCode = (typeof KNOWN)[number];
 
@@ -28,10 +30,10 @@ export function useAuthError() {
     if (!error) {
       return null;
     }
-    if (error.status === 429) {
-      return t('TOO_MANY_REQUESTS');
-    }
     const code = KNOWN.find((known): known is KnownCode => known === error.code);
-    return code ? t(code) : t('unknown');
+    if (code) {
+      return t(code);
+    }
+    return error.status === 429 ? t('TOO_MANY_REQUESTS') : t('unknown');
   };
 }
