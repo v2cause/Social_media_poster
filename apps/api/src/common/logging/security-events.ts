@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 
 import { privatePath } from '@smp/observability';
 
-import { clientAddress } from '../throttling/throttling';
+import { clientAddress } from '../client-address';
 
 // The security events of the API (guide step 8.4, ADR 0039, ASVS 16.3): requests the pipeline
 // refuses and that may be an attack, each a warning with a message of its own. The log context

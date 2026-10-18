@@ -1,11 +1,8 @@
-import { isIP } from 'node:net';
-
 import { type ExecutionContext, Injectable, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
   hours,
   minutes,
-  normalizeIp,
   Throttle,
   ThrottlerGuard,
   type ThrottlerLimitDetail,
@@ -15,6 +12,7 @@ import type Redis from 'ioredis';
 
 import { REDIS_CLIENT } from '../../infrastructure/clients.module';
 import type { AuthSession } from '../../modules/identity/auth';
+import { type AddressedRequest, clientAddress } from '../client-address';
 import { RedisThrottlerStorage } from './redis-throttler-storage';
 
 // Inbound rate limits (architecture 10, guide step 8.4, ADR 0039) with @nestjs/throttler, counted
@@ -46,21 +44,12 @@ const ROUTE = 'route';
 const LIMIT_METADATA = 'THROTTLER:LIMIT';
 
 /** What the throttlers read from a request; AuthGuard sets auth. */
-interface TrackedRequest {
-  headers?: Record<string, unknown>;
-  ip?: string;
+interface TrackedRequest extends AddressedRequest {
   auth?: AuthSession;
 }
 
 /** A tighter limit for one route, per user (or client address) and window. */
 export const LimitPerUser = (limit: number, ttl: number) => Throttle({ [ROUTE]: { limit, ttl } });
-
-/** The address of the client: X-Real-IP from the reverse proxy, IPv6 by its /64 network. */
-export function clientAddress(req: TrackedRequest): string {
-  const header = req.headers?.['x-real-ip'];
-  const address = typeof header === 'string' && isIP(header) ? header : (req.ip ?? 'unknown');
-  return normalizeIp(address);
-}
 
 /** The throttlers hand the request over as a plain record. */
 type ThrottledRequest = Record<string, unknown>;
