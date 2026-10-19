@@ -155,6 +155,28 @@ jobs:
         if: failure()
         run: tail -n 200 e2e-logs/*.log
 
+  restore-drill:
+    # Guide step 8.6 (ADR 0042): WAL archive, base backups and their copy to the object storage
+    # work, and a restore to a point in time passes its checks. Weekly as well, so that a new
+    # image of Postgres or of the AWS CLI cannot break the backups unnoticed.
+    name: Restore drill
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: cp .env.example .env
+      # The seed, check:rls and restore:mark-attempts use the builds of the worker and its packages.
+      - run: pnpm build --filter=@smp/worker...
+      - run: pnpm backup:drill
+
   build:
     name: Build
     runs-on: ubuntu-24.04

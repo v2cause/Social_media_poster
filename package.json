@@ -27,6 +27,7 @@
     "check:erasure": "tsx --env-file-if-exists=.env tools/check-erasure.ts",
     "load:fixture": "tsx --env-file-if-exists=.env tools/load-fixture.ts",
     "load:stats": "tsx --env-file-if-exists=.env tools/load-stats.ts",
+    "backup:drill": "bash tools/backup/restore-drill.sh",
     "restore:mark-attempts": "pnpm --filter @smp/worker restore:mark-attempts",
     "auth:reencrypt": "pnpm --filter @smp/api auth:reencrypt",
     "auth:revoke-sessions": "pnpm --filter @smp/api auth:revoke-sessions",

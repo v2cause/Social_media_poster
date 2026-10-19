@@ -1,0 +1,10 @@
+# Override of compose.yaml for the restore drill (guide step 8.6, ADR 0042): the drill runs as a
+# compose project of its own next to the local stack. Postgres publishes its port on a free port
+# of 127.0.0.1, which the drill asks Docker for; the object storage publishes none, the drill
+# reaches it over the network of the project.
+services:
+  postgres:
+    ports: !override
+      - '127.0.0.1::5432'
+  s3:
+    ports: !reset []
