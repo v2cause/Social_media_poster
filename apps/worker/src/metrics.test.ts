@@ -1,4 +1,5 @@
 import type { OperationsCounts } from '@smp/db';
+import type { Job } from 'bullmq';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { metricsRegistry, publishRunObserver, unwatchOperations, watchOperations } from './metrics';
@@ -88,7 +89,15 @@ describe('the metrics of the worker', () => {
     watchOperations({
       counts: read,
       storageBytes: () => Promise.resolve(5_000_000),
-      queues: [{ name: 'publish', getJobCounts: () => Promise.resolve({ waiting: 7, active: 2 }) }],
+      queues: [
+        {
+          name: 'publish',
+          getJobCounts: () => Promise.resolve({ waiting: 7, active: 2 }),
+          // Due 90 s ago and still delayed: no worker of the queue moved it on.
+          getDelayed: () => Promise.resolve([{ timestamp: Date.now() - 120_000, delay: 30_000 }] as Job[]),
+        },
+        { name: 'media', getJobCounts: () => Promise.resolve({}), getDelayed: () => Promise.resolve([]) },
+      ],
       onError: () => undefined,
     });
 
@@ -109,6 +118,8 @@ describe('the metrics of the worker', () => {
     expect(text).toContain('smp_queue_counts_up 1');
     expect(text).toContain('smp_queue_jobs{queue="publish",state="waiting"} 7');
     expect(text).toContain('smp_queue_jobs{queue="publish",state="delayed"} 0');
+    expect(text).toMatch(/smp_queue_overdue_seconds\{queue="publish"\} 90(\.\d+)?\n/);
+    expect(text).toContain('smp_queue_overdue_seconds{queue="media"} 0');
   });
 
   it('says so while a reading fails and leaves the gauges with labels empty', async () => {

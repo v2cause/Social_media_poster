@@ -129,7 +129,7 @@ export const challengesTotal = new Counter({
 export interface OperationsSource {
   counts: () => Promise<OperationsCounts>;
   storageBytes: () => Promise<number>;
-  queues: readonly Pick<Queue, 'name' | 'getJobCounts'>[];
+  queues: readonly Pick<Queue, 'name' | 'getJobCounts' | 'getDelayed'>[];
   /** Hears of a reading that failed; the gauges then stay empty until the next one works. */
   onError: (error: unknown, reading: string) => void;
 }
@@ -156,11 +156,26 @@ function cachedReading<T>(ttlMs: number, read: () => Promise<T>, onError: (error
   };
 }
 
+interface QueueReading {
+  queue: string;
+  counts: Record<string, number>;
+  overdueSeconds: number;
+}
+
 interface OperationsReadings {
   counts: () => Promise<OperationsCounts | null>;
   storageBytes: () => Promise<number | null>;
-  queues: () => Promise<{ queue: string; counts: Record<string, number> }[] | null>;
+  queues: () => Promise<QueueReading[] | null>;
 }
+
+/**
+ * How long the earliest delayed job is past its time. BullMQ moves a due job on only in a worker of
+ * its queue, so without one the job stays delayed and never counts as waiting (guide step 8.7).
+ */
+const overdueSecondsOf = (earliest: readonly { timestamp: number; delay: number }[], now: number): number => {
+  const [job] = earliest;
+  return job ? Math.max(0, now - (job.timestamp + job.delay)) / 1_000 : 0;
+};
 
 const seconds = (date: Date | null): number => (date ? date.getTime() / 1_000 : 0);
 
@@ -288,6 +303,18 @@ function registerOperationsGauges(readings: OperationsReadings): string[] {
         }
       },
     }),
+    new Gauge({
+      name: 'smp_queue_overdue_seconds',
+      help: 'How long the earliest delayed job of a queue is past its time; it grows without a worker',
+      labelNames: ['queue'] as const,
+      registers: [metricsRegistry],
+      async collect() {
+        this.reset();
+        for (const { queue, overdueSeconds } of (await readings.queues()) ?? []) {
+          this.set({ queue }, overdueSeconds);
+        }
+      },
+    }),
   ];
   return gauges.map((gauge) => (gauge as unknown as { name: string }).name);
 }
@@ -311,6 +338,7 @@ export function watchOperations(source: OperationsSource): void {
           source.queues.map(async (queue) => ({
             queue: queue.name,
             counts: await queue.getJobCounts(...QUEUE_STATES),
+            overdueSeconds: overdueSecondsOf(await queue.getDelayed(0, 0), Date.now()),
           })),
         ),
       (error) => {
