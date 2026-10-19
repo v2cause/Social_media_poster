@@ -34,7 +34,11 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         <ul className="flex flex-col gap-1 text-sm">
           <li>{t('auth.invite.role', { role: t(`roles.${preview.role}`) })}</li>
           <li>{t('auth.invite.email', { email: preview.email })}</li>
-          <li>{t('auth.invite.expires', { date: format.dateTime(new Date(preview.expiresAt), 'short') })}</li>
+          <li>
+            {t('auth.invite.expires', {
+              date: format.dateTime(new Date(preview.expiresAt), { dateStyle: 'medium', timeStyle: 'short' }),
+            })}
+          </li>
         </ul>
         {preview.status === 'expired' ? (
           <Alert variant="destructive" title={t('auth.invite.expired')} />

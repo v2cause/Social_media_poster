@@ -61,6 +61,8 @@ test('from sign-up to an invited viewer without write actions', async ({ browser
   const viewerPage = await viewerContext.newPage();
   await viewerPage.goto(invitation.url);
   await expect(viewerPage.getByText('Rolle: Betrachter')).toBeVisible();
+  // The expiry in German, as 26.10.2026, 10:23 (Central European time).
+  await expect(viewerPage.getByText(/^Gültig bis \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/)).toBeVisible();
   await viewerPage.getByRole('link', { name: 'Konto erstellen' }).click();
   await expect(viewerPage.getByLabel('E-Mail-Adresse')).toHaveValue(viewer.email);
   await signUp(viewerPage, viewer);
