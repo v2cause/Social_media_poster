@@ -10,7 +10,8 @@ Schritte 8.4 und 8.9 des Leitfadens, [ADR 0039](../adr/0039-security-review-und-
 
 ## Grundregeln
 
-- Secrets stehen nur in der Umgebung der Container (lokal `.env`, in Produktion im Secret-Store des Deployments, Schritt 8.9). Nie im Repository, in Logs, in Fehlermeldungen, in Audit-Metadaten oder in `NEXT_PUBLIC_*`-Variablen.
+- Secrets stehen nur in der Umgebung der Container (lokal `.env`) oder in einer Datei je Secret, deren Pfad `<NAME>_FILE` nennt (seit Schritt 8.9). Nie im Repository, in Logs, in Fehlermeldungen, in Audit-Metadaten oder in `NEXT_PUBLIC_*`-Variablen.
+- **Als Datei** lesen API, Worker und browser-worker die Secrets der Liste `SECRET_FILE_VARIABLES` (`packages/observability/src/secret-files.ts`): die Schlüssel dieses Runbooks, die URLs mit Passwort (`DATABASE_URL`, `DATABASE_SYSTEM_URL`, `REDIS_URL`, `SMTP_URL`), die Schlüssel von S3 und Stripe, `ANTHROPIC_API_KEY`, `SENTRY_DSN` und die Client-Secrets der Plattform-Apps. Die Datei enthält nur den Wert, ein Zeilenumbruch am Ende wird entfernt. Die Dienste lesen sie beim Start: Für eine Rotation die Datei ersetzen und den Dienst neu starten. Ein Wert und eine Datei für denselben Namen brechen den Start ab.
 - Neue Werte: `pnpm gen:keys` für `BETTER_AUTH_SECRET`, `TOKEN_KEKS`, `SESSION_KEKS` und `NOTIFY_KEKS`; für Passwörter `openssl rand -base64 32`.
 - Nach jeder Rotation: betroffene Dienste neu starten, `GET /api/health/ready` und `GET :3002/health/ready` des Workers prüfen, Logs auf `level >= 50` durchsehen.
 - Alte Werte erst entfernen, wenn die Prüfung der jeweiligen Zeile unten bestanden ist.

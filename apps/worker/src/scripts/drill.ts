@@ -1,4 +1,4 @@
-import { observabilityEnvSchema, createLogger } from '@smp/observability';
+import { observabilityEnvSchema, createLogger, loadSecretFiles } from '@smp/observability';
 import { mockAccountSettingsSchema, platformEnvSchema, usesMockPlatform } from '@smp/platform-adapters';
 import type { XbReport } from '@smp/x-browser';
 import { z } from 'zod';
@@ -83,6 +83,7 @@ async function run(drill: Drill, env: DrillEnv, now: Date): Promise<Record<strin
 }
 
 async function main(): Promise<void> {
+  loadSecretFiles(process.env);
   const env = envSchema.parse(process.env);
   const logger = createLogger({ service: 'worker', environment: env.NODE_ENV, level: env.LOG_LEVEL });
   if (env.NODE_ENV === 'production') {

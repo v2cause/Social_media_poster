@@ -69,7 +69,7 @@ pnpm db:seed       # optional: Demo-Organisation mit vier Rollen, Mock-Accounts 
 pnpm build
 ```
 
-Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis auf die Pflichtwerte. Die lokale Infrastruktur (Postgres, Redis, S3-kompatibler Speicher, Mailpit) startet über `compose.yaml`. Redis hat keinen Standardnutzer: API und Worker melden sich als Nutzer `app` mit `REDIS_APP_PASSWORD` an, dasselbe Passwort steht in `REDIS_URL`; nach einer Änderung `docker compose up -d redis` erneut ausführen. `.env.test` enthält nur Testwerte und wird committet; Integrationstests starten ihre Datenbanken selbst über Testcontainers.
+Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis auf die Pflichtwerte. Die lokale Infrastruktur (Postgres, Redis, S3-kompatibler Speicher, Mailpit) startet über `compose.yaml`. Redis hat keinen Standardnutzer: API und Worker melden sich als Nutzer `app` mit `REDIS_APP_PASSWORD` an, dasselbe Passwort steht in `REDIS_URL`; nach einer Änderung `docker compose up -d redis` erneut ausführen. `.env.test` enthält nur Testwerte und wird committet; Integrationstests starten ihre Datenbanken selbst über Testcontainers. Jedes Secret kann statt als Wert auch aus einer Datei kommen: `<NAME>_FILE` nennt ihren Pfad (Schritt 8.9, [Runbook](docs/runbooks/secret-rotation.md)).
 
 | Befehl                       | Zweck                                                                                                            | Verfügbar ab |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------ |

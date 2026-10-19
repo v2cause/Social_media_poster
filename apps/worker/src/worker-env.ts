@@ -1,7 +1,7 @@
 import { billingEnvSchema, checkBillingEnv } from '@smp/billing';
 import { dbEnvSchema } from '@smp/db';
 import { storageEnvSchema } from '@smp/media';
-import { checkProductionEnv, observabilityEnvSchema } from '@smp/observability';
+import { checkProductionEnv, loadSecretFiles, observabilityEnvSchema } from '@smp/observability';
 import { platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
@@ -67,8 +67,12 @@ export const workerEnvSchema = z
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;
 
-/** Validates the process environment. Failures name the variables, never their values. */
+/**
+ * Validates the process environment, after reading the secrets that come as files. Failures name
+ * the variables, never their values.
+ */
 export function loadWorkerEnv(source: NodeJS.ProcessEnv): WorkerEnv {
+  loadSecretFiles(source);
   const result = workerEnvSchema.safeParse(source);
   if (!result.success) {
     const lines = result.error.issues.map((issue) => `  ${issue.path.join('.')}: ${issue.message}`);

@@ -1,5 +1,5 @@
 import { dbEnvSchema } from '@smp/db';
-import { createLogger, observabilityEnvSchema } from '@smp/observability';
+import { createLogger, loadSecretFiles, observabilityEnvSchema } from '@smp/observability';
 
 import { markOpenAttempts } from '../infrastructure/restore-attempts';
 import { restoreSinceOf } from '../publisher/restore-marks';
@@ -15,6 +15,7 @@ const envSchema = dbEnvSchema
   .extend(observabilityEnvSchema.pick({ NODE_ENV: true, LOG_LEVEL: true }).shape);
 
 async function main(): Promise<void> {
+  loadSecretFiles(process.env);
   const env = envSchema.parse(process.env);
   const logger = createLogger({ service: 'worker', environment: env.NODE_ENV, level: env.LOG_LEVEL });
   const since = restoreSinceOf(process.argv.slice(2), new Date());

@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { loadApiEnv } from './api-env';
 
@@ -54,6 +58,22 @@ describe('loadApiEnv', () => {
 
   it('requires a Better Auth secret of at least 32 characters', () => {
     expect(() => loadApiEnv({ ...validEnv, BETTER_AUTH_SECRET: 'too-short' })).toThrow(/BETTER_AUTH_SECRET/);
+  });
+});
+
+describe('loadApiEnv with secrets as files (guide step 8.9)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'smp-api-env-'));
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('reads a secret from the file that <NAME>_FILE names', () => {
+    const path = join(dir, 'database-url');
+    writeFileSync(path, 'postgresql://app_user:from-file@postgres:5432/smp\n');
+
+    const env = loadApiEnv({ ...validEnv, DATABASE_URL: undefined, DATABASE_URL_FILE: path });
+
+    expect(env.DATABASE_URL).toBe('postgresql://app_user:from-file@postgres:5432/smp');
   });
 });
 

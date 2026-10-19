@@ -2,7 +2,7 @@ import { aiEnvSchema, checkAiEnv } from '@smp/ai';
 import { billingEnvSchema, checkBillingEnv } from '@smp/billing';
 import { dbEnvSchema } from '@smp/db';
 import { storageEnvSchema } from '@smp/media';
-import { checkProductionEnv, observabilityEnvSchema } from '@smp/observability';
+import { checkProductionEnv, loadSecretFiles, observabilityEnvSchema } from '@smp/observability';
 import { platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
@@ -120,10 +120,11 @@ export const apiEnvSchema = z
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
 
 /**
- * Validates the process environment. Failures name the variables and the rule that failed,
- * but never the rejected values.
+ * Validates the process environment, after reading the secrets that come as files. Failures name
+ * the variables and the rule that failed, but never the rejected values.
  */
 export function loadApiEnv(source: NodeJS.ProcessEnv): ApiEnv {
+  loadSecretFiles(source);
   const result = apiEnvSchema.safeParse(source);
   if (!result.success) {
     const lines = result.error.issues.map((issue) => `  ${issue.path.join('.')}: ${issue.message}`);

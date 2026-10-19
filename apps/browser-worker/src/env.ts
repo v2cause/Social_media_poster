@@ -1,4 +1,4 @@
-import { checkProductionEnv, observabilityEnvSchema } from '@smp/observability';
+import { checkProductionEnv, loadSecretFiles, observabilityEnvSchema } from '@smp/observability';
 import { egressHostsEnvSchema } from '@smp/x-browser';
 import { z } from 'zod';
 
@@ -47,6 +47,8 @@ export type BrowserWorkerEnv = z.infer<typeof browserWorkerEnvSchema>;
 
 /** Validates the process environment. Failures name the variables, never their values. */
 export function loadBrowserWorkerEnv(source: NodeJS.ProcessEnv): BrowserWorkerEnv {
+  // Secrets may come as files (guide step 8.9).
+  loadSecretFiles(source);
   const result = browserWorkerEnvSchema.safeParse(source);
   if (!result.success) {
     const lines = result.error.issues.map((issue) => `  ${issue.path.join('.')}: ${issue.message}`);

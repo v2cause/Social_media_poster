@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { loadWorkerEnv } from './worker-env';
@@ -97,5 +101,21 @@ describe('loadWorkerEnv in production (guide step 8.4)', () => {
     };
 
     expect(loadWorkerEnv(local).REDIS_URL).toBe('redis://app:change-me@redis:6379');
+  });
+});
+
+describe('loadWorkerEnv with secrets as files (guide step 8.9)', () => {
+  it('reads a secret from the file that <NAME>_FILE names', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'smp-worker-env-'));
+    try {
+      const path = join(dir, 'redis-url');
+      writeFileSync(path, 'rediss://worker:from-file@redis:6379\n');
+
+      const env = loadWorkerEnv({ ...validEnv, REDIS_URL: undefined, REDIS_URL_FILE: path });
+
+      expect(env.REDIS_URL).toBe('rediss://worker:from-file@redis:6379');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

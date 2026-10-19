@@ -5,4 +5,5 @@ export { createLogger, type Logger, type LoggerOptions } from './logger';
 export { logSerializers, redactSecrets, scrubText, serializeError } from './redact';
 export { instrumentationConfig, startTracing, type TracingOptions } from './otel';
 export { privatePath } from './span-privacy';
+export { loadSecretFiles, SECRET_FILE_VARIABLES, SecretFileError } from './secret-files';
 export { startErrorReporting, type ErrorReportingOptions } from './sentry';

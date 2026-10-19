@@ -68,6 +68,7 @@ Richtlinie nach NIST SP 800-57 Teil 1, in Kurzform. Die Handgriffe stehen im [Ru
 ### Speicherung
 
 - Schlüssel stehen nur in der Umgebung der Container: lokal in `.env` (von git ignoriert); im Compose-Profil `app` bekommt jeder Dienst nur die Variablen, die er liest. gitleaks (Workflow `security`) und Trivy (Images) suchen nach Secrets.
+- Seit Schritt 8.9 kann jedes Secret auch aus einer Datei kommen: `<NAME>_FILE` nennt den Pfad, und jeder Prozess liest die Datei, bevor er seine Konfiguration prüft (`loadSecretFiles` in `packages/observability/src/secret-files.ts`). Der Wert steht dann nicht in der Umgebung des Containers, die `docker inspect` zeigt. Ein Wert und eine Datei für denselben Namen werden abgelehnt; Meldungen nennen Variable und Pfad, nie den Inhalt.
 - Nie in Logs, Fehlermeldungen, Audit-Metadaten, `NEXT_PUBLIC_*`-Variablen oder unversiegelt in Job-Payloads.
 - Im Prozess hält `LocalKeyring` die KEKs im Speicher. DEKs werden nach Gebrauch mit Nullen überschrieben, ebenso der Klartext-Puffer nach dem Öffnen.
 - Schritt 8.9: Secret-Store des Deployments und ein KMS-Adapter für `KmsPort` (AWS KMS oder Vault). Die KEKs verlassen dann den KMS nicht, die Dienste rufen nur `wrapKey` und `unwrapKey` auf.

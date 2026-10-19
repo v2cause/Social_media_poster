@@ -1,4 +1,4 @@
-import { createLogger, observabilityEnvSchema } from '@smp/observability';
+import { createLogger, loadSecretFiles, observabilityEnvSchema } from '@smp/observability';
 import { z } from 'zod';
 
 import { QueueInspection } from '../infrastructure/queue-inspection';
@@ -21,6 +21,7 @@ const print = (rows: readonly unknown[]): void => {
 };
 
 async function main(): Promise<void> {
+  loadSecretFiles(process.env);
   const env = envSchema.parse(process.env);
   const command = queuesCommandOf(process.argv.slice(2));
   if (!command) {
