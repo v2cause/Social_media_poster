@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import {
   CompleteBrowserLogin,
   RecordBrowserLoginStep,
@@ -17,11 +17,13 @@ import {
 import { sealerFromEnv } from '@smp/crypto';
 import {
   createPrismaClient,
+  createPublishJobPool,
+  PgPublishJobUnitOfWork,
   PrismaChannelUnitOfWork,
-  PrismaPublishJobUnitOfWork,
   PrismaTokenMaintenanceUnitOfWork,
   PrismaXBrowserUnitOfWork,
   type PrismaClient,
+  type PublishJobPool,
 } from '@smp/db';
 import { S3Storage, storageConfigOf } from '@smp/media';
 import {
@@ -54,11 +56,15 @@ import {
 // the tenant of each job, the token keyring, the platform adapters of PLATFORM_MODE_* (the mock
 // platforms keep their state in Redis, shared with the API), the lock of a connection for its
 // token refresh (before a post and in token.refresh), the storage that signs the URLs of the
-// renditions, and the dead-letter queue.
+// renditions, and the dead-letter queue. The publish job itself reaches the database through
+// node-postgres with prepared statements (guide step 8.5, ADR 0040), the rest through Prisma.
 
 /** How long the lock of a connection lasts, and how long a run waits for it. */
 const CONNECTION_LOCK_TTL_MS = 30_000;
 const CONNECTION_LOCK_WAIT_MS = 15_000;
+
+/** At most as many connections for the publish job as the pool of Prisma it replaces. */
+const PUBLISH_JOB_CONNECTIONS = 10;
 
 /** Without the X browser no login reports; one that does anyway connects nothing. */
 const NO_BROWSER_ACCOUNTS: AccountLimits = {
@@ -85,6 +91,7 @@ export interface PublishPipeline {
 /** The connections of the publisher, closed when the worker shuts down. */
 interface PublisherClients {
   database: PrismaClient;
+  publishJobs: PublishJobPool;
   storage: S3Storage;
   redis: Redis;
   workerConnection: Redis;
@@ -109,6 +116,7 @@ class PublisherClientsLifecycle implements OnApplicationShutdown {
     this.clients.deadLetterConnection.disconnect();
     this.clients.workerConnection.disconnect();
     this.clients.redis.disconnect();
+    await this.clients.publishJobs.end();
     await this.clients.database.$disconnect();
   }
 }
@@ -135,6 +143,14 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
   );
   // app_user with the tenant of each job: row-level security applies to the worker too.
   const database = createPrismaClient(env.DATABASE_URL);
+  // A job holds a connection only during its transactions, not while the platform answers.
+  const poolLogger = new Logger('PublishJobPool');
+  const publishJobs = createPublishJobPool(env.DATABASE_URL, {
+    max: Math.min(env.PUBLISH_CONCURRENCY, PUBLISH_JOB_CONNECTIONS),
+    onError: (error) => {
+      poolLogger.warn({ err: error }, 'publish.pool_error');
+    },
+  });
   // Locks and the mock platforms; a command fails instead of waiting while Redis is away.
   const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1 });
   const workerConnection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
@@ -173,7 +189,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
   };
   const pipeline: PublishPipeline = {
     deps: {
-      unitOfWork: new PrismaPublishJobUnitOfWork(database),
+      unitOfWork: new PgPublishJobUnitOfWork(publishJobs),
       adapters,
       sealer,
       locks,
@@ -207,6 +223,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
       provide: PUBLISHER_CLIENTS,
       useValue: {
         database,
+        publishJobs,
         storage,
         redis,
         workerConnection,

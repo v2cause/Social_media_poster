@@ -7,6 +7,7 @@ import {
   type AdapterContext,
   type PublishJobDependencies,
   type PublishJobInput,
+  type PublishJobUnitOfWork,
   type PublishRequest,
   type PublishResult,
   type RefreshOutcome,
@@ -16,11 +17,19 @@ import {
 import { startTestDatabase, type TestDatabase } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createPrismaClient, PrismaPublishJobUnitOfWork, type PrismaClient } from '../src';
+import {
+  createPrismaClient,
+  createPublishJobPool,
+  PgPublishJobUnitOfWork,
+  PrismaPublishJobUnitOfWork,
+  type PrismaClient,
+  type PublishJobPool,
+} from '../src';
 
 // Guide step 4.8 on PostgreSQL: the publish job of the core claims, runs and ends a variant as
 // app_user under row-level security. The claim locks the row, so two jobs of the same variant
 // never both send; the token refresh, the cost ledger and the attempt log land in the database.
+// Guide step 8.5: the same for the store on node-postgres, which the publish worker uses.
 
 const org = randomUUID();
 const otherOrg = randomUUID();
@@ -110,9 +119,18 @@ class TestAdapter implements SocialPlatformAdapter {
   }
 }
 
-describe('publish job adapters on PostgreSQL', () => {
+describe.each(['Prisma', 'node-postgres'] as const)('publish job adapters on PostgreSQL (%s)', (store) => {
   let database: TestDatabase | undefined;
   let base: PrismaClient | undefined;
+  let pool: PublishJobPool | undefined;
+  const poolErrors: Error[] = [];
+
+  const unitOfWork = (): PublishJobUnitOfWork => {
+    if (!base || !pool) {
+      throw new Error('database not ready');
+    }
+    return store === 'Prisma' ? new PrismaPublishJobUnitOfWork(base) : new PgPublishJobUnitOfWork(pool);
+  };
 
   const query = async <T>(sql: string, values: unknown[] = []): Promise<T[]> => {
     if (!database) {
@@ -127,11 +145,8 @@ describe('publish job adapters on PostgreSQL', () => {
   };
 
   const depsFor = (adapter: TestAdapter): PublishJobDependencies => {
-    if (!base) {
-      throw new Error('database not ready');
-    }
     return {
-      unitOfWork: new PrismaPublishJobUnitOfWork(base),
+      unitOfWork: unitOfWork(),
       adapters: { resolve: () => Promise.resolve(adapter) },
       sealer,
       locks: { withConnectionLock: (_id, work) => work() },
@@ -224,11 +239,17 @@ describe('publish job adapters on PostgreSQL', () => {
       [workspace, org, otherWorkspace, otherOrg],
     );
     base = createPrismaClient(database.url('app_user'));
+    pool = createPublishJobPool(database.url('app_user'), {
+      max: 4,
+      onError: (error) => poolErrors.push(error),
+    });
   }, 300_000);
 
   afterAll(async () => {
+    await pool?.end();
     await base?.$disconnect();
     await database?.stop();
+    expect(poolErrors).toEqual([]);
   });
 
   it('publishes a queued variant with attempt, cost record and events', async () => {
@@ -449,10 +470,7 @@ describe('publish job adapters on PostgreSQL', () => {
 
   it('books a cost once per source and operation, and lists the open attempts', async () => {
     const { variantId, accountId } = await seedVariant('X');
-    if (!base) {
-      throw new Error('database not ready');
-    }
-    const unit = new PrismaPublishJobUnitOfWork(base);
+    const unit = unitOfWork();
     const sourceId = randomUUID();
     const entry = {
       organizationId: org,
@@ -484,5 +502,90 @@ describe('publish job adapters on PostgreSQL', () => {
       { scheduleVersion: 1, outcome: 'STARTED', startedAt: NOW },
       { scheduleVersion: 1, outcome: 'UNKNOWN', startedAt: new Date(NOW.getTime() + 2000) },
     ]);
+  });
+
+  it('reads nothing of a workspace outside the tenant of the unit, whatever workspace it names', async () => {
+    const { variantId, connectionId, accountId } = await seedVariant('X');
+
+    // Row-level security, not only the filter: the unit runs in the other tenant.
+    const found = await unitOfWork().run(
+      { organizationId: otherOrg, workspaceId: otherWorkspace },
+      async (s) => ({
+        variant: await s.variants.lockForJob(workspace, variantId),
+        target: await s.targets.find(workspace, accountId),
+        connection: await s.connections.find(workspace, connectionId),
+        media: await s.media.itemsOf(workspace, variantId),
+      }),
+    );
+
+    expect(found).toEqual({ variant: null, target: null, connection: null, media: [] });
+  });
+
+  it('reads the account of a variant with its connection', async () => {
+    const { connectionId, accountId } = await seedVariant('X');
+
+    const target = await unitOfWork().run({ organizationId: org, workspaceId: workspace }, (s) =>
+      s.targets.find(workspace, accountId),
+    );
+    expect(target).toMatchObject({
+      account: { id: accountId, connectionId, platform: 'X', type: 'PROFILE', settings: { latencyMs: 5 } },
+      disconnectedAt: null,
+      accessTokenSealed: null,
+      connection: {
+        id: connectionId,
+        workspaceId: workspace,
+        status: 'ACTIVE',
+        scopes: ['tweet.read'],
+        version: 4,
+      },
+    });
+    expect(target?.connection.accessTokenSealed).toBeInstanceOf(Uint8Array);
+  });
+
+  it('writes nothing when the work of a unit fails, and its connection serves the next unit', async () => {
+    const { variantId } = await seedVariant('X');
+    const unit = unitOfWork();
+    const scope = { organizationId: org, workspaceId: workspace };
+
+    await expect(
+      unit.run(scope, async (s) => {
+        await s.outbox.add(workspace, {
+          type: 'variant.status',
+          payload: { variantId, postId: randomUUID(), status: 'FAILED', scheduleVersion: 1 },
+        });
+        throw new Error('The run stopped.');
+      }),
+    ).rejects.toThrow('The run stopped.');
+    expect(await query(`SELECT id FROM outbox_event WHERE payload->>'variantId' = $1`, [variantId])).toEqual(
+      [],
+    );
+    await expect(unit.run(scope, (s) => s.variants.lockForJob(workspace, variantId))).resolves.toMatchObject({
+      id: variantId,
+      status: 'QUEUED',
+    });
+  });
+
+  it.runIf(store === 'node-postgres')('leaves no tenant on a pooled connection after the unit', async () => {
+    const { variantId } = await seedVariant('LINKEDIN');
+    if (!pool) {
+      throw new Error('database not ready');
+    }
+    await unitOfWork().run({ organizationId: org, workspaceId: workspace }, (s) =>
+      s.variants.lockForJob(workspace, variantId),
+    );
+
+    const connection = await pool.connect();
+    try {
+      const { rows } = await connection.query<{ workspace: string | null; organization: string | null }>(
+        `SELECT current_setting('app.workspace_id', true) AS workspace,
+                current_setting('app.organization_id', true) AS organization`,
+      );
+      expect(rows.map((row) => [row.workspace ?? '', row.organization ?? ''])).toEqual([['', '']]);
+      // Without a tenant the policies show none of its rows.
+      const visible = await connection.query('SELECT id FROM post_variant WHERE id = $1', [variantId]);
+      expect(visible.rows).toEqual([]);
+    } finally {
+      connection.release();
+    }
   });
 });

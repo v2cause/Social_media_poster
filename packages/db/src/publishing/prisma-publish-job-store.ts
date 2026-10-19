@@ -1,16 +1,11 @@
-import type {
-  MissedWindowBehavior,
-  PublishJobStore,
-  PublishJobVariant,
-  UnclearAttempt,
-  VariantRunResult,
-} from '@smp/core';
+import type { PublishJobStore, UnclearAttempt, VariantRunResult } from '@smp/core';
 
 import { bytesOf, toSocialConnection } from '../channels/mappers';
 import { markNeedsReauth } from '../channels/reauth';
 import type { Prisma } from '../generated/prisma/client';
 import { toCrop } from '../media/mappers';
 import type { TenantTransaction } from '../tenant-context';
+import { accountSettingsOf, toPublishJobVariant, type LockedVariantRow } from './publish-job-rows';
 
 // The repositories of the publish job on one transaction (guide step 4.8). The job runs as
 // app_user in the tenant of its variant; every method filters by the workspace explicitly and
@@ -20,32 +15,6 @@ import type { TenantTransaction } from '../tenant-context';
 /** A plain JSON copy: drops undefined values and fails on what JSON cannot hold. */
 const json = (value: unknown): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
-
-/** The variant with the settings of its workspace, as lockForJob reads it in one statement. */
-interface LockedVariantRow {
-  id: string;
-  workspace_id: string;
-  post_id: string;
-  platform: PublishJobVariant['platform'];
-  status: PublishJobVariant['status'];
-  version: number;
-  schedule_version: number;
-  social_account_id: string | null;
-  text: string;
-  hashtags: string[];
-  first_comment: string | null;
-  link_url: string | null;
-  scheduled_at: Date | null;
-  queued_at: Date | null;
-  lease_owner: string | null;
-  lease_until: Date | null;
-  dry_run: boolean | null;
-  missed_window_behavior: MissedWindowBehavior | null;
-}
-
-/** SocialAccount.settings as an object; anything else counts as no settings. */
-const settingsOf = (value: Prisma.JsonValue): Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value) ? { ...value } : {};
 
 const runResultData = (result: VariantRunResult): Prisma.PostVariantUpdateManyMutationInput =>
   result.status === 'PUBLISHED'
@@ -77,28 +46,7 @@ export function createPrismaPublishJobStore(tx: TenantTransaction): PublishJobSt
             LEFT JOIN workspace_settings s ON s.workspace_id = v.workspace_id
            WHERE v.id = ${variantId}::uuid AND v.workspace_id = ${workspaceId}::uuid
              FOR UPDATE OF v`;
-        return row
-          ? {
-              id: row.id,
-              workspaceId: row.workspace_id,
-              postId: row.post_id,
-              platform: row.platform,
-              status: row.status,
-              version: row.version,
-              scheduleVersion: row.schedule_version,
-              socialAccountId: row.social_account_id,
-              text: row.text,
-              hashtags: row.hashtags,
-              firstComment: row.first_comment,
-              linkUrl: row.link_url,
-              scheduledAt: row.scheduled_at,
-              queuedAt: row.queued_at,
-              leaseOwner: row.lease_owner,
-              leaseUntil: row.lease_until,
-              dryRun: row.dry_run ?? false,
-              missedWindowBehavior: row.missed_window_behavior ?? 'FAIL',
-            }
-          : null;
+        return row ? toPublishJobVariant(row) : null;
       },
       async claim(workspaceId, variantId, version, lease) {
         const { count } = await tx.postVariant.updateMany({
@@ -210,7 +158,7 @@ export function createPrismaPublishJobStore(tx: TenantTransaction): PublishJobSt
                 externalId: row.externalId,
                 name: row.name,
                 handle: row.handle,
-                settings: settingsOf(row.settings),
+                settings: accountSettingsOf(row.settings),
               },
               disconnectedAt: row.disconnectedAt,
               accessTokenSealed: row.accessTokenSealed,
