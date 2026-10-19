@@ -7,7 +7,14 @@ import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 
 import type { PublishPipeline } from '../infrastructure/publisher.providers';
 import { JobLogContext } from '../job-log-context';
-import { jobsTotal, xbLoginFailuresTotal, xbReportsTotal } from '../metrics';
+import {
+  challengesTotal,
+  jobsTotal,
+  xbCanaryFailuresTotal,
+  xbDriftsTotal,
+  xbLoginFailuresTotal,
+  xbReportsTotal,
+} from '../metrics';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
 
 /**
@@ -59,6 +66,7 @@ export class XbResultsProcessor extends WorkerHost {
         return stored ? 'session_stored' : 'session_without_connection';
       }
       case 'drift': {
+        xbDriftsTotal.inc();
         const drift = {
           flow: report.flow,
           selector: report.selector,
@@ -76,6 +84,7 @@ export class XbResultsProcessor extends WorkerHost {
         if (report.ok) {
           this.logger.info({ selectorsVersion: report.selectorsVersion }, 'xb.canary_passed');
         } else {
+          xbCanaryFailuresTotal.inc();
           this.logger.warn(
             { missing: report.missing, selectorsVersion: report.selectorsVersion, breaker },
             'xb.canary_failed',
@@ -90,6 +99,9 @@ export class XbResultsProcessor extends WorkerHost {
         return this.loginStep(report, { kind: 'awaiting_code' });
       case 'login.failed':
         xbLoginFailuresTotal.inc({ failure: report.failure });
+        if (report.failure === 'CHALLENGE_REQUIRED') {
+          challengesTotal.inc();
+        }
         return this.loginStep(report, { kind: 'failed', failure: report.failure });
       case 'login.succeeded': {
         const completion = await this.pipeline.browserLogins.completion.execute({

@@ -39,6 +39,11 @@ export const SECURITY_EVENTS = [
 ] as const;
 export type SecurityEvent = (typeof SECURITY_EVENTS)[number];
 
+// Every event counts from zero on, so that an alert sees the first one too (guide step 8.7).
+for (const event of SECURITY_EVENTS) {
+  securityEventsTotal.inc({ event }, 0);
+}
+
 const logger = new Logger('SecurityEvents');
 
 /** The longest value of the request an event keeps, such as an Origin or a slug. */

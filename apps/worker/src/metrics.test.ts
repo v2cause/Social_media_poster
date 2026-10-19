@@ -61,6 +61,15 @@ describe('the metrics of the worker', () => {
       delayMs: 7 * 60 * 60 * 1_000,
     });
 
+    publishRunObserver.runEnded({
+      platform: 'X',
+      outcome: 'failed',
+      code: 'CHALLENGE_REQUIRED',
+      dryRun: false,
+      delayMs: 10_000,
+    });
+
+    expect(await metric('smp_challenges_total')).toContain('smp_challenges_total 1');
     const runs = await metric('smp_publish_runs_total');
     expect(runs).toContain('smp_publish_runs_total{platform="X",outcome="published",code=""} 1');
     expect(runs).toContain('smp_publish_runs_total{platform="X",outcome="dry_run",code=""} 1');
@@ -97,6 +106,7 @@ describe('the metrics of the worker', () => {
     expect(text).toContain('smp_x_spend_usd_24h 0.45');
     expect(text).toContain('smp_pg_archiver{field="last_archived_timestamp_seconds"} 1792382340');
     expect(text).toContain('smp_media_storage_bytes 5000000');
+    expect(text).toContain('smp_queue_counts_up 1');
     expect(text).toContain('smp_queue_jobs{queue="publish",state="waiting"} 7');
     expect(text).toContain('smp_queue_jobs{queue="publish",state="delayed"} 0');
   });
@@ -113,6 +123,7 @@ describe('the metrics of the worker', () => {
     const text = await metricsRegistry.metrics();
 
     expect(text).toContain('smp_operations_counts_up 0');
+    expect(text).toContain('smp_queue_counts_up 1');
     expect(text).not.toMatch(/^smp_connections_needs_reauth\{/m);
     expect(text).not.toMatch(/^smp_pg_archiver\{/m);
     expect(errors).toEqual(expect.arrayContaining(['counts', 'storage']));

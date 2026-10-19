@@ -48,6 +48,9 @@ export const publishRunObserver: PublishRunObserver = {
   runEnded(report) {
     const outcome = report.outcome === 'published' && report.dryRun ? 'dry_run' : report.outcome;
     publishRunsTotal.inc({ platform: report.platform, outcome, code: report.code ?? '' });
+    if (report.code === 'CHALLENGE_REQUIRED') {
+      challengesTotal.inc();
+    }
     if (outcome === 'published' && report.delayMs !== null) {
       publishDelaySeconds.observe({ platform: report.platform }, Math.max(0, report.delayMs) / 1_000);
     }
@@ -74,6 +77,11 @@ export const tokenRefreshTotal = new Counter({
   labelNames: ['outcome'] as const,
   registers: [metricsRegistry],
 });
+// A series of a counter appears with its first event, which increase() does not see; the alerts
+// on rare events read series that exist from the start.
+for (const outcome of ['refreshed', 'expiring', 'unchanged', 'reauth', 'skipped', 'error']) {
+  tokenRefreshTotal.inc({ outcome }, 0);
+}
 
 export const xbReportsTotal = new Counter({
   name: 'smp_xbrowser_reports_total',
@@ -86,6 +94,26 @@ export const xbLoginFailuresTotal = new Counter({
   name: 'smp_xbrowser_login_failures_total',
   help: 'Logins of the X browser that ended without a connection, by reason',
   labelNames: ['failure'] as const,
+  registers: [metricsRegistry],
+});
+
+/** Rare events of the X browser that alert (runbook X-Drift); counted from zero on. */
+export const xbDriftsTotal = new Counter({
+  name: 'smp_xbrowser_drifts_total',
+  help: 'Selector drifts the browser worker reported',
+  registers: [metricsRegistry],
+});
+
+export const xbCanaryFailuresTotal = new Counter({
+  name: 'smp_xbrowser_canary_failures_total',
+  help: 'Runs of the canary of the X browser that missed selectors',
+  registers: [metricsRegistry],
+});
+
+/** A challenge of the platform: at a post (failure code CHALLENGE_REQUIRED) or at a login. */
+export const challengesTotal = new Counter({
+  name: 'smp_challenges_total',
+  help: 'Challenges of a platform that stopped a post or a login',
   registers: [metricsRegistry],
 });
 
@@ -228,6 +256,14 @@ function registerOperationsGauges(readings: OperationsReadings): string[] {
         if (bytes !== null) {
           this.set(bytes);
         }
+      },
+    }),
+    new Gauge({
+      name: 'smp_queue_counts_up',
+      help: 'Whether the last reading of the queues in Redis worked',
+      registers: [metricsRegistry],
+      async collect() {
+        this.set((await readings.queues()) ? 1 : 0);
       },
     }),
     new Gauge({
