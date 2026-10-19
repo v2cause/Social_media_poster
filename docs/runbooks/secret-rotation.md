@@ -48,7 +48,7 @@ Better Auth signiert damit die Session-Cookies und die Bestätigungslinks und ve
 2. `BETTER_AUTH_SECRETS` setzen, die neue Version zuerst: beim ersten Mal `1:<neu>`, später `2:<neu>,1:<bisher>`.
 3. API neu starten. Alle Sitzungen enden, weil die Cookies mit dem aktuellen Schlüssel signiert sind; Nutzer melden sich neu an. Offene Bestätigungslinks verfallen, laufende Anmeldungen mit zweitem Faktor beginnen neu.
 4. TOTP-Geheimnisse und Backup-Codes neu verschlüsseln, im Container der API: `docker compose exec api node dist/scripts/reencrypt-two-factor.js` (lokal nach `pnpm build`: `pnpm auth:reencrypt`). Das Log `auth.reencrypt_done` nennt nur Zahlen. Erfolg: Exit-Code 0, `failed` und `changedMeanwhile` sind 0. Sonst den Lauf wiederholen; `changedMeanwhile` entsteht, wenn jemand währenddessen einen Backup-Code benutzt.
-5. Ältere Versionen aus `BETTER_AUTH_SECRETS` entfernen und `BETTER_AUTH_SECRET` auf den aktuellen Schlüssel setzen, dann die API erneut starten.
+5. Ältere Versionen aus `BETTER_AUTH_SECRETS` entfernen und `BETTER_AUTH_SECRET` auf den aktuellen Schlüssel setzen, dann die API erneut starten. Die älteren Schlüssel bleiben im Secret-Store, bis die letzte Sicherung von vor der Neuverschlüsselung abgelaufen ist (14 Tage); ein Restore auf einen Zeitpunkt davor braucht sie wieder.
 6. Prüfen: Anmeldung mit zweitem Faktor eines Testkontos, `auth.event` mit `outcome: ok` im Log.
 
 Den Ablauf deckt `apps/api/test/auth-rotation.integration.test.ts` ab.
@@ -62,7 +62,7 @@ Die Rotation läuft in zwei Neustarts, damit jeder Dienst den neuen Schlüssel k
 1. Neuen KEK mit `pnpm gen:keys` erzeugen und an `TOKEN_KEKS` (bzw. `SESSION_KEKS`) anhängen. `TOKEN_KEK_ACTIVE` (bzw. `SESSION_KEK_ACTIVE`) bleibt beim bisherigen Schlüssel. API, Worker und (bei `SESSION_KEKS`) browser-worker neu starten.
 2. `TOKEN_KEK_ACTIVE` (bzw. `SESSION_KEK_ACTIVE`) auf die neue Key-ID setzen und die Dienste erneut neu starten. Eine E-Mail mit einem Schlüssel, den die Rolle `notify` noch nicht kennt, wiederholt sie einige Minuten lang und meldet dabei `notify.unknown_key` mit der Key-ID.
 3. Der nächste Lauf von `tick.maintenance` (03:41 UTC) wrappt alle Datenschlüssel mit dem aktiven KEK neu (`RewrapSecrets`), ohne etwas zu entschlüsseln. Im Ergebnis des Ticks: `rewrapped` größer 0 oder alles bereits aktuell, `failed` gleich 0. Die E-Mails in der Queue wrappt er nicht; sie sind bis dahin längst versendet, ihre Wiederholungen enden nach wenigen Minuten.
-4. Den alten KEK aus der Liste entfernen und die Dienste neu starten.
+4. Den alten KEK aus der Liste entfernen und die Dienste neu starten. Im Secret-Store bleibt er, bis die letzte Sicherung von vor dem Re-Wrap abgelaufen ist (14 Tage, [Backup und Wiederherstellung](backup-restore.md)); ein Restore auf einen Zeitpunkt davor braucht ihn wieder in der Liste.
 
 ## Passwörter der Datenbankrollen
 
@@ -71,6 +71,8 @@ Die Rotation läuft in zwei Neustarts, damit jeder Dienst den neuen Schlüssel k
 1. Als Owner verbinden und das Passwort ändern, zum Beispiel `ALTER ROLE app_user PASSWORD '<neu>';` (im Wartungsfenster, die bestehenden Verbindungen laufen weiter).
 2. Den Wert in der Umgebung ersetzen, ebenso in `DATABASE_URL`, `DATABASE_SYSTEM_URL` bzw. `MIGRATION_DATABASE_URL`.
 3. API und Worker neu starten. Prüfen: `/api/health/ready` meldet die Datenbank als `up`.
+
+Die Passwörter liegen als Hash in der Datenbank und damit in jeder Sicherung. Nach einem Restore auf einen Zeitpunkt vor der Rotation gelten wieder die alten; dann Schritt 1 mit den Werten des Secret-Stores wiederholen ([Backup und Wiederherstellung](backup-restore.md)).
 
 ## Redis
 

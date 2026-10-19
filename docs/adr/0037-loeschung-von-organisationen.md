@@ -79,7 +79,7 @@ Fertig ist der Schritt, wenn ein Prüfskript keine Restdaten findet. Die Anfrage
 ## Konsequenzen
 
 - **30 Tage Bestand**: Während der Wartezeit liegen alle Daten noch vor. Das ist Absicht: Ein Versehen lässt sich zurücknehmen, und die Owner können die Daten vorher exportieren.
-- **Backups**: Sicherungen enthalten die Daten bis zu ihrem eigenen Ablauf. Fristen und Restore regelt Schritt 8.6.
+- **Backups**: Sicherungen enthalten die Daten bis zu ihrem eigenen Ablauf: lokal 7 Tage, im Bucket der Backups 14 Tage. Nach einem Restore wiederholt die `gdpr.sweep` eine Löschung, die vor dem Zeitpunkt des Restores angefordert war ([ADR 0042](0042-backup-und-wiederherstellung.md)).
 - **Lange Transaktion**: Eine sehr große Organisation löscht eine Transaktion von bis zu zehn Minuten. Läuft sie ab, wiederholt sich der Job.
 - **Geplante Posts**: Was während der Löschung fällig wurde, behandelt der Scheduler nach dem Zurücknehmen wie nach dem Ende des Nur-Lesen-Zustands.
 - **Enger Wettlauf**: Kommt ein Webhook von Stripe an, während die Transaktion läuft, kann die Rolle `billing` es noch als verarbeitet ablegen. Dann bleiben die IDs von Kunde und Abo in `webhook_event`; die Aufbewahrungsjobs (Schritt 8.3) räumen verarbeitete Ereignisse ab.

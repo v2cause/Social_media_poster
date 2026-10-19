@@ -87,5 +87,5 @@ Fertig ist der Schritt, wenn die Jobs nachts laufen. Zwei Zusagen warteten auf d
 - **Abweichung von Abschnitt 9 der Architektur**:
   - Das Aufräumen der Medien läuft stündlich in der Rolle `gdpr` statt nachts in `tick.maintenance`.
   - Nach Objekten ohne Asset sucht kein Job. Uploads legen die Zeile an, bevor es den Link gibt, und jede Löschung entfernt die Objekte vor den Zeilen und wiederholt sich, bis beides weg ist. Eine Suche über den ganzen Bucket kostete mehr, als sie fände.
-- **Backups** enthalten gelöschte Daten bis zu ihrem eigenen Ablauf (Schritt 8.6).
+- **Backups** enthalten gelöschte Daten bis zu ihrem eigenen Ablauf: lokal 7 Tage, im Bucket der Backups 14 Tage ([ADR 0042](0042-backup-und-wiederherstellung.md)).
 - **Große Mengen**: Sind in einer Nacht mehr als 100.000 Zeilen einer Art fällig, wächst ein Rückstand. Die Zähler im Bericht zeigen das; dann werden die Stapel größer oder der Takt kürzer.

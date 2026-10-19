@@ -1437,6 +1437,16 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
 #### 8.6 Backup
 - **Erstellen**: PITR, Restore-Probe, RPO 15 min und RTO 4 h dokumentiert.
 - **Fertig, wenn**: Restore erfolgreich geübt.
+- **Umgesetzt** ([ADR 0042](adr/0042-backup-und-wiederherstellung.md), [Runbook](runbooks/backup-restore.md)):
+  - **PITR**: Das Compose-Profil `backup` archiviert mit `PG_ARCHIVE_MODE=on` jedes WAL-Segment spätestens nach einer Minute, zieht täglich ein Base-Backup mit Manifest, behält sieben und kopiert beides alle fünf Minuten in einen eigenen Bucket. Die Skripte stehen unter `infra/docker/postgres/backup/`.
+  - **Wiederherstellung**: `restore.sh` prüft ein Base-Backup gegen sein Manifest und bereitet die Recovery auf einen Zeitpunkt oder bis zum Ende des Archivs vor. Das Runbook beschreibt den Ablauf bei intaktem Host und auf einem neuen Host, und was danach zu tun ist.
+  - **Keine doppelten Posts**: `restore:mark-attempts --since <T>` gibt jeder Variante, die noch gesendet werden muss, einen offenen Versuch zu T. Ihr nächster Lauf sucht dann auf der Plattform nach ihrem Post seit T, bevor er sendet.
+  - **Restore-Probe**: `pnpm backup:drill` übt alles in einem eigenen Compose-Projekt und prüft Zeilen vor und nach T, alle Tabellen, die Rollen, die Row-Level Security und die Markierung; in der CI bei jeder Änderung und wöchentlich.
+  - **Tests**: `packages/db/test/restore-attempts.integration.test.ts`, ein Fall in `packages/db/test/publish-job-adapters.integration.test.ts` (Reconcile seit T statt eines zweiten Posts) und `apps/worker/src/publisher/restore-marks.test.ts`.
+- **Stand**: Das Kriterium ist erfüllt. Die Probe bestand am 2026-10-19 lokal und mit 500 MB zusätzlichen Daten:
+  - **RPO**: Bei Verlust des Hosts fehlen höchstens etwa 6 bis 7 Minuten, bei intaktem Host höchstens eine.
+  - **RTO**: Die gemessenen Durchsätze ergeben für 50 GB Datenbank rund 35 Minuten Technik, weit unter 4 Stunden.
+  - **Abweichung von der Architektur**: Ein weiterer mandantenübergreifender Zugriff als `app_system`, die Markierung nach einem Restore (ADR 0042).
 
 #### 8.7 Betrieb
 - **Erstellen**: SLOs, Alarme, `docs/runbooks/*.md` (Plattform-Ausfall, massenhafter Token-Ablauf, X-Drift, Redis-Verlust, hängende Queue).

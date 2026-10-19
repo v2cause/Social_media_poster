@@ -342,7 +342,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
 - **DB-Rollen**:
   - `app_migrator` (Owner der Tabellen),
   - `app_user` (für API und Worker, ohne BYPASSRLS),
-  - `app_system` (BYPASSRLS, nur für wenige mandantenübergreifende Scans: Scheduler-Tick, Analytics-Planer, Token-Ablauf, Outbox-Relay, DSGVO-Jobs; diese liefern nur IDs plus `workspaceId`).
+  - `app_system` (BYPASSRLS, nur für wenige mandantenübergreifende Scans: Scheduler-Tick, Analytics-Planer, Token-Ablauf, Outbox-Relay, DSGVO-Jobs, die Markierung offener Versuche nach einem Restore ([ADR 0042](adr/0042-backup-und-wiederherstellung.md)); diese liefern nur IDs plus `workspaceId`).
 - **Policies**: `ENABLE` und `FORCE ROW LEVEL SECURITY` mit `USING/WITH CHECK (workspace_id = NULLIF(current_setting('app.workspace_id', true), '')::uuid)`, für Tabellen mit `organization_id` analog über `app.organization_id`. Für `audit_log` hat `app_user` kein UPDATE und kein DELETE.
 - **Nutzerbezogene Lese-Policies** (nur `app.user_id` gesetzt): eigene Mitgliedschaften, die Organisationen dazu, die Workspaces, die der Nutzer öffnen darf (Owner und Admins alle, sonst gemäß `MembershipWorkspace`), und Einladungen an die eigene E-Mail-Adresse. Darüber löst der Workspace-Guard `/w/:ws` auf, bevor ein Mandanten-Kontext existiert. Eine Einladung ist zusätzlich über `app.invitation_token_hash` lesbar, also nur für den Inhaber des Links. `Notification` und `NotificationPreference` sind pro Nutzer, `FeatureFlag` ist zur Laufzeit nur lesbar (global plus eigene Organisation und eigener Workspace).
 - **`NULLIF` ist Pflicht**: Nach dem ersten transaktionslokalen `set_config` liefert dieselbe (gepoolte) Verbindung für die Einstellung einen Leerstring statt NULL. Ohne `NULLIF` bricht dann jede Abfrage ohne Kontext mit `invalid input syntax for type uuid` ab; mit `NULLIF` liefert sie 0 Zeilen.
@@ -648,7 +648,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   Nächtlich laufen optionale Live-Smoke-Tests gegen Test-Accounts und die KI-Eval-Suite mit Budget-Limit. Ein eigener Workflow `security.yml` führt CodeQL, Dependency Review, `pnpm audit` und gitleaks aus (ADR 0009).
 - **Umgebungen**: lokal (Mock-Modus), CI, Staging (echte Plattform-Apps im Dev-Modus, Stripe-Testmodus, Anthropic mit niedrigem Ausgabenlimit) und Produktion (EU).
 - **Migrationen**: `prisma migrate deploy` als eigener Schritt vor dem Rollout, nach dem Expand/Contract-Prinzip. RLS, Partial Indexes und Trigger stehen als SQL-Migrationen.
-- **Betrieb**: Postgres mit Point-in-Time-Recovery, Images non-root und schlank. Die API läuft mit mindestens zwei Replikas, und API und Publisher haben eigene CPU-Anteile; sonst bremst ein Schub von Veröffentlichungen die Lesezugriffe aus ([ADR 0041](adr/0041-lasttest.md)).
+- **Betrieb**: Postgres mit Point-in-Time-Recovery: WAL-Archiv, tägliche Base-Backups und ihre Kopie in einen eigenen Bucket alle fünf Minuten, RPO 15 min und RTO 4 h, mit Restore-Probe in der CI ([ADR 0042](adr/0042-backup-und-wiederherstellung.md), [Runbook](runbooks/backup-restore.md)). Images non-root und schlank. Die API läuft mit mindestens zwei Replikas, und API und Publisher haben eigene CPU-Anteile; sonst bremst ein Schub von Veröffentlichungen die Lesezugriffe aus ([ADR 0041](adr/0041-lasttest.md)).
 
 ---
 
@@ -666,6 +666,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 | Browser-Adapter | lokale, bereinigte DOM-Fixtures von Login, Composer und Challenge-Seite plus aufgezeichnete JSON-Antworten; Challenge führt zur Pause; Drift-Fehlerpfad | Playwright |
 | KI-Eval (optional) | Golden Briefs (DE/EN x Stile x Plattformen): Schema, Längen, verbotene Wörter, Sprache, Refusal-Quote, Kosten; Pflicht vor Prompt- oder Modellwechseln | Vitest + echte API mit Budget |
 | Last | 10.000 fällige Varianten in derselben Minute, p95 der Lesezugriffe unter 300 ms, Durchsatz der Analytics-Batches ([ADR 0041](adr/0041-lasttest.md)) | k6, `pnpm load:stats` für die Abfragen der Metriken |
+| Restore-Probe | WAL-Archiv, Base-Backup und Kopie in den Objektspeicher, Wiederherstellung auf einen Zeitpunkt mit Prüfung von Zeilen, Tabellen, Rollen, RLS und der Markierung offener Versuche; bei jeder Änderung und wöchentlich ([ADR 0042](adr/0042-backup-und-wiederherstellung.md)) | `pnpm backup:drill` mit Docker Compose |
 
 In automatisierten Tests läuft immer der `MockAiProvider`, außer in der optionalen Eval-Suite.
 
@@ -716,6 +717,7 @@ Sinnvolle Release-Punkte: interne Alpha nach 4b, geschlossene Beta nach 5, allge
 | Datenleck zwischen Mandanten | RLS, explizite Filter, Assertion in Dev, CI-Policy-Check, Isolationstests |
 | Rate-Limits (LinkedIn Development-Tier, Meta Business-Use-Case-Limits) | Token-Buckets pro App und Account in Redis, Auswertung der Header, Backoff ohne Verbrauch von Versuchen |
 | Redis-Ausfall | Postgres ist die Wahrheit, Scheduler und Sweeper stellen den Queue-Zustand wieder her, AOF |
+| Datenverlust in Postgres (Fehler in den Daten, Verlust des Hosts) | WAL-Archiv mit Point-in-Time-Recovery, tägliche Base-Backups mit Manifest, Kopie alle fünf Minuten in einen eigenen Bucket; RPO 15 min, RTO 4 h; Restore-Probe in der CI; nach einem Restore offene Versuche, damit kein Post doppelt erscheint ([ADR 0042](adr/0042-backup-und-wiederherstellung.md)) |
 | Datenübermittlung außerhalb der EU (Anthropic, X, Meta) | AV-Verträge/SCCs, Transparenz über Unterauftragsverarbeiter, Datenminimierung in Prompts, Aufbewahrungsfristen |
 
 ---
