@@ -1,7 +1,8 @@
 # Unit tests of the alert rules (guide step 8.7, ADR 0043): pnpm check:alerts runs them with
 # promtool, in CI too. Each group feeds series as the worker, the API and the backup jobs report
 # them and says which alerts fire at a time, with all labels and annotations. Every alert has a
-# case that fires; the thresholds have cases that stay quiet.
+# case that fires; the thresholds have cases that stay quiet. The bounds of buckets are written as
+# Prometheus 3 stores them, le="120.0".
 rule_files:
   - ../rules/budgets.yml
   - ../rules/slo.yml
@@ -15,7 +16,7 @@ tests:
   - name: publications late burn the budget
     interval: 1m
     input_series:
-      - series: 'smp_publish_delay_seconds_bucket{le="120", platform="X"}'
+      - series: 'smp_publish_delay_seconds_bucket{le="120.0", platform="X"}'
         values: '0+7x90'
       - series: 'smp_publish_delay_seconds_count{platform="X"}'
         values: '0+10x90'
@@ -43,7 +44,7 @@ tests:
   - name: three late publications in an hour do not page
     interval: 1m
     input_series:
-      - series: 'smp_publish_delay_seconds_bucket{le="120", platform="LINKEDIN"}'
+      - series: 'smp_publish_delay_seconds_bucket{le="120.0", platform="LINKEDIN"}'
         values: '0x90'
       - series: 'smp_publish_delay_seconds_count{platform="LINKEDIN"}'
         values: '0x25 1 2 3x62'

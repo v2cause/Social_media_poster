@@ -3,18 +3,19 @@
 # - on time: 99 % of the published variants go out within two minutes of their time, 30 days,
 # - availability: 99.5 % of the requests to the API end without 5xx, 30 days,
 # - latency: the p95 of the reads of the API stays under 300 ms (guide step 8.5).
-# Without traffic in a window a ratio is NaN, and no alert compares true.
+# Without traffic in a window a ratio is NaN, and no alert compares true. Prometheus 3 stores the
+# bound of a bucket as a float, le="120.0"; the match takes both forms.
 groups:
   - name: smp-slo-publish
     rules:
       - record: smp:publish_on_time:ratio_rate5m
-        expr: sum(rate(smp_publish_delay_seconds_bucket{le="120"}[5m])) / sum(rate(smp_publish_delay_seconds_count[5m]))
+        expr: sum(rate(smp_publish_delay_seconds_bucket{le=~"120(\\.0)?"}[5m])) / sum(rate(smp_publish_delay_seconds_count[5m]))
       - record: smp:publish_on_time:ratio_rate30m
-        expr: sum(rate(smp_publish_delay_seconds_bucket{le="120"}[30m])) / sum(rate(smp_publish_delay_seconds_count[30m]))
+        expr: sum(rate(smp_publish_delay_seconds_bucket{le=~"120(\\.0)?"}[30m])) / sum(rate(smp_publish_delay_seconds_count[30m]))
       - record: smp:publish_on_time:ratio_rate1h
-        expr: sum(rate(smp_publish_delay_seconds_bucket{le="120"}[1h])) / sum(rate(smp_publish_delay_seconds_count[1h]))
+        expr: sum(rate(smp_publish_delay_seconds_bucket{le=~"120(\\.0)?"}[1h])) / sum(rate(smp_publish_delay_seconds_count[1h]))
       - record: smp:publish_on_time:ratio_rate6h
-        expr: sum(rate(smp_publish_delay_seconds_bucket{le="120"}[6h])) / sum(rate(smp_publish_delay_seconds_count[6h]))
+        expr: sum(rate(smp_publish_delay_seconds_bucket{le=~"120(\\.0)?"}[6h])) / sum(rate(smp_publish_delay_seconds_count[6h]))
   - name: smp-slo-api
     rules:
       - record: smp:api_errors:ratio_rate5m
