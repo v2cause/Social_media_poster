@@ -12,7 +12,9 @@ import {
 import { Badge, Input, Label, Textarea, cn } from '@smp/ui';
 import { AlertTriangle, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState, type KeyboardEvent } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
+
+import { rovingTarget } from '@/lib/roving-focus';
 
 import type { DraftVariant } from './composer-model';
 import { mediaItemsFor } from './media-items';
@@ -28,25 +30,51 @@ export function VariantTabs(props: {
   onSelect: (variantId: string) => void;
 }) {
   const t = useTranslations();
+  const tabs = useRef(new Map<string, HTMLButtonElement>());
+  // One stop in the tab order; the arrow keys move between the tabs and select them (guide step 8.8).
+  const focusable = props.variants.some((variant) => variant.id === props.activeId)
+    ? props.activeId
+    : props.variants[0]?.id;
+  const move = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const next = rovingTarget(event.key, index, props.variants.length);
+    const target = next === null ? undefined : props.variants[next];
+    if (!target) {
+      return;
+    }
+    event.preventDefault();
+    props.onSelect(target.id);
+    tabs.current.get(target.id)?.focus();
+  };
   return (
     <div
       role="tablist"
       aria-label={t('composer.variants.tabs')}
       className="flex flex-wrap gap-1 border-b border-border"
     >
-      {props.variants.map((variant) => {
+      {props.variants.map((variant, index) => {
         const selected = variant.id === props.activeId;
         const over = countText(variant.platform, composePostText(variant.text, variant.hashtags)).overLimit;
         return (
           <button
             key={variant.id}
+            ref={(element) => {
+              if (element) {
+                tabs.current.set(variant.id, element);
+              } else {
+                tabs.current.delete(variant.id);
+              }
+            }}
             type="button"
             role="tab"
             id={`variant-tab-${variant.id}`}
             aria-selected={selected}
             aria-controls={`variant-panel-${variant.id}`}
+            tabIndex={variant.id === focusable ? 0 : -1}
             onClick={() => {
               props.onSelect(variant.id);
+            }}
+            onKeyDown={(event) => {
+              move(event, index);
             }}
             className={cn(
               '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
