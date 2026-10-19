@@ -76,6 +76,9 @@ x-api-env: &api-env
   DATABASE_SYSTEM_URL_FILE: /run/secrets/database_system_url_api
   REDIS_URL_FILE: /run/secrets/redis_url_api
   BETTER_AUTH_SECRET_FILE: /run/secrets/better_auth_secret
+  # The versions of that key, the current one first; it starts as version 1 of it, a rotation
+  # puts the next version in front (docs/runbooks/secret-rotation.md).
+  BETTER_AUTH_SECRETS_FILE: /run/secrets/better_auth_secrets
   TOKEN_KEKS_FILE: /run/secrets/token_keks
   SESSION_KEKS_FILE: /run/secrets/session_keks
   NOTIFY_KEKS_FILE: /run/secrets/notify_keks
@@ -181,6 +184,7 @@ services:
       - database_system_url_api
       - redis_url_api
       - better_auth_secret
+      - better_auth_secrets
       - token_keks
       - session_keks
       - notify_keks
@@ -854,6 +858,8 @@ secrets:
     file: secrets/s3_init_secret_access_key
   better_auth_secret:
     file: secrets/better_auth_secret
+  better_auth_secrets:
+    file: secrets/better_auth_secrets
   token_keks:
     file: secrets/token_keks
   session_keks:

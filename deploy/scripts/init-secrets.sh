@@ -134,6 +134,9 @@ fi
 
 # --- Keys of the app (the format of pnpm gen:keys) -------------------------------------------------
 put better_auth_secret "$(key)"
+# The versions of that key, the current one first: version 1 is the key itself, a rotation puts
+# the next version in front (docs/runbooks/secret-rotation.md).
+put better_auth_secrets "1:$(read_secret better_auth_secret)"
 for keyring in token session notify; do
   put "${keyring}_keks" "kek-$(openssl rand -hex 4):$(key)"
 done
