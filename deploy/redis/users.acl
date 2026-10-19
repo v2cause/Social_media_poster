@@ -1,0 +1,9 @@
+user default off ~* &* +@all
+user health on nopass +ping
+user svc-api on @@svc-api@@ ~* &* +@all -@dangerous +info
+user svc-scheduler on @@svc-scheduler@@ ~* &* +@all -@dangerous +info
+user svc-publisher on @@svc-publisher@@ ~* &* +@all -@dangerous +info
+user svc-media on @@svc-media@@ ~* &* +@all -@dangerous +info
+user svc-notify on @@svc-notify@@ ~* &* +@all -@dangerous +info
+user svc-billing on @@svc-billing@@ ~* &* +@all -@dangerous +info
+user browser-worker on @@browser-worker@@ resetkeys %R~xb:kill ~xb:lock:* ~xb:spacing:* ~xb:login:* ~bull:xb-commands:* ~bull:xb-results:* resetchannels +@all -@dangerous +info

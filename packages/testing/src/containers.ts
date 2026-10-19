@@ -9,10 +9,16 @@ export interface StartedRedis {
   stop: () => Promise<void>;
 }
 
-/** Starts Redis; args are further options of redis-server, for example ACL users. */
-export async function startRedis(options: { args?: readonly string[] } = {}): Promise<StartedRedis> {
+/**
+ * Starts Redis; args are further options of redis-server, for example ACL users, and files are
+ * copied into the container before the start, for example an ACL file.
+ */
+export async function startRedis(
+  options: { args?: readonly string[]; files?: readonly { content: string; target: string }[] } = {},
+): Promise<StartedRedis> {
   const container = await new GenericContainer('redis:7.4.11-alpine')
     .withCommand(['redis-server', '--maxmemory-policy', 'noeviction', ...(options.args ?? [])])
+    .withCopyContentToContainer((options.files ?? []).map((file) => ({ ...file, mode: 0o644 })))
     .withExposedPorts(6379)
     .withWaitStrategy(Wait.forLogMessage('Ready to accept connections'))
     .start();

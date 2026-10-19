@@ -1,0 +1,26 @@
+# gRPC between master, volume, filer and the S3 gateway of SeaweedFS (guide step 8.9, ADR 0045):
+# mutual TLS with the certificate of s3 from the private CA. Master, volume and filer listen on
+# 127.0.0.1 only, but the gRPC port of the S3 gateway is in the networks, and without TLS anybody
+# there could replace its identities. A peer without a certificate of the CA gets no connection.
+[grpc]
+ca = "/run/configs/internal-ca.crt"
+
+[grpc.master]
+cert = "/run/seaweed/tls.crt"
+key = "/run/seaweed/tls.key"
+
+[grpc.volume]
+cert = "/run/seaweed/tls.crt"
+key = "/run/seaweed/tls.key"
+
+[grpc.filer]
+cert = "/run/seaweed/tls.crt"
+key = "/run/seaweed/tls.key"
+
+[grpc.s3]
+cert = "/run/seaweed/tls.crt"
+key = "/run/seaweed/tls.key"
+
+[grpc.client]
+cert = "/run/seaweed/tls.crt"
+key = "/run/seaweed/tls.key"

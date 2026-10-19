@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -274,6 +275,119 @@ describe('Redis of compose.yaml across a restart', () => {
       expect((await reopened.getJob(later.id ?? ''))?.data).toEqual({ n: 2 });
       await expect(after.mget('restart:a', 'restart:b')).resolves.toEqual(['1', '2']);
       expect(await after.pttl('restart:window')).toBeGreaterThan(0);
+    } finally {
+      await reopened.close();
+    }
+  });
+});
+
+// Guide step 8.9: the production template gives every service a Redis user of its own
+// (deploy/redis/users.acl, rendered by deploy/scripts/init-secrets.sh with the hashes of the
+// passwords). The services keep the rules of the user app of compose.yaml, the browser worker
+// those of XB_REDIS_ACL, and the default user its rules for the AOF.
+describe('the Redis users of the production template', () => {
+  const SERVICES = ['svc-api', 'svc-scheduler', 'svc-publisher', 'svc-media', 'svc-notify', 'svc-billing'];
+  const template = readFileSync(join(__dirname, '../../../deploy/redis/users.acl'), 'utf8');
+  const users = new Map(
+    template
+      .trimEnd()
+      .split('\n')
+      .map((line) => line.split(' '))
+      .map(([keyword, name, ...rules]) => [keyword === 'user' ? (name ?? '') : '', rules]),
+  );
+  const passwordOf = (user: string): string => `${user}-test-password`;
+  /** The ACL file as init-secrets.sh writes it: a SHA-256 in place of every placeholder. */
+  const rendered = (): string =>
+    [...users.keys()].reduce(
+      (acl, user) =>
+        acl.replace(`@@${user}@@`, `#${createHash('sha256').update(passwordOf(user)).digest('hex')}`),
+      template,
+    );
+
+  let started: StartedRedis | undefined;
+  const clients: Redis[] = [];
+
+  beforeAll(async () => {
+    started = await startRedis({
+      args: ['--aclfile', '/etc/redis/users.acl', '--appendonly', 'yes'],
+      files: [{ content: rendered(), target: '/etc/redis/users.acl' }],
+    });
+  });
+
+  afterAll(async () => {
+    for (const client of clients) {
+      client.disconnect();
+    }
+    await started?.stop();
+  });
+
+  /** The URL of the container; the mapped port can change with a restart. */
+  const urlOf = (credentials: string): string => {
+    if (!started) {
+      throw new Error('Redis is not started');
+    }
+    const { container } = started;
+    return `redis://${credentials}${container.getHost()}:${String(container.getMappedPort(6379))}`;
+  };
+  /** A connection without retries and without the ready check, for refused sign-ins. */
+  const connect = (credentials: string): Redis => {
+    const client = new Redis(urlOf(credentials), {
+      maxRetriesPerRequest: 0,
+      lazyConnect: true,
+      enableReadyCheck: false,
+      retryStrategy: () => null,
+    });
+    client.on('error', () => undefined);
+    clients.push(client);
+    return client;
+  };
+  const open = (credentials: string): Redis => {
+    const client = new Redis(urlOf(credentials));
+    clients.push(client);
+    return client;
+  };
+
+  it('has the rules of compose.yaml for every user', () => {
+    expect([...users.keys()].sort()).toEqual(['browser-worker', 'default', 'health', ...SERVICES].sort());
+    expect(users.get('default')).toEqual(composeUser('default'));
+    expect(users.get('health')).toEqual(composeUser('health'));
+    for (const service of SERVICES) {
+      expect(users.get(service)).toEqual(['on', `@@${service}@@`, ...composeUser('app').slice(2)]);
+    }
+    expect(users.get('browser-worker')).toEqual(['on', '@@browser-worker@@', ...XB_REDIS_ACL]);
+  });
+
+  it('lets every service in with its own password only', async () => {
+    const anonymous = connect('');
+    await anonymous.connect();
+    await expect(anonymous.get('smp:access:anyone')).rejects.toThrow(/NOAUTH/);
+    await expect(anonymous.call('AUTH', 'default', 'anything')).rejects.toThrow(/WRONGPASS/);
+    await expect(anonymous.call('AUTH', 'svc-api', passwordOf('svc-media'))).rejects.toThrow(/WRONGPASS/);
+    for (const service of SERVICES) {
+      const client = connect(`${service}:${passwordOf(service)}@`);
+      await client.set(`smp:test:${service}`, service);
+      await expect(client.get(`smp:test:${service}`)).resolves.toBe(service);
+      await expect(client.flushall()).rejects.toThrow(/NOPERM/);
+    }
+    const restricted = connect(`browser-worker:${passwordOf('browser-worker')}@`);
+    await expect(restricted.get('smp:test:svc-api')).rejects.toThrow(/NOPERM/);
+  });
+
+  it('keeps jobs and transactions of its AOF across a restart', async () => {
+    const before = open(`svc-api:${passwordOf('svc-api')}@`);
+    const queue = new Queue('template-restart', { connection: before });
+    await queue.add('later', { n: 1 }, { delay: 3_600_000 });
+    await before.multi().set('template:a', '1').set('template:b', '2').exec();
+    await queue.close();
+    before.disconnect();
+
+    await started?.container.restart({ timeout: 10_000 });
+
+    const after = open(`svc-scheduler:${passwordOf('svc-scheduler')}@`);
+    const reopened = new Queue('template-restart', { connection: after });
+    try {
+      await expect(reopened.getJobCounts('delayed')).resolves.toMatchObject({ delayed: 1 });
+      await expect(after.mget('template:a', 'template:b')).resolves.toEqual(['1', '2']);
     } finally {
       await reopened.close();
     }
