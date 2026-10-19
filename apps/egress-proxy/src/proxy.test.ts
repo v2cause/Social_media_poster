@@ -32,14 +32,19 @@ describe('egress proxy', () => {
   const lines: string[] = [];
   let allowed = 0;
   let blocked = 0;
+  // A port of the policy on which nothing listens: the host is down.
+  let down = 0;
   let proxyPort = 0;
   let proxy: Server | undefined;
 
   beforeAll(async () => {
     allowed = await listen(upstream);
     blocked = await listen(stray);
+    const gone = createServer();
+    down = await listen(gone);
+    await new Promise((resolve) => gone.close(resolve));
     proxy = createEgressProxy(
-      egressPolicy(['x.com', `http://127.0.0.1:${String(allowed)}`]),
+      egressPolicy(['x.com', `http://127.0.0.1:${String(allowed)}`, `http://127.0.0.1:${String(down)}`]),
       createLogger({
         service: 'egress-proxy',
         environment: 'test',
@@ -107,6 +112,25 @@ describe('egress proxy', () => {
     });
     expect(reply).toContain('hello');
     expect(seen.at(-1)?.path).toBe('/through-the-tunnel');
+  });
+
+  it('answers 502 for a host of the policy it cannot reach and logs the error without the path', async () => {
+    await expect(
+      viaProxy(`http://127.0.0.1:${String(down)}/secret?X-Amz-Signature=abc`),
+    ).resolves.toMatchObject({
+      status: 502,
+    });
+    const { status, socket } = await tunnel(`127.0.0.1:${String(down)}`);
+    socket.destroy();
+    expect(status).toBe(502);
+    const failures = lines
+      .map((line) => JSON.parse(line) as { msg?: string; host?: string; port?: number; code?: string })
+      .filter((entry) => entry.msg === 'egress.upstream_failed');
+    expect(failures).toEqual([
+      expect.objectContaining({ host: '127.0.0.1', port: down, code: 'ECONNREFUSED' }),
+      expect.objectContaining({ host: '127.0.0.1', port: down, code: 'ECONNREFUSED' }),
+    ]);
+    expect(lines.join('')).not.toContain('X-Amz-Signature');
   });
 
   it('refuses every other host and port before connecting, and logs no path', async () => {

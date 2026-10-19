@@ -8,7 +8,8 @@ import type { EgressPolicy } from '@smp/x-browser';
 // The egress proxy of the browser worker (guide step 6.2), and of API and worker in the
 // deployment (guide step 8.9). They sit in internal networks; their only way out is this proxy,
 // which applies its egress policy: a tunnel (CONNECT) to a host and port of the policy, or a
-// plain http request to an http origin of it. Everything else gets 403 before any connection is made. The logs name hosts and ports,
+// plain http request to an http origin of it. Everything else gets 403 before any connection is
+// made; a host of the policy it cannot reach, 502. The logs name hosts, ports and error codes,
 // never paths or query strings, which carry the signatures of the media URLs.
 
 const CONNECT_TIMEOUT_MS = 10_000;
@@ -75,11 +76,14 @@ export function createEgressProxy(policy: EgressPolicy, logger: Pick<Logger, 'in
         answer.pipe(response);
       },
     );
-    upstream.on('timeout', () => upstream.destroy(new Error('timeout')));
-    upstream.on('error', () => {
+    upstream.on('timeout', () =>
+      upstream.destroy(Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' })),
+    );
+    upstream.on('error', (error: NodeJS.ErrnoException) => {
       if (response.headersSent) {
         response.destroy();
       } else {
+        logger.warn({ host: target.hostname, port, code: error.code ?? 'unknown' }, 'egress.upstream_failed');
         response.writeHead(502).end();
       }
     });
@@ -115,8 +119,19 @@ export function createEgressProxy(policy: EgressPolicy, logger: Pick<Logger, 'in
       }
       upstream.destroy();
     };
-    upstream.on('timeout', close);
-    upstream.on('error', close);
+    // Only a tunnel that never opened is a failure; an open one may end at any time.
+    const fail = (code: string): void => {
+      if (!open) {
+        logger.warn({ host, port, code }, 'egress.upstream_failed');
+      }
+      close();
+    };
+    upstream.on('timeout', () => {
+      fail('ETIMEDOUT');
+    });
+    upstream.on('error', (error: NodeJS.ErrnoException) => {
+      fail(error.code ?? 'unknown');
+    });
     upstream.on('close', () => socket.destroy());
     socket.on('error', () => upstream.destroy());
     socket.on('close', () => upstream.destroy());
