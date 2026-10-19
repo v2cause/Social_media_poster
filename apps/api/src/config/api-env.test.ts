@@ -86,6 +86,21 @@ describe('loadApiEnv with the keyring of the e-mail jobs (guide step 8.9)', () =
   });
 });
 
+describe('loadApiEnv behind the egress proxy (guide step 8.9)', () => {
+  it('needs the proxy once Node sends its connections through it', () => {
+    const env = loadApiEnv({
+      ...validEnv,
+      NODE_USE_ENV_PROXY: '1',
+      HTTPS_PROXY: 'http://egress:3128',
+      NO_PROXY: 'postgres,redis,s3',
+    });
+
+    expect(env).toMatchObject({ NODE_USE_ENV_PROXY: '1', HTTPS_PROXY: 'http://egress:3128' });
+    expect(() => loadApiEnv({ ...validEnv, NODE_USE_ENV_PROXY: '1' })).toThrow(/HTTPS_PROXY/);
+    expect(() => loadApiEnv({ ...validEnv, NODE_USE_ENV_PROXY: 'true' })).toThrow(/NODE_USE_ENV_PROXY/);
+  });
+});
+
 describe('loadApiEnv with AI settings', () => {
   it('defaults to the mock provider outside production', () => {
     const env = loadApiEnv(validEnv);

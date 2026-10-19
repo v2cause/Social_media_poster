@@ -12,7 +12,8 @@ import {
   type SystemPrismaClient,
   type TenantPrismaClient,
 } from '@smp/db';
-import { S3Storage, storageConfigOf } from '@smp/media';
+import { s3RequestHandlerOf, S3Storage, storageConfigOf } from '@smp/media';
+import { proxyEnvOf } from '@smp/observability';
 import {
   BILLING_QUEUE,
   GDPR_QUEUE,
@@ -168,6 +169,7 @@ class ClientLifecycle implements OnApplicationShutdown {
       useFactory: (env: ApiEnv): S3Client =>
         new S3Client({
           endpoint: env.S3_ENDPOINT,
+          requestHandler: s3RequestHandlerOf(proxyEnvOf(env)),
           region: env.S3_REGION,
           forcePathStyle: env.S3_FORCE_PATH_STYLE,
           credentials: { accessKeyId: env.S3_ACCESS_KEY_ID, secretAccessKey: env.S3_SECRET_ACCESS_KEY },
@@ -203,7 +205,7 @@ class ClientLifecycle implements OnApplicationShutdown {
     {
       provide: MEDIA_STORAGE,
       inject: [API_ENV],
-      useFactory: (env: ApiEnv): S3Storage => new S3Storage(storageConfigOf(env)),
+      useFactory: (env: ApiEnv): S3Storage => new S3Storage(storageConfigOf(env, proxyEnvOf(env))),
     },
     {
       provide: MEDIA_JOBS_QUEUE,

@@ -26,6 +26,7 @@ import {
   type PublishJobPool,
 } from '@smp/db';
 import { S3Storage, storageConfigOf } from '@smp/media';
+import { proxyEnvOf } from '@smp/observability';
 import {
   createAdapterRegistry,
   operationPriceMicros,
@@ -132,15 +133,18 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
   // The keyring is checked at the start, not with the first post.
   const sealer = sealerFromEnv('tokens', env);
   const storage = new S3Storage(
-    storageConfigOf({
-      S3_ENDPOINT,
-      S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT,
-      S3_REGION,
-      S3_BUCKET,
-      S3_ACCESS_KEY_ID,
-      S3_SECRET_ACCESS_KEY,
-      S3_FORCE_PATH_STYLE: env.S3_FORCE_PATH_STYLE ?? true,
-    }),
+    storageConfigOf(
+      {
+        S3_ENDPOINT,
+        S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT,
+        S3_REGION,
+        S3_BUCKET,
+        S3_ACCESS_KEY_ID,
+        S3_SECRET_ACCESS_KEY,
+        S3_FORCE_PATH_STYLE: env.S3_FORCE_PATH_STYLE ?? true,
+      },
+      proxyEnvOf(env),
+    ),
   );
   // app_user with the tenant of each job: row-level security applies to the worker too.
   const database = createPrismaClient(env.DATABASE_URL);

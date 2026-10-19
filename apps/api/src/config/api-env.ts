@@ -2,7 +2,13 @@ import { aiEnvSchema, checkAiEnv } from '@smp/ai';
 import { billingEnvSchema, checkBillingEnv } from '@smp/billing';
 import { dbEnvSchema } from '@smp/db';
 import { storageEnvSchema } from '@smp/media';
-import { checkProductionEnv, loadSecretFiles, observabilityEnvSchema } from '@smp/observability';
+import {
+  checkEgressEnv,
+  checkProductionEnv,
+  egressEnvSchema,
+  loadSecretFiles,
+  observabilityEnvSchema,
+} from '@smp/observability';
 import { platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
@@ -72,6 +78,7 @@ export const apiEnvSchema = z
   .extend(dbEnvSchema.pick({ DATABASE_URL: true, DATABASE_SYSTEM_URL: true }).shape)
   .extend(storageEnvSchema.shape)
   .extend(observabilityEnvSchema.shape)
+  .extend(egressEnvSchema.shape)
   .extend(aiEnvSchema.shape)
   .extend(platformEnvSchema.shape)
   // Stripe (guide step 7.2): without a key there is no checkout; the webhooks need their secret.
@@ -79,6 +86,7 @@ export const apiEnvSchema = z
   // The mock AI provider never starts in production, and the Claude API needs a key.
   .superRefine(checkAiEnv)
   .superRefine(checkBillingEnv)
+  .superRefine(checkEgressEnv)
   .superRefine((env, context) => {
     if (Boolean(env.STRIPE_SECRET_KEY) !== Boolean(env.STRIPE_WEBHOOK_SECRET)) {
       context.addIssue({

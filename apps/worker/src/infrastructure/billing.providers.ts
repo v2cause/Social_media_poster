@@ -2,6 +2,7 @@ import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@
 import { createStripeClient, StripeBillingGateway } from '@smp/billing';
 import { ProcessStripeWebhook, ReportUsage, systemClock, type BillingLock } from '@smp/core';
 import { notifySealerFromEnv } from '@smp/crypto';
+import { proxyEnvOf } from '@smp/observability';
 import {
   createSystemPrismaClient,
   PrismaBillingDirectory,
@@ -64,6 +65,7 @@ export function billingPipeline(env: WorkerEnv): Provider[] {
   const stripe = createStripeClient({
     secretKey: STRIPE_SECRET_KEY,
     ...(env.STRIPE_API_BASE ? { apiBase: env.STRIPE_API_BASE } : {}),
+    proxyEnv: proxyEnvOf(env),
   });
   const system = createSystemPrismaClient(DATABASE_SYSTEM_URL);
   // The lock fails instead of waiting while Redis is away; the job retries.

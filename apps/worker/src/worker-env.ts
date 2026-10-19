@@ -1,7 +1,13 @@
 import { billingEnvSchema, checkBillingEnv } from '@smp/billing';
 import { dbEnvSchema } from '@smp/db';
 import { storageEnvSchema } from '@smp/media';
-import { checkProductionEnv, loadSecretFiles, observabilityEnvSchema } from '@smp/observability';
+import {
+  checkEgressEnv,
+  checkProductionEnv,
+  egressEnvSchema,
+  loadSecretFiles,
+  observabilityEnvSchema,
+} from '@smp/observability';
 import { platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
@@ -18,6 +24,9 @@ export const workerEnvSchema = z
     // Needed by the role "notify" only; WorkerModule checks them when that role is active. The
     // links of the notification emails lead into the web app at APP_URL.
     SMTP_URL: z.url({ protocol: /^smtps?$/ }).optional(),
+    // The egress proxy for SMTP (guide step 8.9), which tunnels to the host of SMTP_URL; empty for
+    // a mail server inside the network, such as Mailpit.
+    SMTP_PROXY: z.preprocess(unsetIfEmpty, z.url({ protocol: /^https?$/ }).optional()),
     MAIL_FROM: z.string().min(3).optional(),
     APP_URL: z.url({ protocol: /^https?$/ }).optional(),
     // Needed by the roles "scheduler" (re-wrap in tick.maintenance), "gdpr" (the revocation of
@@ -59,7 +68,9 @@ export const workerEnvSchema = z
   // Mock or live per platform and PUBLISH_DRY_RUN, for the roles "publisher" and "analytics".
   .extend(platformEnvSchema.shape)
   .extend(observabilityEnvSchema.shape)
+  .extend(egressEnvSchema.shape)
   .superRefine(checkBillingEnv)
+  .superRefine(checkEgressEnv)
   // The links of the emails lead to the app over https; renditions reach the platforms that way.
   .superRefine((env, context) => {
     checkProductionEnv(env, context, { APP_URL: env.APP_URL, S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT });

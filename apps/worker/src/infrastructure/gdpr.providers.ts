@@ -22,6 +22,7 @@ import {
   type SystemPrismaClient,
 } from '@smp/db';
 import { S3Storage, storageConfigOf } from '@smp/media';
+import { proxyEnvOf } from '@smp/observability';
 import { createAdapterRegistry, RedisMockPlatformStore } from '@smp/platform-adapters';
 import { GDPR_QUEUE, GdprProducer, NOTIFICATIONS_QUEUE, NotificationProducer } from '@smp/queue';
 import { Queue } from 'bullmq';
@@ -100,15 +101,18 @@ export function gdprPipeline(env: WorkerEnv): Provider[] {
   }
   const system = createSystemPrismaClient(DATABASE_SYSTEM_URL);
   const storage = new S3Storage(
-    storageConfigOf({
-      S3_ENDPOINT,
-      S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT,
-      S3_REGION,
-      S3_BUCKET,
-      S3_ACCESS_KEY_ID,
-      S3_SECRET_ACCESS_KEY,
-      S3_FORCE_PATH_STYLE: env.S3_FORCE_PATH_STYLE ?? true,
-    }),
+    storageConfigOf(
+      {
+        S3_ENDPOINT,
+        S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT,
+        S3_REGION,
+        S3_BUCKET,
+        S3_ACCESS_KEY_ID,
+        S3_SECRET_ACCESS_KEY,
+        S3_FORCE_PATH_STYLE: env.S3_FORCE_PATH_STYLE ?? true,
+      },
+      proxyEnvOf(env),
+    ),
   );
   // The producers fail fast instead of queueing commands while Redis is away.
   const producerConnection = { url: env.REDIS_URL, maxRetriesPerRequest: null, enableOfflineQueue: false };
@@ -135,6 +139,7 @@ export function gdprPipeline(env: WorkerEnv): Provider[] {
         createStripeClient({
           secretKey: env.STRIPE_SECRET_KEY,
           ...(env.STRIPE_API_BASE ? { apiBase: env.STRIPE_API_BASE } : {}),
+          proxyEnv: proxyEnvOf(env),
         }),
       )
     : null;

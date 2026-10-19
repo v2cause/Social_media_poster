@@ -30,6 +30,7 @@ import {
   PrismaWebhookRecorder,
   type PrismaClient,
 } from '@smp/db';
+import { proxyEnvOf } from '@smp/observability';
 import { BillingProducer } from '@smp/queue';
 import type { Queue } from 'bullmq';
 
@@ -59,6 +60,7 @@ export const billingProviders: Provider[] = [
         ? createStripeClient({
             secretKey: env.STRIPE_SECRET_KEY,
             ...(env.STRIPE_API_BASE ? { apiBase: env.STRIPE_API_BASE } : {}),
+            proxyEnv: proxyEnvOf(env),
           })
         : null,
   },

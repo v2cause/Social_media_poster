@@ -119,3 +119,19 @@ describe('loadWorkerEnv with secrets as files (guide step 8.9)', () => {
     }
   });
 });
+
+describe('loadWorkerEnv behind the egress proxy (guide step 8.9)', () => {
+  it('needs the proxy once Node uses it and takes one for SMTP of http or https', () => {
+    const env = loadWorkerEnv({
+      ...validEnv,
+      NODE_USE_ENV_PROXY: '1',
+      HTTPS_PROXY: 'http://egress:3128',
+      SMTP_PROXY: 'http://egress:3128',
+    });
+
+    expect(env).toMatchObject({ HTTPS_PROXY: 'http://egress:3128', SMTP_PROXY: 'http://egress:3128' });
+    expect(loadWorkerEnv({ ...validEnv, SMTP_PROXY: '' }).SMTP_PROXY).toBeUndefined();
+    expect(() => loadWorkerEnv({ ...validEnv, NODE_USE_ENV_PROXY: '1' })).toThrow(/HTTPS_PROXY/);
+    expect(() => loadWorkerEnv({ ...validEnv, SMTP_PROXY: 'socks5://egress:1080' })).toThrow(/SMTP_PROXY/);
+  });
+});

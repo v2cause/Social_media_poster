@@ -11,7 +11,7 @@ import {
 import { DropUpload, ProcessAsset, RenderAttachedMedia, systemClock, uuidV7Ids } from '@smp/core';
 import { createPrismaClient, PrismaMediaUnitOfWork, type PrismaClient } from '@smp/db';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
-import { createLogger, logSerializers } from '@smp/observability';
+import { createLogger, logSerializers, proxyEnvOf } from '@smp/observability';
 import {
   ANALYTICS_QUEUE,
   BILLING_QUEUE,
@@ -79,15 +79,18 @@ function mediaPipeline(env: WorkerEnv): Provider[] {
     );
   }
   const storage = new S3Storage(
-    storageConfigOf({
-      S3_ENDPOINT,
-      S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT,
-      S3_REGION,
-      S3_BUCKET,
-      S3_ACCESS_KEY_ID,
-      S3_SECRET_ACCESS_KEY,
-      S3_FORCE_PATH_STYLE: env.S3_FORCE_PATH_STYLE ?? true,
-    }),
+    storageConfigOf(
+      {
+        S3_ENDPOINT,
+        S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT,
+        S3_REGION,
+        S3_BUCKET,
+        S3_ACCESS_KEY_ID,
+        S3_SECRET_ACCESS_KEY,
+        S3_FORCE_PATH_STYLE: env.S3_FORCE_PATH_STYLE ?? true,
+      },
+      proxyEnvOf(env),
+    ),
   );
   // app_user with the tenant of each job: row-level security applies to the worker too.
   const database = createPrismaClient(env.DATABASE_URL);

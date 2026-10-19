@@ -56,6 +56,7 @@ export function notifyPipeline(env: WorkerEnv): Provider[] {
     from: MAIL_FROM,
     // Mailpit of a production build on this machine speaks plain text (compose profile "app").
     requireTls: env.NODE_ENV === 'production' && !isLoopbackUrl(APP_URL),
+    ...(env.SMTP_PROXY === undefined ? {} : { proxy: env.SMTP_PROXY }),
   });
   // app_user: the directory sets the tenant of the event, the inbox the user of each recipient.
   const database = createPrismaClient(env.DATABASE_URL);
