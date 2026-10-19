@@ -60,7 +60,9 @@ export interface PlatformHttpClientOptions {
   defaultTimeoutMs?: number;
 }
 
-// Errors of the connection itself: the request never reached the platform.
+// Errors of the connection itself: the request never reached the platform. A failed TLS handshake
+// belongs here too, an expired or untrusted certificate for example: the request goes out only
+// after it (ASVS 16.3.4).
 const NOT_SENT = new Set([
   'ECONNREFUSED',
   'ENOTFOUND',
@@ -68,13 +70,22 @@ const NOT_SENT = new Set([
   'ENETUNREACH',
   'EHOSTUNREACH',
   'UND_ERR_CONNECT_TIMEOUT',
+  'CERT_HAS_EXPIRED',
+  'CERT_NOT_YET_VALID',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'ERR_TLS_CERT_ALTNAME_INVALID',
 ]);
 
 const tracer = trace.getTracer('@smp/platform-adapters');
 
+// The code of a failed connection as Node names it (ECONNRESET, CERT_HAS_EXPIRED); nothing else of
+// the cause reaches the message.
 const causeCode = (error: unknown): string | undefined => {
-  const cause = (error as { cause?: { code?: unknown } } | null)?.cause;
-  return typeof cause?.code === 'string' ? cause.code : undefined;
+  const code = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+  return typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,59}$/.test(code) ? code : undefined;
 };
 
 function encode(body: HttpBody | undefined): { body?: BodyInit; contentType?: string } {
@@ -220,13 +231,14 @@ export class PlatformHttpClient {
     return { status: response.status, headers: response.headers, data: parsed.data };
   }
 
-  /** A failure without an answer of the platform. */
+  /** A failure without an answer of the platform; its message names the code of the cause. */
   private unexpected(error: unknown, idempotent: boolean, operation: string): PlatformError {
     const code = causeCode(error);
     if (code !== undefined && NOT_SENT.has(code)) {
       return new PlatformError('TRANSIENT', `${operation} could not connect (${code})`);
     }
-    const reason = error instanceof Error ? error.name : 'unknown error';
+    const name = error instanceof Error ? error.name : 'unknown error';
+    const reason = code === undefined ? name : `${name}, ${code}`;
     return idempotent
       ? new PlatformError('TRANSIENT', `${operation} failed without an answer (${reason})`)
       : new PlatformError('OUTCOME_UNKNOWN', `${operation} sent, but the answer is missing (${reason})`);

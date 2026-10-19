@@ -171,6 +171,25 @@ describe('PlatformHttpClient', () => {
     ).resolves.toMatchObject({ code: 'TRANSIENT' });
   });
 
+  it('names the code of a failed connection, and counts a failed TLS handshake as not sent', async () => {
+    const create = (code: string) =>
+      new PlatformHttpClient({
+        platform: 'X',
+        fetch: () => Promise.reject(Object.assign(new TypeError('fetch failed'), { cause: { code } })),
+      }).request({ operation: 'post.create', method: 'POST', url: `${API}/posts` });
+    await expect(create('CERT_HAS_EXPIRED')).rejects.toMatchObject({
+      code: 'TRANSIENT',
+      message: 'post.create could not connect (CERT_HAS_EXPIRED)',
+    });
+    await expect(create('ECONNRESET')).rejects.toMatchObject({
+      code: 'OUTCOME_UNKNOWN',
+      message: 'post.create sent, but the answer is missing (TypeError, ECONNRESET)',
+    });
+    await expect(create('not a code\n')).rejects.toMatchObject({
+      message: 'post.create sent, but the answer is missing (TypeError)',
+    });
+  });
+
   it('refuses an answer that does not match its schema', async () => {
     server.use(http.post(`${API}/rest/posts`, () => HttpResponse.json({ unexpected: true })));
     await expect(

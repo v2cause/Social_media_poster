@@ -54,6 +54,22 @@ export function failureForStop(message: Pick<BetaMessage, 'stop_reason' | 'stop_
 }
 
 /**
+ * The code Node gives the failed connection under an APIConnectionError, such as ECONNRESET or
+ * CERT_HAS_EXPIRED for a certificate that a TLS handshake refused (ASVS 16.3.4).
+ */
+function connectionCode(error: APIConnectionError): string | null {
+  let cause: unknown = error.cause;
+  for (let depth = 0; depth < 3 && typeof cause === 'object' && cause !== null; depth += 1) {
+    const code = (cause as { code?: unknown }).code;
+    if (typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,59}$/.test(code)) {
+      return code;
+    }
+    cause = (cause as { cause?: unknown }).cause;
+  }
+  return null;
+}
+
+/**
  * Maps an error of a call. The order matters: in the TypeScript SDK, APIUserAbortError and
  * APIConnectionError are subclasses of APIError (architecture 5.1).
  */
@@ -65,7 +81,9 @@ export function failureFromError(error: unknown, aborted: boolean): AiFailure {
     return failure('PROVIDER_ERROR', 'rate limited', { retryable: true, status: 429 });
   }
   if (error instanceof APIConnectionError) {
-    return failure('PROVIDER_ERROR', `connection failed: ${error.constructor.name}`, { retryable: true });
+    const code = connectionCode(error);
+    const reason = code === null ? error.constructor.name : `${error.constructor.name} (${code})`;
+    return failure('PROVIDER_ERROR', `connection failed: ${reason}`, { retryable: true });
   }
   if (error instanceof APIError) {
     const status = typeof error.status === 'number' ? error.status : null;
