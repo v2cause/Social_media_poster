@@ -229,6 +229,7 @@ jobs:
           - image: worker
             dockerfile: infra/docker/node-app.Dockerfile
             app: worker
+            health-url: http://127.0.0.1:3002/health/live
           - image: egress-proxy
             dockerfile: infra/docker/node-app.Dockerfile
             app: egress-proxy
