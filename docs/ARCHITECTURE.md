@@ -139,7 +139,7 @@ social-media-poster/
     web/                    Next.js: src/app (Routen), src/features (composer, calendar, analytics, ...),
                             messages/{de,en}, src/proxy.ts (nur Redirects/CSP, keine Security-Grenze)
     api/                    NestJS HTTP: modules/<context>, common (Guards, CLS, Filter, Throttling),
-                            ai-stream (SSE), webhooks (stripe, meta), admin (Bull Board, Flags)
+                            ai-stream (SSE), webhooks (stripe, meta), admin (Flags, Kill-Switch)
     worker/                 NestJS Application Context + /health und /metrics; processors/*
     browser-worker/         Playwright-Host, konsumiert nur xb-commands (Image: mcr.microsoft.com/playwright)
     egress-proxy/           einziger Weg des browser-worker nach draußen: CONNECT nur zu X und dem Medienspeicher
@@ -411,7 +411,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
 | `CHALLENGE_REQUIRED`, `SELECTOR_DRIFT` (Browser) | Account `NEEDS_REAUTH` bzw. Circuit Breaker (drei Drifts in einer Stunde schalten X ohne API global aus); Variante `NEEDS_ATTENTION`; nie automatisch erneut |
 | `SPEND_CAP_REACHED` (X) | `FAILED(SPEND_CAP)`, der Admin wird benachrichtigt |
 
-Sind alle Versuche erschöpft, geht eine Kopie in die Dead-Letter-Queue (einsehbar in Bull Board) und es wird alarmiert.
+Sind alle Versuche erschöpft, geht eine Kopie in die Dead-Letter-Queue (einsehbar mit `pnpm queues dead-letters`, [ADR 0043](adr/0043-slos-metriken-und-alarme.md)) und es wird alarmiert.
 
 **Benachrichtigungen** ([ADR 0025](adr/0025-benachrichtigungen-und-token-monitor.md)): Endet eine Variante auf `FAILED` oder `NEEDS_ATTENTION`, schreibt dieselbe Transaktion das Outbox-Ereignis `notification.requested`. Die Rolle `notify` benachrichtigt die Person, die den Post erstellt hat (ist sie kein Mitglied mehr oder darf den Workspace nicht öffnen: Owner und Admins), in der App und per E-Mail, wie sie es eingestellt hat. Muss eine Verbindung neu verbunden werden, hören Owner und Admins davon, und die geplanten Varianten ihrer Accounts tragen bis zum neuen Grant den Fehlercode `REAUTH_REQUIRED` als Markierung; ihr Status bleibt `SCHEDULED`.
 
@@ -445,7 +445,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 |---|---|---|---|
 | `scheduler` | `tick.publish` (15 s), `tick.sweep-queued` (60 s), `tick.outbox-relay` (1 s), `tick.analytics` (5 min), `tick.tokens` (1 h), `tick.account-metrics` (stündlich; pro Workspace einmal am Tag ab 03:00 Ortszeit, gestaffelt), `tick.maintenance` (nachts), `tick.xb-canary` (täglich, nur mit Test-Account), `tick.usage-report` (täglich 00:07 UTC, nur mit Stripe), `tick.read-only` (15 min, mit `APP_URL`), `tick.gdpr` (stündlich, reiht `gdpr.sweep` ein) | Job-Scheduler-ID | `scheduler` |
 | `publish` | `publish.variant { workspaceId, variantId, scheduleVersion, trigger, traceparent }` | `pub.{variantId}.{scheduleVersion}` | `publisher` |
-| `publish-dead` | `publish.dead` (Kopie eines endgültig gescheiterten Publish-Jobs, nur zum Ansehen in Bull Board) | `dead.pub.{variantId}.{scheduleVersion}` | - |
+| `publish-dead` | `publish.dead` (Kopie eines endgültig gescheiterten Publish-Jobs, nur zum Ansehen mit `pnpm queues`) | `dead.pub.{variantId}.{scheduleVersion}` | - |
 | `xb-commands` / `xb-results` | `xb.publish`, `xb.reconcile`, `xb.metrics`, `xb.account-metrics`, `xb.verify-session`, `xb.delete`, `xb.login.start`, `xb.canary` / `xb.result` (Sitzung, Drift, Canary, Login-Schritte) | `xb.{op}.{commandId}`, `xb.login.start.{loginId}` | browser-worker / `publisher` |
 | `media` | `media.process`, `media.render`, `media.drop-upload` | `media.{assetId}`, `rend.{assetId}.{profile}.{cropHash}`, `drop.{assetId}` | `media` |
 | `analytics` | `metrics.post` (gebatcht pro Account), `metrics.account`, `metrics.rollup` | `mp.{accountId}.{bucket}`, `ma.{accountId}.{day}`; der Rollup dedupliziert über `ru.{workspaceId}.{from}.{to}` | `analytics` |
@@ -606,7 +606,7 @@ onboarding/                      Organisation, Workspace, Profil (Branche, Zielg
 (app)/w/[ws]/settings            Profil, Zeitzone, Sprache, Publishing-Defaults, Dry-Run, X-Browser (Risikobestätigung)
 (app)/org/[org]/members | workspaces | billing | data | audit-log | settings
 (app)/account                    Profil, Sprache, Zeitzone, Sicherheit (2FA, Sessions), Benachrichtigungen
-admin/                           Plattform-Admins: Feature-Flags, Kill-Switches, Link zu Bull Board
+admin/                           Plattform-Admins: Feature-Flags, Kill-Switches
 ```
 
 - **Composer**:
@@ -631,9 +631,21 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 
 - **Logging**: pino (JSON) mit `requestId`, `traceId`, `workspaceId` und `jobId`; Secrets geschwärzt. Fehler nur mit den Feldern einer Allowlist und ohne E-Mail-Adressen (ADR 0039). In der API setzt jede Anfrage ihren Kontext; in Worker und browser-worker läuft jeder Job in seinem Kontext mit `jobId`, Queue und Jobname sowie Organisation und Workspace, wo die Nutzlast sie nennt (Schritt 8.7). Das Log-Backend hält die Logs 30 Tage ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
 - **Tracing**: OpenTelemetry über HTTP, Prisma, Redis und BullMQ, `traceparent` in den Job-Payloads. Spans enthalten keine Tokens und keine personenbezogenen Daten, URLs erscheinen ohne Query; über OTLP gehen nur Traces (ADR 0039). Fehler gehen an Sentry.
-- **Health und Queues**: Health-Checks (`/health/live`, `/health/ready`) für alle Dienste. Bull Board nur für Plattform-Admins.
-- **Metriken**: Erfolgsquote pro Plattform, Verzögerung beim Veröffentlichen, Queue-Tiefe, Verzögerung des Scheduler-Ticks, KI-Tokens, Kosten und Cache-Trefferquote, Refusals, X-Ausgaben pro Workspace, Fehler beim Token-Refresh, Browser-Challenges.
-- **Alarme**: Fehlerquote, Tick-Verzögerung über 60 s, Dead-Letter-Queue nicht leer, hängende QUEUED-Varianten, eine Welle von NEEDS_REAUTH, ausgelöster Kill-Switch.
+- **Health und Queues**: Health-Checks (`/health/live`, `/health/ready`) für alle Dienste. Die Queues zeigt statt Bull Board das Kommando `pnpm queues` im Image des Workers: Zählungen, Dead Letters und gescheiterte Jobs ohne ihre Daten ([ADR 0043](adr/0043-slos-metriken-und-alarme.md)).
+- **SLOs** über 30 Tage: 99 % der veröffentlichten Varianten höchstens 2 Minuten nach ihrer Zeit, 99,5 % der Anfragen an die API ohne 5xx, p95 der Lesezugriffe unter 300 ms.
+- **Metriken** mit prom-client, die API auf einem eigenen Port, der Worker auf seinem Health-Port, ohne Labels für Mandanten:
+  - Erfolgsquote pro Plattform und Verzögerung beim Veröffentlichen;
+  - Queue-Tiefe und überfällige Jobs, Verzögerung, Erfolg und Fehler der Scheduler-Ticks;
+  - KI-Tokens nach Art (daraus die Cache-Trefferquote), Kosten und Refusals;
+  - X-Ausgaben als Summe; pro Workspace zeigt sie die App;
+  - Fehler beim Token-Refresh, Browser-Drifts und Challenges, Sicherheitsereignisse;
+  - der WAL-Archiver, die Größe der Mediathek und die letzten Backups über ein Pushgateway.
+- **Alarme** in Prometheus, mit Unit-Tests der Regeln in `infra/observability` und E-Mail über Alertmanager. Jeder Alarm nennt sein Runbook unter `docs/runbooks/` ([Übersicht](runbooks/alarme.md)):
+  - die Fehlerbudgets der SLOs und die Fehlerquote je Plattform;
+  - Tick-Verzögerung über 60 s, stehende und gescheiterte Ticks;
+  - Dead-Letter-Queue nicht leer, hängende QUEUED-Varianten, stehende oder überfällige Queues;
+  - eine Welle von NEEDS_REAUTH, ausgelöster Kill-Switch, Drift und Canary des X-Browsers;
+  - Redis, Sicherheitsereignisse, Kosten und Backups.
 - **CI** (GitHub Actions, pnpm + Turbo-Cache):
   1. lint (ESLint, Prettier, dependency-cruiser, Emoji-Check, Prüfung der i18n-Keys, commitlint)
   2. typecheck
@@ -644,6 +656,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   7. Prisma-Migrationsprüfung (`migrate diff`, squawk)
   8. E2E mit Playwright gegen den gestarteten Stack (Compose-Infrastruktur, API, Worker, Web)
   9. Docker-Build der fünf Images (`turbo prune`) mit SBOM (CycloneDX) und Trivy-Scan auf Schwachstellen und Secrets, auch wöchentlich ohne neue Commits; der Push nach GHCR auf main folgt mit dem Deployment (Schritt 8.9)
+  10. Prüfung der Monitoring-Regeln mit `promtool` und `amtool`, mit den Unit-Tests der Alarme
 
   Nächtlich laufen optionale Live-Smoke-Tests gegen Test-Accounts und die KI-Eval-Suite mit Budget-Limit. Ein eigener Workflow `security.yml` führt CodeQL, Dependency Review, `pnpm audit` und gitleaks aus (ADR 0009).
 - **Umgebungen**: lokal (Mock-Modus), CI, Staging (echte Plattform-Apps im Dev-Modus, Stripe-Testmodus, Anthropic mit niedrigem Ausgabenlimit) und Produktion (EU).
@@ -680,7 +693,7 @@ In automatisierten Tests läuft immer der `MockAiProvider`, außer in der option
 | **1 Auth + Mandanten** | Better Auth (Registrierung, Verifizierung, Reset, 2FA), App-Shell mit i18n DE/EN, Onboarding, Organisationen, Workspaces, Mitglieder, Einladungen (Mailpit), Rechte-Matrix + Guards, RLS auf allen Tabellen, Audit-Log, Benachrichtigungs-Grundgerüst, Workspace-Wechsler | Rechte-Matrix-E2E grün; Mandanten-Isolationstests grün |
 | **2 Composer + KI + Stile** | Posts und Varianten (Entwürfe), Brand Voices, Stil-Presets und eigene Stile, `AiProvider` (Anthropic + Mock), SSE-Generierung, Composer mit Textvorschau und Zählern, Refine, Ideen-Seite, `AiGeneration`-Audit, Kostenerfassung + Limit | echte und Mock-Generierung funktionieren; Cache-Treffer bei wiederholten Aufrufen; Refusal- und Truncation-Pfade getestet |
 | **3 Medien** | Presigned Uploads, Bibliothek, Verarbeitung, Renditions + Zuschnitt, Alt-Text (manuell + KI), Anhängen an Varianten mit Plattformprüfung, Bildvorschau | 10-MB-Bild in unter 5 s bereit; Plattformfehler im Composer sichtbar |
-| **4 Kanäle + Publishing + Scheduling** | Token-Tresor, OAuth-Framework, Accounts-UI, Adapter-Registry, zuerst `MockPlatformAdapter`, Scheduler, Publisher, Zustandsautomat, Retries, Reconcile, Dead-Letter-Queue, Benachrichtigungen (Fehler, Reconnect, Ablauf), Kalender mit Drag & Drop, Post-Liste, "Nächster Post", Jetzt posten, Dry-Run, Token-Ablauf-Monitor, Bull Board. **4a** LinkedIn Person, dann Organisation. **4b** Facebook + Instagram, danach Meta-App-Review einreichen. **4c** X-API (PKCE, Medien, Kosten-Ledger, Ausgabenlimit, Kostenvorschau) | CI-E2E mit Mocks; Staging postet auf echte Test-Accounts aller 4 Plattformen; Chaos-Test (Worker mitten im Publishing beenden) erzeugt keine Duplikate |
+| **4 Kanäle + Publishing + Scheduling** | Token-Tresor, OAuth-Framework, Accounts-UI, Adapter-Registry, zuerst `MockPlatformAdapter`, Scheduler, Publisher, Zustandsautomat, Retries, Reconcile, Dead-Letter-Queue, Benachrichtigungen (Fehler, Reconnect, Ablauf), Kalender mit Drag & Drop, Post-Liste, "Nächster Post", Jetzt posten, Dry-Run, Token-Ablauf-Monitor. **4a** LinkedIn Person, dann Organisation. **4b** Facebook + Instagram, danach Meta-App-Review einreichen. **4c** X-API (PKCE, Medien, Kosten-Ledger, Ausgabenlimit, Kostenvorschau) | CI-E2E mit Mocks; Staging postet auf echte Test-Accounts aller 4 Plattformen; Chaos-Test (Worker mitten im Publishing beenden) erzeugt keine Duplikate |
 | **5 Analytics** | Planer, Collector, Normalisierung, tägliche Account-Metriken, Rollups, Dashboard, Post- und Account-Details, CSV-Export, Top-Performer fließen in die Ideen ein, X-Lesekosten | Zahlen stimmen im Rahmen der Toleranz mit den nativen Plattform-UIs überein |
 | **6 X-Browser-Adapter** (Feature-Flag) | browser-worker-Container (gepinntes Playwright-Image, Egress-Allowlist, Redis-ACL), interaktiver Login, verschlüsselter storageState, Selector-Map v1 + Canary, Posten über die UI mit Auswertung der JSON-Antwort, Metriken, Challenge-Erkennung führt zu NEEDS_REAUTH, Kill-Switch + Circuit Breaker, UI für die Risikobestätigung, Tarif-Gate | funktioniert mit internen Test-Accounts; Challenge-Fixtures pausieren korrekt; Kill-Switch geprüft; rechtliche Freigabe |
 | **7 Billing + Quoten** | Pläne, Stripe Checkout + Kundenportal, Webhooks, Limits überall durchgesetzt, nutzungsbasierte Abrechnung (KI-Mehrverbrauch, X-Kosten) über Stripe Billing Meters, Verbrauchsanzeige, Testphase, Mahnwesen (past_due führt nach einer Kulanzfrist zu Nur-Lesen) | Stripe-Test-Clock-E2E: Upgrade, Downgrade, Kündigung, past_due |
@@ -716,7 +729,7 @@ Sinnvolle Release-Punkte: interne Alpha nach 4b, geschlossene Beta nach 5, allge
 | KI-Qualität, Refusals, Kostenspitzen, Modellwechsel | Port-Abstraktion; Modell und Effort per Env; Eval-Suite als Gate; Refusal-UX + Fallback; Quoten mit Reservierung; Prompt Caching |
 | Datenleck zwischen Mandanten | RLS, explizite Filter, Assertion in Dev, CI-Policy-Check, Isolationstests |
 | Rate-Limits (LinkedIn Development-Tier, Meta Business-Use-Case-Limits) | Token-Buckets pro App und Account in Redis, Auswertung der Header, Backoff ohne Verbrauch von Versuchen |
-| Redis-Ausfall | Postgres ist die Wahrheit, Scheduler und Sweeper stellen den Queue-Zustand wieder her, AOF |
+| Redis-Ausfall | Postgres ist die Wahrheit, Scheduler und Sweeper stellen den Queue-Zustand wieder her, verlorene Ticks legt die Rolle `scheduler` jede Minute neu an, AOF; Alarme und geprobtes Runbook ([Redis-Verlust](runbooks/redis-verlust.md)) |
 | Datenverlust in Postgres (Fehler in den Daten, Verlust des Hosts) | WAL-Archiv mit Point-in-Time-Recovery, tägliche Base-Backups mit Manifest, Kopie alle fünf Minuten in einen eigenen Bucket; RPO 15 min, RTO 4 h; Restore-Probe in der CI; nach einem Restore offene Versuche, damit kein Post doppelt erscheint ([ADR 0042](adr/0042-backup-und-wiederherstellung.md)) |
 | Datenübermittlung außerhalb der EU (Anthropic, X, Meta) | AV-Verträge/SCCs, Transparenz über Unterauftragsverarbeiter, Datenminimierung in Prompts, Aufbewahrungsfristen |
 
@@ -745,7 +758,7 @@ docker compose --profile app up --build
   1. Als Owner einloggen (UI auf Deutsch) und im Profil auf Englisch umstellen.
   2. Briefing eingeben, Stil "Storytelling" wählen, per KI generieren (Mock oder echt mit `ANTHROPIC_API_KEY`) und mit "kürzer" verfeinern.
   3. Bild hochladen (Instagram braucht eins, X maximal 4) und für Instagram auf 4:5 zuschneiden.
-  4. Für +2 Minuten planen. Im Kalender und in Bull Board den Ablauf SCHEDULED, QUEUED, PUBLISHING, PUBLISHED beobachten.
+  4. Für +2 Minuten planen. Im Kalender den Ablauf SCHEDULED, QUEUED, PUBLISHING, PUBLISHED beobachten, die Jobs mit `pnpm queues counts`.
   5. Einen anderen Post per Drag & Drop umplanen; der alte Job endet ohne Aktion.
   6. `failMode=unknown_outcome` setzen. Erwartet: Reconcile, dann NEEDS_ATTENTION und eine E-Mail in Mailpit (:8025).
   7. Die Metrik-Snapshots kommen an und das Dashboard füllt sich.

@@ -1451,6 +1451,23 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
 #### 8.7 Betrieb
 - **Erstellen**: SLOs, Alarme, `docs/runbooks/*.md` (Plattform-Ausfall, massenhafter Token-Ablauf, X-Drift, Redis-Verlust, hängende Queue).
 - **Fertig, wenn**: Runbooks durchgespielt.
+- **Umgesetzt** ([ADR 0043](adr/0043-slos-metriken-und-alarme.md), [Übersicht der Alarme](runbooks/alarme.md)):
+  - **SLOs** über 30 Tage: 99 % der Varianten gehen höchstens 2 Minuten nach ihrer Zeit hinaus, 99,5 % der Anfragen an die API enden ohne 5xx, das p95 der Lesezugriffe bleibt unter 300 ms. Auf das Fehlerbudget gibt es Alarme mit zwei Fenstern.
+  - **Metriken**: `prom-client` in API und Worker, ohne Labels für Mandanten. Werte aus Datenbank und Queues liest nur die Rolle `scheduler`, wenn Prometheus abfragt. Backups melden sich über ein Pushgateway.
+  - **Alarme**: 37 Regeln in `infra/observability/rules/`, jede mit `severity` und Runbook. `pnpm check:alerts` prüft sie mit `promtool` und `amtool` und führt ihre Unit-Tests aus, in der CI als Job "Monitoring rules". Das Compose-Profil `observability` startet Prometheus, Alertmanager und das Pushgateway; Alertmanager schickt E-Mails.
+  - **Runbooks** unter `docs/runbooks/` für die fünf Lagen, jedes mit einem Protokoll der Proben:
+    - `pnpm drill` spielt Plattform-Ausfall, Token-Welle, Drift und Canary ein, nur außerhalb der Produktion und mit dem Mock der Plattform.
+    - `pnpm queues` zeigt die Queues, die gescheiterten Jobs und die Dead Letters und entfernt geprüfte Dead Letters.
+  - **Aus der Sicherheitsprüfung** (ADR 0039): Log-Kontext je Job, Sicherheitsereignisse als Metrik mit Alarmen, Kommando und Runbook für einen verlorenen zweiten Faktor.
+  - **Tests**:
+    - `infra/observability/tests/alerts.test.yml` mit einem Fall je Alarm,
+    - `apps/worker/src/metrics.test.ts`, `processors/scheduler.processor.test.ts`, `scripts/drill-args.test.ts`, `scripts/queues-args.test.ts` und `apps/worker/test/queue-inspection.integration.test.ts`,
+    - `apps/api/src/common/metrics/metrics.test.ts`, `apps/api/src/modules/health/health.controller.test.ts`, `apps/api/test/auth-events.integration.test.ts` und `two-factor-reset.integration.test.ts`,
+    - `packages/db/test/operations-snapshot.integration.test.ts`, `packages/db/src/seed/load.test.ts` und `packages/platform-adapters/src/mock/mock-platform-adapter.test.ts`.
+- **Stand**: Das Kriterium ist erfüllt. Alle fünf Runbooks wurden am 2026-10-19 lokal durchgespielt, mit Compose, dem Profil `observability`, Mailpit und API und Worker aus `dist`. Jede Lage löste ihre Alarme mit E-Mail aus, und jedes Runbook führte zurück in den Normalbetrieb. Die Protokolle stehen in den Runbooks.
+  - Die Proben fanden sechs Fehler, die kein Test gezeigt hatte, und alle sind behoben (ADR 0043, Befunde): einen falschen Verzug der Ticks, eine Regel des SLO, die unter Prometheus 3 nie anschlug, verzögerte Jobs ohne Worker, die kein Alarm sah, Ticks, die nach einem Datenverlust in Redis stillstanden, eine Dead-Letter-Queue, die niemand leeren konnte, und eine Liveness, die ohne Redis 500 meldete.
+  - Grenze: Nach dem Neustart eines Prozesses, der nur kurz lief, können die Raten des SLO Beiträge auslassen oder falsch einordnen. In den Proben fehlten so verspätete Beiträge (ADR 0043, Grenzen); die Zahlen der Nachbereitung kommen aus der Datenbank.
+  - Abweichung von der Architektur: `pnpm queues` statt Bull Board (ADR 0043).
 
 #### 8.8 Barrierefreiheit
 - **Erstellen**: axe-Checks in Playwright, manuelle Tastaturprüfung.
