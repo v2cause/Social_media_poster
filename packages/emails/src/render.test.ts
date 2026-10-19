@@ -36,6 +36,19 @@ describe('renderEmail', () => {
     expect(en.text).toContain('Nothing has changed in your account.');
   });
 
+  it('tells the address that an operator removed its second factor, in both languages', async () => {
+    const security = 'http://localhost:3000/account/security';
+    const de = await renderEmail({ template: 'two-factor-reset', locale: 'de', name: 'Ada', url: security });
+    const en = await renderEmail({ template: 'two-factor-reset', locale: 'en', name: 'Ada', url: security });
+
+    expect(de.subject).toBe('Der zweite Faktor Ihres Kontos wurde entfernt');
+    expect(de.text).toContain('Zweiten Faktor einrichten');
+    expect(de.text).toContain('setzen Sie sofort Ihr Passwort zurück');
+    expect(de.text).toContain(security);
+    expect(en.subject).toBe('The second factor of your account was removed');
+    expect(en.text).toContain('reset your password at once and contact support');
+  });
+
   it('escapes the name and loads nothing remote', async () => {
     const email = await renderEmail({
       template: 'verify-email',

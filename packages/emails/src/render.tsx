@@ -29,6 +29,9 @@ export const emailTemplateSchema = z.discriminatedUnion('template', [
   z.object({ template: z.literal('reset-password'), locale: localeSchema, name, url: httpUrl }),
   // To the address of an existing account when someone signs up with it (guide step 8.4).
   z.object({ template: z.literal('existing-account'), locale: localeSchema, name, url: httpUrl }),
+  // To the address after an operator removed a lost second factor (guide step 8.7); the link
+  // leads to the security page.
+  z.object({ template: z.literal('two-factor-reset'), locale: localeSchema, name, url: httpUrl }),
   z.object({
     template: z.literal('invitation'),
     locale: localeSchema,
@@ -138,13 +141,14 @@ function compose(email: EmailTemplate): ActionEmailText {
   switch (email.template) {
     case 'verify-email':
     case 'reset-password':
-    case 'existing-account': {
-      const text =
-        email.template === 'verify-email'
-          ? locale.verifyEmail
-          : email.template === 'reset-password'
-            ? locale.resetPassword
-            : locale.existingAccount;
+    case 'existing-account':
+    case 'two-factor-reset': {
+      const text = {
+        'verify-email': locale.verifyEmail,
+        'reset-password': locale.resetPassword,
+        'existing-account': locale.existingAccount,
+        'two-factor-reset': locale.twoFactorReset,
+      }[email.template];
       return {
         ...base,
         subject: text.subject,

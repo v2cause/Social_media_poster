@@ -32,6 +32,8 @@ export interface EmailMessages {
   resetPassword: ActionEmailMessages;
   /** When someone signs up with the address of an existing account. */
   existingAccount: ActionEmailMessages;
+  /** After an operator removed a lost second factor (guide step 8.7). */
+  twoFactorReset: ActionEmailMessages;
   /** Placeholders: {organization}, {inviter}, {role}. */
   invitation: ActionEmailMessages;
   /** Placeholders: {accounts}, {platform}, {date}. */
@@ -152,6 +154,17 @@ export const messages: Record<Locale, EmailMessages> = {
         'Wenn Sie das waren, melden Sie sich an. Kennen Sie Ihr Passwort nicht mehr, setzen Sie es auf der Anmeldeseite zurück.',
       ignore:
         'Wenn Sie das nicht waren, ignorieren Sie diese E-Mail. An Ihrem Konto hat sich nichts geändert.',
+    },
+    twoFactorReset: {
+      subject: 'Der zweite Faktor Ihres Kontos wurde entfernt',
+      preview: 'Richten Sie ihn nach der nächsten Anmeldung neu ein.',
+      intro:
+        'auf Ihre Anfrage hat unser Support den zweiten Faktor Ihres Kontos entfernt und alle Sitzungen beendet. Sie melden sich jetzt allein mit Ihrem Passwort an.',
+      action: 'Zweiten Faktor einrichten',
+      expiry:
+        'Richten Sie den zweiten Faktor gleich nach der Anmeldung neu ein und bewahren Sie die neuen Backup-Codes getrennt vom Smartphone auf.',
+      ignore:
+        'Wenn Sie das nicht veranlasst haben, setzen Sie sofort Ihr Passwort zurück und wenden Sie sich an den Support.',
     },
     invitation: {
       subject: 'Einladung zu {organization}',
@@ -311,6 +324,16 @@ export const messages: Record<Locale, EmailMessages> = {
       action: 'Go to sign-in',
       expiry: 'If it was you, sign in. If you no longer know your password, reset it on the sign-in page.',
       ignore: 'If it was not you, ignore this email. Nothing has changed in your account.',
+    },
+    twoFactorReset: {
+      subject: 'The second factor of your account was removed',
+      preview: 'Set it up again after your next sign-in.',
+      intro:
+        'at your request, our support removed the second factor of your account and ended all sessions. You now sign in with your password alone.',
+      action: 'Set up the second factor',
+      expiry:
+        'Set up the second factor again right after you sign in, and keep the new backup codes apart from your phone.',
+      ignore: 'If you did not ask for this, reset your password at once and contact support.',
     },
     invitation: {
       subject: 'Invitation to {organization}',
