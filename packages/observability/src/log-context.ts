@@ -5,6 +5,9 @@ export interface LogContext {
   /** The x-request-id a client sent, kept apart from the ID the API gives the request. */
   clientRequestId?: string;
   jobId?: string;
+  /** The queue and the name of the job of a worker. */
+  queue?: string;
+  job?: string;
   userId?: string;
   organizationId?: string;
   workspaceId?: string;

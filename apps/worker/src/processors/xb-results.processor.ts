@@ -6,6 +6,7 @@ import { type Job, UnrecoverableError } from 'bullmq';
 import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 
 import type { PublishPipeline } from '../infrastructure/publisher.providers';
+import { JobLogContext } from '../job-log-context';
 import { jobsTotal } from '../metrics';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
 
@@ -25,6 +26,7 @@ export class XbResultsProcessor extends WorkerHost {
     super();
   }
 
+  @JobLogContext()
   async process(job: Job): Promise<string> {
     if (job.name !== XB_REPORT) {
       throw new UnrecoverableError(`unknown job ${job.name}`);

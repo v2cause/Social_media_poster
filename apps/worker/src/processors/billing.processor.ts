@@ -13,6 +13,7 @@ import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 import { ZodError } from 'zod';
 
 import type { BillingPipeline } from '../infrastructure/billing.providers';
+import { JobLogContext } from '../job-log-context';
 import { jobsTotal } from '../metrics';
 import { BILLING_PIPELINE } from '../worker.tokens';
 
@@ -31,6 +32,7 @@ export class BillingProcessor extends WorkerHost {
     super();
   }
 
+  @JobLogContext()
   process(job: Job): Promise<ProcessStripeWebhookResult | UsageReportResult> {
     if (job.name === STRIPE_WEBHOOK) {
       const { eventId } = this.parse(job, parseStripeWebhook);

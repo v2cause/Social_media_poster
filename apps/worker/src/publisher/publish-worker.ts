@@ -1,5 +1,6 @@
 import { Inject, Injectable, type OnApplicationBootstrap, type OnModuleDestroy } from '@nestjs/common';
 import { PublishVariant } from '@smp/core';
+import { runInJobContext } from '@smp/observability';
 import { PUBLISH_QUEUE, publishVariantSchema } from '@smp/queue';
 import { type Job, Worker } from 'bullmq';
 import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
@@ -61,10 +62,17 @@ export class PublishWorker implements OnApplicationBootstrap, OnModuleDestroy {
       },
     );
     this.worker.on('failed', (job, error) => {
-      this.logger.warn({ jobId: job?.id, attempt: job?.attemptsMade, err: error }, 'publish.job_failed');
-      // BullMQ sets finishedOn only when no attempt follows.
-      if (job?.finishedOn) {
-        void this.deadLetter(job, error);
+      const failed = (): void => {
+        this.logger.warn({ jobId: job?.id, attempt: job?.attemptsMade, err: error }, 'publish.job_failed');
+        // BullMQ sets finishedOn only when no attempt follows.
+        if (job?.finishedOn) {
+          void this.deadLetter(job, error);
+        }
+      };
+      if (job) {
+        runInJobContext(job, failed);
+      } else {
+        failed();
       }
     });
     this.worker.on('error', (error) => {

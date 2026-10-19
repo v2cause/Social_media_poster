@@ -1,5 +1,6 @@
 export { checkProductionEnv, isLoopbackUrl, observabilityEnvSchema, type ObservabilityEnv } from './env';
 export { addToLogContext, currentLogContext, runWithLogContext, type LogContext } from './log-context';
+export { jobLogContext, runInJobContext, type ContextJob } from './job-context';
 export { createLogger, type Logger, type LoggerOptions } from './logger';
 export { logSerializers, redactSecrets, scrubText, serializeError } from './redact';
 export { instrumentationConfig, startTracing, type TracingOptions } from './otel';

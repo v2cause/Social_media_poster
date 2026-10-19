@@ -1,5 +1,5 @@
 import { sealerFromEnv } from '@smp/crypto';
-import { createLogger } from '@smp/observability';
+import { createLogger, runInJobContext } from '@smp/observability';
 import {
   egressPolicy,
   login,
@@ -83,15 +83,18 @@ function bootstrap(): void {
 
   const worker = new Worker(
     XB_COMMANDS_QUEUE,
+    // Every line of a command carries its job, queue, organization and workspace (ASVS 16.2.1).
     (job, token) =>
-      processCommand(
-        job,
-        token,
-        {
-          run: (operation, command) => runner.run(operation, command),
-          login: (command) => logins.run(command),
-        },
-        now,
+      runInJobContext(job, () =>
+        processCommand(
+          job,
+          token,
+          {
+            run: (operation, command) => runner.run(operation, command),
+            login: (command) => logins.run(command),
+          },
+          now,
+        ),
       ),
     {
       connection: { url: env.REDIS_URL, maxRetriesPerRequest: null },
@@ -102,7 +105,14 @@ function bootstrap(): void {
   );
 
   worker.on('failed', (job, error) => {
-    logger.warn({ jobId: job?.id, command: job?.name, errorName: error.name }, 'xb.command.error');
+    const failed = (): void => {
+      logger.warn({ jobId: job?.id, command: job?.name, errorName: error.name }, 'xb.command.error');
+    };
+    if (job) {
+      runInJobContext(job, failed);
+    } else {
+      failed();
+    }
   });
   worker.on('error', (error: Error) => {
     logger.error({ errorName: error.name }, 'browser-worker.error');

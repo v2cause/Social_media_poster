@@ -7,6 +7,7 @@ import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 import { ZodError } from 'zod';
 
 import type { PublishPipeline } from '../infrastructure/publisher.providers';
+import { JobLogContext } from '../job-log-context';
 import { jobsTotal } from '../metrics';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
 
@@ -39,6 +40,7 @@ export class TokenRefreshProcessor extends WorkerHost {
     });
   }
 
+  @JobLogContext()
   async process(job: Job): Promise<RefreshConnectionOutcome> {
     if (job.name !== TOKEN_REFRESH) {
       throw new UnrecoverableError(`unknown job ${job.name}`);

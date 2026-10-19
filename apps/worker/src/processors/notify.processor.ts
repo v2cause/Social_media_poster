@@ -15,6 +15,7 @@ import { type Job, UnrecoverableError } from 'bullmq';
 import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 import { ZodError } from 'zod';
 
+import { JobLogContext } from '../job-log-context';
 import { jobsTotal } from '../metrics';
 import { DELIVER_NOTIFICATION, EMAIL_SEALER, MAIL_PORT } from '../worker.tokens';
 
@@ -37,6 +38,7 @@ export class NotifyProcessor extends WorkerHost {
     super();
   }
 
+  @JobLogContext()
   async process(job: Job): Promise<DeliveryReport | undefined> {
     if (job.name !== NOTIFY_DISPATCH) {
       throw new UnrecoverableError(`unknown job ${job.name}`);

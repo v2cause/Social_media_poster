@@ -629,7 +629,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 
 ## 12. Observability, CI/CD, Umgebungen
 
-- **Logging**: pino (JSON) mit `requestId`, `traceId`, `workspaceId` und `jobId`; Secrets geschwärzt. Fehler nur mit den Feldern einer Allowlist und ohne E-Mail-Adressen (ADR 0039). In der API setzt jede Anfrage ihren Kontext; im Worker schreiben ihn bisher die Prozessoren selbst, ein Kontext je Job folgt mit Schritt 8.7. Das Log-Backend hält die Logs 30 Tage ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
+- **Logging**: pino (JSON) mit `requestId`, `traceId`, `workspaceId` und `jobId`; Secrets geschwärzt. Fehler nur mit den Feldern einer Allowlist und ohne E-Mail-Adressen (ADR 0039). In der API setzt jede Anfrage ihren Kontext; in Worker und browser-worker läuft jeder Job in seinem Kontext mit `jobId`, Queue und Jobname sowie Organisation und Workspace, wo die Nutzlast sie nennt (Schritt 8.7). Das Log-Backend hält die Logs 30 Tage ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
 - **Tracing**: OpenTelemetry über HTTP, Prisma, Redis und BullMQ, `traceparent` in den Job-Payloads. Spans enthalten keine Tokens und keine personenbezogenen Daten, URLs erscheinen ohne Query; über OTLP gehen nur Traces (ADR 0039). Fehler gehen an Sentry.
 - **Health und Queues**: Health-Checks (`/health/live`, `/health/ready`) für alle Dienste. Bull Board nur für Plattform-Admins.
 - **Metriken**: Erfolgsquote pro Plattform, Verzögerung beim Veröffentlichen, Queue-Tiefe, Verzögerung des Scheduler-Ticks, KI-Tokens, Kosten und Cache-Trefferquote, Refusals, X-Ausgaben pro Workspace, Fehler beim Token-Refresh, Browser-Challenges.

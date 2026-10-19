@@ -21,6 +21,7 @@ import { type Job, UnrecoverableError } from 'bullmq';
 import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 import { ZodError } from 'zod';
 
+import { JobLogContext } from '../job-log-context';
 import { jobsTotal } from '../metrics';
 import { DROP_UPLOAD, PROCESS_ASSET, RENDER_ATTACHED_MEDIA } from '../worker.tokens';
 
@@ -46,6 +47,7 @@ export class MediaProcessor extends WorkerHost {
     super();
   }
 
+  @JobLogContext()
   process(job: Job): Promise<ProcessOutcome | RenderJobOutcome | DropUploadOutcome> {
     if (job.name === MEDIA_PROCESS) {
       const payload = this.parse(job, parseMediaProcess);

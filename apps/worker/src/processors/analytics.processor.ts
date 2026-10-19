@@ -22,6 +22,7 @@ import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 import { ZodError } from 'zod';
 
 import type { AnalyticsPipeline } from '../infrastructure/analytics.providers';
+import { JobLogContext } from '../job-log-context';
 import { jobsTotal } from '../metrics';
 import { ANALYTICS_PIPELINE } from '../worker.tokens';
 
@@ -58,6 +59,7 @@ export class AnalyticsProcessor extends WorkerHost {
     this.rollUp = new RollUpAnalytics(pipeline.deps);
   }
 
+  @JobLogContext()
   process(job: Job): Promise<CollectPostMetricsResult | CollectAccountMetricsResult | { rows: number }> {
     const signal = new AbortController().signal;
     if (job.name === METRICS_POST) {

@@ -12,6 +12,7 @@ import {
 import { type Job, type Queue, UnrecoverableError } from 'bullmq';
 import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 
+import { JobLogContext } from '../job-log-context';
 import { jobsTotal } from '../metrics';
 import type { WorkerEnv } from '../worker-env';
 import { TICK_HANDLERS, WORKER_ENV } from '../worker.tokens';
@@ -63,6 +64,7 @@ export class SchedulerProcessor extends WorkerHost implements OnApplicationBoots
     return tick === 'tick.publish' ? { every: this.env.SCHEDULER_TICK_MS } : TICK_SCHEDULES[tick];
   }
 
+  @JobLogContext()
   async process(job: Job): Promise<TickResult> {
     const handler = isTick(job.name) ? this.handlers[job.name] : undefined;
     if (!handler) {

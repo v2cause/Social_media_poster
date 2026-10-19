@@ -7,6 +7,7 @@ import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 import { ZodError } from 'zod';
 
 import type { GdprPipeline } from '../infrastructure/gdpr.providers';
+import { JobLogContext } from '../job-log-context';
 import { jobsTotal } from '../metrics';
 import { GDPR_PIPELINE } from '../worker.tokens';
 
@@ -37,6 +38,7 @@ export class GdprProcessor extends WorkerHost {
     super();
   }
 
+  @JobLogContext()
   process(job: Job): Promise<ExportResult | ErasureResult | SweepResult> {
     if (job.name === GDPR_EXPORT) {
       const { requestId } = this.parse(job, parseGdprJob);

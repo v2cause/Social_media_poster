@@ -3,6 +3,7 @@ import { parsePublishVariant, PUBLISH_QUEUE, type PublishVariant as PublishVaria
 import { DelayedError, type Job, UnrecoverableError } from 'bullmq';
 import { ZodError } from 'zod';
 
+import { JobLogContext } from '../job-log-context';
 import { jobsTotal } from '../metrics';
 import { PublishRetryError } from '../publisher/publish-backoff';
 
@@ -27,6 +28,7 @@ export class PublishProcessor {
     private readonly now: () => number = Date.now,
   ) {}
 
+  @JobLogContext()
   async process(job: Job, token: string | undefined, signal: AbortSignal): Promise<string> {
     const payload = this.parse(job);
     if (!token) {
