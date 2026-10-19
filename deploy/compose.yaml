@@ -112,7 +112,7 @@ x-worker: &worker
 
 services:
   caddy:
-    image: caddy:2.11.4-alpine
+    image: caddy:2.11.6-alpine
     <<: *hardened
     labels:
       smp.files: ${SMP_HASH_CADDY:-}

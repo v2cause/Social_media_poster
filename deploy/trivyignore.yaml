@@ -4,107 +4,22 @@
 # version or the finding is reviewed again; after it the scan fails. Written from the scan of
 # 2026-10-19.
 vulnerabilities:
-  # caddy:2.11.4-alpine
-  - id: CVE-2026-27145
-    paths:
-      - usr/bin/caddy
-    statement: &caddy-2-11-4-alpine 'Go 1.26.3 and older golang.org/x modules in Caddy 2.11.4, mostly denial of service in TLS, HTTP/2 and x509 at the public edge. Caddy 2.11.6 of 2026-10-04 and 2.11.7 are newer; the template moves to one of them once it passes this scan, within 30 days (ADR 0039, ADR 0045).'
-    expired_at: 2026-11-02
-  - id: CVE-2026-33818
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-39821
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-39822
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-42504
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-46600
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-56851
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-56852
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-56853
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-56854
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-56858
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-56859
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-56860
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-56862
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
+  # caddy:2.11.6-alpine
   - id: CVE-2026-78667
     paths:
       - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
+    statement: &caddy-2-11-6-alpine 'Go 1.26.8 and golang.org/x/net 0.59.0 in Caddy 2.11.6, denial of service through HTTP Range headers, HTTP/2 SETTINGS frames and ECH at the public edge. 2.11.7 carries the same versions; no release with the fixes yet, revisit with the next one (ADR 0045).'
+    expired_at: 2026-11-18
   - id: CVE-2026-78669
     paths:
       - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-84304
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: CVE-2026-84445
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
+    statement: *caddy-2-11-6-alpine
+    expired_at: 2026-11-18
   - id: CVE-2026-97031
     paths:
       - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
-  - id: GHSA-hrxh-6v49-42gf
-    paths:
-      - usr/bin/caddy
-    statement: *caddy-2-11-4-alpine
-    expired_at: 2026-11-02
+    statement: *caddy-2-11-6-alpine
+    expired_at: 2026-11-18
   # chrislusf/seaweedfs:4.48
   - id: CVE-2026-78667
     paths:
