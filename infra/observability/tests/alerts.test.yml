@@ -1,0 +1,573 @@
+# Unit tests of the alert rules (guide step 8.7, ADR 0043): pnpm check:alerts runs them with
+# promtool, in CI too. Each group feeds series as the worker, the API and the backup jobs report
+# them and says which alerts fire at a time, with all labels and annotations. Every alert has a
+# case that fires; the thresholds have cases that stay quiet.
+rule_files:
+  - ../rules/budgets.yml
+  - ../rules/slo.yml
+  - ../rules/alerts.yml
+
+evaluation_interval: 30s
+
+tests:
+  # The SLO on time: 30 % of the publications are late, the fast burn pages within minutes and
+  # the slow one follows after its 15 minutes.
+  - name: publications late burn the budget
+    interval: 1m
+    input_series:
+      - series: 'smp_publish_delay_seconds_bucket{le="120", platform="X"}'
+        values: '0+7x90'
+      - series: 'smp_publish_delay_seconds_count{platform="X"}'
+        values: '0+10x90'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: PublishOnTimeBudgetBurnFast
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: Variants go out more than two minutes late; at this rate the budget of a month lasts two days.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      - eval_time: 10m
+        alertname: PublishOnTimeBudgetBurnSlow
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: PublishOnTimeBudgetBurnSlow
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: Variants go out more than two minutes late; at this rate the budget of a month lasts five days.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+
+  - name: three late publications in an hour do not page
+    interval: 1m
+    input_series:
+      - series: 'smp_publish_delay_seconds_bucket{le="120", platform="LINKEDIN"}'
+        values: '0x90'
+      - series: 'smp_publish_delay_seconds_count{platform="LINKEDIN"}'
+        values: '0x25 1 2 3x62'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: PublishOnTimeBudgetBurnFast
+        exp_alerts: []
+
+  # Three of five runs on LinkedIn fail; three failed runs on Instagram and one retry on Facebook
+  # are too few runs to judge.
+  - name: a platform fails
+    interval: 1m
+    input_series:
+      - series: 'smp_publish_runs_total{platform="LINKEDIN", outcome="failed", code="TRANSIENT"}'
+        values: '0+3x40'
+      - series: 'smp_publish_runs_total{platform="LINKEDIN", outcome="published", code=""}'
+        values: '0+2x40'
+      - series: 'smp_publish_runs_total{platform="X", outcome="published", code=""}'
+        values: '0+5x40'
+      - series: 'smp_publish_runs_total{platform="X", outcome="dry_run", code=""}'
+        values: '0+50x40'
+      - series: 'smp_publish_runs_total{platform="FACEBOOK", outcome="retry", code="RATE_LIMITED"}'
+        values: '0 1x40'
+      - series: 'smp_publish_runs_total{platform="INSTAGRAM", outcome="failed", code="MEDIA_PROCESSING"}'
+        values: '0x20 1 2 3x18'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: PlatformFailureRateHigh
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: PlatformFailureRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              platform: LINKEDIN
+            exp_annotations:
+              summary: More than a fifth of the runs on LINKEDIN fail or wait for a retry.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/plattform-ausfall.md
+      - eval_time: 35m
+        alertname: PlatformFailureRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              platform: LINKEDIN
+            exp_annotations:
+              summary: More than a fifth of the runs on LINKEDIN fail or wait for a retry.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/plattform-ausfall.md
+
+  # Jobs wait in publish without a worker; tokens has some waiting but finishes jobs; the
+  # dead-letter queue and the commands of the browser worker have no consumer here.
+  - name: a queue stands still
+    interval: 1m
+    input_series:
+      - series: 'smp_queue_jobs{queue="publish", state="waiting", job="worker", instance="worker:3002"}'
+        values: '3x30'
+      - series: 'smp_queue_jobs{queue="tokens", state="waiting", job="worker", instance="worker:3002"}'
+        values: '1x30'
+      - series: 'smp_worker_jobs_total{queue="tokens", status="completed", job="worker", instance="worker:3002"}'
+        values: '0+1x30'
+      - series: 'smp_queue_jobs{queue="publish-dead", state="waiting", job="worker", instance="worker:3002"}'
+        values: '2x30'
+      - series: 'smp_queue_jobs{queue="xb-commands", state="waiting", job="worker", instance="worker:3002"}'
+        values: '4x30'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: QueueStalled
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              queue: publish
+            exp_annotations:
+              summary: Jobs wait in the queue publish, and no worker finished one for ten minutes.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      - eval_time: 15m
+        alertname: DeadLetterQueueNotEmpty
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: 2 publish jobs failed for good and wait in the dead-letter queue.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+
+  # Two of three notifications fail; one of six media jobs is no alert; ticks count elsewhere.
+  - name: the jobs of a queue fail
+    interval: 1m
+    input_series:
+      - series: 'smp_worker_jobs_total{queue="notifications", status="failed"}'
+        values: '0+2x60'
+      - series: 'smp_worker_jobs_total{queue="notifications", status="completed"}'
+        values: '0+1x60'
+      - series: 'smp_worker_jobs_total{queue="media", status="failed"}'
+        values: '0+1x60'
+      - series: 'smp_worker_jobs_total{queue="media", status="completed"}'
+        values: '0+5x60'
+      - series: 'smp_worker_jobs_total{queue="scheduler", status="failed"}'
+        values: '0+60x60'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: QueueJobsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              queue: notifications
+            exp_annotations:
+              summary: More than half of the jobs of the queue notifications failed within 30 minutes.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+
+  # tick.publish starts late, tick.outbox-relay stops succeeding after three minutes, and the
+  # last run of tick.maintenance failed; tick.publish failed once and succeeded since.
+  - name: the ticks of the scheduler
+    interval: 1m
+    input_series:
+      - series: 'smp_scheduler_tick_lag_seconds{tick="tick.publish"}'
+        values: '90x10'
+      - series: 'smp_scheduler_tick_lag_seconds{tick="tick.tokens"}'
+        values: '600x10'
+      - series: 'smp_scheduler_tick_last_success_timestamp_seconds{tick="tick.publish"}'
+        values: '0+60x10'
+      - series: 'smp_scheduler_tick_last_success_timestamp_seconds{tick="tick.outbox-relay"}'
+        values: '0+60x3 180x7'
+      - series: 'smp_scheduler_tick_last_failure_timestamp_seconds{tick="tick.publish"}'
+        values: '30x10'
+      - series: 'smp_scheduler_tick_last_failure_timestamp_seconds{tick="tick.maintenance"}'
+        values: '_x2 120x8'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: SchedulerTickLagging
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              tick: tick.publish
+            exp_annotations:
+              summary: The tick tick.publish starts more than 60 s after its time.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      - eval_time: 10m
+        alertname: SchedulerTickStalled
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              tick: tick.outbox-relay
+            exp_annotations:
+              summary: The tick tick.outbox-relay has not ended without an error for more than three minutes.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/redis-verlust.md
+      - eval_time: 10m
+        alertname: SchedulerTickFailed
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              tick: tick.maintenance
+            exp_annotations:
+              summary: The last run of the tick tick.maintenance failed.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+
+  # No scheduler for ten minutes, then one that cannot read the database; the queues become
+  # unreadable after five minutes.
+  - name: the scheduler and its readings
+    interval: 1m
+    input_series:
+      - series: 'smp_operations_counts_up{job="worker", instance="worker:3002"}'
+        values: '_x10 0x20'
+      - series: 'smp_queue_counts_up{job="worker", instance="worker:3002"}'
+        values: '1x5 0x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: SchedulerMissing
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: No worker with the role scheduler reports; ticks, sweeper and outbox relay stand still.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      - eval_time: 20m
+        alertname: SchedulerMissing
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: OperationsCountsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: The worker cannot read the operations counts from the database; the alerts on them are blind.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - eval_time: 10m
+        alertname: QueuesUnreadable
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: The worker cannot read the queues; Redis is away or refuses the user app.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/redis-verlust.md
+
+  # Six connections on X need a new login at once; LinkedIn has many but steadily; Facebook had
+  # a gap in the readings an hour ago, which must not count as zero.
+  - name: a wave of new logins
+    interval: 1m
+    input_series:
+      - series: 'smp_connections_needs_reauth{platform="X"}'
+        values: '0x70 6x100'
+      - series: 'smp_connections_needs_reauth{platform="LINKEDIN"}'
+        values: '20x170'
+      - series: 'smp_connections_needs_reauth{platform="FACEBOOK"}'
+        values: '7x30 _x15 7x125'
+      - series: 'smp_token_refresh_total{outcome="error"}'
+        values: '0+1x70'
+      - series: 'smp_token_refresh_total{outcome="refreshed"}'
+        values: '0+100x70'
+    alert_rule_test:
+      - eval_time: 72m
+        alertname: ReauthWave
+        exp_alerts: []
+      - eval_time: 103m
+        alertname: ReauthWave
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              platform: X
+            exp_annotations:
+              summary: 6 more connections on X need a new login than within the last hour.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/token-ablauf.md
+      - eval_time: 150m
+        alertname: ReauthWave
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: TokenRefreshFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: 20 token refreshes failed or ended in a new login within an hour.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/token-ablauf.md
+
+  # A drift, a canary that missed selectors, challenges and the kill switch of the X browser.
+  - name: the X browser
+    interval: 1m
+    input_series:
+      - series: 'smp_xbrowser_drifts_total{job="worker", instance="worker:3002"}'
+        values: '0x10 1x40'
+      - series: 'smp_xbrowser_canary_failures_total{job="worker", instance="worker:3002"}'
+        values: '0x10 1x40'
+      - series: 'smp_challenges_total{job="worker", instance="worker:3002"}'
+        values: '0x10 2x40'
+      - series: 'smp_kill_switch_active{key="x_browser_automation", job="worker", instance="worker:3002"}'
+        values: '0x5 1x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: XBrowserDrift
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: XBrowserDrift
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: The browser worker reported a drift of the selectors of X.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/x-drift.md
+      - eval_time: 45m
+        alertname: XBrowserDrift
+        exp_alerts: []
+      - eval_time: 45m
+        alertname: XBrowserCanaryFailed
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: The daily canary of the X browser missed selectors.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/x-drift.md
+      - eval_time: 15m
+        alertname: PlatformChallenges
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: A platform asked to confirm a login at a post or a login of the X browser.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/x-drift.md
+      - eval_time: 10m
+        alertname: KillSwitchActive
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              key: x_browser_automation
+            exp_annotations:
+              summary: The global kill switch x_browser_automation is on; what it guards stands still.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/x-drift.md
+
+  # One request in ten ends with 5xx, the p95 of the reads lies in the bucket above 500 ms, and
+  # the API stops answering Prometheus after three minutes.
+  - name: the API
+    interval: 1m
+    input_series:
+      - series: 'smp_http_request_duration_seconds_count{method="GET", status_class="2xx"}'
+        values: '0+90x70'
+      - series: 'smp_http_request_duration_seconds_count{method="POST", status_class="5xx"}'
+        values: '0+10x70'
+      - series: 'smp_http_request_duration_seconds_bucket{method="GET", status_class="2xx", le="0.25"}'
+        values: '0+50x70'
+      - series: 'smp_http_request_duration_seconds_bucket{method="GET", status_class="2xx", le="0.5"}'
+        values: '0+80x70'
+      - series: 'smp_http_request_duration_seconds_bucket{method="GET", status_class="2xx", le="+Inf"}'
+        values: '0+90x70'
+      - series: 'up{job="api", instance="api:9464"}'
+        values: '1x3 0x20'
+      - series: 'up{job="worker", instance="worker:3002"}'
+        values: '1x23'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ApiErrorBudgetBurnFast
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: The API answers with 5xx; at this rate the budget of a month lasts two days.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - eval_time: 30m
+        alertname: ApiErrorBudgetBurnSlow
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: The API answers with 5xx; at this rate the budget of a month lasts five days.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - eval_time: 10m
+        alertname: ApiReadLatencyHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: ApiReadLatencyHigh
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: The p95 of the reads of the API is above 300 ms.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - eval_time: 8m
+        alertname: TargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              job: api
+              instance: api:9464
+            exp_annotations:
+              summary: Prometheus does not reach api at api:9464.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+
+  # 20 rate limits and 30 failed sign-ins a minute, and one access the cache kept.
+  - name: security events
+    interval: 1m
+    input_series:
+      - series: 'smp_security_events_total{event="security.rate_limited"}'
+        values: '0+20x20'
+      - series: 'smp_security_events_total{event="security.tenant_denied"}'
+        values: '0+1x20'
+      - series: 'smp_auth_events_total{path="/sign-in/email", outcome="failed"}'
+        values: '0+30x20'
+      - series: 'smp_auth_events_total{path="/sign-in/email", outcome="succeeded"}'
+        values: '0+100x20'
+      - series: 'smp_access_cache_invalidation_failures_total'
+        values: '0x5 1x20'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: SecurityEventsSpike
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              event: security.rate_limited
+            exp_annotations:
+              summary: More than 100 security.rate_limited within ten minutes.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - eval_time: 12m
+        alertname: SignInFailuresSpike
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: More than 200 failed sign-ins within ten minutes, as when passwords are tried on many accounts.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - eval_time: 8m
+        alertname: AccessCacheInvalidationFailed
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: An access in the cache could not be dropped; an old role holds for up to 60 s.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/redis-verlust.md
+
+  # The AI beyond its budget, X near its budget, many refusals.
+  - name: costs of a day
+    interval: 1m
+    input_series:
+      - series: 'smp_ai_cost_usd_24h{job="worker", instance="worker:3002"}'
+        values: '120x10'
+      - series: 'smp_x_spend_usd_24h{job="worker", instance="worker:3002"}'
+        values: '45x10'
+      - series: 'smp_ai_generations_24h{outcome="all", job="worker", instance="worker:3002"}'
+        values: '50x10'
+      - series: 'smp_ai_generations_24h{outcome="refused", job="worker", instance="worker:3002"}'
+        values: '15x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: AiDailyBudgetExceeded
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: The AI cost 120 USD in 24 hours, more than its budget.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - eval_time: 5m
+        alertname: AiDailyBudgetNear
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: The AI cost 120 USD in 24 hours, more than 80 % of its budget.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - eval_time: 5m
+        alertname: XSpendDailyBudgetExceeded
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: XSpendDailyBudgetNear
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: The X API cost 45 USD in 24 hours, more than 80 % of its budget.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - eval_time: 5m
+        alertname: AiRefusalsHigh
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: More than a fifth of the AI generations of 24 hours were refused.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+
+  # The media library grows by 1 GB an hour, 24 GB a day against a budget of 20 GB.
+  - name: the media library grows
+    interval: 1h
+    input_series:
+      - series: 'smp_media_storage_bytes{job="worker", instance="worker:3002"}'
+        values: '1e9+1e9x30'
+    alert_rule_test:
+      - eval_time: 20h
+        alertname: StorageGrowthHigh
+        exp_alerts: []
+      - eval_time: 26h
+        alertname: StorageGrowthHigh
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: The media library grew by 22.35GiB in 24 hours, more than its budget.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+
+  # The copy to the bucket succeeds every five minutes until minute 10; the base backup of the
+  # night is recent; archiving fails once at minute 21.
+  - name: backups
+    interval: 1m
+    input_series:
+      - series: 'smp_backup_last_success_timestamp_seconds{job="backup-sync"}'
+        values: '0x4 300x4 600x30'
+      - series: 'smp_backup_last_success_timestamp_seconds{job="postgres-backup"}'
+        values: '0x40'
+      - series: 'smp_pg_archiver{field="archive_mode", job="worker", instance="worker:3002"}'
+        values: '1x40'
+      - series: 'smp_pg_archiver{field="failed_count", job="worker", instance="worker:3002"}'
+        values: '0x20 1x20'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BackupCopyStale
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: BackupCopyStale
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: The last copy of WAL and base backups to the bucket is more than 15 minutes old.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/backup-restore.md
+      - eval_time: 30m
+        alertname: BaseBackupStale
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: WalArchivingFailing
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: PostgreSQL could not archive WAL; pg_wal grows until the disk is full.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/backup-restore.md
+      - eval_time: 35m
+        alertname: BackupHeartbeatMissing
+        exp_alerts: []
+
+  # Archiving is on, but no copy ever reported; a day without a base backup.
+  - name: backups that never report
+    interval: 1m
+    input_series:
+      - series: 'smp_pg_archiver{field="archive_mode", job="worker", instance="worker:3002"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: BackupHeartbeatMissing
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: BackupHeartbeatMissing
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: The WAL archive is on, but the copy to the bucket never reported a success.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/backup-restore.md
+
+  - name: the base backup of the night is missing
+    interval: 1h
+    input_series:
+      - series: 'smp_backup_last_success_timestamp_seconds{job="postgres-backup"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 24h
+        alertname: BaseBackupStale
+        exp_alerts: []
+      - eval_time: 26h
+        alertname: BaseBackupStale
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: The last base backup is more than 25 hours old.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/backup-restore.md

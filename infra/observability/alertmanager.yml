@@ -1,0 +1,35 @@
+# Alertmanager of the compose profile "observability" (guide step 8.7, ADR 0043): every alert
+# goes by email, locally to Mailpit. "page" means someone acts now, "ticket" within a working
+# day; the production template of step 8.9 adds a pager for "page".
+global:
+  smtp_smarthost: mailpit:1025
+  smtp_from: alerts@smp.test
+  smtp_require_tls: false
+
+route:
+  receiver: operations
+  group_by: [alertname, platform, queue, tick, key, event]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  routes:
+    - matchers: ['severity="page"']
+      receiver: operations
+      repeat_interval: 1h
+
+receivers:
+  - name: operations
+    email_configs:
+      - to: operations@smp.test
+        send_resolved: true
+
+# An alert that follows from another one stays quiet while that one fires.
+inhibit_rules:
+  - source_matchers: ['alertname="SchedulerMissing"']
+    target_matchers: ['alertname=~"SchedulerTickLagging|SchedulerTickStalled|QueuedVariantsStuck"']
+  - source_matchers: ['alertname="QueuesUnreadable"']
+    target_matchers: ['alertname=~"QueueStalled|DeadLetterQueueNotEmpty|SchedulerTickStalled"']
+  - source_matchers: ['alertname="AiDailyBudgetExceeded"']
+    target_matchers: ['alertname="AiDailyBudgetNear"']
+  - source_matchers: ['alertname="XSpendDailyBudgetExceeded"']
+    target_matchers: ['alertname="XSpendDailyBudgetNear"']

@@ -1,0 +1,29 @@
+# Prometheus of the compose profile "observability" (guide step 8.7, ADR 0043): scrapes the API,
+# the worker and the Pushgateway of the backup jobs, evaluates the rules of the SLOs and the
+# alerts, and hands the alerts to Alertmanager. The targets are the services of the profile
+# "app"; for API and worker on the host, tools/observability/host-targets.compose.yaml points the
+# same names at the host.
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+scrape_configs:
+  - job_name: api
+    static_configs:
+      - targets: ['api:9464']
+  - job_name: worker
+    static_configs:
+      - targets: ['worker:3002']
+  # The backup jobs push the time of their last success; their own job label stays.
+  - job_name: pushgateway
+    honor_labels: true
+    static_configs:
+      - targets: ['pushgateway:9091']

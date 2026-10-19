@@ -25,6 +25,7 @@
     "check:i18n": "tsx tools/check-i18n.ts",
     "check:rls": "tsx --env-file-if-exists=.env tools/check-rls.ts",
     "check:erasure": "tsx --env-file-if-exists=.env tools/check-erasure.ts",
+    "check:alerts": "bash tools/observability/check-rules.sh",
     "load:fixture": "tsx --env-file-if-exists=.env tools/load-fixture.ts",
     "load:stats": "tsx --env-file-if-exists=.env tools/load-stats.ts",
     "backup:drill": "bash tools/backup/restore-drill.sh",

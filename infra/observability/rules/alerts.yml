@@ -1,0 +1,332 @@
+# The alerts of guide step 8.7 (architecture 12, ADR 0043). Every alert names its runbook; the
+# overview docs/runbooks/alarme.md explains each one. severity "page": act now; "ticket": within a
+# working day. The thresholds are starting values and are tested in tests/alerts.test.yml.
+groups:
+  - name: smp-publishing
+    rules:
+      # 2 % of the error budget of 30 days in one hour, confirmed over five minutes.
+      - alert: PublishOnTimeBudgetBurnFast
+        expr: |
+          (1 - smp:publish_on_time:ratio_rate1h) > 14.4 * 0.01
+          and (1 - smp:publish_on_time:ratio_rate5m) > 14.4 * 0.01
+          and sum(increase(smp_publish_delay_seconds_count[1h])) >= 10
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: Variants go out more than two minutes late; at this rate the budget of a month lasts two days.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      # 5 % of the error budget in six hours, confirmed over 30 minutes.
+      - alert: PublishOnTimeBudgetBurnSlow
+        expr: |
+          (1 - smp:publish_on_time:ratio_rate6h) > 6 * 0.01
+          and (1 - smp:publish_on_time:ratio_rate30m) > 6 * 0.01
+          and sum(increase(smp_publish_delay_seconds_count[6h])) >= 10
+        for: 15m
+        labels:
+          severity: ticket
+        annotations:
+          summary: Variants go out more than two minutes late; at this rate the budget of a month lasts five days.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      - alert: PlatformFailureRateHigh
+        expr: |
+          sum by (platform) (rate(smp_publish_runs_total{outcome=~"failed|retry|needs_attention"}[15m]))
+            / sum by (platform) (rate(smp_publish_runs_total{outcome!="dry_run"}[15m])) > 0.2
+          and sum by (platform) (increase(smp_publish_runs_total{outcome!="dry_run"}[15m])) >= 5
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: More than a fifth of the runs on {{ $labels.platform }} fail or wait for a retry.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/plattform-ausfall.md
+      - alert: DeadLetterQueueNotEmpty
+        expr: max(smp_queue_jobs{queue="publish-dead", state="waiting"}) > 0
+        for: 5m
+        labels:
+          severity: ticket
+        annotations:
+          summary: '{{ $value }} publish jobs failed for good and wait in the dead-letter queue.'
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      - alert: QueuedVariantsStuck
+        expr: max(smp_variants_stuck_queued) > 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: '{{ $value }} variants are QUEUED for more than ten minutes without their job starting.'
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      # The dead-letter queue has no consumer, and the browser worker reports no job counts.
+      - alert: QueueStalled
+        expr: |
+          max by (queue) (smp_queue_jobs{state="waiting", queue!~"publish-dead|xb-commands"}) > 0
+          unless on (queue) sum by (queue) (rate(smp_worker_jobs_total[10m])) > 0
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: Jobs wait in the queue {{ $labels.queue }}, and no worker finished one for ten minutes.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      # Publish runs and ticks have alerts of their own.
+      - alert: QueueJobsFailing
+        expr: |
+          sum by (queue) (rate(smp_worker_jobs_total{queue!~"publish|scheduler", status=~"failed|invalid"}[30m]))
+            / sum by (queue) (rate(smp_worker_jobs_total{queue!~"publish|scheduler"}[30m])) > 0.5
+          and sum by (queue) (increase(smp_worker_jobs_total{queue!~"publish|scheduler"}[30m])) >= 10
+        for: 10m
+        labels:
+          severity: ticket
+        annotations:
+          summary: More than half of the jobs of the queue {{ $labels.queue }} failed within 30 minutes.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+
+  - name: smp-scheduler
+    rules:
+      - alert: SchedulerTickLagging
+        expr: max by (tick) (smp_scheduler_tick_lag_seconds{tick=~"tick.publish|tick.sweep-queued|tick.outbox-relay"}) > 60
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: The tick {{ $labels.tick }} starts more than 60 s after its time.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      - alert: SchedulerTickStalled
+        expr: time() - max by (tick) (smp_scheduler_tick_last_success_timestamp_seconds{tick=~"tick.publish|tick.outbox-relay"}) > 180
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: The tick {{ $labels.tick }} has not ended without an error for more than three minutes.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/redis-verlust.md
+      # A failed tick is not tried again before its next time; for a daily one that is a day.
+      - alert: SchedulerTickFailed
+        expr: |
+          max by (tick) (smp_scheduler_tick_last_failure_timestamp_seconds)
+            > (max by (tick) (smp_scheduler_tick_last_success_timestamp_seconds) or max by (tick) (smp_scheduler_tick_last_failure_timestamp_seconds) * 0)
+        for: 5m
+        labels:
+          severity: ticket
+        annotations:
+          summary: The last run of the tick {{ $labels.tick }} failed.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      - alert: SchedulerMissing
+        expr: absent(smp_operations_counts_up)
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: No worker with the role scheduler reports; ticks, sweeper and outbox relay stand still.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      - alert: OperationsCountsFailing
+        expr: max(smp_operations_counts_up) == 0
+        for: 5m
+        labels:
+          severity: ticket
+        annotations:
+          summary: The worker cannot read the operations counts from the database; the alerts on them are blind.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: QueuesUnreadable
+        expr: max(smp_queue_counts_up) == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: The worker cannot read the queues; Redis is away or refuses the user app.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/redis-verlust.md
+
+  - name: smp-connections
+    rules:
+      # Against the lowest count of the last hour; a reading that failed leaves a gap, no zero.
+      - alert: ReauthWave
+        expr: |
+          max by (platform) (smp_connections_needs_reauth)
+            - min_over_time(max by (platform) (smp_connections_needs_reauth)[1h:1m]) >= 5
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: '{{ $value }} more connections on {{ $labels.platform }} need a new login than within the last hour.'
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/token-ablauf.md
+      - alert: TokenRefreshFailing
+        expr: sum(increase(smp_token_refresh_total{outcome=~"error|reauth"}[1h])) >= 10
+        for: 5m
+        labels:
+          severity: ticket
+        annotations:
+          summary: '{{ $value }} token refreshes failed or ended in a new login within an hour.'
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/token-ablauf.md
+      - alert: KillSwitchActive
+        expr: max by (key) (smp_kill_switch_active) == 1
+        for: 1m
+        labels:
+          severity: ticket
+        annotations:
+          summary: The global kill switch {{ $labels.key }} is on; what it guards stands still.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/x-drift.md
+
+  - name: smp-x-browser
+    rules:
+      - alert: XBrowserDrift
+        expr: sum(increase(smp_xbrowser_drifts_total[30m])) > 0
+        labels:
+          severity: ticket
+        annotations:
+          summary: The browser worker reported a drift of the selectors of X.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/x-drift.md
+      - alert: XBrowserCanaryFailed
+        expr: sum(increase(smp_xbrowser_canary_failures_total[26h])) > 0
+        labels:
+          severity: ticket
+        annotations:
+          summary: The daily canary of the X browser missed selectors.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/x-drift.md
+      - alert: PlatformChallenges
+        expr: sum(increase(smp_challenges_total[1h])) > 0
+        labels:
+          severity: ticket
+        annotations:
+          summary: A platform asked to confirm a login at a post or a login of the X browser.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/x-drift.md
+
+  - name: smp-api
+    rules:
+      - alert: ApiErrorBudgetBurnFast
+        expr: |
+          smp:api_errors:ratio_rate1h > 14.4 * 0.005
+          and smp:api_errors:ratio_rate5m > 14.4 * 0.005
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: The API answers with 5xx; at this rate the budget of a month lasts two days.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: ApiErrorBudgetBurnSlow
+        expr: |
+          smp:api_errors:ratio_rate6h > 6 * 0.005
+          and smp:api_errors:ratio_rate30m > 6 * 0.005
+        for: 15m
+        labels:
+          severity: ticket
+        annotations:
+          summary: The API answers with 5xx; at this rate the budget of a month lasts five days.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: ApiReadLatencyHigh
+        expr: smp:api_read_latency:p95_5m > 0.3
+        for: 15m
+        labels:
+          severity: ticket
+        annotations:
+          summary: The p95 of the reads of the API is above 300 ms.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: TargetDown
+        expr: up{job=~"api|worker"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: Prometheus does not reach {{ $labels.job }} at {{ $labels.instance }}.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+
+  - name: smp-security
+    rules:
+      - alert: SecurityEventsSpike
+        expr: sum by (event) (increase(smp_security_events_total[10m])) > 100
+        labels:
+          severity: ticket
+        annotations:
+          summary: More than 100 {{ $labels.event }} within ten minutes.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: SignInFailuresSpike
+        expr: sum(increase(smp_auth_events_total{path="/sign-in/email", outcome="failed"}[10m])) > 200
+        labels:
+          severity: page
+        annotations:
+          summary: More than 200 failed sign-ins within ten minutes, as when passwords are tried on many accounts.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: AccessCacheInvalidationFailed
+        expr: sum(increase(smp_access_cache_invalidation_failures_total[10m])) > 0
+        labels:
+          severity: ticket
+        annotations:
+          summary: An access in the cache could not be dropped; an old role holds for up to 60 s.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/redis-verlust.md
+
+  - name: smp-costs
+    rules:
+      - alert: AiDailyBudgetExceeded
+        expr: max(smp_ai_cost_usd_24h) > on () smp:ai_cost_budget_usd_24h
+        labels:
+          severity: page
+        annotations:
+          summary: The AI cost {{ $value }} USD in 24 hours, more than its budget.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: AiDailyBudgetNear
+        expr: max(smp_ai_cost_usd_24h) > on () (0.8 * smp:ai_cost_budget_usd_24h)
+        labels:
+          severity: ticket
+        annotations:
+          summary: The AI cost {{ $value }} USD in 24 hours, more than 80 % of its budget.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: AiRefusalsHigh
+        expr: |
+          max(smp_ai_generations_24h{outcome="refused"}) / max(smp_ai_generations_24h{outcome="all"}) > 0.2
+          and max(smp_ai_generations_24h{outcome="all"}) >= 20
+        labels:
+          severity: ticket
+        annotations:
+          summary: More than a fifth of the AI generations of 24 hours were refused.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: XSpendDailyBudgetExceeded
+        expr: max(smp_x_spend_usd_24h) > on () smp:x_spend_budget_usd_24h
+        labels:
+          severity: page
+        annotations:
+          summary: The X API cost {{ $value }} USD in 24 hours, more than its budget.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: XSpendDailyBudgetNear
+        expr: max(smp_x_spend_usd_24h) > on () (0.8 * smp:x_spend_budget_usd_24h)
+        labels:
+          severity: ticket
+        annotations:
+          summary: The X API cost {{ $value }} USD in 24 hours, more than 80 % of its budget.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+      - alert: StorageGrowthHigh
+        expr: (max(smp_media_storage_bytes) - max(smp_media_storage_bytes offset 1d)) > on () smp:storage_growth_budget_bytes_24h
+        labels:
+          severity: ticket
+        annotations:
+          summary: The media library grew by {{ $value | humanize1024 }}B in 24 hours, more than its budget.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/alarme.md
+
+  - name: smp-backups
+    rules:
+      # The RPO of 15 minutes holds only while the copy runs (ADR 0042).
+      - alert: BackupCopyStale
+        expr: time() - max(smp_backup_last_success_timestamp_seconds{job="backup-sync"}) > 900
+        labels:
+          severity: page
+        annotations:
+          summary: The last copy of WAL and base backups to the bucket is more than 15 minutes old.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/backup-restore.md
+      - alert: BaseBackupStale
+        expr: time() - max(smp_backup_last_success_timestamp_seconds{job="postgres-backup"}) > 25 * 3600
+        labels:
+          severity: ticket
+        annotations:
+          summary: The last base backup is more than 25 hours old.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/backup-restore.md
+      - alert: WalArchivingFailing
+        expr: max(delta(smp_pg_archiver{field="failed_count"}[15m])) > 0
+        labels:
+          severity: page
+        annotations:
+          summary: PostgreSQL could not archive WAL; pg_wal grows until the disk is full.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/backup-restore.md
+      # Archiving is on, but no copy has ever reported: the sidecars or their push are missing.
+      - alert: BackupHeartbeatMissing
+        expr: max(smp_pg_archiver{field="archive_mode"}) == 1 unless on () count(smp_backup_last_success_timestamp_seconds{job="backup-sync"}) > 0
+        for: 30m
+        labels:
+          severity: page
+        annotations:
+          summary: The WAL archive is on, but the copy to the bucket never reported a success.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/backup-restore.md

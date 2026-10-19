@@ -177,6 +177,18 @@ jobs:
       - run: pnpm build --filter=@smp/worker...
       - run: pnpm backup:drill
 
+  monitoring:
+    # Guide step 8.7 (ADR 0043): the configuration of Prometheus and Alertmanager is valid and the
+    # unit tests of the alert rules pass, with the images of the compose profile "observability".
+    name: Monitoring rules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: bash tools/observability/check-rules.sh
+
   build:
     name: Build
     runs-on: ubuntu-24.04

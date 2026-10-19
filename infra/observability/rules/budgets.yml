@@ -1,0 +1,14 @@
+# The budgets the cost alerts compare with (guide step 8.7, ADR 0043). Starting values for the
+# first months; the operators change them here, and promtool tests only that the alerts compare.
+groups:
+  - name: smp-budgets
+    rules:
+      # Cost of the AI across all organizations in 24 hours, in USD.
+      - record: smp:ai_cost_budget_usd_24h
+        expr: vector(100)
+      # Spend on the X API across all organizations in 24 hours, in USD.
+      - record: smp:x_spend_budget_usd_24h
+        expr: vector(50)
+      # Growth of the media library in 24 hours, in bytes.
+      - record: smp:storage_growth_budget_bytes_24h
+        expr: vector(20e9)
