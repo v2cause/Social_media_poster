@@ -151,6 +151,12 @@ export {
   type LoadWorkspace,
 } from './seed/load';
 export {
+  loadRunReport,
+  type LoadDistribution,
+  type LoadRunReport,
+  type LoadRunWindow,
+} from './seed/load-report';
+export {
   AuditLogReadModel,
   InvalidCursorError,
   type AuditLogEntryView,

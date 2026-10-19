@@ -80,6 +80,8 @@ Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis au
 | `pnpm check:format`     | Prettier-Prüfung über das Repo                                                                                   | Schritt 0.13 |
 | `pnpm check:i18n`       | Übersetzungen prüfen: gleiche Keys und Argumente in de und en, gültiges ICU                                      | Schritt 1.10 |
 | `pnpm check:rls`        | RLS und Policies aller Mandantentabellen in der lokalen Datenbank prüfen                                         | Schritt 1.2  |
+| `pnpm load:fixture`     | Testdaten des Lasttests schreiben und für k6 beschreiben (nie in Produktion)                                     | Schritt 8.5  |
+| `pnpm load:stats`       | Einen Lauf des Lasttests aus der Datenbank auswerten, auch die Abfragen der Metriken                             | Schritt 8.5  |
 
 E2E-Tests: `pnpm test:e2e` läuft gegen den gestarteten Stack, wie im CI-Job "End-to-end tests". Vorher die Infrastruktur starten (`docker compose up -d --wait`), migrieren und bauen, dann in drei Terminals API und Worker (`node --env-file=../../.env --require @smp/observability/register dist/main.js` in `apps/api` und `apps/worker`) sowie das Web (`pnpm --filter @smp/web start`). Der Test liest die Verifizierungs- und Einladungs-Mails über die Mailpit-API. Der Medien-Test lädt in den lokalen S3-Speicher hoch; der Worker braucht dafür die Rolle `media` (in `WORKER_ROLES`, Standard in `.env.example`). Ohne heruntergeladene Playwright-Browser zeigt `PLAYWRIGHT_CHROMIUM_EXECUTABLE` auf ein installiertes Chrome oder Chromium.
 

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createPrismaClient,
   createSystemPrismaClient,
+  loadRunReport,
   PrismaPublishScheduler,
   seedLoadFixture,
   type LoadFixture,
@@ -14,7 +15,8 @@ import {
 
 // Guide step 8.5 on PostgreSQL: the data of the load test pass every constraint, the owners sign
 // in with the password of the run, the scheduler queues every due variant of the run in one
-// claim, the history of each workspace is rolled up, and a run id in use is refused.
+// claim, the history of each workspace is rolled up, a run id in use is refused, and the report
+// of a run counts what the database holds of it.
 
 const PASSWORD = 'Kurbelwelle-Zitronenfalter-81';
 
@@ -125,6 +127,47 @@ describe('the data of the load test on PostgreSQL', () => {
     expect(claimed.missed).toEqual([]);
     expect(claimed.queued).toHaveLength(24);
     expect(claimed.queued.every((variant) => variant.scheduledAt.getTime() === dueAt.getTime())).toBe(true);
+  });
+
+  it('report the run: statuses, lags, publications per second, attempts, outbox and metrics polls', async () => {
+    const { prisma, system } = clients();
+    // 20 of the 24 queued variants go out 2 s after their due time, and 10 of those that are not on
+    // X get their first metrics poll 4 s after that, when a scale of 3600 made it due after 1 s.
+    await prisma.$executeRaw`
+      UPDATE post_variant v SET status = 'PUBLISHED', published_at = v.scheduled_at + interval '2 seconds'
+        FROM (SELECT id FROM post_variant WHERE scheduled_at = ${dueAt} ORDER BY id LIMIT 20) chosen
+       WHERE v.id = chosen.id`;
+    await prisma.$executeRaw`
+      INSERT INTO publish_attempt (id, workspace_id, variant_id, schedule_version, attempt_number, trigger,
+                                   outcome, lease_owner, started_at)
+      SELECT gen_random_uuid(), workspace_id, id, schedule_version, 1, 'schedule', 'PUBLISHED', 'load', scheduled_at
+        FROM post_variant WHERE scheduled_at = ${dueAt} AND status = 'PUBLISHED'`;
+    await prisma.$executeRaw`
+      INSERT INTO metric_snapshot (id, workspace_id, variant_id, social_account_id, platform, step, raw,
+                                   mapping_version, captured_at)
+      SELECT gen_random_uuid(), workspace_id, id, social_account_id, platform, 0, '{}', 1,
+             published_at + interval '4 seconds'
+        FROM post_variant
+       WHERE scheduled_at = ${dueAt} AND status = 'PUBLISHED' AND platform <> 'X'
+       ORDER BY id LIMIT 10`;
+
+    const report = await loadRunReport(system, { run: 'it1', dueAt, spreadSeconds: 0 }, 3600);
+
+    expect(report.statuses).toEqual({ PUBLISHED: 20, QUEUED: 4 });
+    expect(report.queuedAfterDue?.count).toBe(24);
+    expect(report.publishedAfterDue).toEqual({ p50: 2, p95: 2, p99: 2, max: 2, count: 20 });
+    expect(report.publishing).toMatchObject({ perSecond: 20, maxPerSecond: 20 });
+    expect(report.attempts).toEqual({ PUBLISHED: 20 });
+    // The claim wrote the events of the queued variants; no relay ran.
+    expect(report.outbox?.count).toBeGreaterThanOrEqual(24);
+    expect(report.outbox?.pending).toBe(report.outbox?.count);
+    expect(report.metrics).toMatchObject({
+      measured: 10,
+      snapshots: 10,
+      perSecond: 10,
+      maxPerSecond: 10,
+      afterDue: { p50: 3, max: 3, count: 10 },
+    });
   });
 
   it('refuse a run id that is in use', async () => {
