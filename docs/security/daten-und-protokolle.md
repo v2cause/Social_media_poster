@@ -104,10 +104,11 @@ Ein Ereignis ist eine Log-Zeile, `msg` ist sein Name. In der API kommen die Feld
 | `security.webhook_rejected` | Stripe-Webhook ohne Raw-Body, ohne Signatur oder mit ungültiger Signatur (`WEBHOOK_SIGNATURE_INVALID`) | |
 | `security.oauth_rejected` | OAuth-Callback mit ungültiger Plattform oder Query oder mit unbekanntem, benutztem, abgelaufenem oder fremdem `state` | `platform`, `reason` (`STATE_INVALID`) |
 | `security.redirect_rejected` | Better Auth weist Origin, `callbackURL` oder ein anderes Ziel ab (`auth.ts`) | `field`, `value`; ohne `method`, `route` und `clientAddress`, weil der Logger von Better Auth nur die Meldung bekommt |
+| `security.password_rejected` | Falsches Passwort bei `PasswordCheck`, etwa beim Freischalten des X-Browsers (422 `INVALID_PASSWORD`); über dem Limit folgt `security.rate_limited` | `role`, `tenant` |
 
 ### Anmeldung (V16.3.1)
 
-Die Hooks in `apps/api/src/modules/identity/auth-hooks.ts` schreiben `auth.event` für `/sign-in/email`, `/sign-up/email`, `/sign-out`, `/verify-email`, `/send-verification-email`, `/request-password-reset`, `/reset-password`, `/change-password`, die Pfade des zweiten Faktors (`/two-factor/enable`, `disable`, `get-totp-uri`, `generate-backup-codes`, `verify-totp`, `verify-backup-code`) sowie `/revoke-session`, `/revoke-sessions` und `/revoke-other-sessions`. `path` nennt damit Verfahren und Faktor. Ein Ereignis nennt `userId` oder ohne Session `account` (die ersten 16 Hex-Zeichen des SHA-256 der Adresse in Kleinbuchstaben), nie die Adresse; bei `/sign-out` liest der Hook die Session vorher, damit das Ereignis den Nutzer nennt. Eine Weiterleitung wie die des Bestätigungslinks zählt nur als Fehlschlag, wenn ihr Ziel einen Fehler nennt (`?error=INVALID_TOKEN`). Der Test `apps/api/test/auth-events.integration.test.ts` prüft die Folge von Registrierung, Bestätigung, Anmeldung und Abmeldung.
+Die Hooks in `apps/api/src/modules/identity/auth-hooks.ts` schreiben `auth.event` für `/sign-in/email`, `/sign-up/email`, `/sign-out`, `/verify-email`, `/send-verification-email`, `/request-password-reset`, `/reset-password`, `/change-password`, die Pfade des zweiten Faktors (`/two-factor/enable`, `disable`, `get-totp-uri`, `generate-backup-codes`, `verify-totp`, `verify-backup-code`) sowie `/revoke-session`, `/revoke-sessions` und `/revoke-other-sessions`, dazu `/verify-password`, die erneute Abfrage des Passworts durch `PasswordCheck`. `path` nennt damit Verfahren und Faktor. Ein Ereignis nennt `userId` oder ohne Session `account` (die ersten 16 Hex-Zeichen des SHA-256 der Adresse in Kleinbuchstaben), nie die Adresse; bei `/sign-out` liest der Hook die Session vorher, damit das Ereignis den Nutzer nennt. Eine Weiterleitung wie die des Bestätigungslinks zählt nur als Fehlschlag, wenn ihr Ziel einen Fehler nennt (`?error=INVALID_TOKEN`). Der Test `apps/api/test/auth-events.integration.test.ts` prüft die Folge von Registrierung, Bestätigung, Anmeldung und Abmeldung.
 
 | `outcome` | Pegel | Auslöser | Felder |
 |---|---|---|---|
@@ -162,7 +163,6 @@ Dazu kommen Änderungen an Varianten, Stilen und Brand Voices.
 ### Ohne eigenes Ereignis
 
 - Anfragen an Routen von Nest ohne gültige Session (401) stehen nur als Request-Zeile im Log.
-- Ebenso ein falsches Passwort bei `PasswordCheck` (422 `INVALID_PASSWORD`, etwa beim Freischalten des X-Browsers); erst über dem Limit folgt `security.rate_limited`.
 - Ebenso Bodies an `/api/auth` über 64 KB oder ohne Länge (413, 411; `authBodyLimit`).
 
 ## Bewusst nicht protokolliert

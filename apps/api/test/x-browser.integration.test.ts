@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 
+import { Logger } from '@nestjs/common';
 import {
   X_BROWSER_RISK,
   type XBrowserAdminDto,
@@ -15,7 +16,7 @@ import { parseXbCommand, XB_COMMANDS_QUEUE, XB_KEYS, xbLoginAad } from '@smp/x-b
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import type { Client } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { startApiTestApp, type ApiTestApp } from './support/api-app';
 import { signIn, signUpVerified, type Browser } from './support/browser';
@@ -182,8 +183,23 @@ describe('X browser API', () => {
 
   it('switches on with the current text, the checkbox and the password', async () => {
     await as('EDITOR').post(`${ws}/activation`).send(enableBody()).expect(403);
+    const log = vi.spyOn(Logger.prototype, 'log');
+    const warn = vi.spyOn(Logger.prototype, 'warn');
     const wrong = await as('OWNER').post(`${ws}/activation`).send(enableBody('not-the-password')).expect(422);
     expect(wrong.body).toMatchObject({ code: 'INVALID_PASSWORD' });
+    // The wrong password leaves auth.event and a security event, without itself (ASVS 16.3.1).
+    const authEvents = log.mock.calls
+      .filter((call) => call[1] === 'auth.event')
+      .map((call) => call[0] as Record<string, unknown>);
+    expect(authEvents).toEqual([
+      expect.objectContaining({ path: '/verify-password', outcome: 'failed', code: 'INVALID_PASSWORD' }),
+    ]);
+    expect(warn.mock.calls.filter((call) => call[1] === 'security.password_rejected')).toEqual([
+      [expect.objectContaining({ method: 'POST', code: 'INVALID_PASSWORD' }), 'security.password_rejected'],
+    ]);
+    expect(JSON.stringify([log.mock.calls, warn.mock.calls])).not.toContain('not-the-password');
+    log.mockRestore();
+    warn.mockRestore();
     const outdated = await as('OWNER')
       .post(`${ws}/activation`)
       .send({ ...enableBody(), version: '2020-01-01' })

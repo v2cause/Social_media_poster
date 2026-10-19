@@ -14,6 +14,7 @@ import {
   WorkspaceNotFoundError,
 } from '@smp/core';
 
+import { InvalidPasswordError } from '../../modules/identity/password-check';
 import { ProblemDetailsFilter } from './problem-details.filter';
 
 function renderWith(exception: unknown, request: Record<string, unknown> = { id: 'req-1' }) {
@@ -186,12 +187,13 @@ describe('ProblemDetailsFilter', () => {
       expect(JSON.stringify(event)).not.toMatch(/hunter2|not-an-address/);
     });
 
-    it('logs tenants without membership, rate limits and webhooks without signature, nothing else', () => {
+    it('logs tenants without membership, rate limits, webhooks without signature and wrong passwords, nothing else', () => {
       const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
       renderWith(new WorkspaceNotFoundError(), request);
       renderWith(new AiRateLimitedError(), request);
       renderWith(new WebhookSignatureInvalidError(), { id: 'req-2', method: 'POST' });
+      renderWith(new InvalidPasswordError(), request);
       renderWith(new LastOwnerError(), request);
       renderWith(new NotFoundException(), request);
 
@@ -199,6 +201,7 @@ describe('ProblemDetailsFilter', () => {
         'security.tenant_denied',
         'security.rate_limited',
         'security.webhook_rejected',
+        'security.password_rejected',
       ]);
     });
   });

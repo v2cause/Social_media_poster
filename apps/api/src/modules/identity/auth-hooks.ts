@@ -81,6 +81,8 @@ const EVENT_PATHS = new Set([
   '/revoke-session',
   '/revoke-sessions',
   '/revoke-other-sessions',
+  // The password again before a sensitive action (PasswordCheck), called by the API itself.
+  '/verify-password',
 ]);
 
 // INCR with an expiry set on the first hit, as in the password check of the API.

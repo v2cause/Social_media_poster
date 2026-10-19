@@ -49,6 +49,8 @@ const SECURITY_EVENTS: Partial<Record<string, SecurityEvent>> = {
   INVITATION_EMAIL_MISMATCH: 'security.permission_denied',
   TWO_FACTOR_REQUIRED: 'security.two_factor_required',
   WEBHOOK_SIGNATURE_INVALID: 'security.webhook_rejected',
+  // PasswordCheck; after five attempts it answers 429 and the event is security.rate_limited.
+  INVALID_PASSWORD: 'security.password_rejected',
 };
 
 /** How many failed fields of a schema an event names. */
