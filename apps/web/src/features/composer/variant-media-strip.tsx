@@ -316,7 +316,10 @@ function SortableMedia(props: {
         {position}
       </span>
       {size && !size.fits ? (
-        <span className="absolute right-1 top-1 rounded bg-warning p-0.5 text-white" title={t('needsCrop')}>
+        <span
+          className="absolute right-1 top-1 rounded bg-warning p-0.5 text-warning-foreground"
+          title={t('needsCrop')}
+        >
           <AlertTriangle className="size-3" aria-hidden="true" />
         </span>
       ) : null}

@@ -11,7 +11,8 @@
   --muted: #f4f4f5;
   --muted-foreground: #52525b;
   --border: #e4e4e7;
-  --input: #d4d4d8;
+  /* Borders of form fields: 3:1 against the page (WCAG 1.4.11, guide step 8.8). */
+  --input: #858590;
   --ring: #2563eb;
   --accent: #2563eb;
   --primary: #1d4ed8;
@@ -20,6 +21,7 @@
   --destructive-foreground: #ffffff;
   --success: #15803d;
   --warning: #b45309;
+  --warning-foreground: #ffffff;
   /* Series of the analytics charts; each one has at least 3:1 against the card in both themes. */
   --chart-1: #2563eb;
   --chart-2: #c026d3;
@@ -44,6 +46,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -59,15 +62,17 @@
     --muted: #18181b;
     --muted-foreground: #a1a1aa;
     --border: #27272a;
-    --input: #3f3f46;
+    --input: #71717a;
     --ring: #60a5fa;
     --accent: #60a5fa;
-    --primary: #3b82f6;
-    --primary-foreground: #ffffff;
-    --destructive: #ef4444;
-    --destructive-foreground: #ffffff;
+    /* Light fills carry dark text; white on them stays below 4.5:1 (guide step 8.8). */
+    --primary: #60a5fa;
+    --primary-foreground: #0a0a0a;
+    --destructive: #f87171;
+    --destructive-foreground: #0a0a0a;
     --success: #22c55e;
     --warning: #f59e0b;
+    --warning-foreground: #0a0a0a;
     --chart-1: #60a5fa;
     --chart-2: #e879f9;
     --chart-3: #2dd4bf;
@@ -83,15 +88,16 @@
   --muted: #18181b;
   --muted-foreground: #a1a1aa;
   --border: #27272a;
-  --input: #3f3f46;
+  --input: #71717a;
   --ring: #60a5fa;
   --accent: #60a5fa;
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --primary: #60a5fa;
+  --primary-foreground: #0a0a0a;
+  --destructive: #f87171;
+  --destructive-foreground: #0a0a0a;
   --success: #22c55e;
   --warning: #f59e0b;
+  --warning-foreground: #0a0a0a;
   --chart-1: #60a5fa;
   --chart-2: #e879f9;
   --chart-3: #2dd4bf;

@@ -3,12 +3,13 @@ import { cn } from '@smp/ui';
 import { useTranslations } from 'next-intl';
 
 // The sign of a platform in lists, cards and the calendar (guide step 4.11): its short name on
-// its color. The logos of the platforms are trademarks and are not shipped with the app.
+// its color. The logos of the platforms are trademarks and are not shipped with the app. The white
+// letters keep 4.5:1 on each color; the blue of Facebook is a shade darker for that (step 8.8).
 
 const MARKS = {
   LINKEDIN: { text: 'in', className: 'bg-[#0a66c2] text-white' },
   INSTAGRAM: { text: 'IG', className: 'bg-[#c13584] text-white' },
-  FACEBOOK: { text: 'f', className: 'bg-[#1877f2] text-white' },
+  FACEBOOK: { text: 'f', className: 'bg-[#1469d9] text-white' },
   X: { text: 'X', className: 'bg-black text-white ring-1 ring-border' },
 } as const satisfies Record<Platform, { text: string; className: string }>;
 
