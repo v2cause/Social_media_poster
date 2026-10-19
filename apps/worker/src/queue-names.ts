@@ -1,0 +1,29 @@
+import {
+  AI_QUEUE,
+  ANALYTICS_QUEUE,
+  BILLING_QUEUE,
+  GDPR_QUEUE,
+  MEDIA_QUEUE,
+  NOTIFICATIONS_QUEUE,
+  PUBLISH_DEAD_LETTER_QUEUE,
+  PUBLISH_QUEUE,
+  SCHEDULER_QUEUE,
+  TOKENS_QUEUE,
+} from '@smp/queue';
+import { XB_COMMANDS_QUEUE, XB_RESULTS_QUEUE } from '@smp/x-browser';
+
+/** Every queue of BullMQ the platform uses: the gauges of the operations and `pnpm queues` read them. */
+export const ALL_QUEUES = [
+  SCHEDULER_QUEUE,
+  PUBLISH_QUEUE,
+  PUBLISH_DEAD_LETTER_QUEUE,
+  NOTIFICATIONS_QUEUE,
+  TOKENS_QUEUE,
+  MEDIA_QUEUE,
+  ANALYTICS_QUEUE,
+  AI_QUEUE,
+  BILLING_QUEUE,
+  GDPR_QUEUE,
+  XB_COMMANDS_QUEUE,
+  XB_RESULTS_QUEUE,
+] as const;

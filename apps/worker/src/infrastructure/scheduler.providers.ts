@@ -30,7 +30,6 @@ import {
 } from '@smp/db';
 import { BullXbCommandBus } from '@smp/platform-adapters';
 import {
-  AI_QUEUE,
   ANALYTICS_QUEUE,
   AnalyticsProducer,
   BILLING_QUEUE,
@@ -38,21 +37,19 @@ import {
   GDPR_QUEUE,
   GdprProducer,
   LiveEventPublisher,
-  MEDIA_QUEUE,
   NOTIFICATIONS_QUEUE,
   NotificationProducer,
-  PUBLISH_DEAD_LETTER_QUEUE,
   PUBLISH_QUEUE,
   PublishProducer,
-  SCHEDULER_QUEUE,
   TokenProducer,
   TOKENS_QUEUE,
 } from '@smp/queue';
-import { XB_COMMANDS_QUEUE, XB_RESULTS_QUEUE } from '@smp/x-browser';
+import { XB_COMMANDS_QUEUE } from '@smp/x-browser';
 import { Queue, QueueEvents } from 'bullmq';
 import Redis from 'ioredis';
 
 import { unwatchOperations, watchOperations } from '../metrics';
+import { ALL_QUEUES } from '../queue-names';
 import type { TickHandlers } from '../processors/scheduler.processor';
 import { AnalyticsTick } from '../scheduler/analytics-tick';
 import { Maintenance } from '../scheduler/maintenance';
@@ -208,20 +205,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
   const gdprProducer = new GdprProducer(gdprQueue);
   // The gauges of the operations (guide step 8.7): counts of the database and the length of every
   // queue, read when Prometheus scrapes this replica.
-  const watchedQueues = [
-    SCHEDULER_QUEUE,
-    PUBLISH_QUEUE,
-    PUBLISH_DEAD_LETTER_QUEUE,
-    NOTIFICATIONS_QUEUE,
-    TOKENS_QUEUE,
-    MEDIA_QUEUE,
-    ANALYTICS_QUEUE,
-    AI_QUEUE,
-    BILLING_QUEUE,
-    GDPR_QUEUE,
-    XB_COMMANDS_QUEUE,
-    XB_RESULTS_QUEUE,
-  ].map((name) => new Queue(name, { connection: producers }));
+  const watchedQueues = ALL_QUEUES.map((name) => new Queue(name, { connection: producers }));
   const metricsLogger = new Logger('OperationsMetrics');
   watchOperations({
     counts: () => readOperationsCounts(system, systemClock.now()),
