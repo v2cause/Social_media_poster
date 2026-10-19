@@ -111,6 +111,26 @@ test('the arrow keys move through the variant tabs of the composer', async ({ pa
   await expect(tabs.nth(count - 1)).toBeFocused();
 });
 
+test('the calendar button of a date field is a stop of its own', async ({ page }) => {
+  // globals.css gives the button the ring of the app while the field matches :focus-within but not
+  // :focus; this is the state the rule depends on. The ring of Chromium there is hardly visible in
+  // the dark scheme.
+  await signInDemo(page, 'owner@demo.local');
+  await page.goto(`${DEMO_WORKSPACE}/posts`);
+  await settle(page);
+  const field = page.getByLabel('Geplant ab');
+  await field.focus();
+  expect(await field.evaluate((element) => element.matches(':focus'))).toBe(true);
+  // Day, month and year come first.
+  for (let stop = 0; stop < 3; stop += 1) {
+    await page.keyboard.press('Tab');
+  }
+  await expect(field).toBeFocused();
+  expect(
+    await field.evaluate((element) => element.matches(':focus-within') && !element.matches(':focus')),
+  ).toBe(true);
+});
+
 test('the sticky header never covers the element with the focus', async ({ page }) => {
   // WCAG 2.4.11: a long table, walked forwards and backwards on a short screen.
   await page.setViewportSize({ width: 1280, height: 600 });

@@ -4,6 +4,8 @@
 @source '../../../../packages/ui/src';
 
 :root {
+  /* Native controls such as the icon of a date field follow the scheme (guide step 8.8). */
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #0a0a0a;
   --card: #ffffff;
@@ -55,6 +57,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
+    color-scheme: dark;
     --background: #0a0a0a;
     --foreground: #fafafa;
     --card: #111113;
@@ -81,6 +84,7 @@
 }
 
 :root[data-theme='dark'] {
+  color-scheme: dark;
   --background: #0a0a0a;
   --foreground: #fafafa;
   --card: #111113;
@@ -107,4 +111,16 @@
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/*
+ * The calendar button inside a date or time field is a tab stop of its own. Chromium marks its
+ * focus with a ring of its own that the dark scheme hides almost completely (WCAG 2.4.7, guide step
+ * 8.8). While it has the focus, the field matches :focus-within but not :focus, so the button takes
+ * the ring of the app.
+ */
+input:focus-within:not(:focus)::-webkit-calendar-picker-indicator {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+  border-radius: 2px;
 }
