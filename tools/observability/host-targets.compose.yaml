@@ -1,0 +1,9 @@
+# For pnpm dev (guide step 8.7, ADR 0043): API and worker run on the host, and Prometheus in the
+# profile "observability" reaches them under the names of its targets.
+#   docker compose -f compose.yaml -f tools/observability/host-targets.compose.yaml \
+#     --profile observability up -d
+services:
+  prometheus:
+    extra_hosts:
+      - 'api:host-gateway'
+      - 'worker:host-gateway'

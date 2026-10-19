@@ -10,7 +10,9 @@
 #   xb             browser-worker (isolated Playwright host, consumes xb-commands only) in the
 #                  internal network "xb", which reaches Redis and the egress proxy only; the
 #                  egress proxy lets it out to the X web app and the storage, nowhere else
-#   observability  grafana/otel-lgtm (Grafana on host port 3003, OTLP on 4317/4318)
+#   observability  grafana/otel-lgtm (Grafana on host port 3003, OTLP on 4317/4318), and
+#                  Prometheus with the SLO and alert rules (9090), Alertmanager mailing to
+#                  Mailpit (9093) and the Pushgateway of the backup jobs (9091, ADR 0043)
 #   clamav         optional virus scan on 127.0.0.1:3310
 #   backup         base backups of Postgres and the copy of backups and WAL archive to the
 #                  object storage of the backups (with PG_ARCHIVE_MODE=on, ADR 0042)
@@ -209,6 +211,8 @@ services:
       APP_URL: http://localhost:8080
       BETTER_AUTH_URL: http://localhost:8080
       API_PORT: '3001'
+      # The metrics for Prometheus, inside the compose network only.
+      API_METRICS_PORT: '9464'
       DATABASE_URL: postgresql://app_user:${APP_USER_PASSWORD:?set APP_USER_PASSWORD in .env}@postgres:5432/smp
       DATABASE_SYSTEM_URL: postgresql://app_system:${APP_SYSTEM_PASSWORD:?set APP_SYSTEM_PASSWORD in .env}@postgres:5432/smp
       REDIS_URL: redis://app:${REDIS_APP_PASSWORD:?set REDIS_APP_PASSWORD in .env}@redis:6379
@@ -456,6 +460,8 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       BACKUP_KEEP: ${BACKUP_KEEP:-7}
       BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      # With the profile "observability": http://pushgateway:9091 (guide step 8.7).
+      BACKUP_PUSHGATEWAY_URL: ${BACKUP_PUSHGATEWAY_URL:-}
     volumes:
       - postgres-backups:/var/lib/postgresql/backups
       - postgres-archive:/var/lib/postgresql/archive
@@ -487,6 +493,7 @@ services:
       BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-http://s3:8333}
       BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-smp-backups}
       BACKUP_SYNC_SECONDS: ${BACKUP_SYNC_SECONDS:-300}
+      BACKUP_PUSHGATEWAY_URL: ${BACKUP_PUSHGATEWAY_URL:-}
     volumes:
       - postgres-backups:/backups:ro
       - postgres-archive:/archive:ro
@@ -501,6 +508,51 @@ services:
       - '127.0.0.1:3003:3000'
       - '127.0.0.1:4317:4317'
       - '127.0.0.1:4318:4318'
+
+  # The monitoring of guide step 8.7 (ADR 0043): Prometheus scrapes the API and the worker of the
+  # profile "app" and the Pushgateway, evaluates the rules of infra/observability and hands the
+  # alerts to Alertmanager, which mails them to Mailpit. For API and worker on the host (pnpm dev)
+  # add -f tools/observability/host-targets.compose.yaml.
+  prometheus:
+    image: prom/prometheus:v3.13.4
+    profiles: ['observability']
+    restart: unless-stopped
+    <<: *hardened
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - '127.0.0.1:9090:9090'
+    volumes:
+      - ./infra/observability:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    profiles: ['observability']
+    restart: unless-stopped
+    <<: *hardened
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      # A single instance: no cluster of Alertmanagers.
+      - --cluster.listen-address=
+    ports:
+      - '127.0.0.1:9093:9093'
+    volumes:
+      - ./infra/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+
+  # The backup jobs push the time of their last success here (BACKUP_PUSHGATEWAY_URL); it keeps
+  # the values in memory, and the alert BackupHeartbeatMissing notices when they are gone.
+  pushgateway:
+    image: prom/pushgateway:v1.11.3
+    profiles: ['observability']
+    restart: unless-stopped
+    <<: *hardened
+    ports:
+      - '127.0.0.1:9091:9091'
 
   clamav:
     image: clamav/clamav:1.5.4-debian13-slim
@@ -521,3 +573,5 @@ volumes:
   postgres-backups:
   redis-data:
   s3-data:
+  prometheus-data:
+  alertmanager-data:
