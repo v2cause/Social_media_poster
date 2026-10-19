@@ -42,6 +42,7 @@ import {
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
+import { publishRunObserver } from '../metrics';
 import type { WorkerEnv } from '../worker-env';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
 import { spendCappedResolver } from './spend-cap';
@@ -201,6 +202,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
       dryRunLive: env.PUBLISH_DRY_RUN,
       leaseMs: env.PUBLISH_LEASE_MS,
       metricsCadenceScale: env.ANALYTICS_CADENCE_SCALE,
+      observer: publishRunObserver,
     },
     tokenRefresh: {
       unitOfWork: new PrismaTokenMaintenanceUnitOfWork(database),

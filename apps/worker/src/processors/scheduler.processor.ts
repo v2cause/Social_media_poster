@@ -13,7 +13,7 @@ import { type Job, type Queue, UnrecoverableError } from 'bullmq';
 import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 
 import { JobLogContext } from '../job-log-context';
-import { jobsTotal } from '../metrics';
+import { jobsTotal, tickLagSeconds, tickLastSuccess } from '../metrics';
 import type { WorkerEnv } from '../worker-env';
 import { TICK_HANDLERS, WORKER_ENV } from '../worker.tokens';
 
@@ -71,8 +71,14 @@ export class SchedulerProcessor extends WorkerHost implements OnApplicationBoots
       throw new UnrecoverableError(`no handler for ${job.name}`);
     }
     const started = performance.now();
+    // How late the run started against the time the job scheduler gave it.
+    tickLagSeconds.set(
+      { tick: job.name },
+      Math.max(0, (job.processedOn ?? Date.now()) - (job.timestamp + job.delay)) / 1_000,
+    );
     try {
       const result = await handler();
+      tickLastSuccess.set({ tick: job.name }, Date.now() / 1_000);
       const fields = { tick: job.name, durationMs: Math.round(performance.now() - started), ...result };
       if (isIdle(result)) {
         this.logger.debug(fields, 'scheduler.tick');

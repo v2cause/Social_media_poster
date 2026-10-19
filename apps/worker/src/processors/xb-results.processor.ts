@@ -7,7 +7,7 @@ import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 
 import type { PublishPipeline } from '../infrastructure/publisher.providers';
 import { JobLogContext } from '../job-log-context';
-import { jobsTotal } from '../metrics';
+import { jobsTotal, xbLoginFailuresTotal, xbReportsTotal } from '../metrics';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
 
 /**
@@ -41,6 +41,7 @@ export class XbResultsProcessor extends WorkerHost {
     }
     const outcome = await this.handle(report);
     jobsTotal.inc({ queue: XB_RESULTS_QUEUE, status: 'completed' });
+    xbReportsTotal.inc({ kind: report.kind, outcome });
     return outcome;
   }
 
@@ -88,6 +89,7 @@ export class XbResultsProcessor extends WorkerHost {
       case 'login.status':
         return this.loginStep(report, { kind: 'awaiting_code' });
       case 'login.failed':
+        xbLoginFailuresTotal.inc({ failure: report.failure });
         return this.loginStep(report, { kind: 'failed', failure: report.failure });
       case 'login.succeeded': {
         const completion = await this.pipeline.browserLogins.completion.execute({

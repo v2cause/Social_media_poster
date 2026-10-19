@@ -1,4 +1,4 @@
-import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import {
   AnnounceReadOnly,
   ApplyRetention,
@@ -23,11 +23,14 @@ import {
   PrismaTokenMaintenanceUnitOfWork,
   PrismaUsageReportStore,
   PrismaXBrowserOperations,
+  readOperationsCounts,
+  readStorageBytes,
   type PrismaClient,
   type SystemPrismaClient,
 } from '@smp/db';
 import { BullXbCommandBus } from '@smp/platform-adapters';
 import {
+  AI_QUEUE,
   ANALYTICS_QUEUE,
   AnalyticsProducer,
   BILLING_QUEUE,
@@ -35,17 +38,21 @@ import {
   GDPR_QUEUE,
   GdprProducer,
   LiveEventPublisher,
+  MEDIA_QUEUE,
   NOTIFICATIONS_QUEUE,
   NotificationProducer,
+  PUBLISH_DEAD_LETTER_QUEUE,
   PUBLISH_QUEUE,
   PublishProducer,
+  SCHEDULER_QUEUE,
   TokenProducer,
   TOKENS_QUEUE,
 } from '@smp/queue';
-import { XB_COMMANDS_QUEUE } from '@smp/x-browser';
+import { XB_COMMANDS_QUEUE, XB_RESULTS_QUEUE } from '@smp/x-browser';
 import { Queue, QueueEvents } from 'bullmq';
 import Redis from 'ioredis';
 
+import { unwatchOperations, watchOperations } from '../metrics';
 import type { TickHandlers } from '../processors/scheduler.processor';
 import { AnalyticsTick } from '../scheduler/analytics-tick';
 import { Maintenance } from '../scheduler/maintenance';
@@ -84,6 +91,7 @@ class SchedulerClientsLifecycle implements OnApplicationShutdown {
   constructor(@Inject(SCHEDULER_CLIENTS) private readonly clients: SchedulerClients) {}
 
   async onApplicationShutdown(): Promise<void> {
+    unwatchOperations();
     for (const events of this.clients.events) {
       await events.close();
     }
@@ -198,6 +206,31 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
       })
     : null;
   const gdprProducer = new GdprProducer(gdprQueue);
+  // The gauges of the operations (guide step 8.7): counts of the database and the length of every
+  // queue, read when Prometheus scrapes this replica.
+  const watchedQueues = [
+    SCHEDULER_QUEUE,
+    PUBLISH_QUEUE,
+    PUBLISH_DEAD_LETTER_QUEUE,
+    NOTIFICATIONS_QUEUE,
+    TOKENS_QUEUE,
+    MEDIA_QUEUE,
+    ANALYTICS_QUEUE,
+    AI_QUEUE,
+    BILLING_QUEUE,
+    GDPR_QUEUE,
+    XB_COMMANDS_QUEUE,
+    XB_RESULTS_QUEUE,
+  ].map((name) => new Queue(name, { connection: producers }));
+  const metricsLogger = new Logger('OperationsMetrics');
+  watchOperations({
+    counts: () => readOperationsCounts(system, systemClock.now()),
+    storageBytes: () => readStorageBytes(system),
+    queues: watchedQueues,
+    onError: (error, reading) => {
+      metricsLogger.warn({ err: error, reading }, 'metrics.operations_failed');
+    },
+  });
   const handlers: TickHandlers = {
     'tick.publish': () => publishTick.run(),
     'tick.sweep-queued': () => sweeper.run(),
@@ -232,6 +265,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
           gdprQueue,
           ...(canary ? [canary.queue] : []),
           ...(billingQueue ? [billingQueue] : []),
+          ...watchedQueues,
         ],
         events: canary ? [canary.events] : [],
         producers,

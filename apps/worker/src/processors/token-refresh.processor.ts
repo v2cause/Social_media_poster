@@ -8,7 +8,7 @@ import { ZodError } from 'zod';
 
 import type { PublishPipeline } from '../infrastructure/publisher.providers';
 import { JobLogContext } from '../job-log-context';
-import { jobsTotal } from '../metrics';
+import { jobsTotal, tokenRefreshTotal } from '../metrics';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
 
 /**
@@ -61,6 +61,7 @@ export class TokenRefreshProcessor extends WorkerHost {
       outcome = await this.refresh.execute(payload);
     } catch (error) {
       jobsTotal.inc({ queue: TOKENS_QUEUE, status: 'failed' });
+      tokenRefreshTotal.inc({ outcome: 'error' });
       this.logger.warn(
         { jobId: job.id, connectionId: payload.connectionId, attempt: job.attemptsMade + 1, err: error },
         'token.refresh_failed',
@@ -68,6 +69,7 @@ export class TokenRefreshProcessor extends WorkerHost {
       throw error;
     }
     jobsTotal.inc({ queue: TOKENS_QUEUE, status: 'completed' });
+    tokenRefreshTotal.inc({ outcome });
     this.logger.info({ jobId: job.id, connectionId: payload.connectionId, outcome }, 'token.refresh');
     return outcome;
   }
