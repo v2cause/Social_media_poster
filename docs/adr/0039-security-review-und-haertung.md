@@ -63,7 +63,7 @@ Dazu meldete Trivy in den Basis-Images behebbare Schwachstellen der Stufe HIGH u
 | Passwort ändern | Das aktuelle Passwort ist nötig. Es gelten die Passwortrichtlinie und höchstens fünf falsche Passwörter je Nutzer in 15 Minuten. Die Seite bietet an, die anderen Geräte abzumelden. |
 | 2FA einrichten, abschalten, Schlüssel abrufen, neue Backup-Codes | Das Passwort ist nötig, bei aktiver 2FA zusätzlich ein Code des Faktors. Danach bietet die Seite an, die anderen Geräte abzumelden. |
 | Sensible Aktionen der API | Die Freischaltung des X-Browsers verlangt das Passwort (`PasswordCheck`, mit demselben Limit je Nutzer). |
-| Betrieb | `pnpm auth:revoke-sessions --user <email>` oder `--all` beendet die Sessions eines Kontos oder aller Konten ([Runbook](../runbooks/secret-rotation.md)). |
+| Betrieb | `pnpm auth:revoke-sessions --user <email>` oder `--all` beendet die Sessions eines Kontos oder aller Konten ([Runbook](../runbooks/secret-rotation.md)). Seit Schritt 8.7 entfernt `pnpm auth:reset-two-factor` einen verlorenen zweiten Faktor nach einem Passwort-Reset über den Link an die Adresse ([Runbook](../runbooks/zweiter-faktor-verloren.md)). |
 
 Nicht vorhanden sind:
 - die Anmeldung über Google oder Microsoft, die die Architektur als Option nannte (entfällt),

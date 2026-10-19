@@ -15,7 +15,7 @@ Jede Anforderung hat einen Status mit Nachweis im Code, in Tests oder in der Dok
 | V3 Sicherheit des Web-Frontends | 19 | 15 | 3 | 0 | 1 |
 | V4 API und Webdienste | 10 | 2 | 2 | 0 | 6 |
 | V5 Umgang mit Dateien | 9 | 6 | 2 | 0 | 1 |
-| V6 Authentifizierung | 35 | 24 | 3 | 1 | 7 |
+| V6 Authentifizierung | 35 | 25 | 2 | 1 | 7 |
 | V7 Sitzungsverwaltung | 18 | 13 | 2 | 0 | 3 |
 | V8 Autorisierung | 7 | 7 | 0 | 0 | 0 |
 | V9 Eigenständige Tokens | 7 | 6 | 0 | 0 | 1 |
@@ -27,7 +27,7 @@ Jede Anforderung hat einen Status mit Nachweis im Code, in Tests oder in der Dok
 | V15 Sichere Programmierung und Architektur | 13 | 10 | 3 | 0 | 0 |
 | V16 Sicherheitslogging und Fehlerbehandlung | 16 | 9 | 6 | 1 | 0 |
 | V17 WebRTC | 7 | 0 | 0 | 0 | 7 |
-| **Summe** | **253** | **148** | **36** | **5** | **64** |
+| **Summe** | **253** | **149** | **35** | **5** | **64** |
 
 ## V1 Kodierung und Bereinigung
 
@@ -268,7 +268,7 @@ Jede Anforderung hat einen Status mit Nachweis im Code, in Tests oder in der Dok
 | V6.4.1 | 1 | Aktivierungscodes zufällig, kurzlebig und einmalig | erfüllt | Keine generierten Initialpasswörter. Verifizierung: JWT HS256, 1 h (auth.ts:63, ADR 0012); Einladung: 32 Byte CSPRNG, nur SHA-256-Hash, 7 Tage, einmalig (packages/crypto secret-tokens.ts). |  |
 | V6.4.2 | 1 | Keine Passworthinweise oder Sicherheitsfragen | erfüllt | Schema (users, auth_account) und Formulare enthalten weder Passworthinweise noch Sicherheitsfragen; 'passwordHint' nennt nur die Mindestlänge. |  |
 | V6.4.3 | 2 | Sicherer Reset ohne Umgehung der 2FA | erfüllt | Token 24 Zeichen CSPRNG, 1 h, einmalig (password.mjs:74, 161); Reset erzeugt keine Session, der Login danach verlangt die 2FA; alle Sessions enden (auth.ts:54); gleiche Antwort (Test). |  |
-| V6.4.4 | 2 | Identitätsprüfung bei Verlust eines Faktors | teilweise | Bei Verlust der App ersetzen 10 Backup-Codes den zweiten Faktor, jeder einmal (better-auth 1.7.9 dist/plugins/two-factor/backup-codes/index.mjs:15, 215-227); der Reset hebt die 2FA bewusst nicht auf (auth.ts:98, ASVS 6.4.3); Abschalten und Neueinrichten verlangen das Passwort (two-factor/index.mjs:107-113, 210-216). | Für den Verlust von App und Backup-Codes gibt es weder einen definierten Prozess noch ein Werkzeug; Betroffene bleiben ausgesperrt oder brauchen einen Eingriff per SQL. Nötig: Runbook mit Identitätsnachweis auf dem Niveau der Registrierung (Kontrolle der Adresse per Reset-Link, bei Mitgliedern einer Organisation zusätzlich Bestätigung durch deren Owner), ein Betreiberkommando analog auth:revoke-sessions, das den zweiten Faktor entfernt, alle Sessions beendet, das Ereignis protokolliert und die Adresse per Mail informiert, und ein Test dazu. Schwere: niedrig. Plan: Schritt 8.7: Runbook für den Verlust von App und Backup-Codes mit einer Prüfung der Identität (ADR 0039). |
+| V6.4.4 | 2 | Identitätsprüfung bei Verlust eines Faktors | erfüllt | Bei Verlust der App ersetzen 10 Backup-Codes den zweiten Faktor, jeder einmal (better-auth 1.7.9 dist/plugins/two-factor/backup-codes/index.mjs:15, 215-227); der Reset hebt die 2FA bewusst nicht auf (auth.ts:98, ASVS 6.4.3). Fehlen App und Backup-Codes, entfernt pnpm auth:reset-two-factor --user <E-Mail> --ticket <Ticket> den Faktor nur nach einem Passwort-Reset über den Link an die Adresse in den letzten 24 Stunden, also mit dem Nachweis der Registrierung (apps/api/src/modules/identity/reset-two-factor.ts, recentReset und resetTwoFactor); es löscht Faktor und Backup-Codes, beendet alle Sessions, schreibt auth.two_factor_reset mit Ticket und informiert die Adresse per E-Mail (Vorlage two-factor-reset). --check nennt vorher die Organisationen mit weiteren Owners, deren Bestätigung das Runbook verlangt, bei Plattform-Admins die eines zweiten Admins (docs/runbooks/zweiter-faktor-verloren.md). Test apps/api/test/two-factor-reset.integration.test.ts; Probe am lokalen Stack im Runbook. |  |
 
 ### V6.5
 

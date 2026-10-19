@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "auth:reencrypt": "node --env-file-if-exists=../../.env dist/scripts/reencrypt-two-factor.js",
+    "auth:reset-two-factor": "node --env-file-if-exists=../../.env dist/scripts/reset-two-factor.js",
     "auth:revoke-sessions": "node --env-file-if-exists=../../.env dist/scripts/revoke-sessions.js"
   },
   "dependencies": {

@@ -119,6 +119,14 @@ Die Hooks in `apps/api/src/modules/identity/auth-hooks.ts` schreiben `auth.event
 | `code_reused` | warn | TOTP-Code schon benutzt (401 `CODE_ALREADY_USED`) | `path`, `userId` |
 | `unconfirmed` | warn | Änderung des zweiten Faktors ohne bestätigten Code (403 `SECOND_FACTOR_REQUIRED`) | `path`, `userId` |
 
+Das Betreiberkommando für einen verlorenen zweiten Faktor ([Runbook](../runbooks/zweiter-faktor-verloren.md), `apps/api/src/scripts/reset-two-factor.ts`) schreibt eigene Zeilen, alle mit `ticket` (Referenz des Support-Falls) und ohne Adresse oder Namen:
+
+| Ereignis | Pegel | Auslöser | Felder |
+|---|---|---|---|
+| `auth.two_factor_check` | info, warn ohne Konto | `--check`: was ein Entfernen fände | `userId`, `twoFactorEnabled`, `platformAdmin`, `resetAt`, `memberships` (je `organizationId`, `role`, `otherOwners`, `requireTwoFactor`); ohne Konto `outcome: not_found` |
+| `auth.two_factor_reset` | warn | Zweiter Faktor entfernt, Sitzungen beendet, E-Mail an die Adresse | `userId`, `resetAt`, `hadSecondFactor`, `sessions`, `memberships` |
+| `auth.two_factor_reset_refused` | warn | Kein Konto oder kein Passwort-Reset in den letzten 24 Stunden | `outcome` (`not_found`, `no_recent_password_reset`) |
+
 ### Weitere Ereignisse (V16.3.1, V16.3.3, V16.3.4)
 
 | Ereignis | Pegel | Auslöser | Felder |
