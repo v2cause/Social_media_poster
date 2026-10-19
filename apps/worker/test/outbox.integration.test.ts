@@ -195,10 +195,18 @@ describe('outbox relay of the worker', () => {
       'tick.sweep-queued',
       'tick.tokens',
     ]);
-    const [row] = await query<{ processed: boolean }>(
-      'SELECT processed_at IS NOT NULL AS processed FROM outbox_event WHERE id = $1',
-      [event?.id],
-    );
-    expect(row?.processed).toBe(true);
+    // The relay marks the event when its transaction commits, which can come after the job is in
+    // the queue.
+    const processed = async () =>
+      (
+        await query<{ processed: boolean }>(
+          'SELECT processed_at IS NOT NULL AS processed FROM outbox_event WHERE id = $1',
+          [event?.id],
+        )
+      )[0]?.processed === true;
+    for (let waited = 0; waited < 5_000 && !(await processed()); waited += 250) {
+      await sleep(250);
+    }
+    expect(await processed()).toBe(true);
   });
 });
