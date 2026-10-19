@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.mts",
-    "restore:mark-attempts": "node --env-file-if-exists=../../.env dist/scripts/mark-open-attempts.js"
+    "restore:mark-attempts": "node --env-file-if-exists=../../.env dist/scripts/mark-open-attempts.js",
+    "drill": "node --env-file-if-exists=../../.env dist/scripts/drill.js"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.5",

@@ -30,6 +30,7 @@
     "load:stats": "tsx --env-file-if-exists=.env tools/load-stats.ts",
     "backup:drill": "bash tools/backup/restore-drill.sh",
     "restore:mark-attempts": "pnpm --filter @smp/worker restore:mark-attempts",
+    "drill": "pnpm --filter @smp/worker drill",
     "auth:reencrypt": "pnpm --filter @smp/api auth:reencrypt",
     "auth:reset-two-factor": "pnpm --filter @smp/api auth:reset-two-factor",
     "auth:revoke-sessions": "pnpm --filter @smp/api auth:revoke-sessions",
