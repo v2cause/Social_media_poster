@@ -2,9 +2,13 @@ import type { ComponentProps } from 'react';
 
 import { cn } from '../lib/cn';
 
+/**
+ * A wide table scrolls within its box. The box is positioned, so that text for screen readers in
+ * the cells scrolls with it instead of widening the page on a narrow screen (WCAG 1.4.10).
+ */
 export function Table({ className, ...props }: ComponentProps<'table'>) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="relative w-full overflow-x-auto">
       <table className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   );

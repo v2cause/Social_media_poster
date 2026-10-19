@@ -169,7 +169,7 @@ function PlatformCards(props: { ws: string }) {
       <h2 id="connect-platform" className="text-lg font-semibold">
         {t('title')}
       </h2>
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {PLATFORMS.map((platform) => {
           const method = methodOf(platform);
           const connectable = platform === 'X' ? xMethod !== null : method !== null;

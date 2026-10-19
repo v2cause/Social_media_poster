@@ -215,7 +215,7 @@ export function VoiceEditorPage(props: VoiceEditorPageProps) {
                     />
                   )}
                 </FormField>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <FormField id="voice-language" label={t('brand.editor.language')}>
                     {(control) => (
                       <NativeSelect {...control} {...form.register('language')}>
@@ -258,7 +258,7 @@ export function VoiceEditorPage(props: VoiceEditorPageProps) {
                     />
                   )}
                 </FormField>
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <FormField
                     id="voice-dos"
                     label={t('brand.editor.dos')}
@@ -320,7 +320,7 @@ export function VoiceEditorPage(props: VoiceEditorPageProps) {
                     />
                   )}
                 </FormField>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <FormField id="voice-emoji" label={t('brand.editor.emojiPolicy')}>
                     {(control) => (
                       <NativeSelect {...control} {...form.register('emojiPolicy')}>

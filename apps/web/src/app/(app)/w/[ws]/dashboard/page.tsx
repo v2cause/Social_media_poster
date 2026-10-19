@@ -40,7 +40,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ ws: 
           <AnalyticsSummary ws={ws} timeZone={context.workspace.timezone} />
         </CardContent>
       </Card>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>{t('dashboard.nextPosts')}</CardTitle>

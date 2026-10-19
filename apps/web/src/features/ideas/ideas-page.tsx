@@ -107,7 +107,7 @@ export function IdeasPage(props: IdeasPageProps) {
     content = <EmptyState title={t('ideas.emptyFiltered')} />;
   } else {
     content = (
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {shown.map((idea) => (
           <li key={idea.id} className="flex">
             <IdeaCard idea={idea} {...props} onChanged={refresh} />

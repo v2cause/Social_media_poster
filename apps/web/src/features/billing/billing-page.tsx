@@ -292,7 +292,7 @@ function Usage({ overview }: { overview: BillingOverviewDto }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ul className="grid gap-5 md:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-5 md:grid-cols-2">
           {rows.map((row) => (
             <UsageBar key={row.key} row={row} />
           ))}
@@ -431,7 +431,7 @@ function Plans(props: {
         <CardDescription>{t('offer.description')}</CardDescription>
       </CardHeader>
       <CardContent>
-        <ul className="grid gap-4 md:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {plans.map((plan) => {
             const key = plan.key as PaidPlanKey;
             const action = planActionOf(props.overview, key);

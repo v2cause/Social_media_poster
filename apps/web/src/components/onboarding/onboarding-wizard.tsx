@@ -175,7 +175,7 @@ export function OnboardingWizard() {
               >
                 {(control) => <Textarea {...control} {...form.register('workspace.goals')} />}
               </FormField>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   id="workspace-language"
                   label={t('workspace.contentLanguage')}
