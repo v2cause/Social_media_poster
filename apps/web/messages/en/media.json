@@ -107,6 +107,13 @@
       "original": "Original"
     },
     "zoom": "Zoom",
+    "area": "Image section",
+    "areaHint": "Move it with the arrow keys or the buttons below.",
+    "move": "Move the image",
+    "moveUp": "Move the image up",
+    "moveDown": "Move the image down",
+    "moveLeft": "Move the image left",
+    "moveRight": "Move the image right",
     "letterbox": "Whole image with white bars",
     "letterboxHint": "Instead of cropping, the version for the platform adds white bars up to the allowed aspect ratio.",
     "whole": "Use the whole image",

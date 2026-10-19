@@ -13,16 +13,29 @@ import {
   Label,
   cn,
 } from '@smp/ui';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import Cropper from 'react-easy-crop';
 
-import { areaOf, cropOf, PRESETS, presetOf, ratioOf, type Area, type CropPreset } from './crop';
+import {
+  areaOf,
+  cropOf,
+  nudge,
+  PRESETS,
+  presetOf,
+  ratioOf,
+  type Area,
+  type CropPreset,
+  type NudgeDirection,
+  type Size,
+} from './crop';
 import { MediaThumbnail } from './media-thumbnail';
 
 // Crop for one platform (guide step 3.6): react-easy-crop on the large thumbnail, with the aspect
 // ratios the platform accepts as presets. Where the platform limits the ratio, white bars instead
-// of a crop keep the whole image.
+// of a crop keep the whole image. Besides dragging, the arrow keys on the crop area and four
+// buttons move the image (WCAG 2.1.1 and 2.5.7, guide step 8.8).
 
 export interface CropChange {
   crop: CropDto | null;
@@ -60,12 +73,21 @@ function CropEditor(props: Parameters<typeof CropDialog>[0]) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [area, setArea] = useState<Area | null>(props.crop ? areaOf(props.crop, image) : null);
+  // The sizes the cropper shows, so that the buttons keep the image over the crop area.
+  const [mediaSize, setMediaSize] = useState<Size | null>(null);
+  const [cropSize, setCropSize] = useState<Size | null>(null);
   const [letterbox, setLetterbox] = useState(props.letterbox);
   const profile = renditionProfileFor(props.platform);
   const limitsRatio = profile.aspectRatio !== undefined;
   // The whole image with bars, at the ratio the rendition gets.
   const barred = planRendition(image, { crop: null, letterbox: true }, profile);
   const barredRatio = barred.ok ? barred.plan.width / barred.plan.height : image.width / image.height;
+
+  const move = (direction: NudgeDirection) => {
+    if (mediaSize && cropSize) {
+      setPosition(nudge(position, direction, { media: mediaSize, crop: cropSize, zoom }));
+    }
+  };
 
   const apply = (change: CropChange) => {
     props.onApply(change);
@@ -124,10 +146,45 @@ function CropEditor(props: Parameters<typeof CropDialog>[0]) {
               onCropComplete={(percentages) => {
                 setArea(percentages);
               }}
+              // A move by the buttons ends no interaction, so the area follows every change.
+              onCropAreaChange={(percentages) => {
+                setArea(percentages);
+              }}
+              setMediaSize={setMediaSize}
+              setCropSize={setCropSize}
+              cropperProps={{ role: 'group', 'aria-label': t('area'), 'aria-describedby': 'crop-area-hint' }}
               {...(props.crop && preset === presetOf(props.crop, props.platform, image)
                 ? { initialCroppedAreaPercentages: areaOf(props.crop, image) }
                 : {})}
             />
+          </div>
+          <p id="crop-area-hint" className="text-xs text-muted-foreground">
+            {t('areaHint')}
+          </p>
+          <div role="group" aria-label={t('move')} className="flex flex-wrap gap-2">
+            {(
+              [
+                ['up', ArrowUp, t('moveUp')],
+                ['down', ArrowDown, t('moveDown')],
+                ['left', ArrowLeft, t('moveLeft')],
+                ['right', ArrowRight, t('moveRight')],
+              ] as const
+            ).map(([direction, Icon, label]) => (
+              <Button
+                key={direction}
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label={label}
+                title={label}
+                disabled={!mediaSize || !cropSize}
+                onClick={() => {
+                  move(direction);
+                }}
+              >
+                <Icon aria-hidden="true" />
+              </Button>
+            ))}
           </div>
           <div className="flex items-center gap-3">
             <Label htmlFor="crop-zoom">{t('zoom')}</Label>

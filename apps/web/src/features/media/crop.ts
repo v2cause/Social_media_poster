@@ -97,3 +97,32 @@ export function coverOf(region: Area, ratio: number): Area {
   const width = region.height * ratio;
   return { ...region, x: region.x + (region.width - width) / 2, width };
 }
+
+export type NudgeDirection = 'up' | 'down' | 'left' | 'right';
+
+/** Pixels a button moves the image under the crop area. */
+export const NUDGE_STEP = 10;
+
+/**
+ * The position of the image after a button moved it a step: a way without dragging to choose the
+ * section (WCAG 2.5.7, guide step 8.8). The image keeps covering the crop area at the zoom given,
+ * as react-easy-crop keeps it while dragging. Position and sizes in pixels of the cropper.
+ */
+export function nudge(
+  position: { x: number; y: number },
+  direction: NudgeDirection,
+  sizes: { media: Size; crop: Size; zoom: number },
+): { x: number; y: number } {
+  const limit = (media: number, crop: number) => Math.max(0, (media * sizes.zoom - crop) / 2);
+  const clamp = (value: number, max: number) => Math.min(max, Math.max(-max, value));
+  const step = {
+    up: { x: 0, y: -NUDGE_STEP },
+    down: { x: 0, y: NUDGE_STEP },
+    left: { x: -NUDGE_STEP, y: 0 },
+    right: { x: NUDGE_STEP, y: 0 },
+  }[direction];
+  return {
+    x: clamp(position.x + step.x, limit(sizes.media.width, sizes.crop.width)),
+    y: clamp(position.y + step.y, limit(sizes.media.height, sizes.crop.height)),
+  };
+}

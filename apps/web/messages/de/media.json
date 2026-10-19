@@ -107,6 +107,13 @@
       "original": "Original"
     },
     "zoom": "Zoom",
+    "area": "Bildausschnitt",
+    "areaHint": "Mit den Pfeiltasten oder den Schaltflächen darunter verschieben.",
+    "move": "Bild verschieben",
+    "moveUp": "Bild nach oben verschieben",
+    "moveDown": "Bild nach unten verschieben",
+    "moveLeft": "Bild nach links verschieben",
+    "moveRight": "Bild nach rechts verschieben",
     "letterbox": "Ganzes Bild mit weißen Rändern",
     "letterboxHint": "Statt zuzuschneiden, ergänzt die Version für die Plattform weiße Ränder bis zum erlaubten Seitenverhältnis.",
     "whole": "Ganzes Bild verwenden",

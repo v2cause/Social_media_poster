@@ -1,7 +1,7 @@
 import { planRendition, renditionProfileFor, type Platform } from '@smp/platform-rules';
 import { describe, expect, it } from 'vitest';
 
-import { areaOf, coverOf, cropOf, PRESETS, presetOf, ratioOf } from './crop';
+import { areaOf, coverOf, cropOf, nudge, NUDGE_STEP, PRESETS, presetOf, ratioOf } from './crop';
 
 const image = { width: 4000, height: 3000 };
 
@@ -90,5 +90,17 @@ describe('crops of the crop dialog', () => {
       height: 1000,
     });
     expect(coverOf(portrait, 0.8)).toEqual(portrait);
+  });
+
+  it('moves the image a step per button and keeps it over the whole crop area', () => {
+    const sizes = { media: { width: 600, height: 400 }, crop: { width: 400, height: 400 }, zoom: 1 };
+    expect(nudge({ x: 0, y: 0 }, 'right', sizes)).toEqual({ x: NUDGE_STEP, y: 0 });
+    expect(nudge({ x: 0, y: 0 }, 'left', sizes)).toEqual({ x: -NUDGE_STEP, y: 0 });
+    // At most half of what the image is wider than the crop area, so no empty edge shows.
+    expect(nudge({ x: 95, y: 0 }, 'right', sizes)).toEqual({ x: 100, y: 0 });
+    // The image is exactly as high as the crop area: it cannot move up or down.
+    expect(nudge({ x: 0, y: 0 }, 'down', sizes)).toEqual({ x: 0, y: 0 });
+    // Zoomed in, there is room in every direction.
+    expect(nudge({ x: 0, y: 0 }, 'up', { ...sizes, zoom: 2 })).toEqual({ x: 0, y: -NUDGE_STEP });
   });
 });
