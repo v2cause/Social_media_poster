@@ -19,6 +19,7 @@
     "src/**/*.tsx",
     ".next/types/**/*.ts",
     "playwright.config.ts",
+    "playwright.staging.config.ts",
     "vitest.config.mts",
     "e2e/**/*.ts"
   ],

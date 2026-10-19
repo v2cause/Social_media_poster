@@ -1,0 +1,87 @@
+# A staging of the production template on one machine without public names (guide step 8.9,
+# ADR 0045): with SMP_STAGING=true, scripts/deploy.sh adds this file. Everything else stays as in
+# production; the differences are only these:
+#   - Caddy's own CA instead of a public one (SMP_TLS=internal in deploy/.env)
+#   - the mail goes to Mailpit inside the network, with STARTTLS and a certificate of the private
+#     CA (init-secrets.sh --staging); its interface is on 127.0.0.1:8025
+#   - the backups go to a bucket of the local storage instead of one outside the VM; the storage
+#     encrypts them with a key of its own (SSE-S3), as that bucket does
+
+services:
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    restart: unless-stopped
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: ['/tmp']
+    logging:
+      driver: ${SMP_LOG_DRIVER:-journald}
+    group_add: ['10001']
+    # "outbound" only for the published port of the interface: Docker publishes no port of a
+    # container in internal networks alone.
+    networks: [data, monitoring, outbound]
+    ports:
+      - '127.0.0.1:8025:8025'
+    environment:
+      MP_SMTP_TLS_CERT: /run/configs/mailpit.crt
+      MP_SMTP_TLS_KEY: /run/secrets/mailpit_tls_key
+      MP_SMTP_REQUIRE_STARTTLS: 'true'
+      # Alertmanager signs in; Mailpit takes any account.
+      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+    secrets: [mailpit_tls_key]
+    configs:
+      - source: mailpit_crt
+        target: /run/configs/mailpit.crt
+
+  worker-notify:
+    depends_on:
+      mailpit:
+        condition: service_started
+
+  s3:
+    secrets: [s3_sse_kek]
+
+  # The bucket of the backups next to the one of the media.
+  s3-init:
+    command:
+      - |
+        set -eu
+        AWS_ACCESS_KEY_ID=$$(cat /run/secrets/s3_init_access_key_id)
+        AWS_SECRET_ACCESS_KEY=$$(cat /run/secrets/s3_init_secret_access_key)
+        export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+        endpoint=https://s3:8333
+        for bucket in smp-media smp-backups; do
+          aws --endpoint-url "$$endpoint" s3api head-bucket --bucket "$$bucket" > /dev/null 2>&1 \
+            || aws --endpoint-url "$$endpoint" s3 mb "s3://$$bucket"
+        done
+        aws --endpoint-url "$$endpoint" s3api put-bucket-cors --bucket smp-media \
+          --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[\"https://$$SMP_DOMAIN\"],\"AllowedMethods\":[\"PUT\",\"GET\",\"HEAD\"],\"AllowedHeaders\":[\"Content-Type\"],\"MaxAgeSeconds\":3000}]}"
+        echo "s3-init: buckets smp-media and smp-backups are ready"
+
+  backup-sync:
+    networks: [data]
+    environment:
+      AWS_CA_BUNDLE: /run/configs/internal-ca.crt
+    configs:
+      - source: internal_ca
+        target: /run/configs/internal-ca.crt
+    depends_on:
+      s3-init:
+        condition: service_completed_successfully
+
+  # Alertmanager reaches Mailpit in the network "monitoring" and trusts the private CA.
+  alertmanager:
+    configs:
+      - source: internal_ca
+        target: /run/configs/internal-ca.crt
+
+configs:
+  mailpit_crt:
+    file: generated/tls/mailpit.crt
+
+secrets:
+  mailpit_tls_key:
+    file: secrets/mailpit_tls_key
+  s3_sse_kek:
+    file: secrets/s3_sse_kek

@@ -32,7 +32,7 @@ export async function signInAfterVerification(page: Page, person: Person) {
 export async function signUpOwner(page: Page, person: Person, workspaceName: string): Promise<string> {
   await page.goto('/signup');
   await signUp(page, person);
-  const verification = await linkFromEmail(person.email, /http:\/\/\S+\/api\/auth\/verify-email\S+/);
+  const verification = await linkFromEmail(person.email, /https?:\/\/\S+\/api\/auth\/verify-email\S+/);
   await page.goto(verification.url);
   await signInAfterVerification(page, person);
   await expect(page).toHaveURL(/\/onboarding$/);
