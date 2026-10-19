@@ -89,6 +89,25 @@ local count = redis.call('INCR', KEYS[1])
 if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
 return count`;
 
+/**
+ * The error a redirect of Better Auth names in the query of its location, as verify-email does
+ * when it sends the browser to its callback; null for any other answer.
+ */
+const errorOfRedirect = (answer: APIError): string | null => {
+  if (answer.statusCode < 300 || answer.statusCode >= 400) {
+    return null;
+  }
+  const location = new Headers(answer.headers).get('location');
+  if (!location) {
+    return null;
+  }
+  try {
+    return new URL(location, 'http://redirect.invalid').searchParams.get('error');
+  } catch {
+    return null;
+  }
+};
+
 /** A short digest of an address: enough to see attacks on one account, not the address. */
 export const accountDigest = (email: string): string =>
   createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16);
@@ -227,6 +246,11 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
   };
 
   const before = createAuthMiddleware(async (ctx) => {
+    if (ctx.path === '/sign-out') {
+      // The endpoint deletes the session without reading it: read here, its event names the user.
+      await getSessionFromCtx(ctx);
+      return;
+    }
     if (ctx.path === '/sign-in/email') {
       const email = emailOf(ctx.body);
       if (email && (await count(accountKey(email))) >= SIGN_IN_FAILURES_PER_ACCOUNT) {
@@ -291,8 +315,10 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
       return;
     }
     const returned: unknown = ctx.context.returned;
-    const failure = isAPIError(returned) ? returned : null;
-    const code = failure ? (failure.body?.code ?? failure.status) : null;
+    // A redirect, such as verify-email to its callback, fails only when it names an error there.
+    const redirectError = isAPIError(returned) ? errorOfRedirect(returned) : null;
+    const failure = isAPIError(returned) && (returned.statusCode >= 400 || redirectError) ? returned : null;
+    const code = failure ? (redirectError ?? failure.body?.code ?? failure.status) : null;
     // The session of a sign-in, or the one the before hook or the endpoint read.
     const signedIn = ctx.context.newSession?.user ?? ctx.context.session?.user ?? null;
     const userId = signedIn?.id ?? null;
