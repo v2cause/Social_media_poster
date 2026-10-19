@@ -1,0 +1,59 @@
+# Prometheus of the production template (guide step 8.9, ADR 0045): the services of
+# deploy/compose.yaml, the rules of infra/observability (ADR 0043) and the expiry of the
+# certificates of Caddy (rules/tls.yml), which the blackbox exporter probes through Caddy.
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+  - /etc/prometheus/deploy-rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+scrape_configs:
+  - job_name: api
+    static_configs:
+      - targets: ['api-1:9464', 'api-2:9464']
+  - job_name: worker
+    static_configs:
+      - targets:
+          - worker-scheduler:3002
+          - worker-publisher:3002
+          - worker-media:3002
+          - worker-notify:3002
+          - worker-billing:3002
+  # The backup jobs push the time of their last success; their own job label stays.
+  - job_name: pushgateway
+    honor_labels: true
+    static_configs:
+      - targets: ['pushgateway:9091']
+  # The app as a browser reaches it: TLS, the certificate and the liveness of the API.
+  - job_name: tls-app
+    metrics_path: /probe
+    params:
+      module: [app]
+    static_configs:
+      - targets: ['https://caddy/api/health/live']
+        labels:
+          name: app
+    relabel_configs: &probe
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+  # The storage name: the TLS handshake with its certificate.
+  - job_name: tls-media
+    metrics_path: /probe
+    params:
+      module: [media]
+    static_configs:
+      - targets: ['caddy:443']
+        labels:
+          name: media
+    relabel_configs: *probe

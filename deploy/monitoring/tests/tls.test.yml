@@ -1,0 +1,90 @@
+# Unit tests of the certificate alerts (guide step 8.9, ADR 0045), with promtool like the tests of
+# infra/observability (tools/observability/check-rules.sh). time() starts at 0, so the expiry is
+# written in seconds from there.
+rule_files:
+  - ../rules/tls.yml
+
+evaluation_interval: 1m
+
+tests:
+  # 60 days left: Caddy renews well before, nothing fires.
+  - name: a fresh certificate stays quiet
+    interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="tls-app", name="app", instance="https://caddy/api/health/live"}'
+        values: '5184000x180'
+      - series: 'probe_success{job="tls-app", name="app", instance="https://caddy/api/health/live"}'
+        values: '1x180'
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: TlsCertificateExpiresSoon
+        exp_alerts: []
+      - eval_time: 2h
+        alertname: TlsProbeFailing
+        exp_alerts: []
+
+  # Ten days left: a ticket after an hour, no page yet.
+  - name: a renewal that failed for weeks opens a ticket
+    interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="tls-media", name="media", instance="caddy:443"}'
+        values: '864000x180'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: TlsCertificateExpiresSoon
+        exp_alerts: []
+      - eval_time: 2h
+        alertname: TlsCertificateExpiresSoon
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              job: tls-media
+              name: media
+              instance: caddy:443
+            exp_annotations:
+              summary: The certificate of media ends within 14 days; Caddy has not renewed it.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/deployment.md#zertifikate
+      - eval_time: 2h
+        alertname: TlsCertificateExpiresVerySoon
+        exp_alerts: []
+
+  # Two days left: the page follows after ten minutes.
+  - name: a certificate about to end pages
+    interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="tls-app", name="app", instance="https://caddy/api/health/live"}'
+        values: '172800x60'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: TlsCertificateExpiresVerySoon
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              job: tls-app
+              name: app
+              instance: https://caddy/api/health/live
+            exp_annotations:
+              summary: The certificate of app ends within three days.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/deployment.md#zertifikate
+
+  # https through Caddy fails for five minutes.
+  - name: a failing probe pages
+    interval: 1m
+    input_series:
+      - series: 'probe_success{job="tls-app", name="app", instance="https://caddy/api/health/live"}'
+        values: '1 1 0x20'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: TlsProbeFailing
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: TlsProbeFailing
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              job: tls-app
+              name: app
+              instance: https://caddy/api/health/live
+            exp_annotations:
+              summary: app does not answer over https through Caddy.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/deployment.md#zertifikate

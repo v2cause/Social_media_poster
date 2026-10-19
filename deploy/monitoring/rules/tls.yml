@@ -1,0 +1,31 @@
+# The certificates of Caddy (guide step 8.9, ADR 0045). Caddy renews a certificate of the public
+# CA 30 days before its end; 14 days before it, the renewal has failed for two weeks. The blackbox
+# exporter probes both names through Caddy (deploy/monitoring/prometheus.yml). Tested in
+# deploy/monitoring/tests/tls.test.yml.
+groups:
+  - name: smp-tls
+    rules:
+      - alert: TlsCertificateExpiresSoon
+        expr: probe_ssl_earliest_cert_expiry{job=~"tls-.+"} - time() < 14 * 86400
+        for: 1h
+        labels:
+          severity: ticket
+        annotations:
+          summary: The certificate of {{ $labels.name }} ends within 14 days; Caddy has not renewed it.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/deployment.md#zertifikate
+      - alert: TlsCertificateExpiresVerySoon
+        expr: probe_ssl_earliest_cert_expiry{job=~"tls-.+"} - time() < 3 * 86400
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: The certificate of {{ $labels.name }} ends within three days.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/deployment.md#zertifikate
+      - alert: TlsProbeFailing
+        expr: probe_success{job=~"tls-.+"} == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: '{{ $labels.name }} does not answer over https through Caddy.'
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/deployment.md#zertifikate
