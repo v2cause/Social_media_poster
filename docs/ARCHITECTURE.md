@@ -658,7 +658,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches
   6. OpenAPI-Drift-Check (Integrationstest gegen `packages/api-client/openapi.json`, ADR 0013)
   7. Prisma-Migrationsprüfung (`migrate diff`, squawk)
   8. E2E mit Playwright gegen den gestarteten Stack (Compose-Infrastruktur, API, Worker, Web), mit axe in beiden Farbschemata und den Tastaturtests (ADR 0044)
-  9. Docker-Build der fünf Images (`turbo prune`) mit SBOM (CycloneDX) und Trivy-Scan auf Schwachstellen und Secrets, auch wöchentlich ohne neue Commits; der Push nach GHCR auf main folgt mit dem Deployment (Schritt 8.9)
+  9. Docker-Build der sechs Images (`turbo prune`, mit dem Migrations-Image `migrate` aus Schritt 8.9) mit SBOM (CycloneDX) und Trivy-Scan auf Schwachstellen und Secrets, auch wöchentlich ohne neue Commits; der Push nach GHCR auf main folgt mit dem Deployment (Schritt 8.9)
   10. Prüfung der Monitoring-Regeln mit `promtool` und `amtool`, mit den Unit-Tests der Alarme
 
   Nächtlich laufen optionale Live-Smoke-Tests gegen Test-Accounts und die KI-Eval-Suite mit Budget-Limit. Ein eigener Workflow `security.yml` führt CodeQL, Dependency Review, `pnpm audit` und gitleaks aus (ADR 0009).

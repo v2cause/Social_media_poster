@@ -242,7 +242,7 @@ Die Einzelheiten stehen in den Inventaren [Daten und Protokolle](../security/dat
 ### Lieferkette und Images
 
 - Die Images laufen auf `node:24.21.0-trixie-slim` (Debian 13) ohne npm, npx, corepack und yarn.
-- CI baut alle fünf Images, hält ihre SBOM (CycloneDX) 90 Tage und scannt sie mit Trivy auf Schwachstellen und Secrets: bei jedem Pull Request, jedem Push nach `main` und jeden Montag, damit neue Schwachstellen auch in unveränderten Images auffallen.
+- CI baut alle sechs Images (seit Schritt 8.9 mit `migrate`), hält ihre SBOM (CycloneDX) 90 Tage und scannt sie mit Trivy auf Schwachstellen und Secrets: bei jedem Pull Request, jedem Push nach `main` und jeden Montag, damit neue Schwachstellen auch in unveränderten Images auffallen.
 - Das Ablegen in einer Registry mit Signatur und SBOM je Release folgt mit Schritt 8.9.
 
 ### Akzeptierte Abweichungen und Restrisiken

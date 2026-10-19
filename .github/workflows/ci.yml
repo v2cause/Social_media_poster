@@ -235,6 +235,9 @@ jobs:
             health-url: http://127.0.0.1:3128/health
           - image: web
             dockerfile: infra/docker/web.Dockerfile
+          # The migrations of the production template (guide step 8.9).
+          - image: migrate
+            dockerfile: infra/docker/migrate.Dockerfile
           - image: browser-worker
             dockerfile: apps/browser-worker/Dockerfile
             # A lower layer of the Playwright image keeps the npm cache and log of its "npm install
@@ -279,10 +282,11 @@ jobs:
           retention-days: 90
       - name: Scan
         # Fails on what a newer base image or package fixes; issues without a fix do not block.
+        # .trivyignore.yaml holds the reviewed exceptions, each with an expiry.
         env:
           SKIP_DIRS: ${{ matrix.skip-dirs }}
         run: |
           args=()
           if [ -n "$SKIP_DIRS" ]; then args+=(--skip-dirs "$SKIP_DIRS"); fi
           ./trivy image --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed \
-            --exit-code 1 --no-progress "${args[@]}" "$IMAGE"
+            --ignorefile .trivyignore.yaml --exit-code 1 --no-progress "${args[@]}" "$IMAGE"

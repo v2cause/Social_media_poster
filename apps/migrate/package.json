@@ -1,0 +1,11 @@
+{
+  "name": "@smp/migrate",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The database migrations as a one-shot container: prisma migrate deploy as app_migrator (guide step 8.9).",
+  "dependencies": {
+    "dotenv": "^18.0.8",
+    "prisma": "^7.10.0",
+    "zod": "^4.6.7"
+  }
+}

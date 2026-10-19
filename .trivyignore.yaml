@@ -1,0 +1,12 @@
+# Findings of the image scan (job "images" in .github/workflows/ci.yml) accepted after review.
+# Each entry names the exact package and expires; after that date the scan fails again.
+vulnerabilities:
+  # GHSA-ggr8-5vv4-36mx, also accepted for pnpm audit in pnpm-workspace.yaml (ADR 0009): only the
+  # prisma CLI of the migration image uses deepmerge-ts, to merge its own configuration file. The
+  # fix is the major version 8, which the CLI does not support yet. Revisit with the next prisma
+  # update.
+  - id: CVE-2026-40345
+    purls:
+      - pkg:npm/deepmerge-ts@7.1.5
+    statement: Only the config loader of the prisma CLI merges our own prisma.config.ts.
+    expired_at: 2027-01-16
