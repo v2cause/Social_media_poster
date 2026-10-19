@@ -10,6 +10,7 @@ import { pinoHttp, type Options as HttpLoggingOptions } from 'pino-http';
 
 import { HTTP_LOGGING } from './common/logging/http-logging';
 import { authRateLimitEvents } from './common/logging/security-events';
+import { httpMetrics } from './common/metrics/metrics';
 import { requestIdMiddleware } from './common/request-id.middleware';
 import { authBodyLimit, bodyErrors, noStore } from './common/security/body-limits.middleware';
 import { createOriginCheckMiddleware } from './common/security/origin-check.middleware';
@@ -27,6 +28,7 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv): void {
   app.set('trust proxy', 1);
   app.setGlobalPrefix('api');
   app.use(requestIdMiddleware);
+  app.use(httpMetrics);
   // The defaults of helmet, with nothing that may frame the API or set a <base> for it.
   app.use(
     helmet({ contentSecurityPolicy: { directives: { baseUri: ["'none'"], frameAncestors: ["'none'"] } } }),

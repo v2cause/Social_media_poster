@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { privatePath } from '@smp/observability';
 
 import { clientAddress } from '../client-address';
+import { securityEventsTotal } from '../metrics/metrics';
 
 // The security events of the API (guide step 8.4, ADR 0039, ASVS 16.3): requests the pipeline
 // refuses and that may be an attack, each a warning with a message of its own. The log context
@@ -59,6 +60,7 @@ export function logSecurityEvent(
   req: Pick<Request, 'method' | 'originalUrl' | 'url' | 'headers' | 'ip'> & { route?: unknown },
   fields: Record<string, unknown> = {},
 ): void {
+  securityEventsTotal.inc({ event });
   logger.warn(
     { method: req.method, route: routeOf(req), clientAddress: clientAddress(req), ...fields },
     event,

@@ -17,6 +17,7 @@ import type Redis from 'ioredis';
 import { uuidv7 } from 'uuidv7';
 
 import { clipped, type SecurityEvent } from '../../common/logging/security-events';
+import { securityEventsTotal } from '../../common/metrics/metrics';
 import type { ApiEnv } from '../../config/api-env';
 import { createAuthHooks } from './auth-hooks';
 import type { AuthMailer } from './auth-mailer';
@@ -170,6 +171,7 @@ export function createAuth({ env, prisma, mailer, redis, logger }: AuthDependenc
       log: (level, message) => {
         const refused = REFUSED_TARGET.exec(message);
         if (refused) {
+          securityEventsTotal.inc({ event: REDIRECT_REJECTED });
           logger.warn(
             { field: refused[1], value: clipped(message.slice(refused[0].length)) },
             REDIRECT_REJECTED,

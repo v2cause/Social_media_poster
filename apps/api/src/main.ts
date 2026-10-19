@@ -6,6 +6,7 @@ import { createLogger } from '@smp/observability';
 
 import { AppModule } from './app.module';
 import { configureApp } from './bootstrap';
+import { startMetricsServer } from './common/metrics/metrics';
 import { loadApiEnv } from './config/api-env';
 
 async function bootstrap(): Promise<void> {
@@ -19,8 +20,12 @@ async function bootstrap(): Promise<void> {
   configureApp(app, env);
 
   await app.listen(env.API_PORT, '0.0.0.0');
+  // The metrics on a port of their own, which the reverse proxy does not reach (guide step 8.7).
+  if (env.API_METRICS_PORT > 0) {
+    startMetricsServer(env.API_METRICS_PORT);
+  }
   createLogger({ service: 'api', environment: env.NODE_ENV, level: env.LOG_LEVEL }).info(
-    { port: env.API_PORT },
+    { port: env.API_PORT, metricsPort: env.API_METRICS_PORT },
     'api.started',
   );
 }

@@ -6,6 +6,7 @@ import type { GenericEndpointContext } from 'better-auth';
 import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api';
 import type Redis from 'ioredis';
 
+import { authEventsTotal } from '../../common/metrics/metrics';
 import type { PasswordContext, PasswordPolicy, PasswordProblem } from './password-policy';
 
 // What the auth flows need beyond Better Auth (guide step 8.4, ADR 0039). Better Auth limits the
@@ -368,6 +369,7 @@ export function createAuthHooks({ redis, logger, passwordPolicy }: AuthHookDepen
       ctx.setHeader('Clear-Site-Data', '"cache", "storage"');
     }
     const outcome = failure ? 'failed' : needsSecondFactor ? 'second_factor_required' : 'ok';
+    authEventsTotal.inc({ path: ctx.path, outcome });
     logger.log(
       {
         path: ctx.path,

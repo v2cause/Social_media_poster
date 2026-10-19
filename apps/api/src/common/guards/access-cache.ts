@@ -3,6 +3,7 @@ import type Redis from 'ioredis';
 import { z } from 'zod';
 
 import { REDIS_CLIENT } from '../../infrastructure/clients.module';
+import { accessCacheInvalidationFailures } from '../metrics/metrics';
 
 // Membership lookups of the guards, cached for 60 s per user (architecture 10). Changes to a
 // membership drop the user's entries at once. Only granted access is cached, so a new member
@@ -68,6 +69,7 @@ export class AccessCache {
     try {
       await this.redis.del(...userIds.map(keyOf));
     } catch (error) {
+      accessCacheInvalidationFailures.inc();
       this.logger.warn({ err: error }, 'access_cache.invalidate_failed');
     }
   }

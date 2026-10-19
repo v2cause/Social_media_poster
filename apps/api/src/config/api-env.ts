@@ -41,6 +41,8 @@ export const apiEnvSchema = z
   .object({
     APP_URL: z.url(),
     API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+    // GET /metrics for Prometheus on a port the reverse proxy does not reach; 0 switches it off.
+    API_METRICS_PORT: z.coerce.number().int().min(0).max(65535).default(9464),
     REDIS_URL: z.url({ protocol: /^rediss?$/ }),
     // Better Auth: signs session cookies and tokens. Generate with `pnpm gen:keys`.
     BETTER_AUTH_SECRET: z.string().min(32),
