@@ -1,6 +1,7 @@
 import { createServer, type Server } from 'node:net';
 import { inspect } from 'node:util';
 
+import { startConnectRecorder } from '@smp/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createSmtpMailer, SmtpDeliveryError } from './smtp-mailer';
@@ -112,6 +113,22 @@ describe('createSmtpMailer', () => {
     expect(inspect(error, { depth: null, showHidden: true })).not.toMatch(
       /example\.test|Recipient address rejected/,
     );
+  });
+
+  it('tunnels to the SMTP server through the egress proxy it gets (guide step 8.9)', async () => {
+    const proxy = await startConnectRecorder();
+    const mailer = createSmtpMailer({
+      url: 'smtps://mail.example.test:465',
+      from: 'noreply@example.test',
+      proxy: proxy.url,
+    });
+
+    const error = await failureOf(mailer);
+    mailer.close();
+    await proxy.stop();
+
+    expect(error).toBeInstanceOf(SmtpDeliveryError);
+    expect(proxy.tunnels).toEqual(['mail.example.test:465']);
   });
 
   it('names the system error behind a failed connection', async () => {

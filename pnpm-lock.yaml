@@ -883,6 +883,9 @@ importers:
       '@smp/config':
         specifier: workspace:*
         version: link:../config
+      '@smp/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2

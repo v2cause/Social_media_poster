@@ -1,5 +1,10 @@
 // Image pipeline, rendition profiles, file type checks and the S3 adapter.
 
 export { storageConfigOf, storageEnvSchema, type StorageEnv } from './env';
-export { S3Storage, StorageObjectTooLargeError, type S3StorageConfig } from './s3-storage';
+export {
+  s3RequestHandlerOf,
+  S3Storage,
+  StorageObjectTooLargeError,
+  type S3StorageConfig,
+} from './s3-storage';
 export { SharpImageProcessor, type SharpImageProcessorOptions } from './sharp-image-processor';

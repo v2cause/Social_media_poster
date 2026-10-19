@@ -1,3 +1,5 @@
+import type { ProxyEnv } from 'node:http';
+
 import { z } from 'zod';
 
 import type { S3StorageConfig } from './s3-storage';
@@ -21,8 +23,10 @@ export const storageEnvSchema = z.object({
 
 export type StorageEnv = z.infer<typeof storageEnvSchema>;
 
-export const storageConfigOf = (env: StorageEnv): S3StorageConfig => ({
+/** The storage settings of the env, with the egress proxy of the deployment if there is one. */
+export const storageConfigOf = (env: StorageEnv, proxyEnv?: ProxyEnv): S3StorageConfig => ({
   endpoint: env.S3_ENDPOINT,
+  ...(proxyEnv === undefined ? {} : { proxyEnv }),
   ...(env.S3_PUBLIC_ENDPOINT === undefined ? {} : { publicEndpoint: env.S3_PUBLIC_ENDPOINT }),
   region: env.S3_REGION,
   bucket: env.S3_BUCKET,

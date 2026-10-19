@@ -12,6 +12,11 @@ export interface SmtpMailerOptions {
    * must upgrade with STARTTLS or the mail fails. The certificate is checked either way.
    */
   requireTls?: boolean;
+  /**
+   * The egress proxy of the deployment, for example http://egress:3128 (guide step 8.9): the
+   * connection to the SMTP server goes through a tunnel (CONNECT) of the proxy.
+   */
+  proxy?: string;
 }
 
 const code = z
@@ -67,9 +72,11 @@ export class SmtpDeliveryError extends Error {
 
 /** MailPort over SMTP (nodemailer). Locally the messages land in Mailpit. */
 export function createSmtpMailer(options: SmtpMailerOptions): MailPort & { close(): void } {
-  const transport = createTransport(
-    options.requireTls === true ? { url: options.url, requireTLS: true } : options.url,
-  );
+  const transport = createTransport({
+    url: options.url,
+    ...(options.requireTls === true ? { requireTLS: true } : {}),
+    ...(options.proxy === undefined ? {} : { proxy: options.proxy }),
+  });
   return {
     async send(message: MailMessage): Promise<void> {
       try {

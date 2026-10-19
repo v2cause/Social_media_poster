@@ -1,3 +1,6 @@
+import { Agent as HttpAgent, type ProxyEnv } from 'node:http';
+import { Agent as HttpsAgent } from 'node:https';
+
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
@@ -19,6 +22,8 @@ import type { PresignedUpload, StoragePort, StoredObject } from '@smp/core';
 
 export interface S3StorageConfig {
   endpoint: string;
+  /** The egress proxy of the deployment (guide step 8.9); see s3RequestHandlerOf. */
+  proxyEnv?: ProxyEnv;
   /** The address the browser reaches, when it differs from the endpoint of the services. */
   publicEndpoint?: string;
   region: string;
@@ -48,9 +53,26 @@ const DELETABLE_PREFIX = /^(ws|exports)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-
  */
 const PART_BYTES = 16 * 1024 * 1024;
 
+/**
+ * The agents of an S3 client that go through the egress proxy (guide step 8.9). The SDK keeps
+ * agents of its own and, unlike fetch, ignores HTTPS_PROXY; these follow HTTPS_PROXY, HTTP_PROXY
+ * and NO_PROXY, so a storage inside the network of the deployment stays direct. Without proxy
+ * settings the SDK keeps its own agents.
+ */
+export const s3RequestHandlerOf = (
+  proxyEnv: ProxyEnv | undefined,
+): { httpAgent: HttpAgent; httpsAgent: HttpsAgent } | undefined =>
+  proxyEnv === undefined
+    ? undefined
+    : {
+        httpAgent: new HttpAgent({ keepAlive: true, maxSockets: 50, proxyEnv }),
+        httpsAgent: new HttpsAgent({ keepAlive: true, maxSockets: 50, proxyEnv }),
+      };
+
 const clientFor = (config: S3StorageConfig, endpoint: string): S3Client =>
   new S3Client({
     endpoint,
+    requestHandler: s3RequestHandlerOf(config.proxyEnv),
     region: config.region,
     forcePathStyle: config.forcePathStyle,
     // Newer SDKs add a CRC32 checksum to presigned requests, computed for an empty body, and the
