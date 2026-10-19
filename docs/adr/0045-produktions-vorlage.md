@@ -142,6 +142,9 @@ Das Staging vom 2026-10-19 lief in diesem Container ([Protokoll](../betrieb/stag
 | Eine VM | Kein zweiter Host, kein automatisches Failover. | Backups außerhalb der VM, RTO 4 h (ADR 0042) | Wenn die Verfügbarkeit mehr verlangt |
 | Kein Pager | Alarme der Stufe `page` gehen wie alle anderen per E-Mail. | Wiederholung jede Stunde | Mit der Bereitschaft des Betriebs |
 | Metriken im Netz `monitoring` lesbar | Die Worker hängen im selben Netz wie Prometheus und können die Metriken der API lesen. | Die Metriken enthalten keine Mandanten und keine Secrets (ADR 0043) | Bei Metriken mit vertraulichem Inhalt |
+| Session-Keyring in der API ohne Browser von X | Die API bekommt `SESSION_KEKS` auch, wenn der Browser von X aus ist; sie braucht ihn nur mit `FEATURE_X_BROWSER_GLOBAL`. | Die Datei lesen nur root und die Gruppe 10001 | Mit dem nächsten Umbau der Vorlage nach `compose.xb.yaml` verschieben |
+| TLS zu den Datenspeichern nur in der Vorlage erzwungen | Die Regeln der App für Produktion nehmen auch `redis://`, URLs ohne `sslmode` und http für S3; nur die Vorlage setzt TLS. | Vorlage und Preflight | Die Regeln verschärfen, sobald die E2E-Tests der CI mit TLS laufen |
+| CBC-Suites ausgehend (ASVS 12.1.2) | Node lässt ausgehend noch CBC-Suites zu, die nur ein Server ohne AEAD wählt. | Die bekannten Gegenstellen handeln AEAD aus | `--tls-cipher-list` in den Images |
 
 ## Alternativen
 

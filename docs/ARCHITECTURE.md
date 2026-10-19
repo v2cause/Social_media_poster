@@ -26,7 +26,7 @@ Das Projekt startet ohne bestehenden Code. Umgesetzt wird Phase für Phase nach 
 | KI | Extern über die Anthropic Claude API (`@anthropic-ai/sdk`), hinter einem austauschbaren `AiProvider`-Port |
 | Nutzer | Multi-Tenant SaaS: Organisationen, Workspaces, Rollen, Mandantentrennung, Stripe-Billing |
 | Bilder | Nur Upload, keine KI-Bildgenerierung (KI schlägt höchstens Alt-Texte vor) |
-| Hosting | Docker überall, lokal Docker Compose, später beliebige Cloud in einer EU-Region (DSGVO) |
+| Hosting | Docker überall, lokal Docker Compose; Staging und Produktion mit der Vorlage `deploy/`: Compose auf einer VM hinter Caddy in einer EU-Region (DSGVO, Schritt 8.9, [ADR 0045](adr/0045-produktions-vorlage.md)) |
 | UI-Sprache | Deutsch (Standard) + Englisch über next-intl |
 | X-Anbindung | Hybrid: Standard ist die offizielle Pay-per-Use-API, optional ein Browser-Automation-Adapter (Playwright) per Feature-Flag |
 
@@ -76,6 +76,7 @@ Browser --HTTPS--> Reverse Proxy (same origin: app.example.com)
 
 api ----Prisma (Rolle app_user, RLS)----> PostgreSQL (Quelle der Wahrheit)
 api ----Presign---------------------------> S3 (lokal SeaweedFS)
+Browser/Plattformen --HTTPS--> Reverse Proxy (media.example.com) --> S3 (signierte URLs)
 api ----Streaming------------------------> Anthropic Claude API
 api ----OutboxEvent in derselben Tx-----> PostgreSQL --Relay--> BullMQ (Redis)
 
@@ -142,7 +143,8 @@ social-media-poster/
                             ai-stream (SSE), webhooks (stripe, meta), admin (Flags, Kill-Switch)
     worker/                 NestJS Application Context + /health und /metrics; processors/*
     browser-worker/         Playwright-Host, konsumiert nur xb-commands (Image: mcr.microsoft.com/playwright)
-    egress-proxy/           einziger Weg des browser-worker nach draußen: CONNECT nur zu X und dem Medienspeicher
+    egress-proxy/           einziger Weg des browser-worker nach draußen: CONNECT nur zu X und dem Medienspeicher;
+                            in der Produktions-Vorlage auch für API und Worker mit eigener Allowlist (Schritt 8.9)
   packages/
     core/                   hexagonaler Kern (siehe 2.1)
     contracts/              zod-DTOs, Enums, Fehlercodes, SSE-Events, Rechte-Matrix
@@ -154,7 +156,7 @@ social-media-poster/
     ai/                     AnthropicAiProvider, MockAiProvider, versionierte Prompts, Output-Schemas, Preise
     media/                  sharp-Pipeline, Rendition-Profile, Dateityp-Prüfung, S3-Adapter
     queue/                  Queue-Namen, zod-Job-Payloads, typisierte Producer, Locks
-    crypto/                 Envelope-Encryption, KMS-Adapter (lokaler Keyring, AWS KMS, Vault)
+    crypto/                 Envelope-Encryption, KMS-Adapter (lokaler Keyring; AWS KMS oder Vault passen hinter den Port)
     observability/          pino-Konfiguration inkl. Redaction, OpenTelemetry, Sentry
     emails/                 react-email-Templates (de/en)
     ui/                     Design-System auf Basis von shadcn/ui
@@ -163,9 +165,11 @@ social-media-poster/
   compose.yaml              Docker Compose (Profile: default, app, e2e, xb, clamav, observability)
   infra/
     docker/                 Dockerfiles (multi-stage, non-root), DB-Rollen-Init, S3-Bucket-Init, Caddyfile (lokaler Reverse Proxy)
+  deploy/                   Produktions-Vorlage: Compose für eine VM hinter Caddy, Skripte für Secrets, Preflight und
+                            Deploy, Monitoring, Staging (Schritt 8.9, ADR 0045)
   tools/                    Repo-Skripte: gen-keys, check-no-emoji, check-rls, check-i18n, stripe-sync, spikes/
   docs/                     ARCHITECTURE.md, IMPLEMENTATION_GUIDE.md, adr/ (Architecture Decision Records), runbooks/
-  .github/workflows/        ci.yml, e2e.yml, release.yml, nightly-live-smoke.yml
+  .github/workflows/        ci.yml, security.yml, eval.yml, release.yml (signierte Images je Tag, Schritt 8.9)
 ```
 
 ---
@@ -564,7 +568,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 - **Token-Verschlüsselung** (`packages/crypto`):
   - Envelope-Encryption mit AES-256-GCM und einem zufälligen DEK pro Secret.
   - Als AAD dient `workspaceId:connectionId:feld`; so lassen sich Ciphertexte nicht zwischen Zeilen vertauschen.
-  - Der KEK kommt über einen `KmsPort`: lokal ein Keyring aus der Env, in der Cloud AWS KMS oder Vault.
+  - Der KEK kommt über einen `KmsPort`: ein Keyring aus der Env oder, in der Produktions-Vorlage, aus Dateien (`*_KEKS_FILE`). Ein Adapter für AWS KMS oder Vault passt hinter denselben Port; die Vorlage kommt ohne aus ([ADR 0045](adr/0045-produktions-vorlage.md)).
   - Rotation über Schlüsselversionen und einen Re-Wrap-Job. Browser-Sessions nutzen einen eigenen Keyring.
 - **Härtung**:
   - zod-Validierung aller Eingaben, Jobs, Adapter-Antworten und der Env-Konfiguration beim Start.
@@ -658,11 +662,13 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches
   6. OpenAPI-Drift-Check (Integrationstest gegen `packages/api-client/openapi.json`, ADR 0013)
   7. Prisma-Migrationsprüfung (`migrate diff`, squawk)
   8. E2E mit Playwright gegen den gestarteten Stack (Compose-Infrastruktur, API, Worker, Web), mit axe in beiden Farbschemata und den Tastaturtests (ADR 0044)
-  9. Docker-Build der sechs Images (`turbo prune`, mit dem Migrations-Image `migrate` aus Schritt 8.9) mit SBOM (CycloneDX) und Trivy-Scan auf Schwachstellen und Secrets, auch wöchentlich ohne neue Commits; der Push nach GHCR auf main folgt mit dem Deployment (Schritt 8.9)
-  10. Prüfung der Monitoring-Regeln mit `promtool` und `amtool`, mit den Unit-Tests der Alarme
+  9. Docker-Build der sechs Images (`turbo prune`, mit dem Migrations-Image `migrate` aus Schritt 8.9) mit SBOM (CycloneDX) und Trivy-Scan auf Schwachstellen und Secrets, auch wöchentlich ohne neue Commits. Ein Tag `v*` schiebt sie über `release.yml` nach GHCR, signiert mit cosign ohne eigenen Schlüssel und mit attestiertem SBOM (Schritt 8.9)
+  10. Prüfung der Monitoring-Regeln mit `promtool` und `amtool`, mit den Unit-Tests der Alarme, auch für die Produktions-Vorlage
+  11. Trivy-Scan der fremden Images der Produktions-Vorlage, auch wöchentlich; Ausnahmen mit Ablauf in `deploy/trivyignore.yaml` (ASVS 15.2.1)
 
   Nächtlich laufen optionale Live-Smoke-Tests gegen Test-Accounts und die KI-Eval-Suite mit Budget-Limit. Ein eigener Workflow `security.yml` führt CodeQL, Dependency Review, `pnpm audit` und gitleaks aus (ADR 0009).
-- **Umgebungen**: lokal (Mock-Modus), CI, Staging (echte Plattform-Apps im Dev-Modus, Stripe-Testmodus, Anthropic mit niedrigem Ausgabenlimit) und Produktion (EU).
+- **Umgebungen**: lokal (Mock-Modus), CI, Staging (echte Plattform-Apps im Dev-Modus, Stripe-Testmodus, Anthropic mit niedrigem Ausgabenlimit) und Produktion (EU). Staging und Produktion laufen aus der Vorlage `deploy/`.
+- **Deployment** ([ADR 0045](adr/0045-produktions-vorlage.md), [Runbook](runbooks/deployment.md)): Docker Compose auf einer VM hinter Caddy, dem einzigen Dienst mit veröffentlichten Ports. TLS 1.2 und 1.3 mit Zertifikaten einer öffentlichen CA, HSTS, Umleitung auf https nur für die Seiten, Readiness nur intern. API und Web nur im internen Netz des Proxys, die API an ihrer festen Adresse; Postgres, Redis und Speicher mit TLS einer privaten CA und einer Identität je Dienst; ausgehend nur über den Egress-Proxy mit Allowlist; Secrets als Dateien; Logs 30 Tage in journald; Preflight und Prüfung der Signaturen vor jedem Deploy. Grenzen und Restrisiken stehen in ADR 0045.
 - **Migrationen**: `prisma migrate deploy` als eigener Schritt vor dem Rollout, nach dem Expand/Contract-Prinzip. RLS, Partial Indexes und Trigger stehen als SQL-Migrationen.
 - **Betrieb**: Postgres mit Point-in-Time-Recovery: WAL-Archiv, tägliche Base-Backups und ihre Kopie in einen eigenen Bucket alle fünf Minuten, RPO 15 min und RTO 4 h, mit Restore-Probe in der CI ([ADR 0042](adr/0042-backup-und-wiederherstellung.md), [Runbook](runbooks/backup-restore.md)). Images non-root und schlank. Die API läuft mit mindestens zwei Replikas, und API und Publisher haben eigene CPU-Anteile; sonst bremst ein Schub von Veröffentlichungen die Lesezugriffe aus ([ADR 0041](adr/0041-lasttest.md)).
 
@@ -774,6 +780,6 @@ docker compose --profile app up --build
 
 ## 17. Nächste Schritte
 
-1. Umsetzung nach [`IMPLEMENTATION_GUIDE.md`](./IMPLEMENTATION_GUIDE.md), beginnend mit Schritt 0.1 (Phase 0: Fundament).
-2. Phase für Phase vorgehen, jeweils mit eigenen Commits, sodass nach jeder Phase ein Review möglich ist.
-3. Parallel zu Phase 0 die externen Anträge stellen (Rechtstexte, LinkedIn, Meta, X, Stripe, Anthropic), weil die App-Reviews Wochen dauern können.
+1. Die Phasen 0 bis 8 des [Leitfadens](./IMPLEMENTATION_GUIDE.md) sind umgesetzt (Stand 2026-10-19), zuletzt die Produktions-Vorlage aus Schritt 8.9.
+2. Vor dem Launch: die offenen Punkte aus ADR 0045 (erstes Release mit Signatur, Deploy mit echten Namen und öffentlicher CA, Update von Caddy) und die externen Freigaben (Rechtstexte, Apps von LinkedIn, Meta und X, Stripe live, Anthropic mit Ausgabenlimit).
+3. Danach mit echten Plattform-Apps im Staging posten (Roadmap, Phase 4) und die Launch-Checkliste von Phase 8 abhaken.

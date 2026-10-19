@@ -749,7 +749,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Alte Schlüsselversionen bleiben zum Entschlüsseln lesbar.
 - **Umgesetzt**:
   - `seal`, `open`, `rewrap` und `keyIdOf` in `@smp/crypto` mit genau diesem Layout. Fehler tragen nur einen Code (`MALFORMED`, `UNKNOWN_KEY`, `INVALID`).
-  - `LocalKeyring` liest `TOKEN_KEKS`/`SESSION_KEKS` im Format von `pnpm gen:keys` und wrappt den DEK mit AES-256-GCM, die Key-ID als AAD. AWS KMS und Vault folgen mit dem Deployment (Phase 8) über denselben `KmsPort`.
+  - `LocalKeyring` liest `TOKEN_KEKS`/`SESSION_KEKS` im Format von `pnpm gen:keys` und wrappt den DEK mit AES-256-GCM, die Key-ID als AAD. Ein Adapter für AWS KMS oder Vault passt hinter denselben `KmsPort`; die Vorlage aus Schritt 8.9 kommt ohne aus und hält die KEKs als Dateien (ADR 0045).
   - Im Core: `SecretSealer` für die Use Cases, `connectionSecretAad`/`accountSecretAad` und der Use Case `RewrapSecrets`.
   - Der Re-Wrap ändert nur den gewrappten DEK. Er schreibt per Byte-Vergleich und erhöht die `version` nicht, damit ein gleichzeitiger Token-Refresh (bei X nur einmal gültig) nicht verloren geht. `PrismaSealedSecretStore` liest dafür als `app_system` über alle Workspaces. Eingeplant wird der Job in `tick.maintenance` (Schritt 4.3).
   - Tests: `packages/crypto/src/envelope.test.ts` (jedes einzelne Byte manipuliert, falsche AAD, Rotation), `local-keyring.test.ts`, `packages/core/test/channels/rewrap-secrets.test.ts`, `packages/db/test/sealed-secrets.integration.test.ts`.
@@ -1378,7 +1378,7 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
     - `apps/web/src/features/billing/billing-model.test.ts` und die Warnung in `apps/web/e2e/billing.spec.ts`.
 - **Stand**: Das Kriterium ist erfüllt: Der Integrationstest des Workers prüft, dass die Rolle `scheduler` `tick.maintenance` um 03:41 UTC plant und der Tick alle Fristen anwendet.
   - Screenshots speichert der browser-worker nicht (ADR 0032); die Frist von 7 Tagen hat nichts zu löschen.
-  - Die 30 Tage der Anwendungslogs setzt das Log-Backend; die Vorlage dafür kommt mit Schritt 8.9.
+  - Die 30 Tage der Anwendungslogs setzt das Log-Backend; in der Vorlage aus Schritt 8.9 ist das journald auf dem Host (`deploy/host/journald.conf`).
   - Abweichung von der Architektur: Das Aufräumen der Medien läuft stündlich in der Rolle `gdpr`, und Objekte ohne Asset sucht kein Job (Begründung in ADR 0038).
 
 #### 8.4 Security-Review
@@ -1406,7 +1406,7 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
     - `apps/browser-worker/test/redis-acl.integration.test.ts` mit den Nutzern von Redis aus `compose.yaml`,
     - `packages/crypto/src/password-hash.test.ts`, `packages/emails/src/smtp-mailer.test.ts`, `packages/observability/src/redact.test.ts`, `span-privacy.test.ts` und `env.test.ts`, `packages/queue/src/notifications.test.ts`, die Sperren in `packages/db/test/publishing-adapters.integration.test.ts` und `channel-adapters.integration.test.ts`,
     - `apps/web/src/lib/safe-next.test.ts`, `apps/web/src/i18n/locale.test.ts`, `apps/web/src/security/content-security-policy.test.ts` und `apps/web/e2e/x-browser.spec.ts` (ein Plattform-Admin richtet den zweiten Faktor ein).
-- **Stand**: Das Kriterium ist erfüllt: Kein Befund der Stufen kritisch oder hoch ist offen. Die Checkliste zählt 148 erfüllte, 36 teilweise erfüllte, 5 offene und 64 nicht anwendbare Anforderungen; jede Lücke ist niedrig oder mittel und hat einen Plan. Mittel sind nur noch Punkte des Deployments: TLS, Zertifikate, Secret-Store und Log-Backend.
+- **Stand**: Das Kriterium ist erfüllt: Kein Befund der Stufen kritisch oder hoch ist offen. Am Ende dieses Schritts zählte die Checkliste 148 erfüllte, 36 teilweise erfüllte, 5 offene und 64 nicht anwendbare Anforderungen; jede Lücke war niedrig oder mittel und hatte einen Plan. Mittel waren nur noch Punkte des Deployments: TLS, Zertifikate, Secret-Store und Log-Backend (den Stand nach Schritt 8.9 nennt dessen Abschnitt).
   - Akzeptierte Abweichungen stehen mit Begründung und Wiedervorlage in ADR 0039, darunter die freiwillige 2FA, Sessions ohne Inaktivitätszeit und Eigenheiten von Better Auth (Token im JSON, Fenster der TOTP-Codes, verschlüsselte Backup-Codes).
   - Verschoben sind die Härtung von Transport und Betrieb nach Schritt 8.9 sowie Alarme, der Log-Kontext je Job und das Runbook für verlorene zweite Faktoren nach Schritt 8.7.
   - Abweichung von der Architektur: Der Login über Google oder Microsoft entfällt (ADR 0039).
@@ -1503,6 +1503,21 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
 #### 8.9 Deployment
 - **Erstellen**: Produktions-Vorlage, z.B. Compose für eine VM mit Caddy/Traefik und TLS oder ein Helm-Chart (Entscheidung gemeinsam mit dir).
 - **Fertig, wenn**: Staging aus der Vorlage deployt.
+- **Umgesetzt** ([ADR 0045](adr/0045-produktions-vorlage.md), [Runbook](runbooks/deployment.md), [Staging-Protokoll](betrieb/staging-2026-10.md)):
+  - **Entscheidung**: Compose auf einer VM hinter Caddy, in `deploy/`. Ein Helm-Chart lohnt sich erst mit mehreren Hosts.
+  - **Rand**: Caddy ist der einzige Dienst mit veröffentlichten Ports. TLS 1.2 und 1.3 mit Zertifikaten einer öffentlichen CA über ACME, HSTS, Umleitung auf https nur für die Seiten der App (API und Speicher antworten über http mit 403), Readiness nur intern, Grenzen für Methoden, Größe und Dauer der Bodies (`read_body 15m`).
+  - **Netze**: Die API bindet über `API_HOST` an ihre feste Adresse im internen Netz `edge`; Datenbank, Redis und Speicher liegen in `data`, das Monitoring in `monitoring`. Nach außen kommen API und Worker nur über den Egress-Proxy mit der Allowlist `SMP_EGRESS_HOSTS`; der Worker `media` gar nicht.
+  - **TLS nach innen und Identitäten**: Eine private CA aus `init-secrets.sh` für Postgres (`verify-full`), Redis (nur TLS) und das S3-Gateway, gRPC von SeaweedFS mit Client-Zertifikaten. Je Dienst ein Login in Postgres (mit `BYPASSRLS` nur für die System-Logins) und ein Nutzer in Redis.
+  - **Secrets** als Dateien in `deploy/secrets`, gelesen über `<NAME>_FILE`, mit eigenem Keyring `NOTIFY_KEKS` für die E-Mail-Jobs. Hash-Labels starten die Dienste neu, deren Dateien sich ändern. Kein KMS (ADR 0045).
+  - **Betrieb**: `deploy.sh` mit Preflight (Secrets und Rechte, Uhr, verschlüsselte Platte, journald mit 30 Tagen, Namen), Prüfung von Signatur und SBOM der Images und Tests von außen. Der Blackbox-Exporter meldet den Ablauf der Zertifikate.
+  - **Images**: Der Workflow `release.yml` baut bei einem Tag `v*` die sechs Images, scannt sie, schiebt sie nach GHCR, signiert sie mit cosign ohne eigenen Schlüssel und attestiert ihr SBOM. Der CI-Job `third-party-images` scannt die fremden Images der Vorlage, auch wöchentlich (ASVS 15.2.1).
+  - **Staging**: `compose.staging.yaml` mit Caddys eigener CA, Mailpit und den Backups im lokalen Speicher; `apps/web/playwright.staging.config.ts` führt den Rauchtest aus.
+  - **Tests**: `apps/egress-proxy/src/proxy.test.ts` (scheiternde Verbindungen nach außen), `apps/api/src/config/api-env.test.ts` (`API_HOST`), `apps/browser-worker/test/redis-acl.integration.test.ts` (die Redis-Nutzer der Vorlage samt AOF), `deploy/monitoring/tests/tls.test.yml` und `tools/observability/check-rules.sh` (Regeln, Konfiguration und Routen beider Varianten), `apps/web/e2e/staging.smoke.ts`.
+- **Stand**: Das Kriterium ist erfüllt. Das Staging lief am 2026-10-19 in diesem Container mit 20 Containern; Deploy, Prüfungen von TLS, Netzen, Identitäten, Egress, Zeitgrenzen, Monitoring und Backups sowie der Rauchtest bestanden (Protokoll).
+  - Das Staging fand zwölf Fehler der Vorlage, der Abgleich mit den Runbooks einen dreizehnten; alle sind behoben (ADR 0045, Befunde). Darunter waren eine API, die alle internen Netze erreichten, ein gRPC-Port des Speichers ohne Anmeldung, Konfigurationen, die Caddy nach einer Änderung nicht neu las, und Backups, deren Verschlüsselung scheiterte.
+  - Grenzen (ADR 0045, Restrisiken): Die öffentliche CA, die Signaturen und der Release-Workflow sind nur in der Vorlage geprüft; Caddy braucht bis zum 2026-11-02 eine neuere Version; zwischen Caddy, Web und API bleibt HTTP im Klartext auf einem Host; es gibt keinen KMS und keinen Pager.
+  - Die ASVS-Checkliste zählt jetzt 164 erfüllte, 23 teilweise erfüllte, 2 offene und 64 nicht anwendbare Anforderungen. Mittel bleiben nur V15.2.1 (das Update von Caddy) und V16.4.3 (kein logisch getrenntes Log-System); alles andere ist niedrig.
+  - Abweichungen von der Architektur: kein KMS-Adapter für `KmsPort`, Staging ohne echte Plattform-Apps (Architektur 12, Umgebungen); beides begründet ADR 0045.
 
 ---
 
