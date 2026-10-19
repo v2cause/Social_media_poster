@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { cropHashOf, daysBefore, localDayOf, originalKey, renditionKey } from '@smp/core';
 import { hashPassword } from '@smp/crypto';
 import {
+  PLATFORMS,
   planRendition,
   RENDITION_PROFILES,
   renditionProfileFor,
@@ -20,7 +21,8 @@ import { CREDENTIAL_PROVIDER } from './demo';
 // owner each. Every workspace gets the demo history of 90 days, so that the reads of the test
 // meet realistic amounts, an image with its renditions, and posts due in the same minute on all
 // four of its mock accounts, each variant with the image. The mock platforms wait latencyMs on
-// every call, as a platform takes time to answer. Never in production; needs app_system.
+// every call, as a platform takes time to answer; the drills of the runbooks (guide step 8.7) let
+// the accounts of one platform fail. Never in production; needs app_system.
 
 /** The options of one run; the tool of the load test checks its arguments with this schema. */
 export const loadFixtureOptionsSchema = z.object({
@@ -34,6 +36,8 @@ export const loadFixtureOptionsSchema = z.object({
   spreadSeconds: z.number().int().min(0).max(59),
   /** What every call of the mock platforms waits. */
   latencyMs: z.number().int().min(0).max(120_000),
+  /** More settings of the mock accounts of one platform, such as a failure until a time. */
+  failure: z.object({ platform: z.enum(PLATFORMS), settings: z.record(z.string(), z.json()) }).optional(),
   now: z.date(),
 });
 export type LoadFixtureOptions = z.infer<typeof loadFixtureOptionsSchema>;
@@ -184,7 +188,10 @@ export function loadWorkspacePlan(input: {
   });
   const accounts = history.accounts.map((account) => ({
     ...account,
-    settings: { latencyMs: options.latencyMs },
+    settings: {
+      latencyMs: options.latencyMs,
+      ...(account.platform === options.failure?.platform ? options.failure.settings : {}),
+    },
   }));
   const image = imageOf(workspaceId, userId, createdAt);
 

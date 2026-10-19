@@ -10,7 +10,8 @@ import {
 
 // The data of the load test (guide step 8.5): every workspace of a run has its owner, four mock
 // accounts with the latency of the run and an image with a rendition per platform. Its posts
-// fall due in the minute of the run, a variant on every account, each with the image.
+// fall due in the minute of the run, a variant on every account, each with the image. The drills
+// of the runbooks (guide step 8.7) let the accounts of one platform fail.
 
 const OPTIONS: LoadFixtureOptions = {
   run: 'r1',
@@ -88,6 +89,18 @@ describe('the data of the load test', () => {
       expect(variant.text?.length).toBeLessThanOrEqual(280);
     }
     expect(new Set(due.map((variant) => variant.postId)).size).toBe(2);
+  });
+
+  it('let the accounts of one platform fail for a drill of the runbooks, the others not', () => {
+    const settings = { failStatus: 503, failUntil: '2026-10-19T09:20:00.000Z' };
+    const { rows } = planOf(0, { ...OPTIONS, failure: { platform: 'LINKEDIN', settings } });
+
+    expect(Object.fromEntries(rows.accounts.map((account) => [account.platform, account.settings]))).toEqual({
+      LINKEDIN: { latencyMs: 500, ...settings },
+      INSTAGRAM: { latencyMs: 500 },
+      FACEBOOK: { latencyMs: 500 },
+      X: { latencyMs: 500 },
+    });
   });
 
   it('let every due post fall due at the start of the minute without a spread', () => {
