@@ -63,8 +63,9 @@ export class PublishProducer {
 
 /**
  * The dead-letter queue of the publisher (architecture 7.1): a copy of every publish job that
- * failed for good, to look at in Bull Board. Nothing processes it; the copies stay until someone
- * removes them, and the alarm "dead-letter queue not empty" watches it (architecture 12).
+ * failed for good, to look at with `pnpm queues dead-letters`. Nothing processes it; the copies
+ * stay until an operator removes them with `pnpm queues remove-dead-letters`, and the alarm
+ * DeadLetterQueueNotEmpty watches it (guide step 8.7).
  */
 export const PUBLISH_DEAD_LETTER_QUEUE = 'publish-dead';
 export const PUBLISH_DEAD_LETTER = 'publish.dead';
