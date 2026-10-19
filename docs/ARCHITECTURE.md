@@ -781,5 +781,5 @@ docker compose --profile app up --build
 ## 17. Nächste Schritte
 
 1. Die Phasen 0 bis 8 des [Leitfadens](./IMPLEMENTATION_GUIDE.md) sind umgesetzt (Stand 2026-10-19), zuletzt die Produktions-Vorlage aus Schritt 8.9.
-2. Vor dem Launch: die offenen Punkte aus ADR 0045 (erstes Release mit Signatur, Deploy mit echten Namen und öffentlicher CA, Update von Caddy) und die externen Freigaben (Rechtstexte, Apps von LinkedIn, Meta und X, Stripe live, Anthropic mit Ausgabenlimit).
+2. Vor dem Launch: die offenen Punkte aus ADR 0045 (erstes Release mit Signatur, Deploy mit echten Namen und öffentlicher CA, die Ausnahmen der fremden Images) und die externen Freigaben (Rechtstexte, Apps von LinkedIn, Meta und X, Stripe live, Anthropic mit Ausgabenlimit).
 3. Danach mit echten Plattform-Apps im Staging posten (Roadmap, Phase 4) und die Launch-Checkliste von Phase 8 abhaken.

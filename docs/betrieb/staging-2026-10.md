@@ -41,6 +41,20 @@ Daneben fielen auf:
 - **Zu junge Versionen**: Mailpit v1.31.6 war in Phase 0 am Tag seines Erscheinens übernommen worden, `amazon/aws-cli:2.38.1` in Schritt 8.6 fünf Tage danach. Beide erfüllen heute die Wartezeit von Renovate (drei Tage); ältere Versionen von aws-cli hätten 23 bekannte Lücken zurückgebracht. Sie bleiben.
 - **Eine Zeile außerhalb von pino**: Bricht ein Client mitten im Body ab, schreibt das Routing von Better Auth `# SERVER_ERROR: Error: aborted` direkt nach stderr, zusätzlich zum strukturierten Log. Die Zeile enthält keine Daten der Anfrage.
 
+## Nachtrag: Caddy 2.11.6
+
+Gegen 13:40 UTC ließen sich die neueren Images von Caddy prüfen. 2.11.4 hatte 22 Funde der Stufen HIGH und CRITICAL im Binary, 2.11.6 und 2.11.7 je vier aus Go 1.26.8 und `golang.org/x/net` 0.59.0. Die Vorlage nimmt seit `1707512` Version 2.11.6; 2.11.7 war noch keine zwei Wochen alt. Der Pull des Docker-Daemons scheiterte an Docker Hub noch mit 429. Das Image kam deshalb über `mirror.gcr.io`, mit demselben Digest wie auf Docker Hub (`sha256:d44355d3c214...`).
+
+Um 13:45 UTC lief `deploy.sh` mit Caddy 2.11.6 durch. Danach bestanden:
+- TLS 1.3 und 1.2 nur mit ECDHE und AES-GCM oder ChaCha20; CBC-Suites, RSA ohne ECDHE, TLS 1.0 und 1.1 lehnt Caddy ab;
+- HSTS und `nosniff` auf beiden Namen, kein `Server`;
+- über http 308 für Seiten, 403 für die API und den Speicher;
+- 404 für die Readiness samt Varianten, 405 für TRACE, PROPFIND und DELETE;
+- Live-Events 50 s lang über HTTP/2 mit Pings alle 15 s;
+- der Rauchtest;
+- alle zehn Ziele des Monitorings `up`, beide TLS-Proben mit TLS 1.3;
+- der Scan aller zehn fremden Images mit `deploy/trivyignore.yaml`, wie im Job `third-party-images`.
+
 ## Grenzen
 
 - Keine öffentlichen Namen und keine öffentliche CA: ACME, die Erneuerung und die Alarme mit echten Zertifikaten sind nur in der Vorlage geprüft.

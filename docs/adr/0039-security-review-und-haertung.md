@@ -299,6 +299,6 @@ Die Einzelheiten stehen in den Inventaren [Daten und Protokolle](../security/dat
   - Die Härtung von Transport und Betrieb fehlte bis Schritt 8.9. Seitdem liefert sie die Produktions-Vorlage ([ADR 0045](0045-produktions-vorlage.md)). Vor dem ersten Einsatz in Produktion bleiben die offenen Punkte von ADR 0045:
     - Zertifikate einer öffentlichen CA sind nur in der Konfiguration geprüft; das Staging lief mit der eigenen CA von Caddy.
     - Der Release-Workflow lief noch nie; Signatur und Attestierung sind erst mit dem ersten Tag geprüft.
-    - Caddy muss bis zum 2026-11-02 auf eine Version, die den Scan der Images anderer Anbieter besteht.
+    - Fremde Images tragen bekannte Lücken mit Ausnahme und Ablauf (`deploy/trivyignore.yaml`), am öffentlichen Rand drei aus Go 1.26.8 in Caddy 2.11.6, für die es noch keine Version mit Fix gibt.
     - HTTP im internen Netz `edge` bleibt unverschlüsselt.
     - Die Schlüssel liegen als Dateien auf der VM, nicht in einem KMS.
