@@ -41,7 +41,7 @@ export function ForgotPasswordForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('forgotPassword.title')}</CardTitle>
+        <CardTitle as="h1">{t('forgotPassword.title')}</CardTitle>
         <CardDescription>{t('forgotPassword.description')}</CardDescription>
       </CardHeader>
       <CardContent>

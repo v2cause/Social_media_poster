@@ -51,7 +51,7 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('resetPassword.title')}</CardTitle>
+        <CardTitle as="h1">{t('resetPassword.title')}</CardTitle>
         <CardDescription>{t('resetPassword.description')}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

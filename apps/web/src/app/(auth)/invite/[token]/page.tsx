@@ -27,7 +27,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('auth.invite.title')}</CardTitle>
+        <CardTitle as="h1">{t('auth.invite.title')}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

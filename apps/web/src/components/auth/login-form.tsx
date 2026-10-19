@@ -95,7 +95,7 @@ export function LoginForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('login.title')}</CardTitle>
+        <CardTitle as="h1">{t('login.title')}</CardTitle>
         <CardDescription>{t('login.description')}</CardDescription>
       </CardHeader>
       <CardContent>

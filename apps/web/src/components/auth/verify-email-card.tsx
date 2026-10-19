@@ -42,7 +42,7 @@ export function VerifyEmailCard({ email, next }: { email: string | null; next: s
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('title')}</CardTitle>
+        <CardTitle as="h1">{t('title')}</CardTitle>
         <CardDescription>{t('description', { email: email ?? 'none' })}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

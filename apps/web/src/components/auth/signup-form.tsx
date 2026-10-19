@@ -58,7 +58,7 @@ export function SignupForm({ next, email }: { next: string | null; email: string
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('signup.title')}</CardTitle>
+        <CardTitle as="h1">{t('signup.title')}</CardTitle>
         <CardDescription>{t('signup.description')}</CardDescription>
       </CardHeader>
       <CardContent>

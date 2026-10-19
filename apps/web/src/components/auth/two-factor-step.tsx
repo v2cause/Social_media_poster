@@ -53,7 +53,7 @@ export function TwoFactorStep({ onDone }: { onDone: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('twoFactor.title')}</CardTitle>
+        <CardTitle as="h1">{t('twoFactor.title')}</CardTitle>
         <CardDescription>
           {backup ? t('twoFactor.backupDescription') : t('twoFactor.description')}
         </CardDescription>
