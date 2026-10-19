@@ -1,7 +1,7 @@
 export const WORKER_ENV = Symbol('WORKER_ENV');
 export const MAIL_PORT = Symbol('MAIL_PORT');
 export const DELIVER_NOTIFICATION = Symbol('DELIVER_NOTIFICATION');
-/** The token keyring that opens the sealed emails of the notify jobs (guide step 8.4). */
+/** The keyring that opens the sealed emails of the notify jobs (guide steps 8.4 and 8.9). */
 export const EMAIL_SEALER = Symbol('EMAIL_SEALER');
 export const PROCESS_ASSET = Symbol('PROCESS_ASSET');
 export const DROP_UPLOAD = Symbol('DROP_UPLOAD');

@@ -16,6 +16,7 @@ function newKeyring(): { entry: string; activeId: string } {
 
 const token = newKeyring();
 const session = newKeyring();
+const notify = newKeyring();
 
 const lines = [
   `BETTER_AUTH_SECRET=${newKey()}`,
@@ -23,6 +24,8 @@ const lines = [
   `TOKEN_KEK_ACTIVE=${token.activeId}`,
   `SESSION_KEKS=${session.entry}`,
   `SESSION_KEK_ACTIVE=${session.activeId}`,
+  `NOTIFY_KEKS=${notify.entry}`,
+  `NOTIFY_KEK_ACTIVE=${notify.activeId}`,
 ];
 
 process.stdout.write(`${lines.join('\n')}\n`);

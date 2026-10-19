@@ -1,4 +1,4 @@
-import { sealerFromEnv } from '@smp/crypto';
+import { notifySealerFromEnv } from '@smp/crypto';
 import { createPrismaClient } from '@smp/db';
 import { createLogger } from '@smp/observability';
 import { NOTIFICATIONS_QUEUE, NotificationProducer } from '@smp/queue';
@@ -58,7 +58,7 @@ async function main(): Promise<void> {
       );
       return;
     }
-    const notifications = new NotificationProducer(queue, sealerFromEnv('tokens', env));
+    const notifications = new NotificationProducer(queue, notifySealerFromEnv(env));
     const result = await resetTwoFactor(
       { prisma, memberships: lookup.memberships, notifications, appUrl: env.APP_URL },
       request.email,

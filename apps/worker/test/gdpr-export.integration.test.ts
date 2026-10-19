@@ -23,7 +23,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
-import { openedEmail, tokenKeys } from './support/sealed-email';
+import { notifyKeys, openedEmail, tokenKeys } from './support/sealed-email';
 
 // Guide step 8.1, "Fertig, wenn": the export is complete and readable. The role "gdpr" packs the
 // demo organization into a ZIP in SeaweedFS: a JSON array per table with as many rows as the
@@ -35,6 +35,7 @@ const BUCKET = 'smp-test-gdpr';
 const PHOTO_NAME = 'Sommerfest Mädchen.jpg';
 const SECRET_HASH = `invitation-hash-${randomUUID()}`;
 const TOKEN_KEYS = tokenKeys();
+const NOTIFY_KEYS = notifyKeys();
 
 describe('the export in the role "gdpr"', () => {
   let database: TestDatabase | undefined;
@@ -177,6 +178,7 @@ describe('the export in the role "gdpr"', () => {
       // The role revokes the grants of an erased organization with the key ring of the tokens
       // and seals the emails with it.
       ...TOKEN_KEYS,
+      ...NOTIFY_KEYS,
       S3_ENDPOINT: config.endpoint,
       S3_REGION: config.region,
       S3_BUCKET: BUCKET,
@@ -255,7 +257,7 @@ describe('the export in the role "gdpr"', () => {
     expect(archive.find((entry) => entry.name === 'data/post.json')?.method).toBe(8);
 
     const notice = await ready().notifications.getJob(`ntf.export.${requestId}.${org.ownerId}`);
-    expect(await openedEmail(TOKEN_KEYS, notice?.data)).toMatchObject({
+    expect(await openedEmail(NOTIFY_KEYS, notice?.data)).toMatchObject({
       email: {
         template: 'gdpr-export-ready',
         url: `http://localhost:3000/org/${org.organizationId}/data`,

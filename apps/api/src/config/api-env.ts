@@ -54,6 +54,10 @@ export const apiEnvSchema = z
     // Seal the tokens of the platforms; @smp/crypto checks the format at start.
     TOKEN_KEKS: z.string().min(1),
     TOKEN_KEK_ACTIVE: z.string().min(1),
+    // Seal the e-mail jobs with a keyring of their own (guide step 8.9), which production requires;
+    // without it, in development and tests, the token keyring. @smp/crypto checks both.
+    NOTIFY_KEKS: z.preprocess(unsetIfEmpty, z.string().optional()),
+    NOTIFY_KEK_ACTIVE: z.preprocess(unsetIfEmpty, z.string().optional()),
     // The deployment runs the browser worker of X (guide step 6.1); without it the X browser is
     // off everywhere, whatever the flags say.
     FEATURE_X_BROWSER_GLOBAL: z.preprocess(unsetIfEmpty, z.stringbool().default(false)),

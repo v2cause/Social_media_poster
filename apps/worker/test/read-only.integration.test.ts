@@ -14,7 +14,7 @@ import { parseRoles } from '../src/roles';
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
 import { TICK_HANDLERS } from '../src/worker.tokens';
-import { openedEmail, tokenKeys } from './support/sealed-email';
+import { notifyKeys, openedEmail, tokenKeys } from './support/sealed-email';
 
 // Guide step 7.4 through the role "scheduler": with APP_URL the tick tick.read-only tells the
 // owners of an organization once that it became read-only, with the reason and a link to the
@@ -23,6 +23,7 @@ import { openedEmail, tokenKeys } from './support/sealed-email';
 // through the queue instead of racing it with a call of its own.
 
 const TOKEN_KEYS = tokenKeys();
+const NOTIFY_KEYS = notifyKeys();
 
 describe('the notice of read-only access in the role "scheduler"', () => {
   let database: TestDatabase | undefined;
@@ -56,6 +57,7 @@ describe('the notice of read-only access in the role "scheduler"', () => {
       DATABASE_URL: started().database.url('app_user'),
       DATABASE_SYSTEM_URL: started().database.url('app_system'),
       ...TOKEN_KEYS,
+      ...NOTIFY_KEYS,
       SESSION_KEKS: key(),
       SESSION_KEK_ACTIVE: 'kek-test',
       ...(appUrl ? { APP_URL: appUrl } : {}),
@@ -145,7 +147,7 @@ describe('the notice of read-only access in the role "scheduler"', () => {
     expect(jobs.map((job) => job.id)).toEqual([
       `ntf.read-only.${ended.id}.${String(Date.parse('2026-10-01T12:00:00Z'))}.${ended.owner}`,
     ]);
-    expect(await openedEmail(TOKEN_KEYS, jobs[0]?.data)).toEqual({
+    expect(await openedEmail(NOTIFY_KEYS, jobs[0]?.data)).toEqual({
       to: `olivia-${ended.owner}@nordlicht.test`,
       email: {
         template: 'billing-read-only',

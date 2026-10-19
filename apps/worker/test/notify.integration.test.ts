@@ -5,7 +5,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { sealerFromEnv } from '@smp/crypto';
+import { notifySealerFromEnv } from '@smp/crypto';
 import {
   liveEventChannel,
   NOTIFICATIONS_QUEUE,
@@ -29,21 +29,22 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
 import { startRejectingSmtp, type RejectingSmtp } from './support/rejecting-smtp';
-import { openedEmail, tokenKeys } from './support/sealed-email';
+import { notifyKeys, openedEmail } from './support/sealed-email';
 
 // Guide step 1.8, "Fertig, wenn": the invitation email arrives in Mailpit in both languages,
 // sent by the worker role "notify" from the queue "notifications". Guide step 4.9: an event of
 // the outbox reaches the managers of a connection in the app and by email, once, also when it
 // is dispatched again; guide step 4.10: the new notification is announced as a live event.
-// Guide step 8.4: an email waits in Redis sealed with the token keyring; one the keyring of the
-// worker cannot open fails at once, as does one in the format from before the seal, while one
-// sealed with a key the worker does not know yet is retried. A job the SMTP server refuses keeps
-// neither the address nor the reply of the server.
+// Guide step 8.4: an email waits in Redis sealed, since step 8.9 with the keyring of the e-mails,
+// the only one the role holds; one the keyring of the worker cannot open fails at once, as does
+// one in the format from before the seal, while one sealed with a key the worker does not know
+// yet is retried. A job the SMTP server refuses keeps neither the address nor the reply of the
+// server.
 
 const org = randomUUID();
 const workspace = randomUUID();
 const owner = { id: randomUUID(), email: `owner-${randomUUID()}@demo.local` };
-const TOKEN_KEYS = tokenKeys();
+const NOTIFY_KEYS = notifyKeys();
 const invitation = {
   template: 'invitation' as const,
   url: 'http://localhost:3000/invite/token-for-the-test',
@@ -67,7 +68,7 @@ describe('notify worker', () => {
     if (!database || !mailpit || !connection || !queue || !events) {
       throw new Error('not started');
     }
-    const producer = new NotificationProducer(queue, sealerFromEnv('tokens', TOKEN_KEYS));
+    const producer = new NotificationProducer(queue, notifySealerFromEnv(NOTIFY_KEYS));
     return { database, mailpit, connection, queue, events, producer };
   };
   const query = async <T>(sql: string, values: unknown[] = []): Promise<T[]> => {
@@ -102,7 +103,7 @@ describe('notify worker', () => {
       SMTP_URL: urls.smtp,
       MAIL_FROM: 'noreply@smp.test',
       APP_URL: 'http://localhost:3000',
-      ...TOKEN_KEYS,
+      ...NOTIFY_KEYS,
     });
   };
 
@@ -227,7 +228,7 @@ describe('notify worker', () => {
     const { connection: redisClient } = started();
     const held = new Queue(`${NOTIFICATIONS_QUEUE}-held`, { connection: redisClient });
     try {
-      await new NotificationProducer(held, sealerFromEnv('tokens', TOKEN_KEYS)).dispatchEmail(
+      await new NotificationProducer(held, notifySealerFromEnv(NOTIFY_KEYS)).dispatchEmail(
         'held@example.test',
         { ...invitation, locale: 'en' },
       );
@@ -235,7 +236,7 @@ describe('notify worker', () => {
       const stored = await redisClient.hgetall(`bull:${NOTIFICATIONS_QUEUE}-held:${job?.id ?? ''}`);
       expect(stored.data).toBeDefined();
       expect(JSON.stringify(stored)).not.toMatch(/held@example|token-for-the-test|Olivia/);
-      expect(await openedEmail(TOKEN_KEYS, job?.data)).toMatchObject({
+      expect(await openedEmail(NOTIFY_KEYS, job?.data)).toMatchObject({
         to: 'held@example.test',
         email: { url: invitation.url },
       });
@@ -250,7 +251,7 @@ describe('notify worker', () => {
     const failure = new Promise<{ jobId: string; failedReason: string }>((resolve) => {
       queueEvents.once('failed', resolve);
     });
-    await new NotificationProducer(notifications, sealerFromEnv('tokens', tokenKeys())).dispatchEmail(
+    await new NotificationProducer(notifications, notifySealerFromEnv(notifyKeys())).dispatchEmail(
       'foreign@example.test',
       { ...invitation, locale: 'en' },
     );
@@ -274,10 +275,10 @@ describe('notify worker', () => {
       });
     });
     const next = {
-      TOKEN_KEKS: `kek-next:${randomBytes(32).toString('base64')}`,
-      TOKEN_KEK_ACTIVE: 'kek-next',
+      NOTIFY_KEKS: `ntf-next:${randomBytes(32).toString('base64')}`,
+      NOTIFY_KEK_ACTIVE: 'ntf-next',
     };
-    await new NotificationProducer(notifications, sealerFromEnv('tokens', next)).dispatchEmail(
+    await new NotificationProducer(notifications, notifySealerFromEnv(next)).dispatchEmail(
       'later@example.test',
       { ...invitation, locale: 'en' },
     );
@@ -353,7 +354,7 @@ describe('notify worker', () => {
           resolve(jobId);
         });
       });
-      await new NotificationProducer(rejectingQueue, sealerFromEnv('tokens', TOKEN_KEYS)).dispatchEmail(
+      await new NotificationProducer(rejectingQueue, notifySealerFromEnv(NOTIFY_KEYS)).dispatchEmail(
         'rejected@example.test',
         { ...invitation, locale: 'en' },
       );

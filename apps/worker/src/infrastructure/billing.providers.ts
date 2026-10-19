@@ -1,7 +1,7 @@
 import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import { createStripeClient, StripeBillingGateway } from '@smp/billing';
 import { ProcessStripeWebhook, ReportUsage, systemClock, type BillingLock } from '@smp/core';
-import { sealerFromEnv } from '@smp/crypto';
+import { notifySealerFromEnv } from '@smp/crypto';
 import {
   createSystemPrismaClient,
   PrismaBillingDirectory,
@@ -73,7 +73,7 @@ export function billingPipeline(env: WorkerEnv): Provider[] {
     connection: { url: env.REDIS_URL, maxRetriesPerRequest: null, enableOfflineQueue: false },
   });
   // Seals the emails of the notify jobs; checked at the start, not with the first email.
-  const emailSealer = sealerFromEnv('tokens', env);
+  const emailSealer = notifySealerFromEnv(env);
   const lock: BillingLock = {
     run: (key, work) =>
       withLock(redis, `lock:${key}`, BILLING_LOCK_TTL_MS, () => work(), { waitMs: BILLING_LOCK_WAIT_MS }),

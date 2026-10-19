@@ -57,6 +57,15 @@ describe('loadApiEnv', () => {
   });
 });
 
+describe('loadApiEnv with the keyring of the e-mail jobs (guide step 8.9)', () => {
+  it('takes it from its variables and leaves it out when they are empty', () => {
+    const env = loadApiEnv({ ...validEnv, NOTIFY_KEKS: 'ntf-1:a2V5', NOTIFY_KEK_ACTIVE: 'ntf-1' });
+
+    expect(env).toMatchObject({ NOTIFY_KEKS: 'ntf-1:a2V5', NOTIFY_KEK_ACTIVE: 'ntf-1' });
+    expect(loadApiEnv({ ...validEnv, NOTIFY_KEKS: '', NOTIFY_KEK_ACTIVE: '' }).NOTIFY_KEKS).toBeUndefined();
+  });
+});
+
 describe('loadApiEnv with AI settings', () => {
   it('defaults to the mock provider outside production', () => {
     const env = loadApiEnv(validEnv);

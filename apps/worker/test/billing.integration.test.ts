@@ -23,7 +23,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
-import { openedEmail, tokenKeys } from './support/sealed-email';
+import { notifyKeys, openedEmail } from './support/sealed-email';
 
 // Guide steps 7.2 and 7.3 through the worker role "billing" against the fake Stripe: the
 // webhooks of a paid checkout, a failed renewal and a cancellation are recorded the way the API
@@ -32,7 +32,7 @@ import { openedEmail, tokenKeys } from './support/sealed-email';
 // sends the AI usage beyond the credits of the plan and the X API costs to the meters, once.
 
 const WEBHOOK_SECRET = 'whsec_test_billing_worker';
-const TOKEN_KEYS = tokenKeys();
+const NOTIFY_KEYS = notifyKeys();
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const org = randomUUID();
@@ -138,7 +138,7 @@ describe('billing worker', () => {
       APP_URL: 'http://localhost:3000/',
       STRIPE_SECRET_KEY: 'sk_test_worker',
       STRIPE_API_BASE: fake.url,
-      ...TOKEN_KEYS,
+      ...NOTIFY_KEYS,
     });
     worker = await NestFactory.createApplicationContext(WorkerModule.forRoles(['billing'], env), {
       logger: false,
@@ -310,7 +310,7 @@ describe('billing worker', () => {
     expect(jobs).toHaveLength(1);
     const [job] = jobs;
     expect(job?.id).toMatch(new RegExp(`^ntf\\.evt_\\w+\\.${owner}$`));
-    expect(await openedEmail(TOKEN_KEYS, job?.data)).toEqual({
+    expect(await openedEmail(NOTIFY_KEYS, job?.data)).toEqual({
       to: 'olivia@nordlicht.test',
       email: {
         template: 'billing-payment-failed',

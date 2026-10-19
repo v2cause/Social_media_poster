@@ -1,7 +1,7 @@
 # Kryptografie: Inventar und Schlüsselverwaltung
 
-- **Stand**: 2026-10-18
-- **Bezug**: Umsetzungsleitfaden, Schritt 8.4; ASVS V11.1.1, V11.1.2 und V11.2.2; [ADR 0039](../adr/0039-security-review-und-haertung.md), [Runbook Secret-Rotation](../runbooks/secret-rotation.md), [ASVS-Checkliste](asvs-l2.md)
+- **Stand**: 2026-10-19
+- **Bezug**: Umsetzungsleitfaden, Schritte 8.4 und 8.9; ASVS V11.1.1, V11.1.2 und V11.2.2; [ADR 0039](../adr/0039-security-review-und-haertung.md), [Runbook Secret-Rotation](../runbooks/secret-rotation.md), [ASVS-Checkliste](asvs-l2.md)
 
 Das Inventar nennt jedes kryptografische Verfahren der Plattform mit Parametern, Schlüssel und Ort im Code. Die Richtlinie danach regelt den Lebenszyklus der Schlüssel. Beides wird mit jeder Änderung an Schlüsseln oder Verfahren nachgeführt und jährlich mit der ASVS-Checkliste geprüft, das nächste Mal im Oktober 2027. Werte von Schlüsseln stehen nie in diesem Dokument.
 
@@ -10,7 +10,8 @@ Das Inventar nennt jedes kryptografische Verfahren der Plattform mit Parametern,
 | Schlüssel | Format und Erzeugung | Darf schützen | Darf nicht schützen | Halter |
 | --- | --- | --- | --- | --- |
 | `BETTER_AUTH_SECRET`, `BETTER_AUTH_SECRETS` | Mindestens 32 Zeichen, `pnpm gen:keys` liefert 32 Byte in base64. Versionen als `<version>:<secret>`, die aktuelle zuerst. | Signaturen der Cookies und Bestätigungslinks von Better Auth, TOTP-Geheimnisse und Backup-Codes | Tokens, E-Mails, Sitzungen von X, Daten der Mandanten | API |
-| `TOKEN_KEKS`, `TOKEN_KEK_ACTIVE` | `<key-id>:<base64 32 Byte>`, durch Kommas getrennt; `TOKEN_KEK_ACTIVE` nennt den Schlüssel für neue Daten | Datenschlüssel der Plattform-Tokens und der E-Mails in der Queue `notifications` | Sitzungen und Logins von X, 2FA, Passwörter, Inhalte der Mandanten | API, Worker (siehe Verteilung) |
+| `TOKEN_KEKS`, `TOKEN_KEK_ACTIVE` | `<key-id>:<base64 32 Byte>`, durch Kommas getrennt; `TOKEN_KEK_ACTIVE` nennt den Schlüssel für neue Daten | Datenschlüssel der Plattform-Tokens | E-Mails, Sitzungen und Logins von X, 2FA, Passwörter, Inhalte der Mandanten | API, Worker (siehe Verteilung) |
+| `NOTIFY_KEKS`, `NOTIFY_KEK_ACTIVE` | wie `TOKEN_KEKS` | Datenschlüssel der E-Mails in der Queue `notifications` (seit Schritt 8.9) | Tokens, Sitzungen und Logins von X, 2FA | API, Worker `scheduler`, `publisher`, `gdpr`, `notify` und `billing` |
 | `SESSION_KEKS`, `SESSION_KEK_ACTIVE` | wie `TOKEN_KEKS` | Datenschlüssel des `storageState` von X sowie der Zugangsdaten und Codes eines Logins | Tokens, E-Mails, 2FA | browser-worker, API, Worker `scheduler` |
 | `STRIPE_WEBHOOK_SECRET` | aus dem Stripe-Dashboard | Signaturen der Webhooks von Stripe | alles andere | API |
 | `S3_SECRET_ACCESS_KEY` | vom Anbieter des Speichers | Signaturen der Anfragen an den Speicher und der signierten URLs | alles andere | API, Worker |
@@ -22,8 +23,8 @@ Mit `BETTER_AUTH_SECRETS` signiert und verschlüsselt Better Auth mit der aktuel
 | Zweck | Verfahren und Parameter | Schlüssel | Code | Schutzziel |
 | --- | --- | --- | --- | --- |
 | Plattform-Tokens im Ruhezustand | Envelope-Verschlüsselung: AES-256-GCM mit einem zufälligen Datenschlüssel (DEK, 256 bit) je Secret, IV 96 bit zufällig, Tag 128 bit. AAD `workspaceId:connectionId:access_token` bzw. `:refresh_token`, für Accounts `...:account.<id>.access_token`, für wartende Zustimmungen in Redis `workspaceId:pending.<id>:token_set` | DEK, gewrappt mit `TOKEN_KEKS` | `packages/crypto/src/envelope.ts`, `packages/core/src/channels/domain/secrets.ts` | Vertraulichkeit und Integrität; ein Umschlag öffnet nur in seiner Zeile und Spalte |
-| Wrap der Datenschlüssel | AES-256-GCM mit dem KEK, IV 96 bit zufällig, AAD `smp-kek:<key-id>`. Der Umschlag trägt Version, Key-ID, gewrappten DEK, IV, Tag und Ciphertext. | `TOKEN_KEKS`, `SESSION_KEKS` | `LocalKeyring` in `packages/crypto/src/local-keyring.ts` hinter `KmsPort` (`packages/crypto/src/kms.ts`) | Schutz der DEKs, Bindung an die Key-ID |
-| E-Mails der Queue `notifications` | Envelope wie oben über Adresse und Inhalt, AAD `notify.email` (seit Schritt 8.4) | `TOKEN_KEKS` | `packages/queue/src/notifications.ts` | Keine Adressen und Links im Klartext in Redis, AOF und Backups |
+| Wrap der Datenschlüssel | AES-256-GCM mit dem KEK, IV 96 bit zufällig, AAD `smp-kek:<key-id>`. Der Umschlag trägt Version, Key-ID, gewrappten DEK, IV, Tag und Ciphertext. | `TOKEN_KEKS`, `SESSION_KEKS`, `NOTIFY_KEKS` | `LocalKeyring` in `packages/crypto/src/local-keyring.ts` hinter `KmsPort` (`packages/crypto/src/kms.ts`) | Schutz der DEKs, Bindung an die Key-ID |
+| E-Mails der Queue `notifications` | Envelope wie oben über Adresse und Inhalt, AAD `notify.email` (seit Schritt 8.4) | `NOTIFY_KEKS` (seit Schritt 8.9, davor `TOKEN_KEKS`) | `packages/queue/src/notifications.ts`, `notifySealerFromEnv` in `packages/crypto/src/envelope-sealer.ts` | Keine Adressen und Links im Klartext in Redis, AOF und Backups |
 | Sitzung und Login von X | Envelope wie oben, AAD `workspaceId:x-browser.<X-Nutzer-ID>:session` bzw. `workspaceId:xb-login.<id>:credentials` und `...:code` | `SESSION_KEKS` | `packages/x-browser/src/protocol.ts`, `apps/browser-worker/src/login-runner.ts`, `apps/browser-worker/src/command-runner.ts` | Öffnen nur im browser-worker; Zugangsdaten werden nie gespeichert |
 | TOTP-Geheimnisse und Backup-Codes | XChaCha20-Poly1305 (`@noble/ciphers`), Nonce 192 bit zufällig, Schlüssel ist der SHA-256 des Secrets, ohne AAD; mit Versionen im Format `$ba$<version>$<hex>` | `BETTER_AUTH_SECRETS`, für Altbestand `BETTER_AUTH_SECRET` | `symmetricEncrypt` von Better Auth 1.7.9, Tabelle `two_factor` | Vertraulichkeit und Integrität |
 | Signierte Cookies | HMAC-SHA-256 (Web Crypto) über den Wert: `session_token`, `two_factor` (Zwischenschritt der 2FA, 10 min) und `device` (Gerät eines Kontos, 180 Tage); über https mit dem Präfix `__Host-smp.` | aktuelles Secret von Better Auth | Better Auth (`better-call`), `device` in `apps/api/src/modules/identity/auth-hooks.ts` | Integrität; ein Session-Token aus der Datenbank ergibt ohne Signatur keinen gültigen Cookie |
@@ -58,9 +59,10 @@ Richtlinie nach NIST SP 800-57 Teil 1, in Kurzform. Die Handgriffe stehen im [Ru
 
 ### Erzeugung
 
-- `pnpm gen:keys` (`tools/gen-keys.ts`) gibt `BETTER_AUTH_SECRET`, `TOKEN_KEKS` und `SESSION_KEKS` mit ihren aktiven Key-IDs aus: je 32 Byte aus `crypto.randomBytes` in base64, Key-IDs `kek-` mit acht Hex-Zeichen. Das Skript schreibt nichts auf die Platte und loggt nichts.
+- `pnpm gen:keys` (`tools/gen-keys.ts`) gibt `BETTER_AUTH_SECRET`, `TOKEN_KEKS`, `SESSION_KEKS` und `NOTIFY_KEKS` mit ihren aktiven Key-IDs aus: je 32 Byte aus `crypto.randomBytes` in base64, Key-IDs `kek-` mit acht Hex-Zeichen. Das Skript schreibt nichts auf die Platte und loggt nichts.
 - Eine neue Version für `BETTER_AUTH_SECRETS` ist die Zeile `BETTER_AUTH_SECRET` einer neuen Ausgabe.
 - Jede Umgebung hat eigene Schlüssel. `.env.example` enthält keine; die Werte in `.env.test` sind öffentlich und gelten nur für Tests.
+- Ohne `NOTIFY_KEKS` versiegeln Entwicklung und Tests die E-Mails mit `TOKEN_KEKS`. In Produktion startet ohne ihn kein Dienst, der E-Mails einreiht oder versendet (`notifySealerFromEnv`).
 - Beim Start prüft `LocalKeyring.fromEnv` jeden KEK: 32 Byte in kanonischem base64, Key-ID aus `[A-Za-z0-9._-]` mit 1 bis 64 Zeichen, keine doppelte Key-ID, der aktive Schlüssel in der Liste. Die API verlangt für Better Auth mindestens 32 Zeichen je Secret und eindeutige Versionen (`apps/api/src/config/api-env.ts`). Meldungen nennen Variablen und Key-IDs, nie Schlüssel.
 
 ### Speicherung
@@ -76,34 +78,34 @@ Die Tabelle nennt die Schlüssel der Verschlüsselung und von Better Auth. `STRI
 
 | Dienst oder Rolle | Schlüssel | Verwendung |
 | --- | --- | --- |
-| API | `BETTER_AUTH_SECRET(S)`, `TOKEN_KEKS`; `SESSION_KEKS` nur mit `FEATURE_X_BROWSER_GLOBAL` | Better Auth; versiegelt und öffnet Tokens im OAuth-Ablauf und beim Trennen; versiegelt E-Mails; versiegelt Zugangsdaten und Codes eines X-Logins und öffnet davon nichts |
-| Worker `scheduler` | `TOKEN_KEKS`, `SESSION_KEKS` | Re-Wrap beider Keyrings in `tick.maintenance`, ohne Inhalte zu entschlüsseln; versiegelt die E-Mails zum Nur-Lesen-Zustand |
-| Worker `publisher`, `analytics` | `TOKEN_KEKS` | öffnen Plattform-Tokens und versiegeln sie nach einem Refresh neu; `publisher` versiegelt zudem die Alarme des X-Browsers |
-| Worker `gdpr` | `TOKEN_KEKS` | öffnet Tokens für den Widerruf bei der Löschung einer Organisation; versiegelt E-Mails |
-| Worker `notify`, `billing` | `TOKEN_KEKS` | nur E-Mails: `notify` öffnet und versiegelt, `billing` versiegelt |
+| API | `BETTER_AUTH_SECRET(S)`, `TOKEN_KEKS`, `NOTIFY_KEKS`; `SESSION_KEKS` nur mit `FEATURE_X_BROWSER_GLOBAL` | Better Auth; versiegelt und öffnet Tokens im OAuth-Ablauf und beim Trennen; versiegelt E-Mails; versiegelt Zugangsdaten und Codes eines X-Logins und öffnet davon nichts |
+| Worker `scheduler` | `TOKEN_KEKS`, `SESSION_KEKS`, `NOTIFY_KEKS` | Re-Wrap der Keyrings der Tokens und der Sitzungen in `tick.maintenance`, ohne Inhalte zu entschlüsseln; versiegelt die E-Mails zum Nur-Lesen-Zustand |
+| Worker `publisher`, `analytics` | `TOKEN_KEKS`, `publisher` zudem `NOTIFY_KEKS` | öffnen Plattform-Tokens und versiegeln sie nach einem Refresh neu; `publisher` versiegelt zudem die Alarme des X-Browsers |
+| Worker `gdpr` | `TOKEN_KEKS`, `NOTIFY_KEKS` | öffnet Tokens für den Widerruf bei der Löschung einer Organisation; versiegelt E-Mails |
+| Worker `notify`, `billing` | `NOTIFY_KEKS` | nur E-Mails: `notify` öffnet und versiegelt, `billing` versiegelt |
 | Worker `media` und `ai`, Web-App | keine | nichts |
 | browser-worker | `SESSION_KEKS` | öffnet Zugangsdaten, Codes und Sitzungen; versiegelt neue und geänderte Sitzungen |
 
-- Im Compose-Profil `app` bekommt der Container `worker` beide Keyrings für alle Rollen aus `WORKER_ROLES`. Wer Rollen in eigenen Containern betreibt, gibt jedem Container nur die Schlüssel seiner Rollen aus der Tabelle.
+- Im Compose-Profil `app` bekommt der Container `worker` alle drei Keyrings für alle Rollen aus `WORKER_ROLES`. Wer Rollen in eigenen Containern betreibt, gibt jedem Container nur die Schlüssel seiner Rollen aus der Tabelle.
 - ASVS V11.1.1 verlangt, Schlüssel nicht zu überteilen. Alle Halter sind Dienste einer Installation unter einem Betrieb, kein Schlüssel wird mit Dritten geteilt. Ein Dienst mit einem KEK kann jeden Umschlag dieses Keyrings öffnen, den er zu lesen bekommt; die Rollen trennt heute der Code, nicht der Schlüssel.
 
-**Akzeptierte Entscheidung: ein Keyring für E-Mails und Tokens** (ADR 0039)
+**Eigener Keyring für E-Mails** (seit Schritt 8.9, ADR 0039)
 
-- Seit Schritt 8.4 halten die Rollen `notify` und `billing` den Token-Keyring, nur für die versiegelten E-Mails. E-Mails und Plattform-Tokens trennt allein die AAD (`notify.email` gegenüber `workspaceId:connectionId:feld`): Ein Token-Umschlag öffnet nicht als E-Mail und umgekehrt. Der Code beider Rollen liest keine versiegelten Spalten.
-- Begründung: Ein zweiter Keyring hätte eigene Variablen, eine eigene Rotation und die Verteilung an die API und fünf Worker-Rollen gebraucht, für Umschläge, die höchstens einen Tag nach Versand oder Fehlschlag in Redis liegen. Mit dem KMS in Schritt 8.9 wird die Verteilung ohnehin neu geordnet.
-- Plan: Schritt 8.9 gibt den E-Mails einen eigenen Keyring oder einen eigenen Schlüssel im KMS. Danach brauchen `notify` und `billing` den Token-Keyring nicht mehr.
+- API und Worker versiegeln die E-Mails mit `NOTIFY_KEKS`. Die Rollen `notify` und `billing` halten keinen Token-Keyring mehr: Wer E-Mails öffnet, öffnet damit keine Tokens.
+- Von Schritt 8.4 bis 8.9 hielten `notify` und `billing` den Token-Keyring, und allein die AAD trennte E-Mails und Tokens (`notify.email` gegenüber `workspaceId:connectionId:feld`). ADR 0039 hatte das bis Schritt 8.9 akzeptiert.
+- Die E-Mails liegen höchstens einen Tag nach Versand oder Fehlschlag in Redis. Der Keyring braucht deshalb keinen Re-Wrap und kein Archiv für Backups: Einen alten Schlüssel entfernt der Betrieb einen Tag nach dem Wechsel (Runbook).
 
 ### Rotation und Kryptoperioden
 
-- **Planmäßig** einmal im Jahr: `TOKEN_KEKS`, `SESSION_KEKS`, `BETTER_AUTH_SECRETS` und die übrigen Secrets des Runbooks.
+- **Planmäßig** einmal im Jahr: `TOKEN_KEKS`, `SESSION_KEKS`, `NOTIFY_KEKS`, `BETTER_AUTH_SECRETS` und die übrigen Secrets des Runbooks.
 - **Sofort** bei Verdacht auf Kompromittierung und beim Ausscheiden einer Person mit Zugriff auf die Produktion.
 - **Grenze je KEK**: höchstens 2^32 Wraps, die Grenze für AES-GCM mit zufälligen IVs (NIST SP 800-38D). Wird sie absehbar erreicht, wird früher rotiert.
-- **Ablauf**: KEKs in zwei Neustarts (anhängen, dann aktivieren), danach der Re-Wrap in `tick.maintenance` um 03:41 UTC; Better Auth mit der neuen Version vorn und `pnpm auth:reencrypt`. Ein alter Schlüssel verlässt die Umgebung erst, wenn die Prüfung des Runbooks bestanden ist (etwa `failed` gleich 0).
+- **Ablauf**: KEKs in zwei Neustarts (anhängen, dann aktivieren), danach der Re-Wrap in `tick.maintenance` um 03:41 UTC, für `NOTIFY_KEKS` stattdessen ein Tag Wartezeit; Better Auth mit der neuen Version vorn und `pnpm auth:reencrypt`. Ein alter Schlüssel verlässt die Umgebung erst, wenn die Prüfung des Runbooks bestanden ist (etwa `failed` gleich 0).
 - **Datenschlüssel**: Jeder DEK verschlüsselt genau einen Klartext. Neue DEKs entstehen nur beim Versiegeln, etwa bei einer neuen Verbindung, nach dem Refresh eines Tokens, bei einer geänderten Sitzung von X und für jede E-Mail. Der Re-Wrap behält DEK und Ciphertext.
 
 ### Widerruf und Vernichtung
 
-- **KEK kompromittiert**: neuen KEK aktivieren, den Re-Wrap abwarten, den alten KEK entfernen. Der Re-Wrap behält DEK und Ciphertext: Wer den alten KEK und eine Kopie der Umschläge hat, kann sie weiter öffnen. Lagen auch die Daten offen, sind deshalb die Inhalte selbst zu ersetzen: Accounts trennen (das widerruft den Grant bei der Plattform) und neu verbinden, Sitzungen von X bei X beenden und neu anmelden.
+- **KEK kompromittiert**: neuen KEK aktivieren, den Re-Wrap abwarten (bei `NOTIFY_KEKS` einen Tag), den alten KEK entfernen. Der Re-Wrap behält DEK und Ciphertext: Wer den alten KEK und eine Kopie der Umschläge hat, kann sie weiter öffnen. Lagen auch die Daten offen, sind deshalb die Inhalte selbst zu ersetzen: Accounts trennen (das widerruft den Grant bei der Plattform) und neu verbinden, Sitzungen von X bei X beenden und neu anmelden.
 - **Secret von Better Auth kompromittiert**: Die Rotation beendet alle Sessions und offenen Bestätigungslinks. Die Neuverschlüsselung ändert die TOTP-Geheimnisse nicht; lag auch die Tabelle `two_factor` offen, richten alle Konten ihren zweiten Faktor neu ein.
 - **Schlüssel anderer Anbieter** (Stripe, Speicher): beim Anbieter widerrufen, wie im Runbook beschrieben.
 - **Vernichtung**: Mit der Rotation verlässt ein Schlüssel die Umgebungen, auch Kopien in `.env`-Dateien. Seine Archivkopie (siehe Wiederherstellung) wird gelöscht, sobald kein Backup ihn mehr braucht.

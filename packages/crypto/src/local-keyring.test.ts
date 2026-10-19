@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { SealedSecretError } from './envelope';
-import { EnvelopeSealer, sealerFromEnv } from './envelope-sealer';
+import { EnvelopeSealer, notifySealerFromEnv, sealerFromEnv } from './envelope-sealer';
 import { KeyringConfigError, LocalKeyring } from './local-keyring';
 
 // The keyring of the env (TOKEN_KEKS, SESSION_KEKS in the format of pnpm gen:keys) and the
@@ -83,5 +83,42 @@ describe('EnvelopeSealer', () => {
     expect(rewrapped).not.toBeNull();
     await expect(after.rewrap(rewrapped ?? sealed)).resolves.toBeNull();
     expect(() => sealerFromEnv('sessions', { TOKEN_KEKS: `kek-a:${keyA}` })).toThrow(/SESSION_KEKS is empty/);
+  });
+});
+
+describe('the keyring of the e-mail jobs', () => {
+  const tokens = { TOKEN_KEKS: `kek-a:${keyA}`, TOKEN_KEK_ACTIVE: 'kek-a' };
+
+  it('seals with NOTIFY_KEKS, which the token keyring cannot open', async () => {
+    const notify = notifySealerFromEnv({
+      ...tokens,
+      NOTIFY_KEKS: `ntf-1:${keyB}`,
+      NOTIFY_KEK_ACTIVE: 'ntf-1',
+    });
+
+    const sealed = await notify.seal('{"to":"a@example.com"}', 'notify.email');
+
+    await expect(notify.open(sealed, 'notify.email')).resolves.toBe('{"to":"a@example.com"}');
+    await expect(sealerFromEnv('tokens', tokens).open(sealed, 'notify.email')).rejects.toMatchObject({
+      code: 'UNKNOWN_KEY',
+    });
+  });
+
+  it('falls back to the token keyring without NOTIFY_KEKS, as in development', async () => {
+    const sealed = await notifySealerFromEnv({ ...tokens, NOTIFY_KEKS: '' }).seal('mail', 'notify.email');
+
+    await expect(sealerFromEnv('tokens', tokens).open(sealed, 'notify.email')).resolves.toBe('mail');
+  });
+
+  it('requires NOTIFY_KEKS in production', () => {
+    expect(configError(() => notifySealerFromEnv({ ...tokens, NODE_ENV: 'production' }))).toBe(
+      'NOTIFY_KEKS is required in production; generate keys with pnpm gen:keys.',
+    );
+  });
+
+  it('names NOTIFY_KEK_ACTIVE when it does not fit NOTIFY_KEKS', () => {
+    expect(configError(() => notifySealerFromEnv({ ...tokens, NOTIFY_KEKS: `ntf-1:${keyB}` }))).toBe(
+      'NOTIFY_KEK_ACTIVE must name a key id of NOTIFY_KEKS.',
+    );
   });
 });

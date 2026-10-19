@@ -26,7 +26,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseRoles } from '../src/roles';
 import { loadWorkerEnv } from '../src/worker-env';
 import { WorkerModule } from '../src/worker.module';
-import { openedEmail, tokenKeys } from './support/sealed-email';
+import { notifyKeys, openedEmail, tokenKeys } from './support/sealed-email';
 
 // Guide steps 6.3 to 6.6 through the role "publisher": a post of a browser connection of X goes
 // to xb-commands with the sealed session and comes back as the return value of its job, the new
@@ -41,6 +41,7 @@ const SESSION = Buffer.from('sealed-session-of-the-test');
 const NEW_SESSION = Buffer.from('sealed-session-after-the-task');
 const LOGIN_SESSION = Buffer.from('sealed-session-of-a-login');
 const TOKEN_KEYS = tokenKeys();
+const NOTIFY_KEYS = notifyKeys();
 
 interface Workspace {
   organizationId: string;
@@ -211,6 +212,7 @@ describe('X without the API in the role "publisher"', () => {
       DATABASE_SYSTEM_URL: database.url('app_system'),
       APP_URL: 'http://localhost:3000',
       ...TOKEN_KEYS,
+      ...NOTIFY_KEYS,
       S3_ENDPOINT: 'http://127.0.0.1:9',
       S3_REGION: 'eu-central-1',
       S3_BUCKET: 'media',
@@ -435,7 +437,7 @@ describe('X without the API in the role "publisher"', () => {
       ).toEqual([{ enabled: false }]);
       await waitFor('the email', async () => (await notifications.getWaitingCount()) >= 1);
       const [email] = await notifications.getJobs(['waiting']);
-      expect(await openedEmail(TOKEN_KEYS, email?.data)).toMatchObject({
+      expect(await openedEmail(NOTIFY_KEYS, email?.data)).toMatchObject({
         to: 'ops@example.test',
         email: {
           template: 'x-browser-breaker',

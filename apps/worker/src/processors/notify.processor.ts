@@ -20,8 +20,8 @@ import { jobsTotal } from '../metrics';
 import { DELIVER_NOTIFICATION, EMAIL_SEALER, MAIL_PORT } from '../worker.tokens';
 
 /**
- * Delivers notifications (guide steps 1.8 and 4.9). An email is opened with the token keyring
- * (guide step 8.4), rendered in the recipient's language and sent over SMTP. An event of the
+ * Delivers notifications (guide steps 1.8 and 4.9). An email is opened with the keyring of the
+ * e-mails (guide steps 8.4 and 8.9), rendered in the recipient's language and sent over SMTP. An event of the
  * outbox goes to its recipients: in the app, and by email as one job per recipient. Failures are
  * retried by BullMQ; payloads that do not validate or open fail at once, except an email sealed
  * with a key the role does not know yet. Logs carry the job id, never an address, and so does the

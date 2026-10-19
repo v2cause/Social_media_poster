@@ -122,7 +122,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - **App**: `NODE_ENV`, `APP_URL`, `API_PORT`, `API_INTERNAL_URL`, `LOG_LEVEL`
   - **DB**: `DATABASE_URL` (app_user), `DATABASE_SYSTEM_URL` (app_system), `MIGRATION_DATABASE_URL` (app_migrator)
   - **Redis, S3, Mail**: `REDIS_URL`; `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE`, `PUBLIC_MEDIA_BASE_URL`; `SMTP_URL`, `MAIL_FROM`
-  - **Auth und Verschlüsselung**: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`; `TOKEN_KEKS`, `TOKEN_KEK_ACTIVE`, `SESSION_KEKS`, `SESSION_KEK_ACTIVE`
+  - **Auth und Verschlüsselung**: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`; `TOKEN_KEKS`, `TOKEN_KEK_ACTIVE`, `SESSION_KEKS`, `SESSION_KEK_ACTIVE`; seit Schritt 8.9 `NOTIFY_KEKS`, `NOTIFY_KEK_ACTIVE` für die E-Mail-Jobs
   - **KI**: `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `AI_EFFORT_GENERATE`, `AI_EFFORT_REFINE`, `AI_EFFORT_IDEAS`, `AI_EFFORT_ALT_TEXT`, `AI_REFUSAL_FALLBACK` (`AI_MONTHLY_CAP_MICROS` galt bis Phase 7; seitdem bestimmt der Tarif die Quote)
   - **Plattformen**:
     - Modus und Dry-Run: `PLATFORM_MODE_LINKEDIN`, `PLATFORM_MODE_META`, `PLATFORM_MODE_X` (mock oder live), `PUBLISH_DRY_RUN`

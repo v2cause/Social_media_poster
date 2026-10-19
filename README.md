@@ -85,7 +85,7 @@ Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis au
 | `pnpm db:seed`               | Demo-Daten laden                                                                                                 | Schritt 1.1  |
 | `pnpm stripe:sync`           | Produkte, Preise, Meter und Kundenportal in Stripe anlegen bzw. abgleichen (`STRIPE_SECRET_KEY`)                 | Schritt 7.2  |
 | `pnpm eval:ai`               | KI-Eval-Suite mit Budget (`EVAL_BUDGET_MICROS`), `--dry-run` schätzt nur; Bericht mit Vergleich zum letzten Lauf | Schritt 2.10 |
-| `pnpm gen:keys`              | 32-Byte-Schlüssel für Token und Sessions erzeugen                                                                | Schritt 0.4  |
+| `pnpm gen:keys`              | 32-Byte-Schlüssel für Tokens, Sessions und E-Mails erzeugen                                                      | Schritt 0.4  |
 | `pnpm check:deps`            | Architekturregeln mit dependency-cruiser prüfen                                                                  | Schritt 0.13 |
 | `pnpm check:emoji`           | Emoji und unsichtbare Zeichen in verfolgten Dateien suchen; mit `--commits A..B` in Commit-Messages              | Schritt 0.13 |
 | `pnpm check:format`          | Prettier-Prüfung über das Repo                                                                                   | Schritt 0.13 |

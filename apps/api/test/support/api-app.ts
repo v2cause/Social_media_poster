@@ -12,7 +12,7 @@ import {
   type InvitationMessage,
   type InvitationNotifier,
 } from '@smp/core';
-import { sealerFromEnv } from '@smp/crypto';
+import { notifySealerFromEnv } from '@smp/crypto';
 import { createPrismaClient, PrismaMediaUnitOfWork } from '@smp/db';
 import { createSmtpMailer, deliverEmail } from '@smp/emails';
 import { S3Storage, SharpImageProcessor, storageConfigOf } from '@smp/media';
@@ -50,6 +50,8 @@ import { startPwnedPasswords, type StartedPwnedPasswords } from './pwned-passwor
 export const APP_ORIGIN = 'http://localhost:3000';
 /** The token keyring of the tests, as in .env.test. */
 export const TEST_TOKEN_KEKS = 'test-kek:c21wLXRlc3Qta2VrLW1hdGVyaWFsLTAwMDAwMDAwMDA=';
+/** The keyring of the e-mails in the tests, under another key ID than the token keyring. */
+export const TEST_NOTIFY_KEKS = 'test-notify-kek:c21wLXRlc3Qtbm90aWZ5LWtlay1tYXRlcmlhbC0wMDA=';
 /** The session keyring of the tests, which seals the logins of X. */
 export const TEST_SESSION_KEKS = 'test-session-kek:c21wLXRlc3Qtc2Vzc2lvbi1rZWstbWF0ZXJpYWwtMDA=';
 export const TEST_BUCKET = 'smp-test-media';
@@ -150,6 +152,8 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
     TOKEN_KEK_ACTIVE: 'test-kek',
     SESSION_KEKS: TEST_SESSION_KEKS,
     SESSION_KEK_ACTIVE: 'test-session-kek',
+    NOTIFY_KEKS: TEST_NOTIFY_KEKS,
+    NOTIFY_KEK_ACTIVE: 'test-notify-kek',
     // The deterministic mock provider; automated tests never call the Claude API (architecture 7).
     AI_PROVIDER: 'mock',
     PWNED_PASSWORDS_API_URL: pwnedPasswords.url,
@@ -157,8 +161,8 @@ export async function startApiTestApp(options: ApiTestOptions = {}): Promise<Api
   });
 
   const mailer = createSmtpMailer({ url: mailpit.smtpUrl, from: 'noreply@smp.test' });
-  // Opens the sealed emails like the worker role "notify", with the token keyring of the tests.
-  const emailSealer = sealerFromEnv('tokens', env);
+  // Opens the sealed emails like the worker role "notify", with the keyring of the e-mails.
+  const emailSealer = notifySealerFromEnv(env);
   const notifications = new Worker(
     NOTIFICATIONS_QUEUE,
     async (job) => {

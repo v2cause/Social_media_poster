@@ -28,6 +28,10 @@ export const workerEnvSchema = z
     TOKEN_KEK_ACTIVE: z.string().optional(),
     SESSION_KEKS: z.string().optional(),
     SESSION_KEK_ACTIVE: z.string().optional(),
+    // The keyring of the e-mail jobs (guide step 8.9) for every role that queues or sends e-mails;
+    // production requires it, development and tests fall back to TOKEN_KEKS.
+    NOTIFY_KEKS: z.preprocess(unsetIfEmpty, z.string().optional()),
+    NOTIFY_KEK_ACTIVE: z.preprocess(unsetIfEmpty, z.string().optional()),
     // The role "publisher" (guide step 4.8): publish jobs at once per process; the BullMQ lock of
     // a running job, renewed while it runs, after which a stopped worker's job is taken over; and
     // the lease of a run in the database (5 minutes, architecture 7).

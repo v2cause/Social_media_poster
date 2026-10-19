@@ -7,7 +7,7 @@ import {
   RewrapSecrets,
   systemClock,
 } from '@smp/core';
-import { sealerFromEnv } from '@smp/crypto';
+import { notifySealerFromEnv, sealerFromEnv } from '@smp/crypto';
 import {
   createPrismaClient,
   createSystemPrismaClient,
@@ -108,8 +108,9 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
     throw new Error('Invalid configuration:\n  DATABASE_SYSTEM_URL is required for the role "scheduler"');
   }
   // The keyrings are checked at the start, not at night when the re-wrap first needs them; the
-  // token keyring also seals the emails of the notify jobs.
+  // keyring of the e-mails seals the emails of the notify jobs.
   const sealers = { tokens: sealerFromEnv('tokens', env), sessions: sealerFromEnv('sessions', env) };
+  const emailSealer = notifySealerFromEnv(env);
   // app_system for the scans across workspaces; every use runs inside a system scope.
   const system = createSystemPrismaClient(env.DATABASE_SYSTEM_URL);
   // app_user with the tenant of each connection: row-level security applies to the monitor too.
@@ -129,7 +130,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
   const dispatcher = new OutboxDispatcher({
     publish: publishProducer,
     live: new LiveEventPublisher(live),
-    notifications: new NotificationProducer(notificationsQueue, sealers.tokens),
+    notifications: new NotificationProducer(notificationsQueue, emailSealer),
   });
   const plans = new PrismaPublishScheduler(system, { batchSize: PUBLISH_BATCH });
   const publishTick = new PublishTick({
@@ -196,7 +197,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
         notices: new PrismaReadOnlyNotices(system),
         notifier: new EmailBillingNotifier({
           directory: new PrismaBillingDirectory(system),
-          notifications: new NotificationProducer(notificationsQueue, sealers.tokens),
+          notifications: new NotificationProducer(notificationsQueue, emailSealer),
           appUrl: env.APP_URL.replace(/\/$/, ''),
         }),
         clock: systemClock,

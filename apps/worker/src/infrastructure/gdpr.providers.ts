@@ -11,7 +11,7 @@ import {
   type GdprRequestRunner,
   type GrantRevoker,
 } from '@smp/core';
-import { sealerFromEnv } from '@smp/crypto';
+import { notifySealerFromEnv, sealerFromEnv } from '@smp/crypto';
 import {
   createSystemPrismaClient,
   PrismaBillingDirectory,
@@ -147,7 +147,7 @@ export function gdprPipeline(env: WorkerEnv): Provider[] {
       storage,
       notifier: new EmailGdprNotifier({
         directory: new PrismaBillingDirectory(system),
-        notifications: new NotificationProducer(notifications, sealer),
+        notifications: new NotificationProducer(notifications, notifySealerFromEnv(env)),
         appUrl: APP_URL.replace(/\/$/, ''),
       }),
       clock: systemClock,

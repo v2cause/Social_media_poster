@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import { DeliverNotification } from '@smp/core';
-import { sealerFromEnv } from '@smp/crypto';
+import { notifySealerFromEnv } from '@smp/crypto';
 import {
   createPrismaClient,
   PrismaNotificationDirectory,
@@ -17,7 +17,7 @@ import type { WorkerEnv } from '../worker-env';
 import { DELIVER_NOTIFICATION, EMAIL_SEALER, MAIL_PORT } from '../worker.tokens';
 
 // The adapters of the role "notify" (guide steps 1.8, 4.9 and 4.10): SMTP for the emails and the
-// token keyring that opens them (guide step 8.4); for the events of the outbox the database as
+// keyring that opens them (guide steps 8.4 and 8.9); for the events of the outbox the database as
 // app_user (the directory in the tenant of the event, the inbox as each recipient), the producer
 // that queues one sealed email per event and recipient, with links into the web app at APP_URL,
 // and the live events that announce a new notification.
@@ -63,7 +63,7 @@ export function notifyPipeline(env: WorkerEnv): Provider[] {
   const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false });
   const queue = new Queue(NOTIFICATIONS_QUEUE, { connection });
   // The keyring is checked at the start, not with the first email.
-  const sealer = sealerFromEnv('tokens', env);
+  const sealer = notifySealerFromEnv(env);
   const producer = new NotificationProducer(queue, sealer);
   // Live events go out on a plain connection that fails fast as well.
   const live = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1, enableOfflineQueue: false });

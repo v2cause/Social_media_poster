@@ -1,17 +1,17 @@
 # Runbook: Secrets rotieren
 
-Schritt 8.4 des Leitfadens, [ADR 0039](../adr/0039-security-review-und-haertung.md). Dieses Runbook beschreibt für jedes Secret der Plattform, wo es liegt, wer es nutzt, wie es rotiert wird und woran man den Erfolg erkennt.
+Schritte 8.4 und 8.9 des Leitfadens, [ADR 0039](../adr/0039-security-review-und-haertung.md). Dieses Runbook beschreibt für jedes Secret der Plattform, wo es liegt, wer es nutzt, wie es rotiert wird und woran man den Erfolg erkennt.
 
 ## Wann rotieren
 
 - **Sofort**: bei Verdacht auf Kompromittierung (Leck in Logs, Repository, Ticket oder Chat; verlorenes Gerät mit Zugriff).
 - **Beim Ausscheiden** einer Person mit Zugriff auf die Produktionsumgebung.
-- **Planmäßig**: einmal im Jahr, Schlüssel der Verschlüsselung (`TOKEN_KEKS`, `SESSION_KEKS`, `BETTER_AUTH_SECRETS`) ebenfalls jährlich.
+- **Planmäßig**: einmal im Jahr, Schlüssel der Verschlüsselung (`TOKEN_KEKS`, `SESSION_KEKS`, `NOTIFY_KEKS`, `BETTER_AUTH_SECRETS`) ebenfalls jährlich.
 
 ## Grundregeln
 
 - Secrets stehen nur in der Umgebung der Container (lokal `.env`, in Produktion im Secret-Store des Deployments, Schritt 8.9). Nie im Repository, in Logs, in Fehlermeldungen, in Audit-Metadaten oder in `NEXT_PUBLIC_*`-Variablen.
-- Neue Werte: `pnpm gen:keys` für `BETTER_AUTH_SECRET`, `TOKEN_KEKS` und `SESSION_KEKS`; für Passwörter `openssl rand -base64 32`.
+- Neue Werte: `pnpm gen:keys` für `BETTER_AUTH_SECRET`, `TOKEN_KEKS`, `SESSION_KEKS` und `NOTIFY_KEKS`; für Passwörter `openssl rand -base64 32`.
 - Nach jeder Rotation: betroffene Dienste neu starten, `GET /api/health/ready` und `GET :3002/health/ready` des Workers prüfen, Logs auf `level >= 50` durchsehen.
 - Alte Werte erst entfernen, wenn die Prüfung der jeweiligen Zeile unten bestanden ist.
 
@@ -31,6 +31,7 @@ Bei Verdacht auf ein übernommenes Konto oder eine gestohlene Sitzung, auch ohne
 | `BETTER_AUTH_SECRET`, `BETTER_AUTH_SECRETS` | API | Alle Sitzungen enden, offene Bestätigungslinks verfallen |
 | `TOKEN_KEKS`, `TOKEN_KEK_ACTIVE` | API, Worker | Keine |
 | `SESSION_KEKS`, `SESSION_KEK_ACTIVE` | API, Worker, browser-worker | Keine |
+| `NOTIFY_KEKS`, `NOTIFY_KEK_ACTIVE` | API, Worker | Keine |
 | Passwörter der Datenbankrollen | Postgres, API, Worker, Migrationen | Kurzer Neustart |
 | `REDIS_APP_PASSWORD`, `XB_REDIS_PASSWORD` | Redis, API, Worker, browser-worker | Kurzer Neustart |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | API, Worker | Ausgestellte signierte URLs verfallen |
@@ -53,16 +54,18 @@ Better Auth signiert damit die Session-Cookies und die Bestätigungslinks und ve
 
 Den Ablauf deckt `apps/api/test/auth-rotation.integration.test.ts` ab.
 
-## TOKEN_KEKS und SESSION_KEKS
+## TOKEN_KEKS, SESSION_KEKS und NOTIFY_KEKS
 
-Envelope-Verschlüsselung (`packages/crypto`): `TOKEN_KEKS` schützt die Tokens der Plattformen und die E-Mails in der Queue `notifications`, `SESSION_KEKS` die versiegelten Logins und Sitzungen des X-Browsers. Format: `<key-id>:<base64 32 Byte>`, durch Kommas getrennt; `*_KEK_ACTIVE` nennt den Schlüssel für neue Daten.
+Envelope-Verschlüsselung (`packages/crypto`): `TOKEN_KEKS` schützt die Tokens der Plattformen, `SESSION_KEKS` die versiegelten Logins und Sitzungen des X-Browsers, `NOTIFY_KEKS` seit Schritt 8.9 die E-Mails in der Queue `notifications`. Format: `<key-id>:<base64 32 Byte>`, durch Kommas getrennt; `*_KEK_ACTIVE` nennt den Schlüssel für neue Daten.
 
 Die Rotation läuft in zwei Neustarts, damit jeder Dienst den neuen Schlüssel kennt, bevor ein anderer damit versiegelt:
 
-1. Neuen KEK mit `pnpm gen:keys` erzeugen und an `TOKEN_KEKS` (bzw. `SESSION_KEKS`) anhängen. `TOKEN_KEK_ACTIVE` (bzw. `SESSION_KEK_ACTIVE`) bleibt beim bisherigen Schlüssel. API, Worker und (bei `SESSION_KEKS`) browser-worker neu starten.
-2. `TOKEN_KEK_ACTIVE` (bzw. `SESSION_KEK_ACTIVE`) auf die neue Key-ID setzen und die Dienste erneut neu starten. Eine E-Mail mit einem Schlüssel, den die Rolle `notify` noch nicht kennt, wiederholt sie einige Minuten lang und meldet dabei `notify.unknown_key` mit der Key-ID.
-3. Der nächste Lauf von `tick.maintenance` (03:41 UTC) wrappt alle Datenschlüssel mit dem aktiven KEK neu (`RewrapSecrets`), ohne etwas zu entschlüsseln. Im Ergebnis des Ticks: `rewrapped` größer 0 oder alles bereits aktuell, `failed` gleich 0. Die E-Mails in der Queue wrappt er nicht; sie sind bis dahin längst versendet, ihre Wiederholungen enden nach wenigen Minuten.
-4. Den alten KEK aus der Liste entfernen und die Dienste neu starten. Im Secret-Store bleibt er, bis die letzte Sicherung von vor dem Re-Wrap abgelaufen ist (14 Tage, [Backup und Wiederherstellung](backup-restore.md)); ein Restore auf einen Zeitpunkt davor braucht ihn wieder in der Liste.
+1. Neuen KEK mit `pnpm gen:keys` erzeugen und an `TOKEN_KEKS` (bzw. `SESSION_KEKS`, `NOTIFY_KEKS`) anhängen. `*_KEK_ACTIVE` bleibt beim bisherigen Schlüssel. API, Worker und (bei `SESSION_KEKS`) browser-worker neu starten.
+2. `*_KEK_ACTIVE` auf die neue Key-ID setzen und die Dienste erneut neu starten. Eine E-Mail mit einem Schlüssel, den die Rolle `notify` noch nicht kennt, wiederholt sie einige Minuten lang und meldet dabei `notify.unknown_key` mit der Key-ID.
+3. Bei `TOKEN_KEKS` und `SESSION_KEKS` wrappt der nächste Lauf von `tick.maintenance` (03:41 UTC) alle Datenschlüssel mit dem aktiven KEK neu (`RewrapSecrets`), ohne etwas zu entschlüsseln. Im Ergebnis des Ticks: `rewrapped` größer 0 oder alles bereits aktuell, `failed` gleich 0. `NOTIFY_KEKS` hat keinen Re-Wrap: Eine E-Mail liegt höchstens einen Tag nach Versand oder Fehlschlag in Redis, danach löscht BullMQ den Job.
+4. Den alten KEK aus der Liste entfernen und die Dienste neu starten, bei `NOTIFY_KEKS` einen Tag nach Schritt 2. Bei `TOKEN_KEKS` und `SESSION_KEKS` bleibt er im Secret-Store, bis die letzte Sicherung von vor dem Re-Wrap abgelaufen ist (14 Tage, [Backup und Wiederherstellung](backup-restore.md)); ein Restore auf einen Zeitpunkt davor braucht ihn wieder in der Liste. Ein alter Schlüssel von `NOTIFY_KEKS` braucht kein Archiv, denn Redis wird nicht gesichert und die Datenbank enthält keine E-Mails.
+
+**Umstieg auf `NOTIFY_KEKS`** (Installation von vor Schritt 8.9, in der `TOKEN_KEKS` die E-Mails versiegelt): `NOTIFY_KEKS` auf einen neuen Schlüssel aus `pnpm gen:keys` setzen, den aktiven Eintrag aus `TOKEN_KEKS` dahinter anhängen (`NOTIFY_KEKS=<neu>,<Token-KEK>`) und `NOTIFY_KEK_ACTIVE` auf die neue Key-ID setzen. API und Worker neu starten; die Rolle `notify` öffnet so auch die E-Mails, die noch mit dem Token-Keyring versiegelt sind. Nach einem Tag den Token-KEK aus `NOTIFY_KEKS` entfernen und neu starten. Danach brauchen die Rollen `notify` und `billing` `TOKEN_KEKS` nicht mehr.
 
 ## Passwörter der Datenbankrollen
 

@@ -13,9 +13,10 @@ import { notifyEmailJobId, notifyJobId } from './job-id';
 //
 // Exception to "payloads hold only ids": an email carries its address and text. One with a link
 // (verification, password reset, invitation) carries its link, because only the hash of the
-// token is stored (ADR 0012). Both are sealed with the token keyring, so Redis, its AOF and its
-// backups hold neither address nor link in the clear (guide step 8.4); the role "notify" opens
-// them right before it sends. A job leaves Redis right after delivery, a failed one after a day.
+// token is stored (ADR 0012). Both are sealed with the keyring of the e-mails, so Redis, its AOF
+// and its backups hold neither address nor link in the clear (guide steps 8.4 and 8.9); the role
+// "notify" opens them right before it sends. A job leaves Redis right after delivery, a failed one
+// after a day.
 
 export const NOTIFICATIONS_QUEUE = 'notifications';
 export const NOTIFY_DISPATCH = 'notify.dispatch';
@@ -60,7 +61,7 @@ const MAX_SEALED_LENGTH = 64 * 1024;
 
 const emailDispatchSchema = z.object({
   channel: z.literal('email'),
-  /** The SealedEmail, sealed with the token keyring, as base64. */
+  /** The SealedEmail, sealed with the keyring of the e-mails, as base64. */
   sealed: z.base64().max(MAX_SEALED_LENGTH),
 });
 export type EmailDispatch = z.output<typeof emailDispatchSchema>;
