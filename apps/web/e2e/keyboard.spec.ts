@@ -94,3 +94,42 @@ test('the arrow keys move through the variant tabs of the composer', async ({ pa
   await page.keyboard.press('ArrowLeft');
   await expect(tabs.nth(count - 1)).toBeFocused();
 });
+
+test('the sticky header never covers the element with the focus', async ({ page }) => {
+  // WCAG 2.4.11: a long table, walked forwards and backwards on a short screen.
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await signInDemo(page, 'owner@demo.local');
+  await page.goto(`${DEMO_WORKSPACE}/posts`);
+  await settle(page);
+
+  const covered = new Set<string>();
+  const check = async () => {
+    const found = await page.evaluate(() => {
+      const element = document.activeElement;
+      const header = document.querySelector('header');
+      // The skip link lies above the header; the header and the sidebar never scroll.
+      if (
+        !element ||
+        element === document.body ||
+        !header ||
+        element.closest('header, aside, [href="#main"]')
+      ) {
+        return null;
+      }
+      const box = element.getBoundingClientRect();
+      return box.top < header.getBoundingClientRect().bottom - 1 ? element.textContent.trim() : null;
+    });
+    if (found !== null) {
+      covered.add(found);
+    }
+  };
+  for (let stop = 0; stop < 40; stop += 1) {
+    await page.keyboard.press('Tab');
+    await check();
+  }
+  for (let stop = 0; stop < 40; stop += 1) {
+    await page.keyboard.press('Shift+Tab');
+    await check();
+  }
+  expect([...covered]).toEqual([]);
+});
