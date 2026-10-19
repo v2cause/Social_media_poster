@@ -34,7 +34,9 @@ import type { MockPlatformStore, MockPost } from './mock-platform-store';
 // - failMode: rate_limit_once (429 once per variant), auth_expired, unknown_outcome (nothing went
 //   out, the answer is lost), permanent (refused), slow (the post goes out, the answer comes late:
 //   a worker stopped meanwhile finds it again by reconcile);
-// - failStatus: an HTTP status, mapped like a real answer, for the contract suite.
+// - failStatus: an HTTP status, mapped like a real answer, for the contract suite;
+// - failUntil: the failures end at this time, like an outage of the platform (the drills of the
+//   runbooks, guide step 8.7).
 
 export const MOCK_FAIL_MODES = [
   'rate_limit_once',
@@ -50,6 +52,7 @@ export const mockAccountSettingsSchema = z.object({
   failMode: z.enum(MOCK_FAIL_MODES).optional(),
   failStatus: z.number().int().min(400).max(599).optional(),
   retryAfterSeconds: z.number().int().min(0).max(3_600).optional(),
+  failUntil: z.iso.datetime().optional(),
 });
 export type MockAccountSettings = z.infer<typeof mockAccountSettingsSchema>;
 
@@ -58,9 +61,17 @@ const SLOW_MS = 10_000;
 const X_RECONCILE_POSTS = 5;
 
 /** Settings that do not parse count as none: a typo must not break publishing in development. */
-const settingsOf = (ctx: AdapterContext): MockAccountSettings => {
+const settingsOf = (ctx: AdapterContext, now: Date): MockAccountSettings => {
   const parsed = mockAccountSettingsSchema.safeParse(ctx.account.settings);
-  return parsed.success ? parsed.data : {};
+  if (!parsed.success) {
+    return {};
+  }
+  const settings = parsed.data;
+  // After failUntil the platform answers again, only its latency stays.
+  if (settings.failUntil !== undefined && now.getTime() >= Date.parse(settings.failUntil)) {
+    return settings.latencyMs === undefined ? {} : { latencyMs: settings.latencyMs };
+  }
+  return settings;
 };
 
 /** A small stable number per id, so metrics differ between posts but not between calls. */
@@ -103,7 +114,7 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
    */
   async refreshCredentials(ctx: AdapterContext): Promise<RefreshOutcome> {
     await this.call('refresh', ctx);
-    if (settingsOf(ctx).failMode === 'auth_expired') {
+    if (settingsOf(ctx, this.options.clock.now()).failMode === 'auth_expired') {
       throw new PlatformError('AUTH_EXPIRED', 'The mock platform refused the refresh', { status: 401 });
     }
     if (this.platform !== 'INSTAGRAM' && (await ctx.credentials.refreshToken()) === null) {
@@ -134,7 +145,7 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
       throw new Error('A dry run must not reach publish.');
     }
     await this.call('publish', ctx);
-    const settings = settingsOf(ctx);
+    const settings = settingsOf(ctx, this.options.clock.now());
     switch (settings.failMode) {
       case 'auth_expired':
         throw new PlatformError('AUTH_EXPIRED', 'The mock platform refused the token', { status: 401 });
@@ -258,12 +269,12 @@ export class MockPlatformAdapter implements SocialPlatformAdapter {
   /** Counts the call, waits the latency and fails with failStatus where one is set. */
   private async call(operation: string, ctx: AdapterContext): Promise<void> {
     await this.options.store.countCall(operation, ctx.account.id);
-    const latency = settingsOf(ctx).latencyMs ?? this.options.defaultLatencyMs ?? 0;
+    const latency = settingsOf(ctx, this.options.clock.now()).latencyMs ?? this.options.defaultLatencyMs ?? 0;
     if (latency > 0) {
       await sleep(latency, undefined, { signal: ctx.signal });
     }
     if (operation !== 'publish') {
-      this.failWithStatus(settingsOf(ctx), `mock.${operation}`);
+      this.failWithStatus(settingsOf(ctx, this.options.clock.now()), `mock.${operation}`);
     }
   }
 

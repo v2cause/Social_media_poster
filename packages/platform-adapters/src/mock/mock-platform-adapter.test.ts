@@ -109,6 +109,29 @@ describe('MockPlatformAdapter', () => {
     );
   });
 
+  it('fails with its status until failUntil and answers again after it, like an outage', async () => {
+    const { adapter, ctx, request } = setup({
+      failMode: 'auth_expired',
+      failUntil: '2026-10-16T10:30:00Z',
+      latencyMs: 1,
+    });
+
+    await expect(codeOf(adapter.publish(request, ctx))).resolves.toBe('AUTH_EXPIRED');
+    await expect(codeOf(adapter.refreshCredentials(ctx))).resolves.toBe('AUTH_EXPIRED');
+    const outage = setup({ failStatus: 503, failUntil: '2026-10-16T10:30:00Z' });
+    await expect(codeOf(outage.adapter.publish(outage.request, outage.ctx))).resolves.toBe('TRANSIENT');
+
+    now = new Date('2026-10-16T10:30:00Z');
+    try {
+      await expect(adapter.publish(request, ctx)).resolves.toHaveProperty('externalPostId');
+      await expect(outage.adapter.publish(outage.request, outage.ctx)).resolves.toHaveProperty(
+        'externalPostId',
+      );
+    } finally {
+      now = new Date('2026-10-16T10:00:00Z');
+    }
+  });
+
   it('renews like the real platforms: X with its refresh token and Instagram, not LinkedIn or Facebook', async () => {
     const { ctx } = setup();
     const withoutRefreshToken: AdapterContext = {
