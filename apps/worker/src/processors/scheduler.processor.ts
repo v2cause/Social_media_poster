@@ -33,6 +33,16 @@ const LEGACY_SCHEDULER_ID = 'scheduler-tick';
 const isIdle = (result: TickResult): boolean =>
   Object.values(result).every((value) => value === 0 || value === null || value === undefined);
 
+/**
+ * When the job scheduler planned the run: the end of the id of its jobs, "repeat:<tick>:<ms>".
+ * BullMQ sets the delay of a job to 0 when it moves it from delayed to waiting, so timestamp plus
+ * delay names the time the job was created, an interval before its time (guide step 8.7).
+ */
+export function plannedAtOf(job: Pick<Job, 'id' | 'timestamp' | 'delay'>): number {
+  const planned = /^repeat:.+:(\d+)$/.exec(job.id ?? '')?.[1];
+  return planned === undefined ? job.timestamp + job.delay : Number(planned);
+}
+
 @Processor(SCHEDULER_QUEUE, { concurrency: 4 })
 export class SchedulerProcessor extends WorkerHost implements OnApplicationBootstrap {
   constructor(
@@ -74,7 +84,7 @@ export class SchedulerProcessor extends WorkerHost implements OnApplicationBoots
     // How late the run started against the time the job scheduler gave it.
     tickLagSeconds.set(
       { tick: job.name },
-      Math.max(0, (job.processedOn ?? Date.now()) - (job.timestamp + job.delay)) / 1_000,
+      Math.max(0, (job.processedOn ?? Date.now()) - plannedAtOf(job)) / 1_000,
     );
     try {
       const result = await handler();
