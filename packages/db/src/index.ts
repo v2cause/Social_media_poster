@@ -23,6 +23,12 @@ export { PrismaTenancyUnitOfWork } from './tenancy/prisma-tenancy-unit-of-work';
 export { createPrismaTenancyStore, type RequestOrigin } from './tenancy/prisma-tenancy-store';
 export { membershipsOfUser, type UserMembership } from './tenancy/memberships-of-user';
 export {
+  readOperationsCounts,
+  readStorageBytes,
+  STUCK_QUEUED_MINUTES,
+  type OperationsCounts,
+} from './operations/operations-snapshot';
+export {
   TenancyReadModel,
   type InvitationMailContext,
   type InvitationPreviewView,

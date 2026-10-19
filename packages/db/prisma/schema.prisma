@@ -674,6 +674,8 @@ model AiGeneration {
   @@index([workspaceId, createdAt(sort: Desc)])
   // The generations that still hold raw data, for the retention periods.
   @@index([createdAt], map: "ai_generation_raw_data_idx", where: raw("input IS NOT NULL OR output IS NOT NULL"))
+  // For the metrics of the last 24 hours across all workspaces (guide step 8.7).
+  @@index([createdAt], map: "ai_generation_created_idx")
   @@map("ai_generation")
 }
 
@@ -1072,6 +1074,8 @@ model ApiCostRecord {
   @@index([organizationId, createdAt])
   @@index([workspaceId, createdAt])
   @@index([organizationId, createdAt], map: "api_cost_record_unreported_idx", where: raw("reported_to_stripe_at IS NULL"))
+  // For the metrics of the last 24 hours across all organizations (guide step 8.7).
+  @@index([createdAt], map: "api_cost_record_created_idx")
   @@map("api_cost_record")
 }
 
