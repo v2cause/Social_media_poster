@@ -19,13 +19,13 @@ async function bootstrap(): Promise<void> {
   });
   configureApp(app, env);
 
-  await app.listen(env.API_PORT, '0.0.0.0');
+  await app.listen(env.API_PORT, env.API_HOST);
   // The metrics on a port of their own, which the reverse proxy does not reach (guide step 8.7).
   if (env.API_METRICS_PORT > 0) {
     startMetricsServer(env.API_METRICS_PORT);
   }
   createLogger({ service: 'api', environment: env.NODE_ENV, level: env.LOG_LEVEL }).info(
-    { port: env.API_PORT, metricsPort: env.API_METRICS_PORT },
+    { host: env.API_HOST, port: env.API_PORT, metricsPort: env.API_METRICS_PORT },
     'api.started',
   );
 }

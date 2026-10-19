@@ -47,6 +47,9 @@ export const apiEnvSchema = z
   .object({
     APP_URL: z.url(),
     API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+    // The address the API listens on. The production template binds it to the address of the
+    // network of the reverse proxy, so that only Caddy and the web app reach it (guide step 8.9).
+    API_HOST: z.preprocess(unsetIfEmpty, z.union([z.ipv4(), z.ipv6()]).default('0.0.0.0')),
     // GET /metrics for Prometheus on a port the reverse proxy does not reach; 0 switches it off.
     API_METRICS_PORT: z.coerce.number().int().min(0).max(65535).default(9464),
     REDIS_URL: z.url({ protocol: /^rediss?$/ }),

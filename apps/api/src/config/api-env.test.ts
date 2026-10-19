@@ -27,6 +27,7 @@ describe('loadApiEnv', () => {
     const env = loadApiEnv(validEnv);
 
     expect(env.API_PORT).toBe(3001);
+    expect(env.API_HOST).toBe('0.0.0.0');
     expect(env.S3_FORCE_PATH_STYLE).toBe(true);
     expect(env.LOG_LEVEL).toBe('info');
   });
@@ -58,6 +59,14 @@ describe('loadApiEnv', () => {
 
   it('requires a Better Auth secret of at least 32 characters', () => {
     expect(() => loadApiEnv({ ...validEnv, BETTER_AUTH_SECRET: 'too-short' })).toThrow(/BETTER_AUTH_SECRET/);
+  });
+});
+
+describe('loadApiEnv with its listen address (guide step 8.9)', () => {
+  it('takes an IP address and refuses a host name', () => {
+    expect(loadApiEnv({ ...validEnv, API_HOST: '172.30.10.11' }).API_HOST).toBe('172.30.10.11');
+    expect(loadApiEnv({ ...validEnv, API_HOST: '' }).API_HOST).toBe('0.0.0.0');
+    expect(() => loadApiEnv({ ...validEnv, API_HOST: 'api-1' })).toThrow(/API_HOST/);
   });
 });
 
