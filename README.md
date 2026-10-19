@@ -30,7 +30,7 @@ Phase 6 (X ohne API) ist hinter Feature-Flags umgesetzt: Freischaltung mit versi
 
 Phase 7 (Billing und Quoten) ist umgesetzt: Tarife mit Limits und Testphase, Stripe Checkout, Kundenportal und Tarifwechsel, Webhooks über die Worker-Rolle `billing`, die tägliche Meldung von KI-Mehrverbrauch und X-Kosten an die Stripe-Meter, die Limits an allen Stellen mit Nur-Lesen nach Zahlungsverzug oder Abo-Ende und die Abrechnungsseite mit Verbrauch, Tarifen und Rechnungen ([ADR 0033](docs/adr/0033-tarife-abo-und-nur-lesen.md) bis [ADR 0035](docs/adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)). Getestet ist alles gegen einen Fake-Stripe, der die Parameter gegen die OpenAPI-Spezifikation von Stripe prüft. Offen ist der Lauf gegen die Test Clocks des echten Stripe: Der Test liegt bereit, braucht aber einen Testschlüssel. Die Preise sind Platzhalter.
 
-Phase 8 (Härtung, DSGVO, Betrieb) ist in Arbeit. Umgesetzt sind Datenexport und Löschung auf der Seite "Daten und Löschung", die Aufbewahrungsfristen, das Security-Review, der Lasttest und die Sicherung:
+Phase 8 (Härtung, DSGVO, Betrieb) ist in Arbeit. Umgesetzt sind Datenexport und Löschung auf der Seite "Daten und Löschung", die Aufbewahrungsfristen, das Security-Review, der Lasttest, die Sicherung, der Betrieb und die Barrierefreiheit:
 
 - **Export**: Owner fordern einen Export an. Die Worker-Rolle `gdpr` schreibt alle Tabellen der Organisation als JSON und die Originale der Medien als ZIP in den Objektspeicher, und nach der E-Mail lädt der Owner das Archiv 24 Stunden lang herunter ([ADR 0036](docs/adr/0036-datenschutz-anfragen-und-datenexport.md)).
 - **Löschung**: Owner löschen die Organisation mit ihrem Namen als Bestätigung. Ab da arbeitet niemand mehr darin, und 30 Tage lang können Owner die Löschung zurücknehmen. Danach löscht die Rolle `gdpr` alles: Grants bei den Plattformen, den Stripe-Kunden, die Objekte und jede Zeile der Organisation. `pnpm check:erasure <requestId>` prüft, dass nichts übrig ist ([ADR 0037](docs/adr/0037-loeschung-von-organisationen.md)).
@@ -45,6 +45,8 @@ Phase 8 (Härtung, DSGVO, Betrieb) ist in Arbeit. Umgesetzt sind Datenexport und
   - Runbooks für Plattform-Ausfall, massenhaften Token-Ablauf, X-Drift, Redis-Verlust und hängende Queues, alle durchgespielt. Die Fehler spielt `pnpm drill` ein, für Redis und die Queues Compose und die Rollen des Workers.
 
   Die Proben fanden und behoben sechs Fehler, darunter eine SLO-Regel, die unter Prometheus 3 nie anschlug, und Ticks, die nach einem Datenverlust in Redis stillstanden ([ADR 0043](docs/adr/0043-slos-metriken-und-alarme.md), [Übersicht der Alarme](docs/runbooks/alarme.md)).
+
+- **Barrierefreiheit**: axe prüft in den E2E-Tests die Seiten, Menüs und Dialoge gegen WCAG 2.2 AA, im hellen und im dunklen Schema. Tests halten den Weg der Tastatur und die Breite von 320 Pixeln fest. Die Prüfung fand und behob 14 Mängel, darunter Kontraste im dunklen Schema, einen fehlenden Sprunglink und Dialoge, nach denen der Fokus verloren ging. Ein Test mit Screenreadern steht aus ([ADR 0044](docs/adr/0044-barrierefreiheit.md), [Prüfprotokoll](docs/barrierefreiheit/pruefung-2026-10.md)).
 
 ## Entwicklung
 

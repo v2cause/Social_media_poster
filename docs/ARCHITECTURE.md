@@ -624,6 +624,9 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches
 - **i18n**: next-intl mit ICU-Nachrichten, eine Datei pro Namespace und Sprache (`apps/web/messages/{de,en}/<namespace>.json`), typisierte Keys. Deutsch ist die Referenz; `pnpm check:i18n` prüft in der CI, dass jede Sprache dieselben Keys mit denselben Argumenten hat und jede Nachricht gültiges ICU ist. Plural über ICU (`{count, plural, one {...} other {...}}`), Datum und Zahlen über `useFormatter`. API-Fehlercodes werden im Client unter `errors.codes.<CODE>` übersetzt.
 - **Live-Updates**: SSE `/api/w/:ws/events` invalidiert Query-Keys; als Fallback wird alle 30 s gepollt. Jeder Tab öffnet höchstens einen Stream, für den offenen Workspace. Die API hört pro Prozess mit einer Redis-Verbindung auf die Kanäle der Workspaces mit offenen Streams. Eine neue Benachrichtigung (`notification.created`) erreicht nur die Streams ihres Nutzers. Nach einem verlorenen Stream gelten alle Abfragen, die ein Ereignis ändern könnte, als veraltet.
 - **Ziel**: WCAG 2.2 AA.
+  - axe prüft in den E2E-Tests die Seiten, Menüs und Dialoge in beiden Farbschemata. Verstöße der Stufen `serious` und `critical` brechen den Build.
+  - Tests halten den Weg der Tastatur fest: Sprunglink, Menüs, Dialoge mit Rückgabe des Fokus, Tabs mit Pfeiltasten und den Knopf des Kalenders in Datumsfeldern. Ein weiterer Test prüft die Breite von 320 Pixeln.
+  - Siehe [ADR 0044](adr/0044-barrierefreiheit.md) und das [Prüfprotokoll](barrierefreiheit/pruefung-2026-10.md).
 
 ---
 
@@ -654,7 +657,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches
   5. Adapter-Contract-Tests
   6. OpenAPI-Drift-Check (Integrationstest gegen `packages/api-client/openapi.json`, ADR 0013)
   7. Prisma-Migrationsprüfung (`migrate diff`, squawk)
-  8. E2E mit Playwright gegen den gestarteten Stack (Compose-Infrastruktur, API, Worker, Web)
+  8. E2E mit Playwright gegen den gestarteten Stack (Compose-Infrastruktur, API, Worker, Web), mit axe in beiden Farbschemata und den Tastaturtests (ADR 0044)
   9. Docker-Build der fünf Images (`turbo prune`) mit SBOM (CycloneDX) und Trivy-Scan auf Schwachstellen und Secrets, auch wöchentlich ohne neue Commits; der Push nach GHCR auf main folgt mit dem Deployment (Schritt 8.9)
   10. Prüfung der Monitoring-Regeln mit `promtool` und `amtool`, mit den Unit-Tests der Alarme
 
@@ -675,7 +678,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches
 | Adapter-Contract | eine gemeinsame Suite, die jeder Adapter inkl. Mock bestehen muss: Fehler-Mapping 401/403/429/5xx, Normalisierung, Reconcile; aufgezeichnete und bereinigte Fixtures pro API-Version | msw v2 |
 | Integration | RLS-Isolation (zwei Mandanten), Scheduler-Tick mit 2 parallelen Workern (kein doppeltes Einreihen), Absturz während des Publishings führt zu Reconcile ohne Duplikat, Outbox, Token-Refresh-Lock, Medien mit SeaweedFS, Abrechnung gegen den Fake-Stripe (optional gegen die Test Clocks von Stripe), Datenexport (jede Tabelle mit Mandantenspalte, keine Geheimnisse, ZIP mit eigenem Leser geprüft) | Testcontainers |
 | API-E2E | Auth-Flows, Rechte-Matrix (Rolle x Endpunkt), Quoten, Webhook-Signaturen | supertest |
-| Web-E2E | Registrieren, Onboarding, Mock-Account verbinden, KI-Post (Mock), Bild hochladen, für +1 min planen, veröffentlicht, Analytics gefüllt; Kalender-Drag & Drop; Einladung; Viewer nur lesend; Abrechnung mit dem Fake-Stripe (Checkout, Downgrade, past_due, Kündigung); Datenexport mit Download | Playwright |
+| Web-E2E | Registrieren, Onboarding, Mock-Account verbinden, KI-Post (Mock), Bild hochladen, für +1 min planen, veröffentlicht, Analytics gefüllt; Kalender-Drag & Drop; Einladung; Viewer nur lesend; Abrechnung mit dem Fake-Stripe (Checkout, Downgrade, past_due, Kündigung); Datenexport mit Download; Barrierefreiheit: axe auf Seiten, Menüs und Dialogen in beiden Farbschemata, Tastatur und 320 Pixel Breite ([ADR 0044](adr/0044-barrierefreiheit.md)) | Playwright, axe-core |
 | Browser-Adapter | lokale, bereinigte DOM-Fixtures von Login, Composer und Challenge-Seite plus aufgezeichnete JSON-Antworten; Challenge führt zur Pause; Drift-Fehlerpfad | Playwright |
 | KI-Eval (optional) | Golden Briefs (DE/EN x Stile x Plattformen): Schema, Längen, verbotene Wörter, Sprache, Refusal-Quote, Kosten; Pflicht vor Prompt- oder Modellwechseln | Vitest + echte API mit Budget |
 | Last | 10.000 fällige Varianten in derselben Minute, p95 der Lesezugriffe unter 300 ms, Durchsatz der Analytics-Batches ([ADR 0041](adr/0041-lasttest.md)) | k6, `pnpm load:stats` für die Abfragen der Metriken |

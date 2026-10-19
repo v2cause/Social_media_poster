@@ -1472,6 +1472,33 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
 #### 8.8 Barrierefreiheit
 - **Erstellen**: axe-Checks in Playwright, manuelle Tastaturprüfung.
 - **Fertig, wenn**: keine kritischen Verstöße.
+- **Umgesetzt** ([ADR 0044](adr/0044-barrierefreiheit.md), [Prüfprotokoll](barrierefreiheit/pruefung-2026-10.md)):
+  - **axe**: `@axe-core/playwright` prüft gegen WCAG 2.2 AA, im hellen und im dunklen Schema:
+    - in `apps/web/e2e/accessibility.spec.ts` die Seiten vor der Anmeldung, 21 Seiten der App und die Menüs und Dialoge;
+    - in `billing.spec.ts` die Abrechnungsseite und den Tarifwechsel, weil nur dort das Fake-Stripe läuft;
+    - in `media.spec.ts` den Zuschnitt.
+    - Verstöße der Stufen `serious` und `critical` lassen den Test scheitern.
+    - Zwölf Seiten dürfen bei 320 Pixeln Breite nicht seitlich scrollen.
+  - **Tastatur**: Tab-Läufe über 18 Seiten in beiden Schemata. Menüs, Dialoge, Kalender, Composer, Zuschnitt und Datumsfelder wurden mit der Tastatur allein bedient. `apps/web/e2e/keyboard.spec.ts` hält Sprunglink, Menüs, Dialoge, Tabs, Datumsfelder und den fixierten Kopf fest.
+  - **Änderungen an der App**:
+    - Überschriften erster Ebene auf den Seiten mit Karte;
+    - Kontraste im dunklen Schema und Rahmen der Formularfelder;
+    - Ziele von 24 Pixeln;
+    - Raster und Tabellen für 320 Pixel;
+    - der Sprunglink "Zum Inhalt springen";
+    - Tabs mit Pfeiltasten;
+    - Schaltflächen für den Zuschnitt;
+    - Abstand unter dem fixierten Kopf;
+    - der Fokus zurück an den Auslöser nach jedem Dialog;
+    - `color-scheme` und ein Fokusrahmen für den Knopf des Kalenders.
+  - **Tests**: `apps/web/e2e/accessibility.spec.ts`, `keyboard.spec.ts`, die Abrechnung in `billing.spec.ts` und der Zuschnitt in `media.spec.ts`, dazu die Unit-Tests `apps/web/src/lib/roving-focus.test.ts` und `apps/web/src/features/media/crop.test.ts`.
+- **Stand**: Das Kriterium ist erfüllt. Auf allen 26 geprüften Seiten meldet axe in beiden Schemata keinen Verstoß, auch keinen leichten. In Menüs und Dialogen meldet es keinen der Stufen `serious` und `critical`.
+  - Die Prüfung am 2026-10-19 fand 14 Mängel, und alle sind behoben (ADR 0044, Befunde). Darunter waren Kontraste des dunklen Schemas, vier Seiten, die bei 320 Pixeln seitlich scrollten, 17 Dialoge, nach denen der Fokus verloren ging, und ein Fokus unter dem fixierten Kopf.
+  - Grenzen (ADR 0044):
+    - Es gab keinen Test mit Screenreadern und keine Prüfung durch eine Person an einem echten Gerät.
+    - Geprüft ist nur Chromium.
+    - Textabstände und E-Mails sind nicht geprüft.
+  - Keine Abweichung von der Architektur.
 
 #### 8.9 Deployment
 - **Erstellen**: Produktions-Vorlage, z.B. Compose für eine VM mit Caddy/Traefik und TLS oder ein Helm-Chart (Entscheidung gemeinsam mit dir).
