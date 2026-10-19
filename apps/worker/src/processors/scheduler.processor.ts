@@ -1,5 +1,5 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, type OnApplicationBootstrap } from '@nestjs/common';
+import { Inject, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import {
   isTick,
   SCHEDULER_QUEUE,
@@ -29,6 +29,8 @@ export type TickHandlers = Partial<Record<Tick, () => Promise<TickResult>>>;
 
 /** The placeholder tick of phase 0, removed from Redis on start. */
 const LEGACY_SCHEDULER_ID = 'scheduler-tick';
+/** How often the role looks for job schedulers that Redis lost, for example with its data. */
+const SCHEDULER_CHECK_MS = 60_000;
 
 const isIdle = (result: TickResult): boolean =>
   Object.values(result).every((value) => value === 0 || value === null || value === undefined);
@@ -44,7 +46,9 @@ export function plannedAtOf(job: Pick<Job, 'id' | 'timestamp' | 'delay'>): numbe
 }
 
 @Processor(SCHEDULER_QUEUE, { concurrency: 4 })
-export class SchedulerProcessor extends WorkerHost implements OnApplicationBootstrap {
+export class SchedulerProcessor extends WorkerHost implements OnApplicationBootstrap, OnApplicationShutdown {
+  private check: NodeJS.Timeout | undefined;
+
   constructor(
     @InjectQueue(SCHEDULER_QUEUE) private readonly queue: Queue,
     @Inject(TICK_HANDLERS) private readonly handlers: TickHandlers,
@@ -67,6 +71,38 @@ export class SchedulerProcessor extends WorkerHost implements OnApplicationBoots
         await this.queue.removeJobScheduler(tick);
       }
     }
+    // The job schedulers live in Redis; without this check, a loss of its data would stop every
+    // tick until the next start of the role (docs/runbooks/redis-verlust.md).
+    this.check = setInterval(() => {
+      void this.restoreMissing();
+    }, SCHEDULER_CHECK_MS);
+    this.check.unref();
+  }
+
+  onApplicationShutdown(): void {
+    clearInterval(this.check);
+  }
+
+  /** Creates again the job scheduler of every tick with a handler that Redis no longer knows. */
+  async restoreMissing(): Promise<Tick[]> {
+    const restored: Tick[] = [];
+    try {
+      for (const tick of TICKS) {
+        if (this.handlers[tick] && !(await this.queue.getJobScheduler(tick))) {
+          await this.queue.upsertJobScheduler(tick, this.scheduleOf(tick), {
+            name: tick,
+            opts: TICK_JOB_OPTIONS,
+          });
+          restored.push(tick);
+        }
+      }
+    } catch (error) {
+      this.logger.warn({ err: error }, 'scheduler.check_failed');
+    }
+    if (restored.length > 0) {
+      this.logger.warn({ ticks: restored }, 'scheduler.ticks_restored');
+    }
+    return restored;
   }
 
   /** SCHEDULER_TICK_MS sets the pace of tick.publish, for example faster in time-lapse tests. */

@@ -7,9 +7,10 @@ import type { WorkerEnv } from '../worker-env';
 import { plannedAtOf, SchedulerProcessor } from './scheduler.processor';
 
 // Guide step 8.7: every tick reports how late it started and when it last ended with a success
-// or a failure, so that an alert sees a tick whose last run failed.
+// or a failure, so that an alert sees a tick whose last run failed. Job schedulers that Redis lost
+// come back without a restart of the role.
 
-const logger = { debug: vi.fn(), info: vi.fn(), error: vi.fn() } as unknown as PinoLogger;
+const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as unknown as PinoLogger;
 
 const tickJob = (name: string): Job =>
   ({
@@ -38,6 +39,32 @@ describe('the scheduler processor', () => {
   afterEach(() => {
     vi.useRealTimers();
     metricsRegistry.resetMetrics();
+  });
+
+  it('creates again the job schedulers of its ticks that Redis lost, and only those', async () => {
+    const known = new Set(['tick.publish']);
+    const queue = {
+      getJobScheduler: vi.fn((id: string) => Promise.resolve(known.has(id) ? { key: id } : undefined)),
+      upsertJobScheduler: vi.fn((id: string) => {
+        known.add(id);
+        return Promise.resolve({});
+      }),
+    };
+    const processor = new SchedulerProcessor(
+      queue as unknown as Queue,
+      { 'tick.publish': () => Promise.resolve({}), 'tick.sweep-queued': () => Promise.resolve({}) },
+      { SCHEDULER_TICK_MS: 15_000 } as WorkerEnv,
+      logger,
+    );
+
+    await expect(processor.restoreMissing()).resolves.toEqual(['tick.sweep-queued']);
+    expect(queue.upsertJobScheduler).toHaveBeenCalledWith(
+      'tick.sweep-queued',
+      { every: 60_000 },
+      expect.objectContaining({ name: 'tick.sweep-queued' }),
+    );
+    await expect(processor.restoreMissing()).resolves.toEqual([]);
+    expect(queue.upsertJobScheduler).toHaveBeenCalledTimes(1);
   });
 
   it('records the lag and the success of one tick and the failure of another', async () => {
