@@ -45,6 +45,7 @@ Dazu meldete Trivy in den Basis-Images behebbare Schwachstellen der Stufe HIGH u
 - **Ausnahmen**:
   - Akzeptierte Advisories stehen mit Begründung in `auditConfig` (`pnpm-workspace.yaml`, ADR 0009). Sie werden mit jedem Update der betroffenen Pakete neu bewertet, spätestens am 2027-01-16.
   - Für das Image des browser-workers überspringt der Scan `/root/.npm`, den Cache aus der Schicht des Playwright-Basis-Images. Diese Ausnahme gilt bis zum nächsten Update des Basis-Images.
+  - Seit Schritt 8.9 nimmt `deploy/trivyignore.yaml` Funde in den Images anderer Anbieter an, je Binary oder Paket eines Images, mit Begründung und Ablaufdatum. Gibt es einen Fix, endet die Ausnahme spätestens 30 Tage nach seinem Erscheinen ([ADR 0045](0045-produktions-vorlage.md)).
 - **Wiederholung**:
   - Der Pentest wiederholt sich vor jedem Release mit Änderungen an Anmeldung, Mandanten, Uploads, Proxy oder Headern, mindestens einmal im Jahr.
   - Die Checkliste wird jährlich geprüft und bei einer neuen Version des ASVS neu bewertet.
@@ -243,7 +244,8 @@ Die Einzelheiten stehen in den Inventaren [Daten und Protokolle](../security/dat
 
 - Die Images laufen auf `node:24.21.0-trixie-slim` (Debian 13) ohne npm, npx, corepack und yarn.
 - CI baut alle sechs Images (seit Schritt 8.9 mit `migrate`), hält ihre SBOM (CycloneDX) 90 Tage und scannt sie mit Trivy auf Schwachstellen und Secrets: bei jedem Pull Request, jedem Push nach `main` und jeden Montag, damit neue Schwachstellen auch in unveränderten Images auffallen.
-- Das Ablegen in einer Registry mit Signatur und SBOM je Release folgt mit Schritt 8.9.
+- Seit Schritt 8.9 legt der Workflow `release.yml` die Images je Release in der GitHub Container Registry ab, signiert ihre Digests mit cosign ohne eigenen Schlüssel und hängt das SBOM als Attestierung an. `deploy/scripts/deploy.sh` prüft Signatur und Attestierung, bevor ein Release startet ([ADR 0045](0045-produktions-vorlage.md)).
+- Seit Schritt 8.9 scannt der Job `third-party-images` die Images anderer Anbieter, die die Produktions-Vorlage zieht, mit derselben Schwelle, auch jeden Montag. Angenommene Funde stehen je Image mit Begründung und Ablaufdatum in `deploy/trivyignore.yaml`.
 
 ### Akzeptierte Abweichungen und Restrisiken
 
@@ -263,22 +265,22 @@ Die Einzelheiten stehen in den Inventaren [Daten und Protokolle](../security/dat
 | Beenden von Sessions ohne erneute Anmeldung (ASVS 7.5.2) | Beenden nimmt nur Zugriff weg; wer die Session hat, kann damit keine Daten gewinnen. | Die Liste verlangt eine Session unter einem Tag | Mit Passkeys |
 | `style-src 'unsafe-inline'` | Next.js und die Bibliotheken der Dialoge und Toasts setzen Styles ohne Nonce (Pentest-Bericht). | Skripte nur mit Nonce | Sobald alle Bibliotheken eine Nonce übernehmen |
 | Kein Virenscan der Uploads (ASVS 5.4.3) | Es gibt nur Bilder; der Typ wird am Inhalt erkannt, sharp dekodiert jedes Bild, die Renditions sind neu kodiert. | ClamAV steht als Compose-Profil bereit | Wenn andere Dateitypen dazukommen |
-| Ein PUT, der länger als eine Stunde nach Ablauf des Links offen bleibt | Er kann das Upload-Objekt nach dem Job `media.drop-upload` noch einmal anlegen. | 300 Tickets je Stunde und Nutzer, 20 MB je Datei | Schritt 8.9: Dauer der Anfragen am Speicher begrenzen |
+| Ein PUT, der länger als eine Stunde nach Ablauf des Links offen bleibt | Er kann das Upload-Objekt nach dem Job `media.drop-upload` noch einmal anlegen. | 300 Tickets je Stunde und Nutzer, 20 MB je Datei | Erledigt mit Schritt 8.9: Caddy beendet jede Anfrage, deren Body nach 15 Minuten nicht gelesen ist ([ADR 0045](0045-produktions-vorlage.md)) |
 
 ### Verschoben
 
-- **Schritt 8.9 (Deployment)**:
-  - TLS 1.2 und 1.3 mit Zertifikaten einer öffentlichen CA und einer Überwachung des Ablaufs; HSTS und die Umleitung auf https am Proxy.
-  - TLS für Postgres und Redis und für interne Verbindungen.
-  - Nur der Proxy erreicht API und Web-App. Davon hängt das Vertrauen in `X-Real-IP` ab.
-  - Eine Allowlist ausgehender Verbindungen für API und Worker.
-  - Ein Secret-Store oder KMS, darin ein eigener Keyring für die E-Mail-Jobs.
-  - Eigene Identitäten je Dienst und Rolle in Datenbank und Redis.
-  - Readiness nur intern statt über den Proxy.
-  - Eine Grenze für die Dauer von Anfragen an den Objektspeicher.
-  - Ein Log-Backend mit Zugriffsschutz und 30 Tagen, Fristen auch für Traces und Fehlerberichte; Zeitsynchronisation der Hosts.
-  - Verschlüsselte Datenträger und Backups für PostgreSQL, Redis und den Objektspeicher; die App verschlüsselt vertrauliche Inhalte nicht selbst.
-  - Images in einer Registry mit Signatur und SBOM je Release.
+- **Schritt 8.9 (Deployment)**, umgesetzt mit der Produktions-Vorlage in `deploy/` ([ADR 0045](0045-produktions-vorlage.md), [Runbook](../runbooks/deployment.md), [Staging-Protokoll](../betrieb/staging-2026-10.md)):
+  - **TLS am Rand**: Caddy terminiert TLS 1.2 und 1.3 mit Zertifikaten einer öffentlichen CA (ACME) und erneuert sie selbst. Der Blackbox-Exporter prüft beide Namen; `TlsCertificateExpiresSoon`, `TlsCertificateExpiresVerySoon` und `TlsProbeFailing` melden das nahe Ende eines Zertifikats und scheiternde Proben. Caddy sendet HSTS und leitet nur die Seiten der App auf https um; API und Speicher antworten über http mit 403 (ASVS 4.1.2).
+  - **TLS intern**: Postgres nimmt nur TLS mit SCRAM an, und die Dienste prüfen sein Zertifikat samt Namen (`verify-full`). Redis und das S3-Gateway sprechen nur TLS. Die Zertifikate stammen von einer privaten CA der VM, und die Teile von SeaweedFS sprechen gRPC mit gegenseitigem TLS. Unverschlüsselt bleibt HTTP von Caddy zu API und Web-App und von der Web-App zur API; es läuft nur im internen Netz `edge` auf demselben Host (Restrisiko, ADR 0045).
+  - **Nur der Proxy erreicht API und Web-App**: Beide hängen nur in internen Netzen, und jede Replika der API bindet an ihre feste Adresse im Netz `edge` (`API_HOST`). Im Staging erreichten andere Container die API nicht, und gefälschte Header `X-Real-IP`, `X-Forwarded-For` und `Forwarded` kamen nicht bei der API an.
+  - **Egress**: API und Worker erreichen das Internet nur über einen Egress-Proxy mit Allowlist (`SMP_EGRESS_HOSTS`). Der Worker der Rolle `media` hat keinen Weg nach außen.
+  - **Secrets**: Jedes Secret ist eine Datei, die nur root und die Gruppe der Container lesen dürfen. Die E-Mail-Jobs haben ihren eigenen Keyring `NOTIFY_KEKS`. Einen KMS gibt es auf der VM nicht; die Entscheidung steht in ADR 0045.
+  - **Identitäten**: Jeder Dienst hat je Rolle einen eigenen Login in Postgres, mit eigener Grenze für Verbindungen und eigenen Timeouts. Redis kennt je Dienst einen ACL-Nutzer ohne gefährliche Befehle.
+  - **Readiness** bleibt intern: Caddy antwortet auf `/api/health/ready` mit 404.
+  - **Dauer der Anfragen**: Caddy beendet jede Anfrage, deren Body nach 15 Minuten nicht gelesen ist (`read_body`), auch einen PUT an den Speicher. Ein Stream der Live-Events ist davon nicht betroffen.
+  - **Logs**: journald auf dem Host hält die Logs der Container 30 Tage (`deploy/host/journald.conf`); ohne diese Einstellung bricht der Preflight den Deploy ab. Traces und Fehlerberichte hält ihr Backend höchstens 30 Tage, das stellt der Betrieb dort ein. Der Preflight prüft auch die Zeitsynchronisation des Hosts.
+  - **Verschlüsselung at rest**: Der Preflight verlangt verschlüsselte Datenträger, mit LUKS oder durch den Anbieter der VM. Die Kopien der Backups verschlüsselt der Bucket (`BACKUP_S3_SSE`). Die App selbst verschlüsselt vertrauliche Inhalte weiterhin nicht.
+  - **Images**: Die Images liegen je Release signiert und mit attestiertem SBOM in der GitHub Container Registry; dazu kommt der Scan der Images anderer Anbieter (Lieferkette und Images).
 - **Schritt 8.7 (Betrieb)**, umgesetzt:
   - Alarme auf ein globales Budget der KI, auf das Wachstum des Speichers und auf Sicherheitsereignisse ([ADR 0043](0043-slos-metriken-und-alarme.md)).
   - Ein Runbook für den Verlust von App und Backup-Codes, mit einer Prüfung der Identität (ASVS 6.4.4, [Runbook](../runbooks/zweiter-faktor-verloren.md)).
@@ -294,4 +296,9 @@ Die Einzelheiten stehen in den Inventaren [Daten und Protokolle](../security/dat
   - Wer die Adresse eines Kontos kennt, kann es für fremde Geräte 15 Minuten sperren; bekannte Geräte melden sich weiter an.
   - Die Leck-Prüfung hängt an einem externen Dienst, der Ausfall lässt Passwörter durch.
   - Mehrere Kontrollen hängen an Better Auth (Fenster der TOTP-Codes, Backup-Codes, Token im JSON) und warten auf dessen Versionen.
-  - Die Härtung von Transport und Betrieb fehlt bis Schritt 8.9; bis dahin ist die Plattform nicht für Produktion freigegeben.
+  - Die Härtung von Transport und Betrieb fehlte bis Schritt 8.9. Seitdem liefert sie die Produktions-Vorlage ([ADR 0045](0045-produktions-vorlage.md)). Vor dem ersten Einsatz in Produktion bleiben die offenen Punkte von ADR 0045:
+    - Zertifikate einer öffentlichen CA sind nur in der Konfiguration geprüft; das Staging lief mit der eigenen CA von Caddy.
+    - Der Release-Workflow lief noch nie; Signatur und Attestierung sind erst mit dem ersten Tag geprüft.
+    - Caddy muss bis zum 2026-11-02 auf eine Version, die den Scan der Images anderer Anbieter besteht.
+    - HTTP im internen Netz `edge` bleibt unverschlüsselt.
+    - Die Schlüssel liegen als Dateien auf der VM, nicht in einem KMS.

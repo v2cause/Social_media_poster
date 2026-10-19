@@ -1,7 +1,7 @@
 # Kryptografie: Inventar und Schlüsselverwaltung
 
 - **Stand**: 2026-10-19
-- **Bezug**: Umsetzungsleitfaden, Schritte 8.4 und 8.9; ASVS V11.1.1, V11.1.2 und V11.2.2; [ADR 0039](../adr/0039-security-review-und-haertung.md), [Runbook Secret-Rotation](../runbooks/secret-rotation.md), [ASVS-Checkliste](asvs-l2.md)
+- **Bezug**: Umsetzungsleitfaden, Schritte 8.4 und 8.9; ASVS V11.1.1, V11.1.2 und V11.2.2; [ADR 0039](../adr/0039-security-review-und-haertung.md), [ADR 0045](../adr/0045-produktions-vorlage.md), [Runbook Secret-Rotation](../runbooks/secret-rotation.md), [Runbook Deployment](../runbooks/deployment.md), [ASVS-Checkliste](asvs-l2.md)
 
 Das Inventar nennt jedes kryptografische Verfahren der Plattform mit Parametern, Schlüssel und Ort im Code. Die Richtlinie danach regelt den Lebenszyklus der Schlüssel. Beides wird mit jeder Änderung an Schlüsseln oder Verfahren nachgeführt und jährlich mit der ASVS-Checkliste geprüft, das nächste Mal im Oktober 2027. Werte von Schlüsseln stehen nie in diesem Dokument.
 
@@ -48,10 +48,25 @@ Mit `BETTER_AUTH_SECRETS` signiert und verschlüsselt Better Auth mit der aktuel
 
 ## Transport
 
-- **Heute**: In Produktion startet die App nur mit https für `APP_URL`, `BETTER_AUTH_URL` und den öffentlichen Endpunkt des Speichers (`checkProductionEnv` in `packages/observability/src/env.ts`, ausgenommen ein Build mit `APP_URL` auf localhost) sowie für `PWNED_PASSWORDS_API_URL`. Web-App (Produktions-Build) und API (helmet) senden HSTS mit `max-age=31536000; includeSubDomains`.
+- **Anwendung**: In Produktion startet die App nur mit https für `APP_URL`, `BETTER_AUTH_URL` und den öffentlichen Endpunkt des Speichers (`checkProductionEnv` in `packages/observability/src/env.ts`, ausgenommen ein Build mit `APP_URL` auf localhost) sowie für `PWNED_PASSWORDS_API_URL`. Web-App (Produktions-Build) und API (helmet) senden HSTS mit `max-age=31536000; includeSubDomains`.
 - **SMTP** (seit Schritt 8.4): In Produktion geht jede Mail über TLS, mit `smtps://` oder STARTTLS (`requireTLS`); ohne TLS scheitert der Versand (`packages/emails/src/smtp-mailer.ts`, `apps/worker/src/infrastructure/notify.providers.ts`). Ausgenommen ist ein Build mit `APP_URL` auf localhost (Mailpit).
-- **Zertifikate**: Kein Code im Repository schaltet die Prüfung ab (`rejectUnauthorized`, `NODE_TLS_REJECT_UNAUTHORIZED`). Der Egress-Proxy des browser-workers tunnelt https per `CONNECT` und bricht TLS nicht auf (`apps/egress-proxy/src/proxy.ts`).
-- **Schritt 8.9** (ADR 0039): TLS 1.2 und 1.3 am Proxy mit Zertifikaten einer öffentlichen CA, TLS für Postgres, Redis und interne Verbindungen.
+- **Zertifikatsprüfung**: Kein Code im Repository schaltet sie ab (`rejectUnauthorized`, `NODE_TLS_REJECT_UNAUTHORIZED`). Die Egress-Proxys tunneln https per `CONNECT` und brechen TLS nicht auf (`apps/egress-proxy/src/proxy.ts`). Die Clients der Produktions-Vorlage prüfen die internen Zertifikate gegen die private CA: `sslmode=verify-full` zu Postgres, `rediss://` mit `NODE_EXTRA_CA_CERTS` zu Redis, https mit `AWS_CA_BUNDLE` oder `tls_trusted_ca_certs` (Caddy) zum Speicher.
+- **Produktions-Vorlage** (seit Schritt 8.9, [ADR 0045](../adr/0045-produktions-vorlage.md)):
+  - Caddy terminiert TLS 1.2 und 1.3 für beide öffentlichen Namen mit seinen Standards. Im Staging am 2026-10-19 nahm er unter TLS 1.2 nur ECDHE mit AES-GCM oder ChaCha20-Poly1305 an und lehnte TLS 1.0 und 1.1, CBC-Suites und statisches RSA ab ([Staging-Protokoll](../betrieb/staging-2026-10.md)). Über http leitet er nur die Seiten auf https um, API und Speicher antworten mit 403; HSTS mit einem Jahr und `includeSubDomains` steht auf allen Antworten (`deploy/caddy/Caddyfile`).
+  - Postgres nimmt über das Netz nur TLS ab Version 1.2 mit SCRAM an (`deploy/postgres/pg_hba.conf`), Redis hat nur einen TLS-Port (TLS 1.2 und 1.3), das S3-Gateway von SeaweedFS spricht TLS, seine Teile untereinander gRPC mit gegenseitigem TLS (`deploy/seaweedfs/security.toml`). Auch Caddy spricht mit dem Speicher über TLS.
+  - Ohne TLS bleiben die HTTP-Verbindungen von Caddy zu API und Web-App, von der Web-App zur API und die Abfragen von Prometheus. Diese Verbindungen laufen in internen Docker-Netzen derselben VM; ADR 0045 nimmt das für eine VM hin.
+  - Die Node-Dienste nehmen die private CA mit `NODE_EXTRA_CA_CERTS` zum öffentlichen Trust-Store hinzu; nur ihr vertrauen Caddy zum Speicher, `postgres-backup`, `s3-init` und die Teile von SeaweedFS.
+
+## Zertifikate
+
+Seit Schritt 8.9, in der Produktions-Vorlage. Die Handgriffe stehen im [Runbook Deployment](../runbooks/deployment.md), Abschnitt "Zertifikate".
+
+| Zertifikat | Aussteller und Parameter | Laufzeit und Erneuerung | Privater Schlüssel | Vertraut von |
+| --- | --- | --- | --- | --- |
+| Öffentliche Namen (`SMP_DOMAIN`, `SMP_MEDIA_DOMAIN`) | Öffentliche CA per ACME, Konto mit der Adresse aus `SMP_TLS`; Schlüsseltyp nach dem Standard von Caddy (ECDSA P-256) | Laufzeit der CA, Caddy erneuert selbst. Alarme ab weniger als 14 und 3 Tagen und bei scheiternder Probe (`deploy/monitoring/rules/tls.yml`) | Volume `caddy-data`, nur im Container von Caddy | Browser, Plattformen, Blackbox-Exporter |
+| Staging (`SMP_TLS=internal`) | Caddys eigene CA | 12 Stunden, Caddy erneuert selbst; die Ablauf-Alarme gehen an einen stillen Empfänger, `TlsProbeFailing` nicht | wie oben | Blackbox-Exporter (Wurzel unter `deploy/generated/blackbox`) |
+| Private CA der Vorlage | selbst signiert, ECDSA P-256, `CA:TRUE` mit `pathlen:0`, nur `keyCertSign` und `cRLSign` (`deploy/scripts/init-secrets.sh`) | zehn Jahre; ein Wechsel stellt alle Serverzertifikate neu aus | `deploy/secrets/ca/ca.key`, `0400` root; nur `init-secrets.sh` nutzt ihn | Node-Dienste, Caddy zum Speicher, `postgres-backup`, `s3-init`; im Staging `backup-sync` und Alertmanager zu Mailpit |
+| Server `postgres`, `redis`, `s3`, im Staging `mailpit` | private CA, ECDSA P-256, SAN `DNS:<dienst>`, `DNS:localhost`, `IP:127.0.0.1`, `digitalSignature`, `serverAuth`; `s3` zusätzlich `clientAuth` für gRPC | 730 Tage; der Preflight warnt 60 Tage vor dem Ende, `init-secrets.sh --renew-tls` stellt neu aus (die CA bleibt) | `deploy/secrets/<dienst>_tls_key` (`0440`, root und Gruppe 10001), im Container nur für den Dienst lesbar | die Clients der jeweiligen Verbindung |
 
 ## Schlüsselverwaltung
 
@@ -71,7 +86,8 @@ Richtlinie nach NIST SP 800-57 Teil 1, in Kurzform. Die Handgriffe stehen im [Ru
 - Seit Schritt 8.9 kann jedes Secret auch aus einer Datei kommen: `<NAME>_FILE` nennt den Pfad, und jeder Prozess liest die Datei, bevor er seine Konfiguration prüft (`loadSecretFiles` in `packages/observability/src/secret-files.ts`). Der Wert steht dann nicht in der Umgebung des Containers, die `docker inspect` zeigt. Ein Wert und eine Datei für denselben Namen werden abgelehnt; Meldungen nennen Variable und Pfad, nie den Inhalt.
 - Nie in Logs, Fehlermeldungen, Audit-Metadaten, `NEXT_PUBLIC_*`-Variablen oder unversiegelt in Job-Payloads.
 - Im Prozess hält `LocalKeyring` die KEKs im Speicher. DEKs werden nach Gebrauch mit Nullen überschrieben, ebenso der Klartext-Puffer nach dem Öffnen.
-- Schritt 8.9: Secret-Store des Deployments und ein KMS-Adapter für `KmsPort` (AWS KMS oder Vault). Die KEKs verlassen dann den KMS nicht, die Dienste rufen nur `wrapKey` und `unwrapKey` auf.
+- **Produktions-Vorlage** (seit Schritt 8.9): Alle Secrets liegen als Dateien in `deploy/secrets/` (Verzeichnis `0750`, Dateien `0440`, Eigentümer root, Gruppe 10001, der die Container beitreten), erzeugt von `deploy/scripts/init-secrets.sh`. Jeder Container sieht als Compose-Secret unter `/run/secrets` nur seine eigenen und liest sie über `<NAME>_FILE`; `deploy/.env` enthält kein Secret. Der Preflight bricht einen Deploy ab, wenn andere eine Datei lesen dürfen oder sie nicht der Gruppe 10001 gehört.
+- **Kein KMS** in der Vorlage ([ADR 0045](../adr/0045-produktions-vorlage.md)): Die KEKs liegen als Dateien auf der VM, und wer dort root ist, kann sie lesen. Ein KMS-Adapter für `KmsPort` (AWS KMS oder Vault) bleibt möglich, sobald die Zielumgebung einen KMS bietet; die KEKs verließen dann den KMS nicht, und die Dienste riefen nur `wrapKey` und `unwrapKey` auf.
 
 ### Verteilung
 
@@ -88,6 +104,7 @@ Die Tabelle nennt die Schlüssel der Verschlüsselung und von Better Auth. `STRI
 | browser-worker | `SESSION_KEKS` | öffnet Zugangsdaten, Codes und Sitzungen; versiegelt neue und geänderte Sitzungen |
 
 - Im Compose-Profil `app` bekommt der Container `worker` alle drei Keyrings für alle Rollen aus `WORKER_ROLES`. Wer Rollen in eigenen Containern betreibt, gibt jedem Container nur die Schlüssel seiner Rollen aus der Tabelle.
+- Die Produktions-Vorlage betreibt die Rollen in eigenen Containern und gibt jedem nur die Schlüssel seiner Rollen: `worker-scheduler` alle drei, `worker-publisher` (`publisher`, `analytics`) den Token-Keyring und mit dem Profil `xb` auch `NOTIFY_KEKS`, `worker-billing` (`gdpr`, mit Stripe auch `billing`) Token- und E-Mail-Keyring, `worker-notify` nur `NOTIFY_KEKS`, `worker-media` keinen (`deploy/compose.yaml`, `deploy/compose.xb.yaml`). Abweichend von der Tabelle bekommt dort die API `SESSION_KEKS` auch ohne den X-Browser.
 - ASVS V11.1.1 verlangt, Schlüssel nicht zu überteilen. Alle Halter sind Dienste einer Installation unter einem Betrieb, kein Schlüssel wird mit Dritten geteilt. Ein Dienst mit einem KEK kann jeden Umschlag dieses Keyrings öffnen, den er zu lesen bekommt; die Rollen trennt heute der Code, nicht der Schlüssel.
 
 **Eigener Keyring für E-Mails** (seit Schritt 8.9, ADR 0039)
@@ -120,18 +137,18 @@ Die Tabelle nennt die Schlüssel der Verschlüsselung und von Better Auth. `STRI
 ### Wiederherstellung
 
 - Ein Backup der Datenbank enthält die Geheimnisse als Ciphertext oder Hash: Umschläge der Tokens und Sitzungen, die 2FA-Daten, scrypt-Hashes, SHA-256 der Einladungs- und Reset-Tokens. Ausnahme sind die Session-Tokens in `session`: Ohne das Secret von Better Auth ergeben sie keinen gültigen Cookie, und sie enden nach sieben Tagen. Redis (AOF) hält E-Mails und Zugangsdaten nur versiegelt.
-- Schlüssel werden getrennt von den Daten gesichert, nie im selben Backup (Backup in Schritt 8.6, Secret-Store in Schritt 8.9).
+- Schlüssel werden getrennt von den Daten gesichert, nie im selben Backup (Backup in Schritt 8.6). In der Produktions-Vorlage bewahrt der Betrieb eine Kopie von `deploy/secrets/` und `deploy/generated/keyring.env` getrennt von VM und Bucket auf ([Backup und Wiederherstellung](../runbooks/backup-restore.md)).
 - Ein Restore braucht die Schlüssel, die zur Zeit des Backups galten. Ein ausgemusterter KEK und eine alte Version von `BETTER_AUTH_SECRETS` bleiben deshalb archiviert, bis das letzte Backup abläuft, das sie braucht. Nach einem Restore kommen sie als nicht aktive Schlüssel zurück, Re-Wrap und `pnpm auth:reencrypt` laufen, danach werden sie wieder entfernt.
 - Ohne Schlüssel sind die Daten verloren: Accounts neu verbinden, X neu anmelden, 2FA neu einrichten.
 
 ## Wechsel eines Verfahrens (ASVS V11.2.2)
 
 - **Envelope**: Der Umschlag trägt Version (`ENVELOPE_VERSION = 1`) und Key-ID; `open` weist eine unbekannte Version als `MALFORMED` ab. Ein neues Verfahren bekäme Version 2: `open` liest beide, `seal` schreibt nur noch die neue. Weil der Re-Wrap nur den DEK neu wrappt, braucht es dazu einen Job, der jeden Umschlag der Version 1 öffnet und neu versiegelt, mit demselben Vergleich der gelesenen Bytes wie `RewrapSecrets` (`packages/core/src/channels/application/rewrap-secrets.ts`). Danach entfällt Version 1.
-- **KEK und KMS**: Ein anderes Wrap-Verfahren betrifft nur die Implementierung von `KmsPort`. Der gewrappte DEK darf bis 65.535 Byte lang sein, und der vorhandene Re-Wrap zieht alle Umschläge auf den neuen Schlüssel, ohne Inhalte zu entschlüsseln. Für den Übergang zum KMS (Schritt 8.9) braucht es einen `KmsPort`, der alte Key-IDs mit dem lokalen Keyring öffnet und neue Datenschlüssel mit dem KMS wrappt.
+- **KEK und KMS**: Ein anderes Wrap-Verfahren betrifft nur die Implementierung von `KmsPort`. Der gewrappte DEK darf bis 65.535 Byte lang sein, und der vorhandene Re-Wrap zieht alle Umschläge auf den neuen Schlüssel, ohne Inhalte zu entschlüsseln. Für einen späteren Übergang zu einem KMS (ADR 0045) braucht es einen `KmsPort`, der alte Key-IDs mit dem lokalen Keyring öffnet und neue Datenschlüssel mit dem KMS wrappt.
 - **Better Auth**: Versionierte Secrets und `pnpm auth:reencrypt` (`apps/api/src/modules/identity/reencrypt-two-factor.ts`) tauschen den Schlüssel; der Job schreibt nur Zeilen, die sich seit dem Lesen nicht geändert haben. Das Verfahren selbst legt Better Auth fest: Für Backup-Codes nähme es eigene Funktionen (`backupCodeOptions.storeBackupCodes`), für das TOTP-Geheimnis nicht. Ein Wechsel kommt dort mit einer Version von Better Auth, danach läuft der Job.
 - **Passwörter**: Jeder Hash nennt Verfahren und Parameter. Für höhere Parameter genügt es, `CURRENT` in `packages/crypto/src/password-hash.ts` zu ändern; alte Hashes werden mit ihren eigenen Parametern geprüft (zulässig sind N von 2^10 bis 2^20, r bis 32, p bis 16). Ein neues Verfahren wie Argon2id bekommt ein eigenes Präfix in `verifyPassword`. Damit alte Hashes verschwinden, fehlt ein Rehash nach erfolgreicher Anmeldung (ADR 0039); bis dahin bleiben sie, bis das Passwort geändert oder zurückgesetzt wird.
 - **Hashes und Signaturen**: Für den SHA-256 der Einladungs-Tokens gälte ein neues Verfahren für neue Einladungen, und die Annahme prüfte sieben Tage lang beide. HMAC und HS256 von Better Auth, SigV4 und die Signaturen von Stripe legen Bibliotheken und Anbieter fest.
-- **Post-Quanten-Verfahren**: Asymmetrische Verfahren nutzt die App selbst nicht. Ein Umstieg betrifft TLS (Schritt 8.9) und den KMS-Anbieter.
+- **Post-Quanten-Verfahren**: Asymmetrische Verfahren nutzt die App selbst nicht. Ein Umstieg betrifft TLS (Caddy, die private CA und die Clients der Vorlage) und einen späteren KMS-Anbieter.
 
 ## Nicht verwendet
 
