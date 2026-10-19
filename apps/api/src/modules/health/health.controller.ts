@@ -11,7 +11,9 @@ import { S3HealthIndicator } from './indicators/s3.indicator';
 
 // Health endpoints need no authentication and are excluded from request logging. They count only
 // against the limit per client address; the readiness check, which asks every dependency, has a
-// limit of its own (guide step 8.4).
+// limit of its own (guide step 8.4). The liveness check counts against none: the limits live in
+// Redis, and without Redis it answered 500, so that a process that is up would be restarted for
+// nothing (drill of the runbook Redis-Verlust, guide step 8.7).
 @Public()
 @SkipThrottle({ user: true })
 @ApiExcludeController()
@@ -26,6 +28,7 @@ export class HealthController {
 
   /** The process is up and serving requests. It does not check dependencies. */
   @Get('live')
+  @SkipThrottle({ address: true })
   @HealthCheck()
   live() {
     return this.health.check([]);
