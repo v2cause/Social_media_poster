@@ -75,6 +75,24 @@
 	}
 }
 
+# Plain http (ASVS 4.1.2): only the pages of the app move to https. The API and the storage
+# answer 403 instead of a redirect, so a client that sends a request over http learns it at once
+# instead of following the redirect. Caddy answers the ACME challenges on port 80 before these.
+http://{$SMP_DOMAIN} {
+	header -Server
+	handle /api/* {
+		respond 403
+	}
+	handle {
+		redir https://{host}{uri} 308
+	}
+}
+
+http://{$SMP_MEDIA_DOMAIN} {
+	header -Server
+	respond 403
+}
+
 # The object storage as browsers and platforms reach it: presigned PUTs of the uploads and
 # presigned GETs of previews, renditions and exports. The signature names this host, which Caddy
 # keeps in the Host header.

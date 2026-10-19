@@ -79,7 +79,8 @@ if [ "$SMP_TLS" = internal ]; then
   case ",${SMP_PROFILES:-}," in *,monitoring,*) compose restart blackbox > /dev/null ;; esac
 fi
 
-# From the outside, as a browser: https with HSTS, http redirects, readiness stays inside.
+# From the outside, as a browser: https with HSTS, http redirects the pages but not the API,
+# readiness stays inside.
 # The check goes to Caddy on this machine, never through a proxy of the environment.
 check() {
   curl --silent --show-error --max-time 10 --noproxy '*' --resolve "$SMP_DOMAIN:443:127.0.0.1" \
@@ -90,6 +91,8 @@ check --head "https://$SMP_DOMAIN/" | grep -qi '^strict-transport-security: max-
   || { echo 'deploy: HSTS is missing' >&2; exit 1; }
 [ "$(check --output /dev/null --write-out '%{http_code}' "http://$SMP_DOMAIN/")" = 308 ] \
   || { echo 'deploy: http does not redirect to https' >&2; exit 1; }
+[ "$(check --output /dev/null --write-out '%{http_code}' "http://$SMP_DOMAIN/api/health/live")" = 403 ] \
+  || { echo 'deploy: the API answers over http' >&2; exit 1; }
 [ "$(check --output /dev/null --write-out '%{http_code}' "https://$SMP_DOMAIN/api/health/ready")" = 404 ] \
   || { echo 'deploy: the readiness check is reachable from outside' >&2; exit 1; }
 echo "deploy: $SMP_VERSION runs on https://$SMP_DOMAIN"
