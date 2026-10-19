@@ -22,6 +22,9 @@ test-results/
 .env.*
 !.env.example
 !.env.test
+# The secrets and generated files of the production template (deploy/scripts/init-secrets.sh)
+deploy/secrets/
+deploy/generated/
 
 # Logs
 *.log

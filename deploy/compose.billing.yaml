@@ -1,0 +1,25 @@
+# Billing with Stripe (guide step 7.2) for the production template: with SMP_BILLING=true,
+# scripts/deploy.sh adds this file. The API takes the webhooks and opens checkout and portal; the
+# worker role "billing" joins "gdpr" and reads the subscriptions. The keys come from Stripe and
+# lie in deploy/secrets/ (docs/runbooks/deployment.md).
+
+x-stripe-api: &stripe-api
+  environment:
+    STRIPE_SECRET_KEY_FILE: /run/secrets/stripe_secret_key
+    STRIPE_WEBHOOK_SECRET_FILE: /run/secrets/stripe_webhook_secret
+  secrets: [stripe_secret_key, stripe_webhook_secret]
+
+services:
+  api-1: *stripe-api
+  api-2: *stripe-api
+  worker-billing:
+    environment:
+      WORKER_ROLES: billing,gdpr
+      STRIPE_SECRET_KEY_FILE: /run/secrets/stripe_secret_key
+    secrets: [stripe_secret_key]
+
+secrets:
+  stripe_secret_key:
+    file: secrets/stripe_secret_key
+  stripe_webhook_secret:
+    file: secrets/stripe_webhook_secret

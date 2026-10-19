@@ -1,0 +1,81 @@
+# The browser of X (phase 6, ADR 0028) for the production template: with "xb" in SMP_PROFILES,
+# scripts/deploy.sh adds this file; FEATURE_X_BROWSER_GLOBAL=true switches it on in the app. The
+# browser worker sits in the internal network "xb" with Redis and its own egress proxy, which lets
+# it reach the web app of X and the storage only. It gets no database and no storage keys.
+
+services:
+  # The circuit breaker of the role "publisher" switches the global flag off and mails the
+  # platform admins (guide step 6.5).
+  worker-publisher:
+    environment:
+      DATABASE_SYSTEM_URL_FILE: /run/secrets/database_system_url_publisher
+      NOTIFY_KEKS_FILE: /run/secrets/notify_keks
+    secrets: [database_system_url_publisher, notify_keks]
+
+  browser-worker:
+    image: ${SMP_REGISTRY:?set SMP_REGISTRY in deploy/.env}/browser-worker:${SMP_VERSION:?set SMP_VERSION in deploy/.env}
+    profiles: ['xb']
+    restart: unless-stopped
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: ['/tmp']
+    logging:
+      driver: ${SMP_LOG_DRIVER:-journald}
+    # Chromium needs shared memory, and init reaps its child processes.
+    init: true
+    shm_size: 1gb
+    group_add: ['10001']
+    networks: [xb]
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_EXTRA_CA_CERTS: /run/configs/internal-ca.crt
+      APP_URL: https://${SMP_DOMAIN:?set SMP_DOMAIN in deploy/.env}
+      FEATURE_X_BROWSER_GLOBAL: 'true'
+      REDIS_URL_FILE: /run/secrets/redis_url_browser_worker
+      # Only this container opens the sessions of X.
+      SESSION_KEKS_FILE: /run/secrets/session_keks
+      # The renditions are signed for the name of the storage.
+      XB_EGRESS_HOSTS: https://${SMP_MEDIA_DOMAIN:?set SMP_MEDIA_DOMAIN in deploy/.env}
+      XB_EGRESS_PROXY: http://egress-xb:3128
+      NODE_USE_ENV_PROXY: '1'
+      HTTP_PROXY: http://egress-xb:3128
+      HTTPS_PROXY: http://egress-xb:3128
+      NO_PROXY: redis
+      # Chromium keeps its profile below HOME; the root filesystem is read-only.
+      HOME: /tmp
+    env_file: [generated/keyring.env]
+    secrets: [redis_url_browser_worker, session_keks]
+    configs:
+      - source: internal_ca
+        target: /run/configs/internal-ca.crt
+    depends_on:
+      redis:
+        condition: service_healthy
+      egress-xb:
+        condition: service_healthy
+
+  egress-xb:
+    image: ${SMP_REGISTRY:?set SMP_REGISTRY in deploy/.env}/egress-proxy:${SMP_VERSION:?set SMP_VERSION in deploy/.env}
+    profiles: ['xb']
+    restart: unless-stopped
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: ['/tmp']
+    logging:
+      driver: ${SMP_LOG_DRIVER:-journald}
+    networks: [xb, outbound]
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      EGRESS_PORT: '3128'
+      EGRESS_POLICY: x-browser
+      XB_EGRESS_HOSTS: https://${SMP_MEDIA_DOMAIN:?set SMP_MEDIA_DOMAIN in deploy/.env}
+
+secrets:
+  database_system_url_publisher:
+    file: secrets/database_system_url_publisher
+  redis_url_browser_worker:
+    file: secrets/redis_url_browser_worker

@@ -1,0 +1,884 @@
+# The production template for one VM (guide step 8.9, ADR 0045): Compose with Caddy in front.
+# The runbook docs/runbooks/deployment.md walks through it; scripts/deploy.sh starts it.
+#
+# Networks: only Caddy has published ports ("public"). API and web app sit in the internal
+# network "edge" behind it, the stores in "data", the storage for browsers in "media" behind
+# Caddy. API and worker reach the internet only through their egress proxy ("egress"), which
+# lets through the hosts of SMP_EGRESS_HOSTS. Postgres, Redis and the storage speak TLS with
+# certificates of a private CA (scripts/init-secrets.sh). Every service signs in with an identity
+# of its own, every secret is a file (Compose secrets under /run/secrets), and the images run
+# non-root with a read-only root filesystem and without capabilities where the image allows it.
+#
+# Profiles:
+#   (default)   caddy, web, api-1, api-2, the five workers, egress-app, postgres with the base
+#               backups of postgres-backup, redis, s3 and the one-shot jobs db-roles, migrate and
+#               s3-init
+#   backup      backup-sync: the copy of base backups and WAL archive to a bucket outside the VM
+#   monitoring  Prometheus, Alertmanager, Pushgateway and the blackbox exporter (TLS expiry)
+#   xb          the browser worker of X behind an egress proxy of its own (with compose.xb.yaml)
+#
+# Optional parts come as override files: compose.billing.yaml (Stripe), compose.xb.yaml (the
+# browser of X) and compose.staging.yaml (a staging inside one machine).
+
+name: smp
+
+x-hardened: &hardened
+  restart: unless-stopped
+  security_opt: ['no-new-privileges:true']
+  cap_drop: [ALL]
+  read_only: true
+  tmpfs: ['/tmp']
+  logging:
+    driver: ${SMP_LOG_DRIVER:-journald}
+
+x-node-env: &node-env
+  NODE_ENV: production
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  # Node trusts the private CA of postgres, redis and s3 on top of the public ones.
+  NODE_EXTRA_CA_CERTS: /run/configs/internal-ca.crt
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  # A collector inside the networks; the exporter does not go through the egress proxy.
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  PLATFORM_MODE_LINKEDIN: ${PLATFORM_MODE_LINKEDIN:-mock}
+  PLATFORM_MODE_META: ${PLATFORM_MODE_META:-mock}
+  PLATFORM_MODE_X: ${PLATFORM_MODE_X:-mock}
+  FEATURE_X_BROWSER_GLOBAL: ${FEATURE_X_BROWSER_GLOBAL:-false}
+
+# fetch, the SDKs and the error reports leave through the egress proxy, except to the stores.
+x-egress-env: &egress-env
+  NODE_USE_ENV_PROXY: '1'
+  HTTPS_PROXY: http://egress-app:3128
+  NO_PROXY: localhost,127.0.0.1,postgres,redis,s3,egress-app
+
+x-storage-env: &storage-env
+  S3_ENDPOINT: https://s3:8333
+  # The browser and the platforms reach the storage through Caddy; the URLs are signed for it.
+  S3_PUBLIC_ENDPOINT: https://${SMP_MEDIA_DOMAIN:?set SMP_MEDIA_DOMAIN in deploy/.env}
+  S3_REGION: us-east-1
+  S3_BUCKET: smp-media
+  S3_FORCE_PATH_STYLE: 'true'
+  S3_ACCESS_KEY_ID_FILE: /run/secrets/s3_access_key_id
+  S3_SECRET_ACCESS_KEY_FILE: /run/secrets/s3_secret_access_key
+
+x-internal-ca: &internal-ca
+  source: internal_ca
+  target: /run/configs/internal-ca.crt
+
+# The environment of both replicas of the API, which add their address in the network "edge".
+x-api-env: &api-env
+  <<: [*node-env, *egress-env, *storage-env]
+  OTEL_SERVICE_NAME: api
+  APP_URL: https://${SMP_DOMAIN:?set SMP_DOMAIN in deploy/.env}
+  BETTER_AUTH_URL: https://${SMP_DOMAIN:?set SMP_DOMAIN in deploy/.env}
+  API_PORT: '3001'
+  API_METRICS_PORT: '9464'
+  DATABASE_URL_FILE: /run/secrets/database_url_api
+  DATABASE_SYSTEM_URL_FILE: /run/secrets/database_system_url_api
+  REDIS_URL_FILE: /run/secrets/redis_url_api
+  BETTER_AUTH_SECRET_FILE: /run/secrets/better_auth_secret
+  TOKEN_KEKS_FILE: /run/secrets/token_keks
+  SESSION_KEKS_FILE: /run/secrets/session_keks
+  NOTIFY_KEKS_FILE: /run/secrets/notify_keks
+  AI_PROVIDER: anthropic
+  AI_MODEL: ${AI_MODEL:-claude-opus-5-5}
+  ANTHROPIC_API_KEY_FILE: /run/secrets/anthropic_api_key
+  PWNED_PASSWORDS_API_URL: https://api.pwnedpasswords.com
+
+# scripts/deploy.sh hashes the files every service reads; a changed hash recreates the service,
+# which Compose does not do for a changed file of a config or secret by itself.
+x-app-files: &app-files
+  labels:
+    smp.files: ${SMP_HASH_APP:-}
+
+x-worker: &worker
+  image: ${SMP_REGISTRY:?set SMP_REGISTRY in deploy/.env}/worker:${SMP_VERSION:?set SMP_VERSION in deploy/.env}
+  <<: [*hardened, *app-files]
+  # The secret files belong to root and the group 10001.
+  group_add: ['10001']
+  # SIGTERM lets the running job finish; lease and reconcile pick up whatever is cut off.
+  stop_grace_period: 60s
+  env_file: [generated/keyring.env]
+  configs: [*internal-ca]
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    redis:
+      condition: service_healthy
+    s3-init:
+      condition: service_completed_successfully
+
+services:
+  caddy:
+    image: caddy:2.11.4-alpine
+    <<: *hardened
+    labels:
+      smp.files: ${SMP_HASH_CADDY:-}
+    # The caddy binary carries the bind capability as a file capability.
+    cap_add: [NET_BIND_SERVICE]
+    ports:
+      - '80:80'
+      - '443:443'
+      # HTTP/3
+      - '443:443/udp'
+    networks: [public, edge, media]
+    environment:
+      SMP_DOMAIN: ${SMP_DOMAIN:?set SMP_DOMAIN in deploy/.env}
+      SMP_MEDIA_DOMAIN: ${SMP_MEDIA_DOMAIN:?set SMP_MEDIA_DOMAIN in deploy/.env}
+      SMP_TLS: ${SMP_TLS:?set SMP_TLS in deploy/.env}
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+      - source: internal_ca
+        target: /etc/caddy/internal-ca.crt
+    # Certificates and the ACME account outlive the container.
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api-1:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+  web:
+    image: ${SMP_REGISTRY:?set SMP_REGISTRY in deploy/.env}/web:${SMP_VERSION:?set SMP_VERSION in deploy/.env}
+    <<: [*hardened, *app-files]
+    # Next.js writes its runtime cache below .next/cache.
+    tmpfs: ['/tmp', '/app/apps/web/.next/cache']
+    networks: [edge]
+    environment:
+      NODE_ENV: production
+      # Server-side calls of Next.js to the API, inside the network "edge".
+      API_INTERNAL_URL: http://api:3001
+      S3_PUBLIC_ENDPOINT: https://${SMP_MEDIA_DOMAIN:?set SMP_MEDIA_DOMAIN in deploy/.env}
+      S3_FORCE_PATH_STYLE: 'true'
+    mem_limit: 512m
+    depends_on:
+      api-1:
+        condition: service_healthy
+
+  # Two replicas: with one, the reads missed their target during a burst of publishing (ADR 0041).
+  api-1: &api
+    image: ${SMP_REGISTRY:?set SMP_REGISTRY in deploy/.env}/api:${SMP_VERSION:?set SMP_VERSION in deploy/.env}
+    <<: [*hardened, *app-files]
+    group_add: ['10001']
+    networks:
+      edge:
+        # The web app reaches either replica under this name. The API listens on this address
+        # only, so that the containers of the other networks cannot reach it (ADR 0006).
+        ipv4_address: ${SMP_EDGE_PREFIX:-172.30.10}.11
+        aliases: [api]
+      data: {}
+      egress: {}
+      monitoring: {}
+    env_file: [generated/keyring.env]
+    environment:
+      <<: *api-env
+      API_HOST: ${SMP_EDGE_PREFIX:-172.30.10}.11
+      HEALTH_URL: http://${SMP_EDGE_PREFIX:-172.30.10}.11:3001/api/health/live
+    secrets:
+      - database_url_api
+      - database_system_url_api
+      - redis_url_api
+      - better_auth_secret
+      - token_keks
+      - session_keks
+      - notify_keks
+      - anthropic_api_key
+      - s3_access_key_id
+      - s3_secret_access_key
+    configs: [*internal-ca]
+    # A share of its own, so that a burst of publishing does not slow the reads (ADR 0041).
+    cpus: 1.5
+    mem_limit: 768m
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
+      egress-app:
+        condition: service_healthy
+
+  api-2:
+    <<: *api
+    networks:
+      edge:
+        ipv4_address: ${SMP_EDGE_PREFIX:-172.30.10}.12
+        aliases: [api]
+      data: {}
+      egress: {}
+      monitoring: {}
+    environment:
+      <<: *api-env
+      API_HOST: ${SMP_EDGE_PREFIX:-172.30.10}.12
+      HEALTH_URL: http://${SMP_EDGE_PREFIX:-172.30.10}.12:3001/api/health/live
+
+  worker-scheduler:
+    <<: *worker
+    networks: [data, egress, monitoring]
+    environment:
+      <<: [*node-env, *egress-env]
+      OTEL_SERVICE_NAME: worker-scheduler
+      WORKER_ROLES: scheduler
+      HEALTH_URL: http://127.0.0.1:3002/health/live
+      APP_URL: https://${SMP_DOMAIN:?set SMP_DOMAIN in deploy/.env}
+      DATABASE_URL_FILE: /run/secrets/database_url_scheduler
+      DATABASE_SYSTEM_URL_FILE: /run/secrets/database_system_url_scheduler
+      REDIS_URL_FILE: /run/secrets/redis_url_scheduler
+      # The re-wrap of tick.maintenance needs the token and session keyrings.
+      TOKEN_KEKS_FILE: /run/secrets/token_keks
+      SESSION_KEKS_FILE: /run/secrets/session_keks
+      NOTIFY_KEKS_FILE: /run/secrets/notify_keks
+    secrets:
+      - database_url_scheduler
+      - database_system_url_scheduler
+      - redis_url_scheduler
+      - token_keks
+      - session_keks
+      - notify_keks
+
+  worker-publisher:
+    <<: *worker
+    networks: [data, egress, monitoring]
+    environment:
+      <<: [*node-env, *egress-env, *storage-env]
+      OTEL_SERVICE_NAME: worker-publisher
+      WORKER_ROLES: publisher,analytics
+      HEALTH_URL: http://127.0.0.1:3002/health/live
+      APP_URL: https://${SMP_DOMAIN:?set SMP_DOMAIN in deploy/.env}
+      DATABASE_URL_FILE: /run/secrets/database_url_publisher
+      REDIS_URL_FILE: /run/secrets/redis_url_publisher
+      TOKEN_KEKS_FILE: /run/secrets/token_keks
+    secrets:
+      - database_url_publisher
+      - redis_url_publisher
+      - token_keks
+      - s3_access_key_id
+      - s3_secret_access_key
+    # A share of its own next to the API (ADR 0041).
+    cpus: 1.5
+    mem_limit: 768m
+
+  # Image processing reaches nobody outside: no egress network.
+  worker-media:
+    <<: *worker
+    networks: [data, monitoring]
+    environment:
+      <<: [*node-env, *storage-env]
+      OTEL_SERVICE_NAME: worker-media
+      WORKER_ROLES: media
+      HEALTH_URL: http://127.0.0.1:3002/health/live
+      DATABASE_URL_FILE: /run/secrets/database_url_media
+      REDIS_URL_FILE: /run/secrets/redis_url_media
+    secrets:
+      - database_url_media
+      - redis_url_media
+      - s3_access_key_id
+      - s3_secret_access_key
+    mem_limit: 1g
+
+  worker-notify:
+    <<: *worker
+    networks: [data, egress, monitoring]
+    environment:
+      <<: [*node-env, *egress-env]
+      OTEL_SERVICE_NAME: worker-notify
+      WORKER_ROLES: notify
+      HEALTH_URL: http://127.0.0.1:3002/health/live
+      APP_URL: https://${SMP_DOMAIN:?set SMP_DOMAIN in deploy/.env}
+      MAIL_FROM: ${MAIL_FROM:?set MAIL_FROM in deploy/.env}
+      DATABASE_URL_FILE: /run/secrets/database_url_notify
+      REDIS_URL_FILE: /run/secrets/redis_url_notify
+      NOTIFY_KEKS_FILE: /run/secrets/notify_keks
+      # smtps:// or smtp:// with STARTTLS; the server is one of SMP_EGRESS_HOSTS.
+      SMTP_URL_FILE: /run/secrets/smtp_url
+      SMTP_PROXY: ${SMP_SMTP_PROXY:-}
+    secrets:
+      - database_url_notify
+      - redis_url_notify
+      - notify_keks
+      - smtp_url
+
+  # The role "billing" joins with compose.billing.yaml, which brings the keys of Stripe.
+  worker-billing:
+    <<: *worker
+    networks: [data, egress, monitoring]
+    environment:
+      <<: [*node-env, *egress-env, *storage-env]
+      OTEL_SERVICE_NAME: worker-billing
+      WORKER_ROLES: gdpr
+      HEALTH_URL: http://127.0.0.1:3002/health/live
+      APP_URL: https://${SMP_DOMAIN:?set SMP_DOMAIN in deploy/.env}
+      DATABASE_URL_FILE: /run/secrets/database_url_billing
+      DATABASE_SYSTEM_URL_FILE: /run/secrets/database_system_url_billing
+      REDIS_URL_FILE: /run/secrets/redis_url_billing
+      # The revocation of the grants of an erased organization opens their tokens.
+      TOKEN_KEKS_FILE: /run/secrets/token_keks
+      NOTIFY_KEKS_FILE: /run/secrets/notify_keks
+    secrets:
+      - database_url_billing
+      - database_system_url_billing
+      - redis_url_billing
+      - token_keks
+      - notify_keks
+      - s3_access_key_id
+      - s3_secret_access_key
+
+  # The way out of API and worker: exactly the hosts of SMP_EGRESS_HOSTS, nothing of X.
+  egress-app:
+    image: ${SMP_REGISTRY:?set SMP_REGISTRY in deploy/.env}/egress-proxy:${SMP_VERSION:?set SMP_VERSION in deploy/.env}
+    <<: *hardened
+    networks: [egress, outbound]
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      EGRESS_PORT: '3128'
+      EGRESS_POLICY: hosts
+      EGRESS_HOSTS: ${SMP_EGRESS_HOSTS:?set SMP_EGRESS_HOSTS in deploy/.env}
+
+  postgres:
+    image: postgres:17.11-alpine
+    <<: *hardened
+    labels:
+      smp.files: ${SMP_HASH_STORES:-}
+    # Root only to hand the TLS key and the archive to postgres and to switch to that user.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    shm_size: 256m
+    tmpfs: ['/tmp', '/run/pgtls', '/var/run/postgresql']
+    # "monitoring" for postgres-backup in its network, which reports to the Pushgateway.
+    networks: [data, monitoring]
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        install -d -o postgres -g postgres -m 0700 /var/lib/postgresql/archive &&
+        install -o postgres -g postgres -m 0600 /run/secrets/postgres_tls_key /run/pgtls/server.key &&
+        exec docker-entrypoint.sh "$$@"
+      - postgres-entrypoint
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/run/configs/postgres.crt
+      - -c
+      - ssl_key_file=/run/pgtls/server.key
+      - -c
+      - ssl_min_protocol_version=TLSv1.2
+      - -c
+      - hba_file=/run/configs/pg_hba.conf
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - max_connections=300
+      # Continuous archiving for point-in-time recovery (ADR 0042); postgres-backup keeps the
+      # archive small, backup-sync copies it off the VM.
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=/backup/archive-wal.sh %p %f
+      - -c
+      - archive_timeout=60
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: '--auth-local=scram-sha-256 --auth-host=scram-sha-256'
+    secrets: [postgres_password, postgres_tls_key]
+    configs:
+      - source: postgres_crt
+        target: /run/configs/postgres.crt
+      - source: pg_hba
+        target: /run/configs/pg_hba.conf
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - postgres-archive:/var/lib/postgresql/archive
+      - ../infra/docker/postgres/backup:/backup:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # The roles of the services, at every deploy (postgres/roles.sh).
+  db-roles:
+    image: postgres:17.11-alpine
+    <<: *hardened
+    restart: 'no'
+    user: '70:70'
+    group_add: ['10001']
+    networks: [data]
+    entrypoint: ['/bin/sh', '/run/configs/roles.sh']
+    secrets:
+      - postgres_password
+      - pg_password_app_migrator
+      - pg_password_svc_api
+      - pg_password_svc_api_system
+      - pg_password_svc_scheduler
+      - pg_password_svc_scheduler_system
+      - pg_password_svc_publisher
+      - pg_password_svc_publisher_system
+      - pg_password_svc_media
+      - pg_password_svc_notify
+      - pg_password_svc_billing
+      - pg_password_svc_billing_system
+      - pg_password_svc_backup
+    configs:
+      - *internal-ca
+      - source: roles_sh
+        target: /run/configs/roles.sh
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate:
+    image: ${SMP_REGISTRY:?set SMP_REGISTRY in deploy/.env}/migrate:${SMP_VERSION:?set SMP_VERSION in deploy/.env}
+    <<: *hardened
+    restart: 'no'
+    group_add: ['10001']
+    networks: [data]
+    environment:
+      MIGRATION_DATABASE_URL_FILE: /run/secrets/migration_database_url
+    secrets: [migration_database_url]
+    configs: [*internal-ca]
+    depends_on:
+      db-roles:
+        condition: service_completed_successfully
+
+  # Base backups every BACKUP_INTERVAL_HOURS, the newest BACKUP_KEEP stay, and the WAL archive
+  # keeps what the oldest of them needs (ADR 0042). It shares the network of postgres and signs
+  # in as svc_backup over TLS on 127.0.0.1.
+  postgres-backup:
+    image: postgres:17.11-alpine
+    <<: *hardened
+    cap_add: [CHOWN, FOWNER, SETGID, SETUID]
+    init: true
+    network_mode: service:postgres
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        install -d -o postgres -g postgres -m 0700 /var/lib/postgresql/backups &&
+        PGPASSWORD=$$(cat /run/secrets/pg_password_svc_backup) exec gosu postgres /backup/backup-loop.sh
+    environment:
+      PGHOST: 127.0.0.1
+      PGUSER: svc_backup
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /run/configs/internal-ca.crt
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_PUSHGATEWAY_URL: ${BACKUP_PUSHGATEWAY_URL:-}
+    secrets: [pg_password_svc_backup]
+    configs: [*internal-ca]
+    volumes:
+      - postgres-backups:/var/lib/postgresql/backups
+      - postgres-archive:/var/lib/postgresql/archive
+      - ../infra/docker/postgres/backup:/backup:ro
+    depends_on:
+      db-roles:
+        condition: service_completed_successfully
+
+  # The copy to a bucket outside the VM every BACKUP_SYNC_SECONDS (ADR 0042), encrypted by the
+  # storage with BACKUP_S3_SSE. It reaches the internet directly; it holds no key of the app.
+  backup-sync:
+    image: amazon/aws-cli:2.38.1
+    <<: *hardened
+    profiles: ['backup']
+    # The user postgres of the Alpine image, who owns the backups and the archive.
+    user: '70:70'
+    group_add: ['10001']
+    init: true
+    networks: [outbound, monitoring]
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        AWS_ACCESS_KEY_ID=$$(cat /run/secrets/backup_s3_access_key_id)
+        AWS_SECRET_ACCESS_KEY=$$(cat /run/secrets/backup_s3_secret_access_key)
+        exec /bin/sh /backup/sync-loop.sh
+    environment:
+      HOME: /tmp
+      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-eu-central-1}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-smp-backups}
+      BACKUP_S3_SSE: ${BACKUP_S3_SSE:-AES256}
+      BACKUP_SYNC_SECONDS: ${BACKUP_SYNC_SECONDS:-300}
+      BACKUP_PUSHGATEWAY_URL: ${BACKUP_PUSHGATEWAY_URL:-}
+    secrets: [backup_s3_access_key_id, backup_s3_secret_access_key]
+    volumes:
+      - postgres-backups:/backups:ro
+      - postgres-archive:/archive:ro
+      - ../infra/docker/postgres/backup:/backup:ro
+    depends_on:
+      postgres-backup:
+        condition: service_started
+
+  redis:
+    image: redis:7.4.11-alpine
+    <<: *hardened
+    labels:
+      smp.files: ${SMP_HASH_STORES:-}
+    # Root only to hand the TLS key and the users to redis and to switch to that user.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    tmpfs: ['/tmp', '/run/redis']
+    networks: [data, xb]
+    # BullMQ needs noeviction and the AOF (guide B.11). TLS only, no plain port. The users and
+    # their rules are in redis/users.acl: one per service, with the rules the app user had
+    # before (ADR 0039), the browser worker with the keys of the X browser only. The default user
+    # stays off with every rule, because Redis replays the AOF as that user (ADR 0043).
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        install -o redis -g redis -m 0400 /run/secrets/redis_tls_key /run/redis/tls.key &&
+        install -o redis -g redis -m 0400 /run/secrets/redis_users_acl /run/redis/users.acl &&
+        exec docker-entrypoint.sh "$$@"
+      - redis-entrypoint
+    command:
+      - redis-server
+      - --port
+      - '0'
+      - --tls-port
+      - '6379'
+      - --tls-cert-file
+      - /run/configs/redis.crt
+      - --tls-key-file
+      - /run/redis/tls.key
+      - --tls-ca-cert-file
+      - /run/configs/internal-ca.crt
+      - --tls-auth-clients
+      - 'no'
+      - --tls-protocols
+      - 'TLSv1.2 TLSv1.3'
+      - --aclfile
+      - /run/redis/users.acl
+      - --appendonly
+      - 'yes'
+      - --maxmemory-policy
+      - noeviction
+    secrets: [redis_tls_key, redis_users_acl]
+    configs:
+      - *internal-ca
+      - source: redis_crt
+        target: /run/configs/redis.crt
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - --tls
+        - --cacert
+        - /run/configs/internal-ca.crt
+        - --user
+        - health
+        - --pass
+        - unused
+        - --no-auth-warning
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  s3:
+    image: chrislusf/seaweedfs:4.48
+    <<: *hardened
+    labels:
+      smp.files: ${SMP_HASH_STORES:-}
+    # Root only to hand the key and the identities to seaweed and to switch to that user.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    tmpfs: ['/tmp', '/run/seaweed']
+    networks: [data, media]
+    # Master, volume and filer listen on 127.0.0.1 only; the S3 gateway, which checks every
+    # signature, is the only HTTP port in the networks, with TLS. Its gRPC port needs a client
+    # certificate of the private CA (seaweedfs/security.toml). Its catalogs for Iceberg and Lance
+    # stay off. The certificate lies next to the key, as the gateway requires. The key for SSE-S3
+    # exists in a staging only (compose.staging.yaml).
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        if [ -e /run/secrets/s3_sse_kek ]; then
+        WEED_S3_SSE_KEK=$$(cat /run/secrets/s3_sse_kek); export WEED_S3_SSE_KEK; fi &&
+        install -o seaweed -g seaweed -m 0400 /run/secrets/s3_tls_key /run/seaweed/tls.key &&
+        install -o seaweed -g seaweed -m 0444 /run/configs/s3.crt /run/seaweed/tls.crt &&
+        install -o seaweed -g seaweed -m 0400 /run/secrets/s3_config /run/seaweed/s3.json &&
+        exec /entrypoint.sh "$$@"
+      - s3-entrypoint
+    command:
+      - server
+      - -s3
+      - -s3.config=/run/seaweed/s3.json
+      - -dir=/data
+      - -ip=127.0.0.1
+      - -s3.ip.bind=0.0.0.0
+      - -s3.cert.file=/run/seaweed/tls.crt
+      - -s3.key.file=/run/seaweed/tls.key
+      - -s3.port.iceberg=0
+      - -s3.port.lance=0
+      - -master.telemetry=false
+    secrets: [s3_tls_key, s3_config]
+    configs:
+      - *internal-ca
+      - source: s3_crt
+        target: /run/configs/s3.crt
+      - source: seaweedfs_security
+        target: /etc/seaweedfs/security.toml
+    volumes:
+      - s3-data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'curl',
+          '-s',
+          '-o',
+          '/dev/null',
+          '--cacert',
+          '/run/configs/internal-ca.crt',
+          'https://localhost:8333/',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # The bucket of the media with the CORS rules of the app, as the identity "init".
+  s3-init:
+    image: amazon/aws-cli:2.38.1
+    <<: *hardened
+    restart: 'no'
+    networks: [data]
+    entrypoint: ['/bin/sh', '-c']
+    environment:
+      HOME: /tmp
+      AWS_CA_BUNDLE: /run/configs/internal-ca.crt
+      AWS_DEFAULT_REGION: us-east-1
+      SMP_DOMAIN: ${SMP_DOMAIN:?set SMP_DOMAIN in deploy/.env}
+    command:
+      - |
+        set -eu
+        AWS_ACCESS_KEY_ID=$$(cat /run/secrets/s3_init_access_key_id)
+        AWS_SECRET_ACCESS_KEY=$$(cat /run/secrets/s3_init_secret_access_key)
+        export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+        endpoint=https://s3:8333
+        aws --endpoint-url "$$endpoint" s3api head-bucket --bucket smp-media > /dev/null 2>&1 \
+          || aws --endpoint-url "$$endpoint" s3 mb s3://smp-media
+        aws --endpoint-url "$$endpoint" s3api put-bucket-cors --bucket smp-media \
+          --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[\"https://$$SMP_DOMAIN\"],\"AllowedMethods\":[\"PUT\",\"GET\",\"HEAD\"],\"AllowedHeaders\":[\"Content-Type\"],\"MaxAgeSeconds\":3000}]}"
+        echo "s3-init: bucket smp-media is ready"
+    secrets: [s3_init_access_key_id, s3_init_secret_access_key]
+    configs: [*internal-ca]
+    depends_on:
+      s3:
+        condition: service_healthy
+
+  # The monitoring of ADR 0043 with the rules of infra/observability, and the expiry of the
+  # certificates of Caddy (monitoring/rules/tls.yml).
+  prometheus:
+    image: prom/prometheus:v3.13.4
+    <<: *hardened
+    labels:
+      smp.files: ${SMP_HASH_MONITORING:-}
+    profiles: ['monitoring']
+    networks: [monitoring]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../infra/observability/rules:/etc/prometheus/rules:ro
+      - ./monitoring/rules:/etc/prometheus/deploy-rules:ro
+      - prometheus-data:/prometheus
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    <<: *hardened
+    labels:
+      smp.files: ${SMP_HASH_MONITORING:-}
+    profiles: ['monitoring']
+    # Its mail leaves the VM directly; it holds no key of the app.
+    networks: [monitoring, outbound]
+    group_add: ['10001']
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --cluster.listen-address=
+    secrets: [alert_smtp_password]
+    volumes:
+      - ./generated/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+
+  pushgateway:
+    image: prom/pushgateway:v1.11.3
+    <<: *hardened
+    profiles: ['monitoring']
+    networks: [monitoring]
+
+  # Probes both names through Caddy, as a browser would, and reports how long the certificates
+  # still hold (probe_ssl_earliest_cert_expiry).
+  blackbox:
+    image: prom/blackbox-exporter:v0.28.0
+    <<: *hardened
+    labels:
+      smp.files: ${SMP_HASH_MONITORING:-}
+    profiles: ['monitoring']
+    user: nobody
+    networks: [monitoring, edge, media]
+    command: ['--config.file=/etc/blackbox/blackbox.yml']
+    # scripts/deploy.sh writes the configuration for both names, with the root of Caddy's own CA
+    # for SMP_TLS internal.
+    volumes:
+      - ./generated/blackbox:/etc/blackbox:ro
+
+networks:
+  # The only network with a route in from outside, and only Caddy is in it.
+  public: {}
+  edge:
+    internal: true
+    # A fixed subnet for the fixed addresses of the API; SMP_EDGE_PREFIX moves it when it collides
+    # with a network of the VM.
+    ipam:
+      config:
+        - subnet: ${SMP_EDGE_PREFIX:-172.30.10}.0/24
+  data:
+    internal: true
+  media:
+    internal: true
+  egress:
+    internal: true
+  monitoring:
+    internal: true
+  # The browser worker of X with Redis and its egress proxy (compose.xb.yaml).
+  xb:
+    internal: true
+  # The way out of the egress proxies, Alertmanager and backup-sync.
+  outbound: {}
+
+configs:
+  caddyfile:
+    file: caddy/Caddyfile
+  internal_ca:
+    file: generated/tls/internal-ca.crt
+  postgres_crt:
+    file: generated/tls/postgres.crt
+  redis_crt:
+    file: generated/tls/redis.crt
+  s3_crt:
+    file: generated/tls/s3.crt
+  pg_hba:
+    file: postgres/pg_hba.conf
+  roles_sh:
+    file: postgres/roles.sh
+  seaweedfs_security:
+    file: seaweedfs/security.toml
+
+secrets:
+  postgres_password:
+    file: secrets/postgres_password
+  postgres_tls_key:
+    file: secrets/postgres_tls_key
+  pg_password_app_migrator:
+    file: secrets/pg_password_app_migrator
+  pg_password_svc_api:
+    file: secrets/pg_password_svc_api
+  pg_password_svc_api_system:
+    file: secrets/pg_password_svc_api_system
+  pg_password_svc_scheduler:
+    file: secrets/pg_password_svc_scheduler
+  pg_password_svc_scheduler_system:
+    file: secrets/pg_password_svc_scheduler_system
+  pg_password_svc_publisher:
+    file: secrets/pg_password_svc_publisher
+  pg_password_svc_publisher_system:
+    file: secrets/pg_password_svc_publisher_system
+  pg_password_svc_media:
+    file: secrets/pg_password_svc_media
+  pg_password_svc_notify:
+    file: secrets/pg_password_svc_notify
+  pg_password_svc_billing:
+    file: secrets/pg_password_svc_billing
+  pg_password_svc_billing_system:
+    file: secrets/pg_password_svc_billing_system
+  pg_password_svc_backup:
+    file: secrets/pg_password_svc_backup
+  migration_database_url:
+    file: secrets/migration_database_url
+  database_url_api:
+    file: secrets/database_url_api
+  database_system_url_api:
+    file: secrets/database_system_url_api
+  database_url_scheduler:
+    file: secrets/database_url_scheduler
+  database_system_url_scheduler:
+    file: secrets/database_system_url_scheduler
+  database_url_publisher:
+    file: secrets/database_url_publisher
+  database_url_media:
+    file: secrets/database_url_media
+  database_url_notify:
+    file: secrets/database_url_notify
+  database_url_billing:
+    file: secrets/database_url_billing
+  database_system_url_billing:
+    file: secrets/database_system_url_billing
+  redis_tls_key:
+    file: secrets/redis_tls_key
+  redis_users_acl:
+    file: secrets/redis_users_acl
+  redis_url_api:
+    file: secrets/redis_url_api
+  redis_url_scheduler:
+    file: secrets/redis_url_scheduler
+  redis_url_publisher:
+    file: secrets/redis_url_publisher
+  redis_url_media:
+    file: secrets/redis_url_media
+  redis_url_notify:
+    file: secrets/redis_url_notify
+  redis_url_billing:
+    file: secrets/redis_url_billing
+  s3_tls_key:
+    file: secrets/s3_tls_key
+  s3_config:
+    file: secrets/s3_config
+  s3_access_key_id:
+    file: secrets/s3_access_key_id
+  s3_secret_access_key:
+    file: secrets/s3_secret_access_key
+  s3_init_access_key_id:
+    file: secrets/s3_init_access_key_id
+  s3_init_secret_access_key:
+    file: secrets/s3_init_secret_access_key
+  better_auth_secret:
+    file: secrets/better_auth_secret
+  token_keks:
+    file: secrets/token_keks
+  session_keks:
+    file: secrets/session_keks
+  notify_keks:
+    file: secrets/notify_keks
+  # From the providers, put there by hand (docs/runbooks/deployment.md).
+  anthropic_api_key:
+    file: secrets/anthropic_api_key
+  smtp_url:
+    file: secrets/smtp_url
+  alert_smtp_password:
+    file: secrets/alert_smtp_password
+  backup_s3_access_key_id:
+    file: secrets/backup_s3_access_key_id
+  backup_s3_secret_access_key:
+    file: secrets/backup_s3_secret_access_key
+
+volumes:
+  caddy-data:
+  caddy-config:
+  postgres-data:
+  postgres-archive:
+  postgres-backups:
+  redis-data:
+  s3-data:
+  prometheus-data:
+  alertmanager-data:

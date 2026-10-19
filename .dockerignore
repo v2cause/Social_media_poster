@@ -11,6 +11,8 @@
 .git
 .github
 docs
+# The production template with its secrets and certificates (guide step 8.9).
+deploy
 .env
 .env.*
 !.env.example
