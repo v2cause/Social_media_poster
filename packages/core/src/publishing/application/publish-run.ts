@@ -23,6 +23,7 @@ import type {
   PublishMediaItem,
 } from '../ports/publish-job';
 import {
+  runReport,
   statusEvent,
   unitOfJob,
   type ClaimedRun,
@@ -497,7 +498,15 @@ export class PublishRun {
       }
       return true;
     });
-    return changed ? outcomeOf(end) : { kind: 'skipped', reason: 'LEASE_LOST' };
+    if (!changed) {
+      return { kind: 'skipped', reason: 'LEASE_LOST' };
+    }
+    const outcome = outcomeOf(end);
+    const report = runReport(variant, outcome, now);
+    if (report) {
+      this.deps.observer?.runEnded(report);
+    }
+    return outcome;
   }
 
   /** The paid calls of the run, once per operation (architecture 4.1, ApiCostRecorder). */

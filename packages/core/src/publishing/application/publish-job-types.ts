@@ -1,3 +1,5 @@
+import type { Platform } from '@smp/platform-rules';
+
 import type { AdapterLogger } from '../../channels/ports/platform-adapter';
 import type { SecretSealer } from '../../channels/ports/secrets';
 import type { AdapterResolver, ConnectionLock } from '../../channels/ports/token-maintenance';
@@ -41,6 +43,41 @@ export interface PublishJobDependencies {
   leaseMs?: number;
   /** ANALYTICS_CADENCE_SCALE for the first metrics poll of a published post; 1 by default. */
   metricsCadenceScale?: number;
+  /** Hears of every run that ended, for the metrics of the deployment (guide step 8.7). */
+  observer?: PublishRunObserver;
+}
+
+/** How a run ended, for the success rate per platform and the delay against the schedule. */
+export interface PublishRunReport {
+  platform: Platform;
+  outcome: 'published' | 'retry' | 'failed' | 'needs_attention';
+  /** The failure code; null for a published variant. */
+  code: PublishFailureCode | null;
+  dryRun: boolean;
+  /** How long after the scheduled time the run ended; null for a variant without one. */
+  delayMs: number | null;
+}
+
+export interface PublishRunObserver {
+  runEnded(report: PublishRunReport): void;
+}
+
+/** The report of a run of the variant that ended at the time given. */
+export function runReport(
+  variant: Pick<PublishJobVariant, 'platform' | 'scheduledAt'>,
+  outcome: PublishJobOutcome,
+  endedAt: Date,
+): PublishRunReport | null {
+  if (outcome.kind === 'skipped' || outcome.kind === 'busy') {
+    return null;
+  }
+  return {
+    platform: variant.platform,
+    outcome: outcome.kind,
+    code: outcome.kind === 'published' ? null : outcome.code,
+    dryRun: outcome.kind === 'published' && outcome.dryRun,
+    delayMs: variant.scheduledAt ? endedAt.getTime() - variant.scheduledAt.getTime() : null,
+  };
 }
 
 export interface PublishJobInput {

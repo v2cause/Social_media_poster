@@ -716,6 +716,8 @@ export type {
   PublishJobDependencies,
   PublishJobInput,
   PublishJobOutcome,
+  PublishRunObserver,
+  PublishRunReport,
 } from './publishing/application/publish-job-types';
 export { PublishVariant } from './publishing/application/publish-variant';
 

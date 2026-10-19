@@ -94,6 +94,39 @@ describe('PublishVariant', () => {
     });
   });
 
+  it('reports the end of every run to the observer, with the platform and the delay', async () => {
+    const published = createPublishJobTestbed({ platform: 'X' });
+    await publish(published);
+    expect(published.reports).toEqual([
+      { platform: 'X', outcome: 'published', code: null, dryRun: false, delayMs: 60_000 },
+    ]);
+
+    const failing = createPublishJobTestbed();
+    failing.adapter.publishAnswers = [new PlatformError('VALIDATION_REJECTED', 'The post was refused.')];
+    await publish(failing);
+    expect(failing.reports).toEqual([
+      expect.objectContaining({ platform: 'LINKEDIN', outcome: 'failed', code: 'VALIDATION_REJECTED' }),
+    ]);
+
+    const late = createPublishJobTestbed({ variant: { scheduledAt: new Date(NOW - 7 * 60 * 60 * 1000) } });
+    await publish(late, jobOf({ trigger: 'sweep' }));
+    expect(late.reports).toEqual([
+      {
+        platform: 'LINKEDIN',
+        outcome: 'failed',
+        code: 'MISSED_WINDOW',
+        dryRun: false,
+        delayMs: 7 * 60 * 60 * 1000,
+      },
+    ]);
+
+    const busy = createPublishJobTestbed({
+      variant: { status: 'PUBLISHING', leaseOwner: 'worker-b:9', leaseUntil: new Date(NOW + 90_000) },
+    });
+    await publish(busy);
+    expect(busy.reports).toEqual([]);
+  });
+
   it('speeds the first metrics poll up with the cadence scale of time-lapse tests', async () => {
     const bed = createPublishJobTestbed();
     bed.metricsCadenceScale = 60;

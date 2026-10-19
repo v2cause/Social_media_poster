@@ -1,7 +1,8 @@
 import { isMissedWindow, isRunnable, LEASE_GRACE_MS, PUBLISH_LEASE_MS } from '../domain/publish-job';
-import type { PublishJobStore } from '../ports/publish-job';
+import type { PublishJobStore, PublishJobVariant } from '../ports/publish-job';
 import { PublishRun, readRunMedia } from './publish-run';
 import {
+  runReport,
   statusEvent,
   unitOfJob,
   type ClaimedRun,
@@ -21,6 +22,15 @@ export class PublishVariant {
 
   async execute(job: PublishJobInput): Promise<PublishJobOutcome> {
     const claim = await unitOfJob(this.deps, job, (store) => this.claim(store, job));
+    if (claim.kind === 'missed') {
+      // Reported once the failure is committed, like the end of a run.
+      const outcome: PublishJobOutcome = { kind: 'failed', code: 'MISSED_WINDOW' };
+      const report = runReport(claim.variant, outcome, claim.at);
+      if (report) {
+        this.deps.observer?.runEnded(report);
+      }
+      return outcome;
+    }
     if (claim.kind !== 'claimed') {
       return claim;
     }
@@ -30,7 +40,11 @@ export class PublishVariant {
   private async claim(
     store: PublishJobStore,
     job: PublishJobInput,
-  ): Promise<{ kind: 'claimed'; run: ClaimedRun } | PublishJobOutcome> {
+  ): Promise<
+    | { kind: 'claimed'; run: ClaimedRun }
+    | { kind: 'missed'; variant: PublishJobVariant; at: Date }
+    | PublishJobOutcome
+  > {
     const variant = await store.variants.lockForJob(job.workspaceId, job.variantId);
     if (!variant) {
       return { kind: 'skipped', reason: 'NOT_FOUND' };
@@ -56,7 +70,7 @@ export class PublishVariant {
         type: 'notification.requested',
         payload: { type: 'publish-failed', variantId: variant.id, failureCode: 'MISSED_WINDOW' },
       });
-      return { kind: 'failed', code: 'MISSED_WINDOW' };
+      return { kind: 'missed', variant, at: now };
     }
 
     const lease = {

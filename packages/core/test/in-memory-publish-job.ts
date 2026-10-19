@@ -23,6 +23,7 @@ import type {
   PublishRendition,
   PublishRequest,
   PublishResult,
+  PublishRunReport,
   RefreshOutcome,
   SocialConnection,
   SocialPlatformAdapter,
@@ -529,6 +530,8 @@ export interface PublishJobTestbed extends PublishJobDependencies {
   /** The connections whose lock was taken, in order. */
   locked: string[];
   warnings: string[];
+  /** What the observer heard of the runs that ended, in order. */
+  reports: PublishRunReport[];
 }
 
 export const NOW = Date.parse('2026-10-16T12:00:00Z');
@@ -550,12 +553,15 @@ export function createPublishJobTestbed(
   const adapter = new ScriptedAdapter(platform, options.method ?? 'API', clock);
   const locked: string[] = [];
   const warnings: string[] = [];
+  const reports: PublishRunReport[] = [];
   const bed: PublishJobTestbed = {
     unitOfWork,
     clock,
     adapter,
     locked,
     warnings,
+    reports,
+    observer: { runEnded: (report) => reports.push(report) },
     adapters: { resolve: () => Promise.resolve(adapter) },
     sealer: fakeSealer,
     locks: {
