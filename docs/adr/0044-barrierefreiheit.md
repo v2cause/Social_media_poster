@@ -39,6 +39,7 @@ Eine Prüfung der ganzen App gab es noch nicht. Die E2E-Tests prüften nur Ablä
 - **Reihenfolge**:
   - Die E2E-Tests laufen mit einem Worker in alphabetischer Reihenfolge. Die Datei läuft also zuerst, auf dem frischen Seed. Sie liest nur und schließt jeden Dialog wieder.
   - Die Abrechnungsseite prüft `billing.spec.ts`, wo das Fake-Stripe läuft. Ohne Stripe merkt sich die API eine unvollständige Preisliste eine Minute lang, und der Test der Abrechnung sähe danach keine Preise. Das zeigte die Gesamtprüfung, als `accessibility.spec.ts` die Seite noch selbst öffnete.
+- **Ruhende Seite**: axe misst die Farben des Augenblicks. Vor jeder Prüfung wartet `expectAccessible` deshalb, bis laufende Übergänge und Animationen mit einem Ende abgelaufen sind. Direkt nach dem Wechsel ins dunkle Schema hatte axe in der CI die Schaltflächen der Tarife mitten in ihrem Übergang (`transition-colors`, 150 ms) gemessen und einen Kontrast gemeldet, den die Seite in Ruhe nicht zeigt; lokal lief die Prüfung dreimal ohne Befund.
 
 ### Tastatur
 
