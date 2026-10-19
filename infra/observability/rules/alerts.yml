@@ -66,6 +66,16 @@ groups:
         annotations:
           summary: Jobs wait in the queue {{ $labels.queue }}, and no worker finished one for ten minutes.
           runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+      # BullMQ moves a delayed job on only in a worker of its queue: without one, its jobs stay
+      # delayed past their time and never count as waiting.
+      - alert: QueueJobsOverdue
+        expr: max by (queue) (smp_queue_overdue_seconds) > 120
+        for: 3m
+        labels:
+          severity: page
+        annotations:
+          summary: Jobs of the queue {{ $labels.queue }} are overdue for more than two minutes; no worker takes them.
+          runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
       # Publish runs and ticks have alerts of their own.
       - alert: QueueJobsFailing
         expr: |

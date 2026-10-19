@@ -126,6 +126,29 @@ tests:
               summary: 2 publish jobs failed for good and wait in the dead-letter queue.
               runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
 
+  # Without a worker of the queue, the delayed jobs of publish grow overdue; those of analytics
+  # are taken in time.
+  - name: delayed jobs nobody takes
+    interval: 1m
+    input_series:
+      - series: 'smp_queue_overdue_seconds{queue="publish", job="worker", instance="worker:3002"}'
+        values: '0+60x20'
+      - series: 'smp_queue_overdue_seconds{queue="analytics", job="worker", instance="worker:3002"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: QueueJobsOverdue
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: QueueJobsOverdue
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              queue: publish
+            exp_annotations:
+              summary: Jobs of the queue publish are overdue for more than two minutes; no worker takes them.
+              runbook_url: https://github.com/v2cause/Social_media_poster/blob/main/docs/runbooks/haengende-queue.md
+
   # Two of three notifications fail; one of six media jobs is no alert; ticks count elsewhere.
   - name: the jobs of a queue fail
     interval: 1m
