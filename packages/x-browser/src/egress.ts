@@ -7,7 +7,9 @@ import { z } from 'zod';
 // An entry is a host ("x.com"), its subdomains ("*.x.com", which leaves out "x.com" itself) or
 // an origin with scheme and port ("https://media.example.com", "http://s3:8333"). A host without
 // a scheme is reached over TLS on port 443 only; plain http needs an origin that says so, for
-// example the local storage of the development setup.
+// example the local storage of the development setup. A host with a port and without a scheme
+// ("smtp.example.com:587") opens a tunnel to that port, as the egress proxy of API and worker
+// needs it for SMTP (guide step 8.9).
 
 /** The hosts of the web app of X for the selector map x-v1, still to be confirmed against the live interface. */
 export const X_WEB_HOSTS: readonly string[] = ['x.com', '*.x.com', 'twimg.com', '*.twimg.com'];
@@ -60,6 +62,15 @@ const ruleOf = (entry: string): Rule => {
     host = url.hostname;
     tls = url.protocol === 'https:';
     port = url.port === '' ? (tls ? 443 : 80) : Number(url.port);
+  } else {
+    const withPort = /^(.+):(\d{1,5})$/.exec(value);
+    if (withPort) {
+      host = withPort[1] ?? '';
+      port = Number(withPort[2]);
+      if (port < 1 || port > 65_535) {
+        throw invalid(entry);
+      }
+    }
   }
   const subdomains = host.startsWith('*.');
   const name = subdomains ? host.slice(2) : host;
@@ -126,7 +137,7 @@ const readable = (entries: readonly string[]): boolean => {
   }
 };
 
-/** XB_EGRESS_HOSTS of the browser worker and the egress proxy: entries the policy can read. */
+/** XB_EGRESS_HOSTS and EGRESS_HOSTS of browser worker and egress proxy: entries the policy can read. */
 export const egressHostsEnvSchema = z.string().optional().transform(egressEntriesOf).refine(readable, {
-  message: 'Entries are hosts, *.subdomains or origins like https://media.example.com',
+  message: 'Entries are hosts, *.subdomains, hosts with a port or origins like https://media.example.com',
 });

@@ -5,10 +5,10 @@ import type { Duplex } from 'node:stream';
 import type { Logger } from '@smp/observability';
 import type { EgressPolicy } from '@smp/x-browser';
 
-// The egress proxy of the browser worker (guide step 6.2). The browser worker sits in an internal
-// network; its only way out is this proxy, which applies the egress policy of the X browser: a
-// tunnel (CONNECT) to a host and port of the policy, or a plain http request to an http origin
-// of it. Everything else gets 403 before any connection is made. The logs name hosts and ports,
+// The egress proxy of the browser worker (guide step 6.2), and of API and worker in the
+// deployment (guide step 8.9). They sit in internal networks; their only way out is this proxy,
+// which applies its egress policy: a tunnel (CONNECT) to a host and port of the policy, or a
+// plain http request to an http origin of it. Everything else gets 403 before any connection is made. The logs name hosts and ports,
 // never paths or query strings, which carry the signatures of the media URLs.
 
 const CONNECT_TIMEOUT_MS = 10_000;

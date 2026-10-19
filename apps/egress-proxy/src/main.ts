@@ -1,18 +1,19 @@
 import { createLogger } from '@smp/observability';
 import { egressPolicy, X_WEB_HOSTS } from '@smp/x-browser';
 
-import { loadEgressProxyEnv } from './env';
+import { egressHostsOf, loadEgressProxyEnv } from './env';
 import { createEgressProxy } from './proxy';
 
-// The only way out of the internal network of the browser worker (guide step 6.2).
+// The only way out of the internal network of the browser worker (guide step 6.2), or of API and
+// worker (guide step 8.9).
 function bootstrap(): void {
   const env = loadEgressProxyEnv(process.env);
   const logger = createLogger({ service: 'egress-proxy', environment: env.NODE_ENV, level: env.LOG_LEVEL });
-  const hosts = [...X_WEB_HOSTS, ...env.XB_EGRESS_HOSTS];
+  const hosts = egressHostsOf(env, X_WEB_HOSTS);
   const server = createEgressProxy(egressPolicy(hosts), logger);
 
   server.listen(env.EGRESS_PORT, () => {
-    logger.info({ port: env.EGRESS_PORT, hosts }, 'egress-proxy.ready');
+    logger.info({ port: env.EGRESS_PORT, policy: env.EGRESS_POLICY, hosts }, 'egress-proxy.ready');
   });
 
   const shutdown = (): void => {

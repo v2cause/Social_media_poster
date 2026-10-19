@@ -65,11 +65,24 @@ describe('egress policy', () => {
     expect(policy.allowsTunnel('localhost', 443)).toBe(false);
   });
 
+  it('opens a tunnel to the port of a host that names one, as for SMTP (guide step 8.9)', () => {
+    const app = egressPolicy(['smtp.example.com:587', '*.mail.example.com:465', 'api.stripe.com']);
+
+    expect(app.allowsTunnel('smtp.example.com', 587)).toBe(true);
+    expect(app.allowsTunnel('smtp.example.com', 443)).toBe(false);
+    expect(app.allowsTunnel('eu.mail.example.com', 465)).toBe(true);
+    expect(app.allowsTunnel('mail.example.com', 465)).toBe(false);
+    expect(app.allowsTunnel('api.stripe.com', 443)).toBe(true);
+    expect(app.allowsPlain('smtp.example.com', 587)).toBe(false);
+  });
+
   it('fails on an entry it cannot read instead of widening the list', () => {
     for (const entry of [
       '',
       '*.',
-      'x.com:8443',
+      'x.com:0',
+      'x.com:65536',
+      'x.com:',
       'https://x.com/path',
       'https://user@x.com',
       'ftp://x.com',
