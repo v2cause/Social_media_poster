@@ -9,6 +9,7 @@ export {
   type StartedObjectStorage,
   type StartedRedis,
 } from './containers';
+export { startConnectRecorder, type ConnectRecorder } from './connect-recorder';
 export { PASSWORDS, startTestDatabase, type DatabaseRole, type TestDatabase } from './postgres';
 export { totpCode, totpCodes } from './totp';
 export { describeAdapterContract, type AdapterContractFixtures, type TestRunner } from './adapter-contract';

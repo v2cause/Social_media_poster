@@ -1,6 +1,7 @@
 // Side-effect entry point. Load it first, before any application module:
 //   node --require @smp/observability/register dist/main.js
 // Configuration comes from the environment, validated with zod. Invalid values stop the start.
+import { checkEgressEnv, egressEnvSchema, proxyEnvOf } from './egress';
 import { observabilityEnvSchema } from './env';
 import { loadSecretFiles } from './secret-files';
 import { startErrorReporting } from './sentry';
@@ -15,4 +16,8 @@ startTracing({
   environment: env.NODE_ENV,
   otlpEndpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
 });
-startErrorReporting({ dsn: env.SENTRY_DSN, environment: env.NODE_ENV });
+startErrorReporting({
+  dsn: env.SENTRY_DSN,
+  environment: env.NODE_ENV,
+  proxyEnv: proxyEnvOf(egressEnvSchema.superRefine(checkEgressEnv).parse(process.env)),
+});

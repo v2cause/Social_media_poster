@@ -35,6 +35,7 @@
   },
   "devDependencies": {
     "@smp/config": "workspace:*",
+    "@smp/testing": "workspace:*",
     "@types/node": "^24.19.2",
     "@vitest/coverage-v8": "^5.0.4",
     "eslint": "^10.12.0",

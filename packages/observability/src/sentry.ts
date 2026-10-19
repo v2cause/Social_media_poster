@@ -1,9 +1,14 @@
+import { Agent as HttpAgent, request as httpRequest, type ProxyEnv } from 'node:http';
+import { Agent as HttpsAgent, request as httpsRequest } from 'node:https';
+
 import * as Sentry from '@sentry/node';
 import type { ErrorEvent, NodeOptions } from '@sentry/node';
 
 export interface ErrorReportingOptions {
   dsn?: string;
   environment: string;
+  /** The egress proxy of the deployment (guide step 8.9), see proxyEnvOf. */
+  proxyEnv?: ProxyEnv | undefined;
 }
 
 // Cookies and credentials never leave the process, even inside error reports.
@@ -55,10 +60,33 @@ export const DATA_COLLECTION: NonNullable<NodeOptions['dataCollection']> = {
   graphQL: { document: false, variables: false },
 };
 
-export function buildSentryOptions(dsn: string, environment: string): NodeOptions {
+type HttpModule = NonNullable<NonNullable<NodeOptions['transportOptions']>['httpModule']>;
+
+/**
+ * The http module of the transport behind the egress proxy (guide step 8.9). The transport keeps
+ * an agent of its own and reads only the lowercase https_proxy and no_proxy; with these agents it
+ * follows HTTPS_PROXY, HTTP_PROXY and NO_PROXY like the other clients of the process.
+ */
+export function proxiedHttpModule(proxyEnv: ProxyEnv): HttpModule {
+  const http = new HttpAgent({ keepAlive: true, maxSockets: 30, proxyEnv });
+  const https = new HttpsAgent({ keepAlive: true, maxSockets: 30, proxyEnv });
+  return {
+    request: (options, callback) => {
+      if (typeof options === 'string' || options instanceof URL) {
+        throw new TypeError('The transport of Sentry passes request options, not a URL.');
+      }
+      return options.protocol === 'http:'
+        ? httpRequest({ ...options, agent: http }, callback)
+        : httpsRequest({ ...options, agent: https }, callback);
+    },
+  };
+}
+
+export function buildSentryOptions(dsn: string, environment: string, proxyEnv?: ProxyEnv): NodeOptions {
   return {
     dsn,
     environment,
+    ...(proxyEnv === undefined ? {} : { transportOptions: { httpModule: proxiedHttpModule(proxyEnv) } }),
     dataCollection: DATA_COLLECTION,
     // Defense in depth: scrub the event even if an integration attached request data.
     beforeSend: (event) => scrubEvent(event),
@@ -66,11 +94,11 @@ export function buildSentryOptions(dsn: string, environment: string): NodeOption
 }
 
 /** Initializes Sentry when a DSN is configured. Returns false when error reporting stays off. */
-export function startErrorReporting({ dsn, environment }: ErrorReportingOptions): boolean {
+export function startErrorReporting({ dsn, environment, proxyEnv }: ErrorReportingOptions): boolean {
   if (!dsn) {
     return false;
   }
 
-  Sentry.init(buildSentryOptions(dsn, environment));
+  Sentry.init(buildSentryOptions(dsn, environment, proxyEnv));
   return true;
 }
