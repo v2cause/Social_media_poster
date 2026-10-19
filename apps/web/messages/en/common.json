@@ -15,6 +15,7 @@
     "error": "The data could not be loaded."
   },
   "shell": {
+    "skipToContent": "Skip to content",
     "navigation": "Main navigation",
     "openNavigation": "Open navigation",
     "collapse": "Collapse sidebar",

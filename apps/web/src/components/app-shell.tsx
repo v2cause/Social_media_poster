@@ -227,6 +227,13 @@ export function AppShell(props: {
 
   return (
     <LiveEventsProvider slug={props.area.kind === 'workspace' ? props.area.slug : null}>
+      {/* The first stop of the keyboard leads past the navigation (WCAG 2.4.1, guide step 8.8). */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-md focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        {t('shell.skipToContent')}
+      </a>
       <div className="flex min-h-screen">
         <aside
           className={cn(
@@ -294,7 +301,7 @@ export function AppShell(props: {
               canManage={can(props.area.role, 'billing.manage')}
             />
           ) : null}
-          <main className="min-w-0 flex-1 p-6 max-md:p-4">
+          <main id="main" tabIndex={-1} className="min-w-0 flex-1 p-6 outline-none max-md:p-4">
             {props.area.kind !== 'account' &&
             props.area.deletion &&
             // Only the data page works while the organization waits for its erasure.

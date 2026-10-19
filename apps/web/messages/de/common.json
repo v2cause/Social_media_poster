@@ -15,6 +15,7 @@
     "error": "Die Daten konnten nicht geladen werden."
   },
   "shell": {
+    "skipToContent": "Zum Inhalt springen",
     "navigation": "Hauptnavigation",
     "openNavigation": "Navigation öffnen",
     "collapse": "Seitenleiste einklappen",
