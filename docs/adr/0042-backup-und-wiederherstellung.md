@@ -10,6 +10,8 @@ Schritt 8.6 verlangt Point-in-Time-Recovery (PITR), eine Restore-Probe und ein d
 
 Wie die Plattform betrieben wird, entscheidet erst Schritt 8.9. Bis dahin ist `compose.yaml` die einzige Umgebung, in der alles zusammen läuft.
 
+Seit Schritt 8.9 steht das fest: Compose auf einer VM mit selbst betriebenem Postgres und dem Profil `backup` ([ADR 0045](0045-produktions-vorlage.md)). Die Produktions-Vorlage in `deploy/` nutzt die Skripte dieses ADR. Die Base-Backups holt dort der eigene Login `svc_backup` über TLS, und die Kopie verlangt die Verschlüsselung durch den Bucket (Nachweis, Verschlüsselung).
+
 ## Entscheidung
 
 ### Werkzeuge
@@ -84,7 +86,7 @@ PITR mit den Mitteln von PostgreSQL 17 selbst: `archive_command`, `pg_basebackup
 
 - **Redis**: keine eigene Sicherung. Postgres ist die Quelle der Wahrheit (Architektur 7); Scheduler und Sweeper stellen die Queues wieder her. Ein veralteter Job endet ohne Aktion, ein schon erledigter startet der Sweeper neu.
 - **Objektspeicher**: keine eigene Sicherung der Medien und Exporte. Der Anbieter speichert redundant. Eine Versionierung würde das Versprechen brechen, dass gelöschte Medien innerhalb einer Stunde endgültig weg sind (ADR 0038).
-- **Secrets**: Sie liegen im Secret-Store (Schritt 8.9), nie neben den Sicherungen. Ein Restore auf einen Zeitpunkt vor einer Rotation braucht die alten Schlüssel. Deshalb bleiben alte KEKs und alte Schlüssel aus `BETTER_AUTH_SECRETS` im Secret-Store, bis die letzte Sicherung mit ihnen abgelaufen ist ([Runbook zur Rotation](../runbooks/secret-rotation.md)).
+- **Secrets**: Sie liegen nie neben den Sicherungen. Seit Schritt 8.9 sind sie Dateien in `deploy/secrets/` auf der VM, nicht im Bucket; eine zweite Kopie bewahrt der Betrieb getrennt von VM und Bucket auf ([Runbook Deployment](../runbooks/deployment.md), ADR 0045). Ein Restore auf einen Zeitpunkt vor einer Rotation braucht die alten Schlüssel. Deshalb bleiben alte KEKs und alte Schlüssel aus `BETTER_AUTH_SECRETS` in `deploy/secrets/` und in dieser Kopie, bis die letzte Sicherung mit ihnen abgelaufen ist ([Runbook zur Rotation](../runbooks/secret-rotation.md)).
 
 ## Nachweis
 
@@ -133,7 +135,7 @@ Die ersten Läufe scheiterten, jeweils an einer Annahme, die erst der Ablauf wid
   - Jedes Base-Backup ist voll, es gibt keine inkrementellen. Ein Base-Backup komprimiert mit einem Kern, mit 16 MB/s in der Probe.
   - Die Wiederherstellung lädt das ganze Archiv des Buckets.
   - Für Datenbanken von einigen hundert GB wäre pgBackRest besser (siehe Alternativen).
-- **Verschlüsselung**: Die Sicherungen sind nur komprimiert, nicht von der Plattform verschlüsselt. Das übernimmt die Verschlüsselung at rest des Buckets (Schritt 8.9, ADR 0039).
+- **Verschlüsselung**: Die Sicherungen sind nur komprimiert, nicht von der Plattform verschlüsselt. Das übernimmt der Bucket: Seit Schritt 8.9 verlangt die Kopie mit `BACKUP_S3_SSE` (AES256 oder aws:kms) für jedes Objekt die Verschlüsselung durch den Speicher. Das Staging prüfte das mit SSE-S3 von SeaweedFS und einem eigenen Schlüssel ([Staging-Protokoll](../betrieb/staging-2026-10.md)). Auf der VM liegen Archiv und Base-Backups auf den verschlüsselten Datenträgern, die der Preflight verlangt (ADR 0045).
 - **Kopie fällt aus**: Fällt die Kopie aus, wächst das RPO, bis `BackupCopyStale` nach 15 Minuten alarmiert. Fällt die Archivierung aus, wächst `pg_wal`, bis der Datenträger voll ist; `WalArchivingFailing` alarmiert auf `pg_stat_archiver`. Meldet sich die Kopie gar nicht, etwa weil `BACKUP_PUSHGATEWAY_URL` fehlt, alarmiert `BackupHeartbeatMissing` (ADR 0043).
 - **Folgen eines Restores**: Ein Restore auf T setzt nur die Datenbank zurück, nicht die Welt draußen. Das Runbook zählt auf, was danach zu tun ist:
   - Webhooks von Stripe seit T erneut senden;
@@ -141,7 +143,7 @@ Die ersten Läufe scheiterten, jeweils an einer Annahme, die erst der Ablauf wid
   - Verbindungen mit erneuertem Token neu verbinden;
   - Medien bereinigen, die nach T hochgeladen oder gelöscht wurden;
   - verlorene Löschanfragen melden.
-- **Schritt 8.9**: Wählt das Deployment eine verwaltete Datenbank, ersetzt deren PITR Archiv, Base-Backups und Kopie. Ziele, Fristen, Restore-Probe und die Markierung nach einem Restore gelten weiter.
+- **Schritt 8.9**: Wählt das Deployment eine verwaltete Datenbank, ersetzt deren PITR Archiv, Base-Backups und Kopie. Ziele, Fristen, Restore-Probe und die Markierung nach einem Restore gelten weiter. Die Vorlage aus Schritt 8.9 wählt keine verwaltete Datenbank, sondern Postgres in Compose mit Archiv, Base-Backups und Kopie wie hier beschrieben (ADR 0045).
 
 ## Alternativen
 

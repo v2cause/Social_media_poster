@@ -2,6 +2,8 @@
 
 Schritt 8.6 des Leitfadens, [ADR 0042](../adr/0042-backup-und-wiederherstellung.md). Dieses Runbook beschreibt, was gesichert wird, wie die Sicherung läuft und überwacht wird, wie die Restore-Probe läuft und wie eine Wiederherstellung abläuft: auf einen Zeitpunkt vor einem Fehler oder nach dem Verlust des Hosts.
 
+Die Befehle gelten für `compose.yaml` im Wurzelverzeichnis. Die Produktions-Vorlage aus Schritt 8.9 nutzt dieselben Skripte ([Runbook Deployment](deployment.md)): Ihr Compose-Projekt heißt `smp`, die Volumes also `smp_postgres-data`, `smp_postgres-archive` und `smp_postgres-backups`. `docker compose` läuft dort mit den Dateien und Profilen, die `deploy/scripts/deploy.sh` wählt, und die Schlüssel des Buckets liegen in `deploy/secrets/backup_s3_access_key_id` und `deploy/secrets/backup_s3_secret_access_key`.
+
 ## Ziele
 
 - **RPO 15 min**: Bei einem Ausfall gehen höchstens die Daten der letzten 15 Minuten verloren.
@@ -16,7 +18,7 @@ Wie die Sicherung beide Ziele erreicht und was die Restore-Probe gemessen hat, s
 | Postgres | WAL-Archiv laufend, Base-Backup täglich, beides alle 5 Minuten in den Bucket der Backups kopiert | Lokal die neuesten 7 Base-Backups und das WAL seit dem ältesten, im Bucket 14 Tage |
 | Redis | Keine eigene; AOF übersteht Neustarts | Postgres ist die Quelle der Wahrheit: Scheduler und Sweeper stellen die Queues wieder her, Caches und Zähler füllen sich neu |
 | Medien und Exporte im Objektspeicher | Keine eigene; der Anbieter speichert redundant | Ohne Versionierung, weil gelöschte Medien innerhalb einer Stunde endgültig weg sind ([ADR 0038](../adr/0038-aufbewahrungsfristen.md)) |
-| Secrets (`.env`, KEKs, Passwörter) | Im Secret-Store des Deployments (Schritt 8.9), nie im Bucket der Backups | Alte KEKs und alte Schlüssel aus `BETTER_AUTH_SECRETS` bleiben dort, bis die letzte Sicherung mit ihnen abgelaufen ist |
+| Secrets (KEKs, Passwörter; lokal `.env`) | In der Produktions-Vorlage als Dateien in `deploy/secrets/` auf der VM, dazu `deploy/generated/keyring.env` mit den aktiven Schlüsseln; eine Kopie bewahrt der Betrieb getrennt von VM und Bucket auf. Nie im Bucket der Backups | Alte KEKs und alte Schlüssel aus `BETTER_AUTH_SECRETS` bleiben in beiden, bis die letzte Sicherung mit ihnen abgelaufen ist |
 
 Die Sicherungen enthalten auch Daten, die inzwischen gelöscht sind, bis zu ihrem eigenen Ablauf nach 14 Tagen ([ADR 0037](../adr/0037-loeschung-von-organisationen.md)).
 
@@ -27,7 +29,7 @@ Die Sicherungen enthalten auch Daten, die inzwischen gelöscht sind, bis zu ihre
    - ein eigener Bucket in der EU, nicht der der Medien;
    - ein eigenes Schlüsselpaar mit Lesen, Schreiben und Auflisten, ohne Löschen; die Kopie löscht nie;
    - Versionierung an, eine Ablaufregel für alles unter `postgres/` nach 14 Tagen und für alte Versionen nach einem Tag;
-   - Verschlüsselung at rest ([ADR 0039](../adr/0039-security-review-und-haertung.md), Schritt 8.9);
+   - Verschlüsselung at rest ([ADR 0039](../adr/0039-security-review-und-haertung.md)); die Produktions-Vorlage verlangt sie zusätzlich für jedes Objekt mit `BACKUP_S3_SSE` (AES256 oder aws:kms, [ADR 0045](../adr/0045-produktions-vorlage.md));
    - wer sich auch gegen einen übernommenen Host schützen will, schaltet Object Lock im Modus Compliance für 14 Tage ein.
 3. `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_REGION`, `BACKUP_S3_ACCESS_KEY_ID` und `BACKUP_S3_SECRET_ACCESS_KEY` setzen. `BACKUP_KEEP` (7), `BACKUP_INTERVAL_HOURS` (24) und `BACKUP_SYNC_SECONDS` (300) haben passende Standardwerte. Die Ablaufregel des Buckets muss länger sein als die lokale Aufbewahrung, sonst lädt die Kopie abgelaufene Dateien erneut hoch.
 4. `docker compose --profile backup up -d postgres-backup backup-sync` ausführen.
@@ -156,7 +158,7 @@ Den alten Stand (`social-media-poster_postgres-data-before-restore`) erst lösch
 
 ### Fall B: Neuer Host
 
-1. **Neuen Host bereitstellen**: das Repository auf dem Stand des letzten Deployments und `.env` aus dem Secret-Store, mit allen KEKs.
+1. **Neuen Host bereitstellen**: das Repository auf dem Stand des letzten Deployments und `.env` aus dem Secret-Store, mit allen KEKs. Mit der Produktions-Vorlage: zuerst `deploy/.env`, `deploy/secrets/` und `deploy/generated/keyring.env` aus der getrennten Kopie zurücklegen, erst danach `deploy/scripts/init-secrets.sh` ausführen. Läuft das Skript vorher, legt es neue KEKs und ein neues `better_auth_secret` an, und die versiegelten Tokens, Sitzungen und zweiten Faktoren der Sicherung lassen sich nicht mehr öffnen ([Runbook Deployment](deployment.md)).
 2. **Sicherung laden**: das neueste Base-Backup und das Archiv aus dem Bucket in die Volumes laden.
    ```bash
    docker volume create social-media-poster_postgres-backups
@@ -175,7 +177,7 @@ Den alten Stand (`social-media-poster_postgres-data-before-restore`) erst lösch
    ```
 3. **Wiederherstellen**: weiter mit Fall A ab Schritt 4, aber ohne `"<T>"`. Die Recovery läuft dann bis zum Ende des Archivs und schließt von selbst ab.
 4. **T für die Markierung (Schritt 7)**: Als `--since` gilt die Zeit aus der Logzeile `last completed transaction was at log time ...`, als ISO 8601 mit `+00:00` und auf die Sekunde abgerundet. Ein früherer Wert schadet nicht, er kostet nur mehr Abfragen bei den Plattformen.
-5. **Restlicher Aufbau**: DNS, TLS und alles Weitere des Deployments gehören zu Schritt 8.9.
+5. **Restlicher Aufbau**: DNS, TLS und alles Weitere beschreibt das [Runbook Deployment](deployment.md): Preflight, Verschlüsselung der Datenträger, journald, DNS-Einträge und `deploy/scripts/deploy.sh`. Zertifikate holt Caddy neu; die interne CA kommt aus der Kopie oder entsteht neu, beides geht.
 
 Was in den letzten Minuten vor dem Verlust geschah, fehlt: höchstens 60 s plus `BACKUP_SYNC_SECONDS` plus die Dauer der letzten Kopie.
 

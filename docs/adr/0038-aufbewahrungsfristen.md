@@ -28,7 +28,7 @@ Fertig ist der Schritt, wenn die Jobs nachts laufen. Zwei Zusagen warteten auf d
 | Metriken | Analytics-Historie des Tarifs, mindestens 36 Tage | `metric_snapshot` nach dem Zeitpunkt der Messung, `account_metric_snapshot` und `analytics_daily` nach ihrem Tag in UTC |
 | Medien | Mit dem nächsten stündlichen Lauf nach dem Entfernen aus der Bibliothek (bis Schritt 8.4: 30 Tage); Uploads ohne Abschluss nach 24 Stunden | Die Objekte gehen, dann die Zeile mit ihren Renditions. |
 | Screenshots | entfällt | Der browser-worker speichert keine (ADR 0032). |
-| Anwendungslogs | 30 Tage | Das stellt das Log-Backend ein, die Vorlage aus Schritt 8.9. |
+| Anwendungslogs | 30 Tage | journald auf dem Host der Produktions-Vorlage (`MaxRetentionSec=30day` in `deploy/host/journald.conf`, seit Schritt 8.9, [ADR 0045](0045-produktions-vorlage.md)) |
 
 ### Nächtlicher Lauf
 
@@ -65,7 +65,7 @@ Fertig ist der Schritt, wenn die Jobs nachts laufen. Zwei Zusagen warteten auf d
   - Was Abrechnung und Kostenauswertung brauchen, bleibt.
 - **„Screenshots 7 Tage“**: Es gibt keine. Speichert der browser-worker später Fehler-Screenshots, liegen sie unter einem eigenen Präfix im Objektspeicher. Dann löscht sie eine Lifecycle-Regel des Buckets oder dieser Job nach 7 Tagen.
 - **„Logs 30 Tage“**:
-  - Die Anwendungslogs (pino auf stdout) hält das Log-Backend. Dessen Frist setzt die Produktions-Vorlage aus Schritt 8.9 auf 30 Tage.
+  - Die Anwendungslogs (pino auf stdout) hält das Log-Backend. In der Produktions-Vorlage aus Schritt 8.9 ist das journald auf dem Host: `deploy/host/journald.conf` setzt `MaxRetentionSec=30day`, und der Preflight bricht einen Deploy ohne diese Einstellung ab ([ADR 0045](0045-produktions-vorlage.md)).
   - In der Datenbank stehen dieselben Verbindungsdaten an drei Stellen: im Audit-Log, in den Sessions und in den Zählern der Rate-Limits. Für sie gilt dieselbe Frist.
   - Das Audit-Log bleibt als Nachweis, wer was getan hat, so lange wie die Organisation (ADR 0037).
   - Auch die IP-Adresse einer Risikobestätigung bleibt, weil sie die Einwilligung belegt (Art. 7 Abs. 1 DSGVO).

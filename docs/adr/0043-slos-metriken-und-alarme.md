@@ -10,6 +10,8 @@ Schritt 8.7 verlangt SLOs, Alarme und Runbooks für Plattform-Ausfall, massenhaf
 
 Wie die Plattform betrieben wird, entscheidet erst Schritt 8.9. Bis dahin läuft alles in `compose.yaml`.
 
+Seit Schritt 8.9 betreibt die Produktions-Vorlage die Regeln dieses ADR im Compose-Profil `monitoring` ([ADR 0045](0045-produktions-vorlage.md)): Prometheus hält die Daten 30 Tage, Alertmanager schickt die Mails über das SMTP-Konto des Betriebs und verlangt dabei TLS, dazu kommen das Pushgateway und der Blackbox-Exporter. Neu sind die Alarme auf die Zertifikate in `deploy/monitoring/rules/tls.yml`: `TlsCertificateExpiresSoon` (unter 14 Tagen, `ticket`), `TlsCertificateExpiresVerySoon` (unter 3 Tagen, `page`) und `TlsProbeFailing` (`page`).
+
 ## Entscheidung
 
 ### SLOs
@@ -78,7 +80,7 @@ Für Pünktlichkeit gilt zusätzlich: mindestens 10 Veröffentlichungen im Fenst
   - Alertmanager schickt jeden Alarm per E-Mail, lokal an Mailpit.
   - `page` wiederholt sich stündlich, `ticket` alle 12 Stunden.
   - Folgealarme bleiben still, solange ihre Ursache feuert. Das gilt für `SchedulerMissing`, `QueuesUnreadable` und ein überschrittenes Budget.
-  - Einen Pager für `page` richtet Schritt 8.9 mit dem Ziel der Produktion ein.
+  - Einen Pager für `page` sollte Schritt 8.9 mit dem Ziel der Produktion einrichten. Die Vorlage enthält keinen: Auch `page` geht dort per E-Mail, stündlich wiederholt. Ein Pager bleibt offen, bis ein Dienst dafür gewählt ist (ADR 0045).
 
 ### Laufzeit
 
@@ -149,7 +151,7 @@ Die Proben vom 2026-10-19 fanden Fehler, die kein Test gezeigt hatte:
   - Die Lagen der fünf Runbooks und die Ziele von Lasttest und Backup sind messbar und alarmiert.
   - Jede Regel ist getestet, und die Proben lassen sich mit einem Befehl wiederholen.
 - **Negativ**:
-  - Prometheus, Alertmanager und das Pushgateway sind drei Dienste mehr, die Schritt 8.9 in Produktion betreiben muss.
+  - Prometheus, Alertmanager und das Pushgateway sind drei Dienste mehr, die Schritt 8.9 in Produktion betreiben muss. Die Vorlage betreibt sie samt Blackbox-Exporter im Profil `monitoring` ohne veröffentlichte Ports (ADR 0045).
   - Die Schwellen müssen mit echtem Verkehr nachgestellt werden. Die Unit-Tests der Regeln folgen dann mit.
   - Ohne Labels für Mandanten zeigt keine Metrik, welche Organisation ein Problem hat. Das zeigen Logs und Datenbank.
 

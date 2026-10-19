@@ -101,7 +101,7 @@ Jeder Worker loggt beim Start seine Rollen (`worker.started` mit `roles`). Die G
   SELECT count(*) FILTER (WHERE published_at - scheduled_at > interval '2 minutes') AS late, count(*) AS published
     FROM post_variant WHERE status = 'PUBLISHED' AND published_at > now() - interval '24 hours';
   ```
-- Fehlte eine Rolle nach einem Deployment, gehört die Prüfung von `WORKER_ROLES` in die Checkliste des Deployments (Schritt 8.9).
+- Fehlte eine Rolle nach einem Deployment: In der Produktions-Vorlage aus Schritt 8.9 hat jede Rolle ihren eigenen Container mit festem `WORKER_ROLES` in `deploy/compose.yaml`. Ob alle laufen und gesund sind, gehört zu den Prüfungen nach jedem Deploy ([Runbook Deployment](deployment.md), Abschnitt "Prüfungen nach dem Deploy").
 
 ## Protokoll der Proben
 
