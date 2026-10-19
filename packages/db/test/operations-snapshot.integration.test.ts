@@ -13,8 +13,9 @@ import {
 import { createOrganization, type TestOrganization } from './support/organization-fixtures';
 
 // Guide step 8.7 on PostgreSQL: the counts behind the alerts. Stuck are QUEUED variants whose job
-// did not start within ten minutes; the AI and the spend on X count the last 24 hours; the media
-// library counts what is neither deleted nor rejected; the archiver is off in a test database.
+// did not start within ten minutes; every platform reports its connections to log in again, zero
+// too; the AI and the spend on X count the last 24 hours; the media library counts what is
+// neither deleted nor rejected; the archiver is off in a test database.
 
 const NOW = new Date('2026-10-19T04:00:00Z');
 const minutesAgo = (minutes: number): Date => new Date(NOW.getTime() - minutes * 60_000);
@@ -122,6 +123,8 @@ describe('the operations counts on PostgreSQL', () => {
       stuckQueued: 2,
       needsReauth: [
         { platform: 'LINKEDIN', connections: 1 },
+        { platform: 'INSTAGRAM', connections: 0 },
+        { platform: 'FACEBOOK', connections: 0 },
         { platform: 'X', connections: 2 },
       ],
       globalFlags: [{ key: 'x_browser_automation', enabled: false }],

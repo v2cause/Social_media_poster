@@ -1,4 +1,4 @@
-import type { Platform } from '../generated/prisma/client';
+import { Platform } from '../generated/prisma/client';
 import { runInSystemScope, type SystemPrismaClient } from '../system-client';
 
 // What the alerts of guide step 8.7 read from the database, across all tenants: variants whose
@@ -11,6 +11,7 @@ export const STUCK_QUEUED_MINUTES = 10;
 
 export interface OperationsCounts {
   stuckQueued: number;
+  /** Every platform, with zero when none of its connections waits for a new login. */
   needsReauth: { platform: Platform; connections: number }[];
   /** The global flags; a flag set to false is a kill switch that is on. */
   globalFlags: { key: string; enabled: boolean }[];
@@ -59,7 +60,8 @@ export function readOperationsCounts(system: SystemPrismaClient, now: Date): Pro
       SELECT count(*) AS count FROM post_variant WHERE status = 'QUEUED' AND queued_at < ${stuckBefore}`;
     const reauth = await system.$queryRaw<{ platform: Platform; count: bigint }[]>`
       SELECT platform, count(*) AS count FROM social_connection
-       WHERE status = 'NEEDS_REAUTH' GROUP BY platform ORDER BY platform`;
+       WHERE status = 'NEEDS_REAUTH' GROUP BY platform`;
+    const reauthOf = new Map(reauth.map((row) => [row.platform, Number(row.count)]));
     const flags = await system.$queryRaw<{ key: string; enabled: boolean }[]>`
       SELECT key, enabled FROM feature_flag
        WHERE organization_id IS NULL AND workspace_id IS NULL ORDER BY key`;
@@ -81,7 +83,12 @@ export function readOperationsCounts(system: SystemPrismaClient, now: Date): Pro
         FROM pg_stat_archiver`;
     return {
       stuckQueued: Number(stuck?.count ?? 0n),
-      needsReauth: reauth.map((row) => ({ platform: row.platform, connections: Number(row.count) })),
+      // A platform without such connections reports zero, so that the alert on a wave of new
+      // logins has a value to compare with.
+      needsReauth: Object.values(Platform).map((platform) => ({
+        platform,
+        connections: reauthOf.get(platform) ?? 0,
+      })),
       globalFlags: flags,
       ai24h: {
         generations: Number(ai?.generations ?? 0n),
