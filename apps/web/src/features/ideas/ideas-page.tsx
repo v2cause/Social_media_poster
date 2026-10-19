@@ -211,7 +211,7 @@ function IdeaCard(props: IdeasPageProps & { idea: IdeaDto; onChanged: () => Prom
                 <PlatformMark platform={post.platform} size="xs" />
                 <Link
                   href={`/w/${props.ws}/analytics/posts/${post.variantId}`}
-                  className="truncate hover:text-foreground hover:underline"
+                  className="truncate leading-6 hover:text-foreground hover:underline"
                 >
                   {t('ideas.topPost', { preview: post.preview === '' ? t('posts.noText') : post.preview })}
                 </Link>

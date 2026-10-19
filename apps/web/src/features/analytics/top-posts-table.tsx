@@ -53,7 +53,8 @@ export function TopPostsTable(props: {
                     {item.account ? (
                       <Link
                         href={`/w/${props.ws}/analytics/accounts/${item.account.id}`}
-                        className="hover:text-foreground hover:underline"
+                        // A line of 24 px makes the target large enough (WCAG 2.5.8, guide step 8.8).
+                        className="inline-block min-w-6 max-w-full truncate align-bottom leading-6 hover:text-foreground hover:underline"
                       >
                         {item.account.name}
                       </Link>
