@@ -1,0 +1,608 @@
+# Findings in the images of other parties that the production template pulls (job
+# "third-party-images" in .github/workflows/ci.yml, ASVS V15.2.1, ADR 0045). Each entry names the
+# binary or package of one image and expires: within that time the template moves to a fixed
+# version or the finding is reviewed again; after it the scan fails. Written from the scan of
+# 2026-10-19.
+vulnerabilities:
+  # caddy:2.11.4-alpine
+  - id: CVE-2026-27145
+    paths:
+      - usr/bin/caddy
+    statement: &caddy-2-11-4-alpine 'Go 1.26.3 and older golang.org/x modules in Caddy 2.11.4, mostly denial of service in TLS, HTTP/2 and x509 at the public edge. Caddy 2.11.6 and 2.11.7 exist; the template moves to one of them once it passes this scan (ADR 0045).'
+    expired_at: 2026-11-02
+  - id: CVE-2026-33818
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-39821
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-39822
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-42504
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-46600
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-56851
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-56852
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-56853
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-56854
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-56858
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-56859
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-56860
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-56862
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-78667
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-78669
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-84304
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-84445
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: CVE-2026-97031
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  - id: GHSA-hrxh-6v49-42gf
+    paths:
+      - usr/bin/caddy
+    statement: *caddy-2-11-4-alpine
+    expired_at: 2026-11-02
+  # chrislusf/seaweedfs:4.48
+  - id: CVE-2026-78667
+    paths:
+      - usr/bin/weed
+    statement: &chrislusf-seaweedfs-4-48 'Go 1.26.8 in SeaweedFS 4.48, which only Caddy and the containers of the networks data and media reach. No newer release yet; revisit with the next one (ADR 0045).'
+    expired_at: 2026-11-18
+  - id: CVE-2026-78669
+    paths:
+      - usr/bin/weed
+    statement: *chrislusf-seaweedfs-4-48
+    expired_at: 2026-11-18
+  - id: CVE-2026-97031
+    paths:
+      - usr/bin/weed
+    statement: *chrislusf-seaweedfs-4-48
+    expired_at: 2026-11-18
+  # postgres:17.11-alpine
+  - id: CVE-2025-61726
+    paths:
+      - usr/local/bin/gosu
+    statement: &postgres-17-11-alpine 'Go 1.24.6 in gosu of the postgres image, which only drops from root to postgres at the start and parses no input. No newer image of Postgres 17 yet.'
+    expired_at: 2027-01-17
+  - id: CVE-2025-61729
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2025-68121
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-25679
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-27145
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-32280
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-32281
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-32283
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-33811
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-33814
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-33818
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-39820
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-39821
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-39822
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-39836
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-42499
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-42504
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-56853
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-56858
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-56859
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-56860
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-56862
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-78667
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-78669
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  - id: CVE-2026-97031
+    paths:
+      - usr/local/bin/gosu
+    statement: *postgres-17-11-alpine
+    expired_at: 2027-01-17
+  # redis:7.4.11-alpine
+  - id: CVE-2026-84782
+    purls:
+      - pkg:apk/alpine/libcrypto3@3.3.7-r1?arch=x86_64&distro=3.21.8
+      - pkg:apk/alpine/libssl3@3.3.7-r1?arch=x86_64&distro=3.21.8
+    statement: &redis-7-4-11-alpine 'OpenSSL of Alpine in the redis image: the finding concerns DTLS, which Redis does not use (TLS over TCP only).'
+    expired_at: 2027-01-17
+  # prom/alertmanager:v0.34.1
+  - id: CVE-2026-78667
+    paths:
+      - bin/alertmanager
+      - bin/amtool
+    statement: &prom-alertmanager-v0-34-1 'Go 1.26.8 in Alertmanager 0.34.1, which only the network monitoring reaches. No newer release yet.'
+    expired_at: 2026-11-18
+  - id: CVE-2026-78669
+    paths:
+      - bin/alertmanager
+      - bin/amtool
+    statement: *prom-alertmanager-v0-34-1
+    expired_at: 2026-11-18
+  - id: CVE-2026-84445
+    paths:
+      - bin/alertmanager
+      - bin/amtool
+    statement: *prom-alertmanager-v0-34-1
+    expired_at: 2026-11-18
+  - id: CVE-2026-97031
+    paths:
+      - bin/alertmanager
+      - bin/amtool
+    statement: *prom-alertmanager-v0-34-1
+    expired_at: 2026-11-18
+  # prom/prometheus:v3.13.4
+  - id: CVE-2026-78667
+    paths:
+      - bin/prometheus
+      - bin/promtool
+    statement: &prom-prometheus-v3-13-4 'Go 1.26.8 in Prometheus 3.13.4, which only the network monitoring reaches. Revisit with the next release.'
+    expired_at: 2026-11-18
+  - id: CVE-2026-78669
+    paths:
+      - bin/prometheus
+      - bin/promtool
+    statement: *prom-prometheus-v3-13-4
+    expired_at: 2026-11-18
+  - id: CVE-2026-84445
+    paths:
+      - bin/prometheus
+      - bin/promtool
+    statement: *prom-prometheus-v3-13-4
+    expired_at: 2026-11-18
+  - id: CVE-2026-97031
+    paths:
+      - bin/prometheus
+      - bin/promtool
+    statement: *prom-prometheus-v3-13-4
+    expired_at: 2026-11-18
+  # prom/pushgateway:v1.11.3
+  - id: CVE-2026-27145
+    paths:
+      - bin/pushgateway
+    statement: &prom-pushgateway-v1-11-3 'Go 1.26.3 in Pushgateway 1.11.3, which only the network monitoring reaches. 1.11.4 is younger than the waiting time of the template; revisit then.'
+    expired_at: 2026-11-18
+  - id: CVE-2026-33818
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-39821
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-39822
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-42504
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-46600
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-56851
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-56852
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-56853
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-56854
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-56858
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-56859
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-56860
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-56862
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-78667
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-78669
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  - id: CVE-2026-97031
+    paths:
+      - bin/pushgateway
+    statement: *prom-pushgateway-v1-11-3
+    expired_at: 2026-11-18
+  # prom/blackbox-exporter:v0.28.0
+  - id: CVE-2025-61726
+    paths:
+      - bin/blackbox_exporter
+    statement: &prom-blackbox-exporter-v0-28-0 'Go 1.25.5 and older golang.org/x modules in the blackbox exporter 0.28.0, which only probes Caddy from the network monitoring. 0.29.0 is younger than the waiting time of the template; revisit then.'
+    expired_at: 2026-11-18
+  - id: CVE-2025-68121
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-25679
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-25681
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-27136
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-27145
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-32280
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-32281
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-32283
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-33186
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-33811
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-33814
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-33818
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-39820
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-39821
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-39822
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-39828
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-39829
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-39830
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-39831
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-39832
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-39835
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-39836
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-42499
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-42504
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-42508
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-46595
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-46597
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-46600
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-56851
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-56852
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-56853
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-56854
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-56858
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-56859
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-56860
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-56862
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-78667
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-78669
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-84304
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-84445
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: CVE-2026-97031
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18
+  - id: GHSA-hrxh-6v49-42gf
+    paths:
+      - bin/blackbox_exporter
+    statement: *prom-blackbox-exporter-v0-28-0
+    expired_at: 2026-11-18

@@ -211,6 +211,43 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
+  third-party-images:
+    # ASVS V15.2.1 (guide step 8.9, ADR 0045): the images of other parties that the production
+    # template pulls pass the same gate as our own images. deploy/trivyignore.yaml holds the
+    # findings accepted for a while, each for one binary or package of one image and with an
+    # expiry; the weekly run shows what became known since.
+    name: Third-party images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TRIVY_VERSION: 0.75.0
+      TRIVY_SHA256: c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
+      TRIVY_SKIP_VERSION_CHECK: 'true'
+      TRIVY_DISABLE_TELEMETRY: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install Trivy (checksum pinned)
+        run: |
+          curl -sSfL -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  trivy.tar.gz" | sha256sum -c -
+          tar -xzf trivy.tar.gz trivy
+      - name: Scan
+        run: |
+          # Every image with a fixed name in deploy/compose*.yaml; ours come from SMP_REGISTRY.
+          images=$(sed -n 's/^ *image: *\([^$ ]*\)$/\1/p' deploy/compose*.yaml | sort -u)
+          [ -n "$images" ] || { echo 'no third-party image found in deploy/' >&2; exit 1; }
+          failed=0
+          for image in $images; do
+            echo "::group::$image"
+            ./trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+              --ignorefile deploy/trivyignore.yaml --exit-code 1 --no-progress "$image" || failed=1
+            echo '::endgroup::'
+          done
+          exit "$failed"
+
   images:
     # Architecture 12, CI step 9 (guide step 8.4): every image builds from its Dockerfile, gets an
     # SBOM (CycloneDX) as an artifact and passes Trivy without fixable HIGH or CRITICAL
