@@ -25,7 +25,8 @@ import type { z } from 'zod';
 // Server-side calls to the API, for layouts that must decide before rendering: is there a session,
 // which workspace is this, may the user see it. The browser's cookie is forwarded, and the client
 // address that the reverse proxy set, so that the rate limits of the API count the user and not
-// the web app (guide step 8.4). Nothing is cached. Responses are validated with the shared
+// the web app (guide step 8.4), and the request ID of the proxy, which the API logs as
+// clientRequestId (guide step 8.7). Nothing is cached. Responses are validated with the shared
 // schemas, like every external input.
 
 const API_URL = process.env['API_INTERNAL_URL'] ?? 'http://127.0.0.1:3001';
@@ -48,6 +49,7 @@ async function serverFetch<T>(
   const incoming = await headers();
   const cookie = incoming.get('cookie') ?? '';
   const clientAddress = incoming.get('x-real-ip');
+  const requestId = incoming.get('x-request-id');
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
@@ -55,6 +57,7 @@ async function serverFetch<T>(
       'content-type': 'application/json',
       cookie,
       ...(clientAddress ? { 'x-real-ip': clientAddress } : {}),
+      ...(requestId ? { 'x-request-id': requestId } : {}),
     },
     cache: 'no-store',
   });

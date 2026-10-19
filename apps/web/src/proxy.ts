@@ -5,6 +5,10 @@ import { buildContentSecurityPolicy, createNonce, storageOrigins } from './secur
 // Sets the Content Security Policy with a fresh nonce for every page request. Next.js reads the
 // policy from the request headers and adds the nonce to its scripts during rendering.
 //
+// Every page request gets an ID of its own in x-request-id, for the request and the response: the
+// error log of the web app names it, and the calls to the API pass it on, which logs it as
+// clientRequestId (guide step 8.7, ASVS 16.2.1). An ID the client sent is replaced.
+//
 // The redirect to the sign-in is optimistic: it only looks for the session cookie, so a signed-out
 // visitor does not load an app page first. It is not a security boundary; the layouts check the
 // session against the API, and the API authorizes every call again.
@@ -21,11 +25,16 @@ function needsSignIn(request: NextRequest): boolean {
   return isProtected && !SESSION_COOKIES.some((name) => request.cookies.has(name));
 }
 
+const REQUEST_ID_HEADER = 'x-request-id';
+
 export function proxy(request: NextRequest): NextResponse {
+  const requestId = crypto.randomUUID();
   if (needsSignIn(request)) {
     const login = new URL('/login', request.url);
     login.searchParams.set('next', `${request.nextUrl.pathname}${request.nextUrl.search}`);
-    return NextResponse.redirect(login);
+    const redirect = NextResponse.redirect(login);
+    redirect.headers.set(REQUEST_ID_HEADER, requestId);
+    return redirect;
   }
 
   const nonce = createNonce();
@@ -38,9 +47,11 @@ export function proxy(request: NextRequest): NextResponse {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', policy);
+  requestHeaders.set(REQUEST_ID_HEADER, requestId);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', policy);
+  response.headers.set(REQUEST_ID_HEADER, requestId);
   return response;
 }
 
