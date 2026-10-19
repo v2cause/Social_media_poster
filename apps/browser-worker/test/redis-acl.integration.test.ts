@@ -211,3 +211,71 @@ describe('the users of Redis in compose.yaml', () => {
     await expect(restricted.set('smp:access:user-1', 'OWNER')).rejects.toThrow(/NOPERM/);
   });
 });
+
+// Found with the E2E runs of guide step 8.8: Redis replays its AOF on start as the default user and
+// checks the rules of that user for every transaction. While "--user default off" left that user
+// without rules, Redis dropped each transaction of the AOF on start: BullMQ lost jobs, and the
+// window of a rate limit kept its counter but lost its expiry, so it never ended.
+describe('Redis of compose.yaml across a restart', () => {
+  let started: StartedRedis | undefined;
+  const clients: Redis[] = [];
+
+  beforeAll(async () => {
+    started = await startRedis({ args: composeArgs() });
+  });
+
+  afterAll(async () => {
+    for (const client of clients) {
+      client.disconnect();
+    }
+    await started?.stop();
+  });
+
+  /** A connection as the user app; the mapped port can change with a restart. */
+  const connect = (): Redis => {
+    if (!started) {
+      throw new Error('Redis is not started');
+    }
+    const { container } = started;
+    const client = new Redis(
+      `redis://app:${APP_PASSWORD}@${container.getHost()}:${String(container.getMappedPort(6379))}`,
+    );
+    clients.push(client);
+    return client;
+  };
+
+  it('keeps jobs, transactions and expiries of its AOF', async () => {
+    const before = connect();
+    const queue = new Queue('restart-check', { connection: before });
+    const now = await queue.add('now', { n: 1 });
+    const later = await queue.add('later', { n: 2 }, { delay: 3_600_000 });
+    await before.multi().set('restart:a', '1').set('restart:b', '2').exec();
+    // Two writes in one script, as a rate limit counts its window.
+    await before.eval(
+      "redis.call('INCR', KEYS[1]); redis.call('PEXPIRE', KEYS[1], ARGV[1]); return 1",
+      1,
+      'restart:window',
+      '600000',
+    );
+    await queue.close();
+    before.disconnect();
+
+    // Stopped with SIGTERM, so that Redis writes the AOF to disk before it exits.
+    await started?.container.restart({ timeout: 10_000 });
+
+    const after = connect();
+    const reopened = new Queue('restart-check', { connection: after });
+    try {
+      await expect(reopened.getJobCounts('waiting', 'delayed')).resolves.toMatchObject({
+        waiting: 1,
+        delayed: 1,
+      });
+      expect((await reopened.getJob(now.id ?? ''))?.data).toEqual({ n: 1 });
+      expect((await reopened.getJob(later.id ?? ''))?.data).toEqual({ n: 2 });
+      await expect(after.mget('restart:a', 'restart:b')).resolves.toEqual(['1', '2']);
+      expect(await after.pttl('restart:window')).toBeGreaterThan(0);
+    } finally {
+      await reopened.close();
+    }
+  });
+});

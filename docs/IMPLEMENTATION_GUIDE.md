@@ -1509,7 +1509,7 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
 ## B.11 Globale Stolperfallen (Checkliste für jedes Review)
 
 1. pnpm 10: Pakete mit Install-Skripten (sharp, prisma, esbuild, swc) in `allowBuilds` entscheiden (`strictDepBuilds` bricht sonst ab); jedes Paket deklariert seine Werkzeuge selbst; `pnpm deploy` braucht `inject-workspace-packages` oder `--legacy`. Turbo 2 filtert nicht deklarierte Env-Variablen (Strict-Modus), und die Root-`.env` lädt niemand automatisch.
-2. BullMQ: Worker-Verbindungen mit `maxRetriesPerRequest: null`, Redis mit `noeviction` und AOF. Eigene Job-IDs enthalten keinen `:` (Punkt als Trenner).
+2. BullMQ: Worker-Verbindungen mit `maxRetriesPerRequest: null`, Redis mit `noeviction` und AOF. Eigene Job-IDs enthalten keinen `:` (Punkt als Trenner). Mit ACL-Nutzern behält `default` seine Regeln, auch wenn er aus ist; sonst verwirft Redis beim Laden des AOF jede Transaktion, und Jobs gehen bei jedem Neustart verloren.
 3. Die Laufzeit-DB-Rolle ist nie der Tabellen-Owner (das würde RLS umgehen). `FORCE ROW LEVEL SECURITY` ist überall gesetzt.
 4. `set_config(..., true)` immer transaktionslokal, nie ein session-weites `SET`. Policies lesen den Kontext mit `NULLIF(current_setting(..., true), '')::uuid`, weil eine gepoolte Verbindung danach einen Leerstring statt NULL liefert.
 5. Materialized Views ignorieren RLS, deshalb Rollup-Tabellen statt Views.

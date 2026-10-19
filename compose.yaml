@@ -84,7 +84,11 @@ services:
     # from INFO, which BullMQ asks on connect, the healthcheck as "health", which may only PING,
     # and the user "browser-worker" reaches only the keys and queues of the X browser
     # (XB_REDIS_ACL in packages/x-browser). The tests of the browser worker start Redis with these
-    # users.
+    # users. The default user keeps the rules ~* &* +@all, although nobody can sign in with it:
+    # Redis replays the AOF on start as the default user, and EXEC checks the rules of that user for
+    # every transaction (each MULTI and each script with more than one write). Without them Redis
+    # drops every transaction on start, BullMQ loses jobs and the counters of the rate limits lose
+    # their expiry.
     command:
       - redis-server
       - --appendonly
@@ -94,6 +98,9 @@ services:
       - --user
       - default
       - 'off'
+      - '~*'
+      - '&*'
+      - '+@all'
       - --user
       - app
       - 'on'

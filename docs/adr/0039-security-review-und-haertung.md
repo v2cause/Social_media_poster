@@ -233,6 +233,7 @@ Die Einzelheiten stehen in den Inventaren [Daten und Protokolle](../security/dat
     - `app` (API und Worker) darf keine gefährlichen Befehle außer `INFO` ausführen,
     - `health` darf nur `PING`,
     - `browser-worker` erreicht nur die Schlüssel und Queues des X-Browsers.
+    - `default` behält die Regeln `~* &* +@all`, auch wenn sich niemand damit anmelden kann: Redis spielt das AOF beim Start als `default` ab und prüft dessen Regeln für jede Transaktion. Bis zum 2026-10-19 fehlten sie, und Redis verwarf bei jedem Start alle Transaktionen des AOF ([ADR 0043](0043-slos-metriken-und-alarme.md), Befunde).
 - **Rotation**:
   - Das [Runbook](../runbooks/secret-rotation.md) beschreibt sie für jedes Secret.
   - `BETTER_AUTH_SECRETS` ist versioniert, die Secrets der 2FA werden nach einer Rotation neu verschlüsselt.

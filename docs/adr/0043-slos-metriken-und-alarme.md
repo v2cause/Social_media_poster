@@ -136,6 +136,11 @@ Die Proben vom 2026-10-19 fanden Fehler, die kein Test gezeigt hatte:
 - **Ticks nach einem Datenverlust in Redis**: Die Job-Scheduler der Ticks legte nur der Start der Rolle `scheduler` an. Ohne Neustart stand nach einem Verlust der Daten jeder Tick still, der Sweeper eingeschlossen, während der Health-Check "bereit" meldete. Die Rolle prüft das jetzt jede Minute.
 - **Liveness ohne Redis**: Ohne Redis antwortete auch `/api/health/live` mit 500, denn die Grenze je Adresse liegt in Redis. Ein Orchestrator hätte jede Instanz der API neu gestartet, was nicht hilft. Die Liveness zählt jetzt gegen keine Grenze. Die Readiness behält ihre Grenze, weil sie jede Abhängigkeit abfragt; ohne Redis antwortet sie deshalb mit 500 statt 503. Beides heißt "nicht bereit", der Unterschied bleibt.
 - **Dead-Letter-Queue**: siehe oben.
+- **Transaktionen im AOF** (Nachtrag nach den E2E-Läufen von Schritt 8.8):
+  - Redis spielt sein AOF beim Start als Nutzer `default` ab und prüft dessen Regeln für jede Transaktion, also für jedes `MULTI` und jedes Skript mit mehr als einem Schreibbefehl. `--user default off` hatte diesem Nutzer alle Regeln genommen (ADR 0039).
+  - Redis verwarf deshalb bei jedem Start alle Transaktionen seit dem letzten Rewrite des AOF und schrieb für jede eine Zeile `NOPERM` ins Log, lokal beim letzten Start 163.145. Verloren gingen Jobs von BullMQ. Zähler der Grenzen behielten ihren Wert, aber nicht ihren Ablauf, und sperrten danach dauerhaft.
+  - Die Probe "Redis nicht erreichbar" sah das nicht: Sie prüfte die Ticks, und deren Job-Scheduler waren nach dem Start da. Gefunden hat es ein E2E-Lauf auf den Volumes eines früheren Laufs, in dem `/api/me` dem Demo-Konto mit 429 antwortete.
+  - `default` bleibt aus und behält die Regeln `~* &* +@all`. Ein Test startet Redis mit dem Befehl aus `compose.yaml` neu und prüft Jobs, Transaktionen und Abläufe (`apps/browser-worker/test/redis-acl.integration.test.ts`); die Probe ist mit der Korrektur wiederholt.
 - Die Einzelheiten stehen in den Protokollen der Runbooks.
 
 ## Konsequenzen
