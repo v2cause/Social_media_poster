@@ -92,7 +92,7 @@ PITR mit den Mitteln von PostgreSQL 17 selbst: `archive_command`, `pg_basebackup
 
 - **Host intakt**: Ein Segment liegt spätestens 60 s nach dem letzten Schreiben im lokalen Archiv. Was in `pg_wal` noch nicht archiviert ist, liegt im alten Datenverzeichnis.
 - **Host verloren**: Es fehlen höchstens 60 s plus `BACKUP_SYNC_SECONDS` (300) plus die Dauer der letzten Kopie, also rund 6 bis 7 Minuten.
-- Beides liegt unter 15 Minuten, solange die Kopie läuft. `postgres/last-sync` zeigt das; Schritt 8.7 alarmiert ab 15 Minuten.
+- Beides liegt unter 15 Minuten, solange die Kopie läuft. `postgres/last-sync` zeigt das. Seit Schritt 8.7 meldet die Kopie jede erfolgreiche Runde an das Pushgateway, und `BackupCopyStale` alarmiert ab 15 Minuten ohne Meldung ([ADR 0043](0043-slos-metriken-und-alarme.md)).
 
 ### RTO
 
@@ -134,7 +134,7 @@ Die ersten Läufe scheiterten, jeweils an einer Annahme, die erst der Ablauf wid
   - Die Wiederherstellung lädt das ganze Archiv des Buckets.
   - Für Datenbanken von einigen hundert GB wäre pgBackRest besser (siehe Alternativen).
 - **Verschlüsselung**: Die Sicherungen sind nur komprimiert, nicht von der Plattform verschlüsselt. Das übernimmt die Verschlüsselung at rest des Buckets (Schritt 8.9, ADR 0039).
-- **Kopie fällt aus**: Fällt die Kopie aus, wächst das RPO unbemerkt, bis Schritt 8.7 auf `postgres/last-sync` alarmiert. Fällt die Archivierung aus, wächst `pg_wal`, bis der Datenträger voll ist; `pg_stat_archiver` zeigt das.
+- **Kopie fällt aus**: Fällt die Kopie aus, wächst das RPO, bis `BackupCopyStale` nach 15 Minuten alarmiert. Fällt die Archivierung aus, wächst `pg_wal`, bis der Datenträger voll ist; `WalArchivingFailing` alarmiert auf `pg_stat_archiver`. Meldet sich die Kopie gar nicht, etwa weil `BACKUP_PUSHGATEWAY_URL` fehlt, alarmiert `BackupHeartbeatMissing` (ADR 0043).
 - **Folgen eines Restores**: Ein Restore auf T setzt nur die Datenbank zurück, nicht die Welt draußen. Das Runbook zählt auf, was danach zu tun ist:
   - Webhooks von Stripe seit T erneut senden;
   - einen Nutzungsbericht nach T bei Stripe stornieren;

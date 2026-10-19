@@ -39,15 +39,15 @@ Danach läuft Folgendes:
 
 ## Überwachung
 
-Die Alarme dazu richtet Schritt 8.7 ein. Diese Werte zählen:
+Schritt 8.7 alarmiert auf diese Werte ([Übersicht der Alarme](alarme.md)). Dafür melden `postgres-backup` und `backup-sync` jede erfolgreiche Runde an das Pushgateway des Profils `observability` (`BACKUP_PUSHGATEWAY_URL=http://pushgateway:9091` in `.env`):
 
-- **Archivierung**: In `pg_stat_archiver` ist `last_archived_time` bei Last höchstens 2 Minuten alt, und `failed_count` steigt nicht. Scheitert die Archivierung, wächst `pg_wal`, bis der Datenträger voll ist.
+- **Archivierung** (`WalArchivingFailing`, page): In `pg_stat_archiver` ist `last_archived_time` bei Last höchstens 2 Minuten alt, und `failed_count` steigt nicht. Scheitert die Archivierung, wächst `pg_wal`, bis der Datenträger voll ist.
   ```bash
   docker compose exec postgres sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d smp \
     -c "SELECT last_archived_wal, last_archived_time, failed_count, last_failed_time FROM pg_stat_archiver"'
   ```
-- **Kopie**: `postgres/last-sync` im Bucket ist höchstens 15 Minuten alt. Sonst wächst das RPO, falls der Host verloren geht.
-- **Base-Backup**: Das neueste ist höchstens 25 Stunden alt.
+- **Kopie** (`BackupCopyStale`, page; `BackupHeartbeatMissing`, page, wenn sich die Kopie bei eingeschaltetem Archiv nie meldet): `postgres/last-sync` im Bucket und die letzte Meldung sind höchstens 15 Minuten alt. Sonst wächst das RPO, falls der Host verloren geht.
+- **Base-Backup** (`BaseBackupStale`, ticket): Das neueste ist höchstens 25 Stunden alt.
   ```bash
   docker compose exec -u postgres postgres-backup ls -1 /var/lib/postgresql/backups/base
   ```

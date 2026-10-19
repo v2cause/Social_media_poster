@@ -252,7 +252,7 @@ Die Einzelheiten stehen in den Inventaren [Daten und Protokolle](../security/dat
 | Keine Inaktivitätszeit, sieben Tage absolut (ASVS 7.3.1, NIST SP 800-63B-4) | Siehe Sessions | Sichtbare und beendbare Sessions, Bestätigung vor Änderungen | Bei Kunden mit höherem Schutzbedarf |
 | Session-Token im JSON von Better Auth (ASVS 3.3.4) | `sign-in`, `get-session` und `list-sessions` liefern das Token, die Sicherheitsseite beendet Sessions darüber. Ohne Bearer-Plugin ist es ohne die Signatur des Cookies nicht verwendbar. | CSP mit Nonces, React maskiert jede Ausgabe | Mit einer Version von Better Auth, die Sessions über ihre ID beendet |
 | Antwortzeiten der Anmeldung (ASVS 6.3.8, Level 3) | Bekannte und unbekannte Adressen antworten gleich, Better Auth hasht auch für unbekannte. Kleine Unterschiede der Zeit sind nicht ausgeschlossen. | Limits je Adresse und Konto | Mit Level 3 |
-| Zugriffs-Cache nach einer gescheiterten Invalidierung | Der alte Zugriff gilt höchstens 60 s. Eine Generation je Nutzer würde jede Anfrage um einen Lesezugriff auf Redis verteuern. | Das Scheitern wird geloggt, Lesefehler fallen auf die Datenbank zurück | Mit Schritt 8.7 (Alarm auf das Log) |
+| Zugriffs-Cache nach einer gescheiterten Invalidierung | Der alte Zugriff gilt höchstens 60 s. Eine Generation je Nutzer würde jede Anfrage um einen Lesezugriff auf Redis verteuern. | Das Scheitern wird geloggt und gezählt, seit Schritt 8.7 mit dem Alarm `AccessCacheInvalidationFailed` (ADR 0043); Lesefehler fallen auf die Datenbank zurück | Bei Bedarf eine Generation je Nutzer |
 | Ein Token-Keyring für E-Mail-Jobs und Plattform-Tokens | Die AAD trennt beide (`notify.email` gegenüber `workspaceId:connectionId:feld`). | Rotation nach dem Runbook | Schritt 8.9: eigener Keyring oder KMS |
 | Fremde Registrierung einer Adresse | Bestätigt die Person mit der Adresse den Link einer fremden Registrierung, kann sich die registrierende Person bis zum Zurücksetzen des Passworts anmelden. | Hinweis-Mail bei erneuter Registrierung; das Zurücksetzen beendet alle Sessions; unbestätigte Konten gehen nach einem Tag | Mit Passkeys |
 | Ältere Sessions eines Mitglieds, das 2FA erst nach der Pflicht einrichtet | Sessions anderer Geräte ohne zweiten Faktor bleiben bis zu ihrem Ende. | Das Einrichten bietet das Abmelden der anderen Geräte an (vorbelegt); sieben Tage absolut | Bei der nächsten Version von Better Auth |
@@ -278,9 +278,9 @@ Die Einzelheiten stehen in den Inventaren [Daten und Protokolle](../security/dat
   - Ein Log-Backend mit Zugriffsschutz und 30 Tagen, Fristen auch für Traces und Fehlerberichte; Zeitsynchronisation der Hosts.
   - Verschlüsselte Datenträger und Backups für PostgreSQL, Redis und den Objektspeicher; die App verschlüsselt vertrauliche Inhalte nicht selbst.
   - Images in einer Registry mit Signatur und SBOM je Release.
-- **Schritt 8.7 (Betrieb)**:
-  - Alarme auf ein globales Budget der KI, auf das Wachstum des Speichers und auf Sicherheitsereignisse.
-  - Ein Runbook für den Verlust von App und Backup-Codes, mit einer Prüfung der Identität (ASVS 6.4.4).
+- **Schritt 8.7 (Betrieb)**, umgesetzt:
+  - Alarme auf ein globales Budget der KI, auf das Wachstum des Speichers und auf Sicherheitsereignisse ([ADR 0043](0043-slos-metriken-und-alarme.md)).
+  - Ein Runbook für den Verlust von App und Backup-Codes, mit einer Prüfung der Identität (ASVS 6.4.4, [Runbook](../runbooks/zweiter-faktor-verloren.md)).
   - Ein Log-Kontext je Job im Worker, strukturierte Logs der Web-App, ein Sicherheitsereignis für falsche Passwörter bei `PasswordCheck` und ein Test für `auth.event` (ASVS 16.2.1, 16.2.4, 16.3.1).
 
 ## Konsequenzen
