@@ -429,7 +429,8 @@ function DayCell(props: {
         'flex flex-col gap-1 border-b border-r border-border p-1',
         props.tall ? 'min-h-72' : 'min-h-28',
         props.outside && 'bg-muted/40',
-        props.past && 'opacity-70',
+        // A gray marks the past; dimming the day would take its text below 4.5:1 (guide step 8.8).
+        props.past && 'bg-muted',
         isOver && 'bg-primary/10 ring-2 ring-inset ring-primary',
       )}
     >
