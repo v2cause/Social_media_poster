@@ -1,6 +1,6 @@
 # Alarme: Übersicht
 
-Schritt 8.7 des Leitfadens, [ADR 0043](../adr/0043-slos-metriken-und-alarme.md). Jeder Alarm aus `infra/observability/rules/alerts.yml` mit seiner Bedeutung und dem Runbook, das ihn behandelt. Alarme ohne eigenes Runbook behandelt der letzte Teil dieser Seite.
+Schritt 8.7 des Leitfadens, [ADR 0043](../adr/0043-slos-metriken-und-alarme.md). Jeder Alarm aus `infra/observability/rules/alerts.yml` mit seiner Bedeutung und dem Runbook, das ihn behandelt; dazu die Alarme zu den Zertifikaten aus `deploy/monitoring/rules/tls.yml`, die nur die Produktions-Vorlage hat (Schritt 8.9, [ADR 0045](../adr/0045-produktions-vorlage.md)). Alarme ohne eigenes Runbook behandelt der letzte Teil dieser Seite.
 
 ## Wo die Alarme stehen
 
@@ -67,6 +67,9 @@ Während einer Wartung oder wenn ein Alarm bekannt ist, legt man in Alertmanager
 | `BaseBackupStale` | ticket | Das letzte Base-Backup ist über 25 Stunden alt | [Backup](backup-restore.md) |
 | `WalArchivingFailing` | page | PostgreSQL konnte WAL nicht archivieren; `pg_wal` wächst | [Backup](backup-restore.md) |
 | `BackupHeartbeatMissing` | page | Das WAL-Archiv ist an, aber die Kopie in den Bucket meldete nie einen Erfolg | [Backup](backup-restore.md) |
+| `TlsCertificateExpiresSoon` | ticket | Ein Zertifikat von Caddy endet in weniger als 14 Tagen (nur Produktions-Vorlage) | [Deployment](deployment.md#zertifikate) |
+| `TlsCertificateExpiresVerySoon` | page | Dasselbe mit weniger als drei Tagen | [Deployment](deployment.md#zertifikate) |
+| `TlsProbeFailing` | page | Die Prüfung von App oder Speicher über https scheitert seit fünf Minuten (nur Produktions-Vorlage) | [Deployment](deployment.md#zertifikate) |
 
 Die Budgets stehen in `infra/observability/rules/budgets.yml`: KI 100 USD, X 50 USD und Speicher 20 GB am Tag, als Startwerte. Eine Änderung dort braucht keinen neuen Test, eine andere Schwelle in `alerts.yml` schon.
 
