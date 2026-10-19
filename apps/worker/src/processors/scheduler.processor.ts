@@ -13,7 +13,7 @@ import { type Job, type Queue, UnrecoverableError } from 'bullmq';
 import { InjectPinoLogger, type PinoLogger } from 'nestjs-pino';
 
 import { JobLogContext } from '../job-log-context';
-import { jobsTotal, tickLagSeconds, tickLastSuccess } from '../metrics';
+import { jobsTotal, tickLagSeconds, tickLastFailure, tickLastSuccess } from '../metrics';
 import type { WorkerEnv } from '../worker-env';
 import { TICK_HANDLERS, WORKER_ENV } from '../worker.tokens';
 
@@ -88,6 +88,7 @@ export class SchedulerProcessor extends WorkerHost implements OnApplicationBoots
       jobsTotal.inc({ queue: SCHEDULER_QUEUE, status: 'completed' });
       return result;
     } catch (error) {
+      tickLastFailure.set({ tick: job.name }, Date.now() / 1_000);
       jobsTotal.inc({ queue: SCHEDULER_QUEUE, status: 'failed' });
       this.logger.error({ tick: job.name, err: error }, 'scheduler.tick_failed');
       throw error;

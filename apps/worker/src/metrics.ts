@@ -64,6 +64,14 @@ export const tickLastSuccess = new Gauge({
   registers: [metricsRegistry],
 });
 
+/** Later than the last success means the last run failed; a failed tick waits for its next time. */
+export const tickLastFailure = new Gauge({
+  name: 'smp_scheduler_tick_last_failure_timestamp_seconds',
+  help: 'When a tick of the scheduler last failed, as a Unix time',
+  labelNames: ['tick'] as const,
+  registers: [metricsRegistry],
+});
+
 export const tickLagSeconds = new Gauge({
   name: 'smp_scheduler_tick_lag_seconds',
   help: 'How late the last run of a tick started against its schedule',
