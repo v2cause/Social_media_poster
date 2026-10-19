@@ -20,6 +20,8 @@
 (headers) {
 	# One year, every subdomain; the web app sends the same header itself.
 	header ?Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	# The storage sends none itself; API and web app do (ASVS 3.2.1).
+	header ?X-Content-Type-Options nosniff
 	header -Server
 }
 
