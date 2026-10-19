@@ -16,7 +16,7 @@ import type { Prisma, PrismaClient } from '../generated/prisma/client';
 import { DEMO_ANALYTICS_DAYS, demoAnalyticsPlan } from './demo-analytics';
 import { CREDENTIAL_PROVIDER } from './demo';
 
-// The data of the load test (guide step 8.5, ADR 0040): organizations with one workspace and its
+// The data of the load test (guide step 8.5, ADR 0041): organizations with one workspace and its
 // owner each. Every workspace gets the demo history of 90 days, so that the reads of the test
 // meet realistic amounts, an image with its renditions, and posts due in the same minute on all
 // four of its mock accounts, each variant with the image. The mock platforms wait latencyMs on

@@ -1,4 +1,4 @@
-// Writes the data of the load test (guide step 8.5, ADR 0040) and the file the k6 script reads:
+// Writes the data of the load test (guide step 8.5, ADR 0041) and the file the k6 script reads:
 // per organization a workspace with its owner, the demo history of 90 days and posts due in the
 // same minute on its four mock accounts. The owners sign in with SEED_USER_PASSWORD. Only for a
 // stack of its own outside production: the data stay until the stack goes.

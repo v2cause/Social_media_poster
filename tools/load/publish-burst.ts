@@ -1,4 +1,4 @@
-// The load test of guide step 8.5 (ADR 0040), for k6 2.3. While the scenario "reads" browses the
+// The load test of guide step 8.5 (ADR 0041), for k6 2.3. While the scenario "reads" browses the
 // workspaces of the fixture at a fixed rate, the posts of the fixture fall due in the same minute,
 // and the scenario "publishing" follows them through the API until every one is published.
 //

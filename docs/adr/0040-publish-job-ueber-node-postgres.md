@@ -2,7 +2,7 @@
 
 - **Status**: Akzeptiert
 - **Datum**: 2026-10-19
-- **Bezug**: Umsetzungsleitfaden, Schritt 8.5; `docs/ARCHITECTURE.md`, Abschnitte 3, 6.3 und 7; [ADR 0001](0001-monorepo-und-stack.md), [ADR 0003](0003-rls-und-mandantentrennung.md), [ADR 0004](0004-scheduling-und-outbox.md)
+- **Bezug**: Umsetzungsleitfaden, Schritt 8.5; `docs/ARCHITECTURE.md`, Abschnitte 1, 6.3 und 7; [ADR 0001](0001-monorepo-und-stack.md), [ADR 0003](0003-rls-und-mandantentrennung.md), [ADR 0004](0004-scheduling-und-outbox.md), [ADR 0041](0041-lasttest.md)
 
 ## Kontext
 
@@ -43,7 +43,7 @@ Eine Messung mit Testcontainers zeigt den Unterschied. Sie lief über eine Verbi
 
 ## Konsequenzen
 
-- **Kosten**: Die Datenbankzugriffe eines Laufs kosten rund ein Drittel der CPU, im Publisher wie in Postgres. Wie sich das im Lasttest auswirkt, hält der Leitfaden in Schritt 8.5 fest.
+- **Kosten**: Die Datenbankzugriffe eines Laufs kosten rund ein Drittel der CPU, im Publisher wie in Postgres. Im Lasttest stieg der Durchsatz im selben Lauf wie der Relay mit mehreren Stapeln pro Takt von 109 auf 208 Veröffentlichungen pro Sekunde ([ADR 0041](0041-lasttest.md)).
 - **Zwei Implementierungen**: Derselbe Port hat zwei Implementierungen. Eine Schemaänderung an den Tabellen des Publish-Jobs muss beide nachziehen. Die gemeinsame Suite fängt Abweichungen im Verhalten ab, aber nicht in den Typen: Der node-postgres-Speicher beschreibt seine Zeilen selbst, statt sie aus dem Prisma-Client zu beziehen.
 - **Doppelte Logik**: Das Markieren einer Verbindung als `NEEDS_REAUTH` mit den Marken ihrer geplanten Varianten steht zweimal: in `channels/reauth.ts` für Prisma und im node-postgres-Speicher.
 - **Explizite Filter**: Die Prüfung der Mandantenfilter in Dev und Test (`TENANT_FILTERS`) greift nur für Prisma. Für node-postgres zeigt die Suite die Filter, Row-Level Security bleibt die eigentliche Grenze.

@@ -1414,6 +1414,25 @@ Die Prüfung in einem sauberen Worktree und die volle E2E-Suite auf einem frisch
 #### 8.5 Lasttest
 - **Erstellen**: k6-Skripte: 10.000 fällige Varianten pro Minute, API-p95 unter 300 ms für Lesezugriffe.
 - **Fertig, wenn**: Ziele erreicht.
+- **Umgesetzt** ([ADR 0041](adr/0041-lasttest.md), [ADR 0040](adr/0040-publish-job-ueber-node-postgres.md)):
+  - **Testdaten**: `pnpm load:fixture` schreibt Organisationen mit Workspace, Owner, vier Mock-Accounts mit fester Latenz und 90 Tagen Historie. Dazu kommen Posts, deren Varianten in derselben Minute fällig werden (Standard 10.000). Der Lauf steht in `tools/load/fixture.json`.
+  - **k6**: `tools/load/publish-burst.ts` liest mit fester Rate, gewichtet wie die App, und folgt den Veröffentlichungen über die API. Die Ziele sind Schwellen. `API_URL` darf mehrere Instanzen der API nennen.
+  - **Auswertung**: `pnpm load:stats` zeigt den Lauf aus der Datenbank, auch die Abfragen der Metriken, die k6 nicht sieht.
+  - **Änderungen aus den Messungen**:
+    - Ein Publish-Lauf braucht drei statt sechs Transaktionen.
+    - Der Outbox-Relay arbeitet bis zu zehn Stapel pro Takt ab.
+    - Der Publish-Job spricht Postgres über node-postgres mit Prepared Statements an.
+  - **Tests**:
+    - `packages/db/test/publish-job-adapters.integration.test.ts` gegen beide Speicher des Publish-Jobs,
+    - `packages/db/test/outbox-relay.integration.test.ts`,
+    - `packages/db/test/load-fixture.integration.test.ts` für Testdaten und Auswertung, dazu `packages/db/src/seed/load.test.ts`,
+    - die Integrationstests des Workers mit dem neuen Speicher.
+- **Stand**: Das Kriterium ist erfüllt. Gemessen wurde auf einer Maschine mit 4 vCPU für alles, mit zwei API-Instanzen (ADR 0041):
+  - Alle 10.000 Varianten waren höchstens 51,8 s nach ihrer Fälligkeit veröffentlicht, im Mittel 200 pro Sekunde.
+  - Das p95 der Lesezugriffe lag über den Lauf bei 70 ms und in der Minute des Schubs bei 208 ms.
+  - Die Analytics fragten die 10.000 Posts in 143 s ab.
+  - Mit einer API-Instanz verfehlten die Lesezugriffe das Ziel im Schub (p95 666 ms). Die Vorlage aus Schritt 8.9 startet deshalb mindestens zwei Replikas der API.
+  - Abweichungen von der Architektur: Der Publish-Job läuft über node-postgres statt Prisma (ADR 0040). Den Durchsatz der Analytics misst die Datenbank-Sicht statt k6 (ADR 0041).
 
 #### 8.6 Backup
 - **Erstellen**: PITR, Restore-Probe, RPO 15 min und RTO 4 h dokumentiert.

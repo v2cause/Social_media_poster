@@ -648,7 +648,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
   Nächtlich laufen optionale Live-Smoke-Tests gegen Test-Accounts und die KI-Eval-Suite mit Budget-Limit. Ein eigener Workflow `security.yml` führt CodeQL, Dependency Review, `pnpm audit` und gitleaks aus (ADR 0009).
 - **Umgebungen**: lokal (Mock-Modus), CI, Staging (echte Plattform-Apps im Dev-Modus, Stripe-Testmodus, Anthropic mit niedrigem Ausgabenlimit) und Produktion (EU).
 - **Migrationen**: `prisma migrate deploy` als eigener Schritt vor dem Rollout, nach dem Expand/Contract-Prinzip. RLS, Partial Indexes und Trigger stehen als SQL-Migrationen.
-- **Betrieb**: Postgres mit Point-in-Time-Recovery, Images non-root und schlank.
+- **Betrieb**: Postgres mit Point-in-Time-Recovery, Images non-root und schlank. Die API läuft mit mindestens zwei Replikas, und API und Publisher haben eigene CPU-Anteile; sonst bremst ein Schub von Veröffentlichungen die Lesezugriffe aus ([ADR 0041](adr/0041-lasttest.md)).
 
 ---
 
@@ -665,7 +665,7 @@ admin/                           Plattform-Admins: Feature-Flags, Kill-Switches,
 | Web-E2E | Registrieren, Onboarding, Mock-Account verbinden, KI-Post (Mock), Bild hochladen, für +1 min planen, veröffentlicht, Analytics gefüllt; Kalender-Drag & Drop; Einladung; Viewer nur lesend; Abrechnung mit dem Fake-Stripe (Checkout, Downgrade, past_due, Kündigung); Datenexport mit Download | Playwright |
 | Browser-Adapter | lokale, bereinigte DOM-Fixtures von Login, Composer und Challenge-Seite plus aufgezeichnete JSON-Antworten; Challenge führt zur Pause; Drift-Fehlerpfad | Playwright |
 | KI-Eval (optional) | Golden Briefs (DE/EN x Stile x Plattformen): Schema, Längen, verbotene Wörter, Sprache, Refusal-Quote, Kosten; Pflicht vor Prompt- oder Modellwechseln | Vitest + echte API mit Budget |
-| Last | 10.000 fällige Varianten in derselben Minute, Durchsatz der Analytics-Batches | k6 |
+| Last | 10.000 fällige Varianten in derselben Minute, p95 der Lesezugriffe unter 300 ms, Durchsatz der Analytics-Batches ([ADR 0041](adr/0041-lasttest.md)) | k6, `pnpm load:stats` für die Abfragen der Metriken |
 
 In automatisierten Tests läuft immer der `MockAiProvider`, außer in der optionalen Eval-Suite.
 
