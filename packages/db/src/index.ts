@@ -78,6 +78,7 @@ export {
   type PublishJobPool,
   type PublishJobPoolOptions,
 } from './publishing/pg-publish-job-store';
+export { markOpenAttemptsAfterRestore, type RestoreAttemptMarks } from './publishing/restore-attempts';
 export { createPrismaAnalyticsStore } from './analytics/prisma-analytics-store';
 export { PrismaAnalyticsUnitOfWork } from './analytics/prisma-analytics-unit-of-work';
 export { PrismaMetricsPlanScanner } from './analytics/prisma-metrics-plan-scanner';

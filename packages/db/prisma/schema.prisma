@@ -978,7 +978,8 @@ model PublishAttempt {
   // The schedule version of the job, and the attempt within it.
   scheduleVersion Int                   @map("schedule_version")
   attemptNumber   Int                   @map("attempt_number")
-  // schedule, now, retry or sweep.
+  // schedule, now, retry, recheck or sweep; restore for the open attempt that the mark after a
+  // restore leaves (guide step 8.6).
   trigger         String
   outcome         PublishAttemptOutcome @default(STARTED)
   // The worker that held the lease.

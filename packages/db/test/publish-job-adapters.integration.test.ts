@@ -20,6 +20,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createPrismaClient,
   createPublishJobPool,
+  createSystemPrismaClient,
+  markOpenAttemptsAfterRestore,
   PgPublishJobUnitOfWork,
   PrismaPublishJobUnitOfWork,
   type PrismaClient,
@@ -29,7 +31,8 @@ import {
 // Guide step 4.8 on PostgreSQL: the publish job of the core claims, runs and ends a variant as
 // app_user under row-level security. The claim locks the row, so two jobs of the same variant
 // never both send; the token refresh, the cost ledger and the attempt log land in the database.
-// Guide step 8.5: the same for the store on node-postgres, which the publish worker uses.
+// Guide step 8.5: the same for the store on node-postgres, which the publish worker uses. Guide
+// step 8.6: a variant marked after a restore looks for its post since the time of the restore.
 
 const org = randomUUID();
 const otherOrg = randomUUID();
@@ -48,7 +51,7 @@ const sealer: SecretSealer = {
   },
 };
 
-/** An adapter that publishes at once, or waits for a gate; it counts its calls. */
+/** An adapter that publishes at once, or waits for a gate; it counts its calls and reconciles. */
 class TestAdapter implements SocialPlatformAdapter {
   readonly method = 'API' as const;
   readonly connector = {
@@ -61,6 +64,8 @@ class TestAdapter implements SocialPlatformAdapter {
   };
   readonly calls = { publish: 0, refresh: 0 };
   readonly requests: PublishRequest[] = [];
+  readonly reconciles: { text: string; since: Date; contentHash: string }[] = [];
+  reconcileAnswer: PublishResult | null = null;
   gate: Promise<void> = Promise.resolve();
   refreshAnswer: RefreshOutcome | Error = {
     status: 'refreshed',
@@ -105,8 +110,9 @@ class TestAdapter implements SocialPlatformAdapter {
       meta: { containerId: 'c-1' },
     };
   }
-  reconcile(): Promise<null> {
-    return Promise.resolve(null);
+  reconcile(query: { text: string; since: Date; contentHash: string }): Promise<PublishResult | null> {
+    this.reconciles.push(query);
+    return Promise.resolve(this.reconcileAnswer);
   }
   deletePost(): Promise<void> {
     return Promise.reject(new Error('not used'));
@@ -587,5 +593,54 @@ describe.each(['Prisma', 'node-postgres'] as const)('publish job adapters on Pos
     } finally {
       connection.release();
     }
+  });
+
+  // Last: the mark opens an attempt on every variant that is still pending.
+  it('looks for the post since a restore before it sends a variant marked after it', async () => {
+    if (!database) {
+      throw new Error('database not ready');
+    }
+    const restoredTo = new Date(NOW.getTime() - 10 * 60 * 1000);
+    const wentOut = await seedVariant('LINKEDIN');
+    const stillDue = await seedVariant('LINKEDIN');
+    const system = createSystemPrismaClient(database.url('app_system'));
+    try {
+      await markOpenAttemptsAfterRestore(system, restoredTo);
+    } finally {
+      await system.$disconnect();
+    }
+
+    // Published between the time of the restore and the failure: found, and not sent again.
+    const finding = new TestAdapter('LINKEDIN');
+    finding.reconcileAnswer = {
+      externalPostId: 'post-after-restore',
+      externalUrl: null,
+      publishedAt: new Date(restoredTo.getTime() + 60_000),
+      meta: {},
+    };
+    await expect(
+      new PublishVariant(depsFor(finding)).execute(jobFor(wentOut.variantId)),
+    ).resolves.toMatchObject({
+      kind: 'published',
+      reconciled: true,
+    });
+    expect(finding.calls.publish).toBe(0);
+    expect(finding.reconciles.map((query) => query.since.getTime() <= restoredTo.getTime())).toEqual([true]);
+    expect(
+      await query('SELECT status::text AS status, external_post_id FROM post_variant WHERE id = $1', [
+        wentOut.variantId,
+      ]),
+    ).toEqual([{ status: 'PUBLISHED', external_post_id: 'post-after-restore' }]);
+
+    // Not out yet: looked for, not found, sent once.
+    const sending = new TestAdapter('LINKEDIN');
+    await expect(
+      new PublishVariant(depsFor(sending)).execute(jobFor(stillDue.variantId)),
+    ).resolves.toMatchObject({
+      kind: 'published',
+      reconciled: false,
+    });
+    expect(sending.reconciles).toHaveLength(1);
+    expect(sending.calls.publish).toBe(1);
   });
 });
