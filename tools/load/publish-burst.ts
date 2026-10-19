@@ -8,7 +8,9 @@
 //
 // Every owner of the fixture signs in once in setup() and acts as one client: its requests carry
 // an address of its own in X-Real-IP, as the reverse proxy passes it (ADR 0006), so the limits per
-// address and per person apply as they would to that many people.
+// address and per person apply as they would to that many people. API_URL may name several
+// instances of the API, separated by commas; the requests take turns, as the reverse proxy spreads
+// them over its replicas.
 //
 // Run after `pnpm load:fixture`, with the variables of .env in the environment (README):
 //   k6 run --summary-export tools/load/summary.json tools/load/publish-burst.ts
@@ -56,7 +58,10 @@ interface Read {
   path: (workspace: FixtureWorkspace, iteration: number) => string;
 }
 
-const API_URL = __ENV['API_URL'] ?? 'http://localhost:3001';
+const API_URLS = (__ENV['API_URL'] ?? 'http://localhost:3001')
+  .split(',')
+  .map((url) => url.trim())
+  .filter((url) => url.length > 0);
 /** The origin Better Auth trusts (APP_URL); it refuses sign-ins without it. */
 const APP_URL = __ENV['APP_URL'] ?? 'http://localhost:3000';
 const PASSWORD = __ENV['SEED_USER_PASSWORD'];
@@ -77,6 +82,9 @@ const DAY_MS = 24 * 60 * 60 * SECOND_MS;
 const WATCH_MS = 5 * 60 * SECOND_MS;
 const POLL_SECONDS = 3;
 const SIGN_INS_AT_ONCE = 10;
+
+/** The instance of the API for the n-th request. */
+const apiUrl = (n: number): string => API_URLS[n % API_URLS.length] ?? 'http://localhost:3001';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -265,7 +273,7 @@ export function setup(): SetupData {
     const responses = http.batch(
       batch.map((workspace, offset) => ({
         method: 'POST',
-        url: `${API_URL}/api/auth/sign-in/email`,
+        url: `${apiUrl(start + offset)}/api/auth/sign-in/email`,
         body: JSON.stringify({ email: workspace.email, password: PASSWORD }),
         params: {
           headers: {
@@ -302,7 +310,7 @@ export function read(data: SetupData): void {
   }
   const entry = pickRead();
   const response = http.get(
-    `${API_URL}${entry.path(workspace, iteration)}`,
+    `${apiUrl(iteration)}${entry.path(workspace, iteration)}`,
     paramsOf(session, { kind: 'read', name: entry.name, phase: phaseAt(Date.now()) }),
   );
   check(response, { 'read answered with 200': (r) => r.status === 200 });
@@ -318,6 +326,7 @@ export function watch(data: SetupData): void {
     sleep(Math.min(5, (dueAtMs - Date.now()) / SECOND_MS));
   }
   const deadline = burstEndMs + WATCH_MS;
+  let requests = slot;
   while (pending.length > 0 && Date.now() < deadline) {
     for (const index of pending) {
       const session = data.sessions[index];
@@ -325,8 +334,9 @@ export function watch(data: SetupData): void {
       if (!session || !workspace) {
         continue;
       }
+      requests += 1;
       const response = http.get(
-        `${API_URL}/api/w/${workspace.slug}/variants?status=PUBLISHED&from=${DUE_FROM}&to=${DUE_TO}&order=schedule&limit=500`,
+        `${apiUrl(requests)}/api/w/${workspace.slug}/variants?status=PUBLISHED&from=${DUE_FROM}&to=${DUE_TO}&order=schedule&limit=500`,
         paramsOf(session, {
           kind: 'progress',
           name: 'published variants of the run',
