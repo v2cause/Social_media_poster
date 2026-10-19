@@ -27,6 +27,7 @@
     "check:erasure": "tsx --env-file-if-exists=.env tools/check-erasure.ts",
     "load:fixture": "tsx --env-file-if-exists=.env tools/load-fixture.ts",
     "load:stats": "tsx --env-file-if-exists=.env tools/load-stats.ts",
+    "restore:mark-attempts": "pnpm --filter @smp/worker restore:mark-attempts",
     "auth:reencrypt": "pnpm --filter @smp/api auth:reencrypt",
     "auth:revoke-sessions": "pnpm --filter @smp/api auth:revoke-sessions",
     "stripe:sync": "tsx --env-file-if-exists=.env tools/stripe-sync.ts"

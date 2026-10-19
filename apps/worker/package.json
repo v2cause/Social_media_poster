@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.mts"
+    "test:integration": "vitest run --config vitest.integration.config.mts",
+    "restore:mark-attempts": "node --env-file-if-exists=../../.env dist/scripts/mark-open-attempts.js"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.5",
