@@ -12,12 +12,15 @@
 #                  egress proxy lets it out to the X web app and the storage, nowhere else
 #   observability  grafana/otel-lgtm (Grafana on host port 3003, OTLP on 4317/4318)
 #   clamav         optional virus scan on 127.0.0.1:3310
+#   backup         base backups of Postgres and the copy of backups and WAL archive to the
+#                  object storage of the backups (with PG_ARCHIVE_MODE=on, ADR 0042)
 #
 
 name: social-media-poster
 
-# Runtime hardening for the app containers: no privilege escalation, no Linux capabilities, a
-# read-only root filesystem with a small writable /tmp. The images run as non-root users anyway.
+# Runtime hardening for the app containers and the backup sidecars: no privilege escalation, no
+# Linux capabilities, a read-only root filesystem with a small writable /tmp. The app images run
+# as non-root users anyway.
 x-hardened: &hardened
   security_opt: ['no-new-privileges:true']
   cap_drop: [ALL]
@@ -28,6 +31,23 @@ services:
   postgres:
     image: postgres:17.11-alpine
     restart: unless-stopped
+    # Continuous archiving for point-in-time recovery (guide step 8.6, ADR 0042): with
+    # PG_ARCHIVE_MODE=on every finished WAL segment goes compressed into the volume
+    # postgres-archive, at the latest a minute after the last one. Off unless set, as in
+    # development. The archive belongs to postgres, like the data directory.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - install -d -o postgres -g postgres -m 0700 /var/lib/postgresql/archive && exec docker-entrypoint.sh "$$@"
+      - postgres-entrypoint
+    command:
+      - postgres
+      - -c
+      - archive_mode=${PG_ARCHIVE_MODE:-off}
+      - -c
+      - archive_command=/backup/archive-wal.sh %p %f
+      - -c
+      - archive_timeout=60
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
@@ -44,7 +64,9 @@ services:
     # `docker compose down -v` once to recreate the volume.
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - postgres-archive:/var/lib/postgresql/archive
       - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./infra/docker/postgres/backup:/backup:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
       interval: 5s
@@ -141,12 +163,16 @@ services:
       AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in .env}
       AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
       S3_BUCKET: ${S3_BUCKET:-smp-media}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-smp-backups}
     command:
       - |
         set -eu
         endpoint=http://s3:8333
         aws --endpoint-url "$$endpoint" s3api head-bucket --bucket "$$S3_BUCKET" >/dev/null 2>&1 \
           || aws --endpoint-url "$$endpoint" s3 mb "s3://$$S3_BUCKET"
+        # The bucket of the backups, for the profile "backup" against the local storage.
+        aws --endpoint-url "$$endpoint" s3api head-bucket --bucket "$$BACKUP_S3_BUCKET" >/dev/null 2>&1 \
+          || aws --endpoint-url "$$endpoint" s3 mb "s3://$$BACKUP_S3_BUCKET"
         aws --endpoint-url "$$endpoint" s3api put-bucket-cors --bucket "$$S3_BUCKET" \
           --cors-configuration '{"CORSRules":[{"AllowedOrigins":["http://localhost:3000","http://localhost:8080"],"AllowedMethods":["PUT","GET","HEAD"],"AllowedHeaders":["Content-Type"],"MaxAgeSeconds":3000}]}'
         echo "s3-init: bucket $$S3_BUCKET is ready"
@@ -403,6 +429,69 @@ services:
       # The hosts of X come with the selector map; on top the storage of the media.
       XB_EGRESS_HOSTS: http://s3:8333
 
+  # Base backups (guide step 8.6, ADR 0042): one at the start, then every BACKUP_INTERVAL_HOURS,
+  # the newest BACKUP_KEEP stay, and the WAL archive keeps what the oldest of them needs. It
+  # shares the network of postgres: the pg_hba.conf of initdb allows replication only over
+  # 127.0.0.1, with the password.
+  postgres-backup:
+    image: postgres:17.11-alpine
+    profiles: ['backup']
+    restart: unless-stopped
+    <<: *hardened
+    # Root only to hand the volume of the backups to postgres and to switch to that user.
+    cap_add: [CHOWN, FOWNER, SETGID, SETUID]
+    # The shell loops do not handle SIGTERM themselves; with an init process they stop at once.
+    init: true
+    network_mode: service:postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - install -d -o postgres -g postgres -m 0700 /var/lib/postgresql/backups && exec gosu postgres /backup/backup-loop.sh
+    environment:
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+    volumes:
+      - postgres-backups:/var/lib/postgresql/backups
+      - postgres-archive:/var/lib/postgresql/archive
+      - ./infra/docker/postgres/backup:/backup:ro
+
+  # The copy to the object storage of the backups, every BACKUP_SYNC_SECONDS (ADR 0042). In
+  # production that is a bucket of its own, apart from the media, with its own credentials,
+  # versioning and expiry; locally the bucket of the backups in SeaweedFS.
+  backup-sync:
+    image: amazon/aws-cli:2.38.1
+    profiles: ['backup']
+    restart: unless-stopped
+    <<: *hardened
+    # The user postgres of the Alpine image, who owns the backups and the archive.
+    user: '70:70'
+    init: true
+    depends_on:
+      postgres-backup:
+        condition: service_started
+      # Locally the bucket of the backups exists only after s3-init.
+      s3-init:
+        condition: service_completed_successfully
+    entrypoint: ['/bin/sh', '/backup/sync-loop.sh']
+    environment:
+      HOME: /tmp
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-${S3_ACCESS_KEY_ID:-}}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-${S3_SECRET_ACCESS_KEY:-}}
+      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-us-east-1}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-http://s3:8333}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-smp-backups}
+      BACKUP_SYNC_SECONDS: ${BACKUP_SYNC_SECONDS:-300}
+    volumes:
+      - postgres-backups:/backups:ro
+      - postgres-archive:/archive:ro
+      - ./infra/docker/postgres/backup:/backup:ro
+
   otel-lgtm:
     image: grafana/otel-lgtm:0.36.0
     profiles: ['observability']
@@ -428,5 +517,7 @@ networks:
 
 volumes:
   postgres-data:
+  postgres-archive:
+  postgres-backups:
   redis-data:
   s3-data:
