@@ -6,7 +6,8 @@ import { DEMO_WORKSPACE, signInDemo } from './demo';
 // Guide step 8.8: the repeatable part of the keyboard check. The skip link is the first stop and
 // leads to the content; a menu keeps the focus while it is open and gives it back to its trigger;
 // the tabs of the composer are one stop that the arrow keys move through; a dialog keeps the focus
-// inside and gives it back as well. The test only reads.
+// inside and gives it back as well, also when it opens from state without a trigger. The test only
+// reads.
 
 async function settle(page: Page) {
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
@@ -56,6 +57,21 @@ test('the skip link, a menu and a dialog work with the keyboard alone', async ({
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(invite).toBeFocused();
+});
+
+test('a dialog that opens from state gives the focus back on close', async ({ page }) => {
+  // The dialog "Umplanen" has no trigger of Radix; the calendar opens it for the chosen variant.
+  await signInDemo(page, 'owner@demo.local');
+  await page.goto(`${DEMO_WORKSPACE}/calendar?view=list`);
+  await settle(page);
+  const opener = page.getByRole('button', { name: / umplanen$/ }).first();
+  await opener.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Umplanen' });
+  await expect(dialog.getByLabel('Datum')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
 });
 
 test('the arrow keys move through the variant tabs of the composer', async ({ page }) => {

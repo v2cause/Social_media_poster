@@ -1,15 +1,18 @@
+'use client';
+
 import { X } from 'lucide-react';
 import {
   Dialog as DialogPrimitive,
   DropdownMenu as MenuPrimitive,
   Popover as PopoverPrimitive,
 } from 'radix-ui';
-import type { ComponentProps } from 'react';
+import { useRef, type ComponentProps } from 'react';
 
 import { cn } from '../lib/cn';
 
 // Dialog, side sheet, dropdown menu and popover on Radix primitives: focus trap, Escape and
-// screen reader semantics come from there.
+// screen reader semantics come from there. A client module, because a dialog remembers the element
+// that opened it.
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -17,12 +20,44 @@ export const DialogClose = DialogPrimitive.Close;
 
 const overlayClasses = 'fixed inset-0 z-40 bg-black/50';
 
+type AutoFocusHandlers = Pick<
+  ComponentProps<typeof DialogPrimitive.Content>,
+  'onOpenAutoFocus' | 'onCloseAutoFocus'
+>;
+
+/**
+ * Radix gives the focus back only to a DialogTrigger, and most dialogs of the app open from state
+ * without one. The content remembers the element that had the focus when it opened and gives the
+ * focus back to it on close, if it is still on the page (WCAG 2.4.3).
+ */
+function useFocusReturn({ onOpenAutoFocus, onCloseAutoFocus }: AutoFocusHandlers): AutoFocusHandlers {
+  const opener = useRef<HTMLElement | null>(null);
+  return {
+    onOpenAutoFocus: (event) => {
+      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      onOpenAutoFocus?.(event);
+    },
+    onCloseAutoFocus: (event) => {
+      onCloseAutoFocus?.(event);
+      const element = opener.current;
+      opener.current = null;
+      if (!event.defaultPrevented && element?.isConnected && element !== document.body) {
+        event.preventDefault();
+        element.focus();
+      }
+    },
+  };
+}
+
 export function DialogContent({
   className,
   children,
   closeLabel,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & { closeLabel: string }) {
+  const focusReturn = useFocusReturn({ onOpenAutoFocus, onCloseAutoFocus });
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className={overlayClasses} />
@@ -32,6 +67,7 @@ export function DialogContent({
           className,
         )}
         {...props}
+        {...focusReturn}
       >
         {children}
         <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -67,8 +103,11 @@ export function SheetContent({
   className,
   children,
   closeLabel,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & { closeLabel: string }) {
+  const focusReturn = useFocusReturn({ onOpenAutoFocus, onCloseAutoFocus });
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className={overlayClasses} />
@@ -78,6 +117,7 @@ export function SheetContent({
           className,
         )}
         {...props}
+        {...focusReturn}
       >
         {children}
         <DialogPrimitive.Close className="absolute right-3 top-3 rounded-sm opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
