@@ -4,6 +4,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { FakeStripe } from '@smp/testing';
 
 import { signUpOwner, type Person } from './accounts';
+import { expectAccessible } from './axe';
 import { linkFromEmail } from './mailpit';
 import { startStripeStandIn, stripeSettings } from './stripe-stand-in';
 
@@ -55,7 +56,9 @@ async function reloadUntilVisible(page: Page, locator: Locator) {
   }).toPass({ timeout: 30_000, intervals: [1_000] });
 }
 
-test('upgrade, downgrade, a failed renewal and the cancellation reach the billing page', async ({ page }) => {
+test('upgrade, downgrade, a failed renewal and the cancellation reach the billing page', async ({
+  page,
+}, testInfo) => {
   const started = fake;
   if (!started) {
     throw new Error('The fake Stripe did not start.');
@@ -80,6 +83,16 @@ test('upgrade, downgrade, a failed renewal and the cancellation reach the billin
     '1 von 1',
   );
   await expect(page.getByText(/^49,00\s€ pro Monat$/)).toBeVisible();
+  // Guide step 8.8: the page with its prices, in both color schemes and 320 pixels wide. The
+  // accessibility test leaves it to this test, which runs the fake Stripe.
+  await expectAccessible(page, testInfo, 'billing page in the trial');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expectAccessible(page, testInfo, 'billing page in the trial, dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  const viewport = page.viewportSize() ?? { width: 1280, height: 720 };
+  await page.setViewportSize({ width: 320, height: 640 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  await page.setViewportSize(viewport);
   await shot(page, 'billing-trial');
 
   // Upgrade: the hosted checkout of Pro, paid; the plan follows with the webhooks.
@@ -115,6 +128,7 @@ test('upgrade, downgrade, a failed renewal and the cancellation reach the billin
   await expect(dialog.getByText('Workspaces: 2 von 1')).toBeVisible();
   // Starter keeps 90 days of analytics instead of the 365 of Pro.
   await expect(dialog.getByText(/^Der neue Tarif bewahrt Analytics 90 Tage auf\./)).toBeVisible();
+  await expectAccessible(page, testInfo, 'plan change dialog');
   await shot(page, 'billing-downgrade-dialog');
   await dialog.getByRole('button', { name: 'Wechseln' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Starter' })).toBeVisible({ timeout: 60_000 });
@@ -156,5 +170,6 @@ test('upgrade, downgrade, a failed renewal and the cancellation reach the billin
   await expect(page.getByText('Ihre Organisation kann nur noch lesen', { exact: true })).toBeVisible();
   await expect(page.getByText('Beendet', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tarif wählen: Pro' })).toBeEnabled();
+  await expectAccessible(page, testInfo, 'billing page, read-only');
   await shot(page, 'billing-read-only');
 });

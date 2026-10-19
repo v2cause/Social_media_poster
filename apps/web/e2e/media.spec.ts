@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page, type Response } from '@playwright/test';
 
 import { signUpOwner } from './accounts';
+import { expectAccessible } from './axe';
 
 // Guide step 3.6, "Fertig, wenn": upload, crop, attach and the preview with the image. The worker
 // runs the role media against the local object storage; the API runs with AI_PROVIDER=mock, whose
@@ -71,7 +72,9 @@ const savesCroppedImage = (response: Response): boolean => {
   );
 };
 
-test('upload an image, attach it to Instagram, crop it and see it in the preview', async ({ page }) => {
+test('upload an image, attach it to Instagram, crop it and see it in the preview', async ({
+  page,
+}, testInfo) => {
   await signUpOwner(page, owner, `Medien ${run}`);
   const photo = await panorama(page);
 
@@ -122,6 +125,12 @@ test('upload an image, attach it to Instagram, crop it and see it in the preview
       return box ? Math.round((box.width / box.height) * 100) / 100 : null;
     })
     .toBe(1);
+  // Without dragging (guide step 8.8): the buttons move the image, which is wider than the square.
+  const image = cropDialog.getByRole('group', { name: 'Bildausschnitt' }).locator('xpath=..').locator('img');
+  const before = await image.getAttribute('style');
+  await cropDialog.getByRole('button', { name: 'Bild nach links verschieben' }).click();
+  await expect(image).not.toHaveAttribute('style', before ?? '');
+  await expectAccessible(page, testInfo, 'crop dialog');
   await cropDialog.getByRole('button', { name: 'Übernehmen' }).click();
   await expect(cropDialog).toBeHidden();
   await expect(selected).toContainText('Zugeschnitten');

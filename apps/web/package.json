@@ -37,6 +37,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.64.0",
     "@smp/billing": "workspace:*",
     "@smp/config": "workspace:*",
@@ -49,6 +50,7 @@
     "bullmq": "^5.81.5",
     "eslint": "^10.12.0",
     "ioredis": "^5.11.1",
+    "playwright-core": "1.64.0",
     "postcss": "^8.5.30",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
