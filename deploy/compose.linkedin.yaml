@@ -1,0 +1,23 @@
+# LinkedIn (guide step 4.12, ADR 0046) for the production template: with
+# PLATFORM_MODE_LINKEDIN=live, scripts/deploy.sh adds this file. The API connects the accounts,
+# the role "publisher" posts and reads the metrics, the role "gdpr" revokes the grants of an
+# erased organization. The client secret lies in deploy/secrets/ (docs/runbooks/deployment.md).
+
+x-linkedin: &linkedin
+  environment:
+    LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:?set LINKEDIN_CLIENT_ID in deploy/.env}
+    LINKEDIN_CLIENT_SECRET_FILE: /run/secrets/linkedin_client_secret
+    LINKEDIN_VERSION: ${LINKEDIN_VERSION:?set LINKEDIN_VERSION in deploy/.env}
+    LINKEDIN_ORGANIZATIONS: ${LINKEDIN_ORGANIZATIONS:-false}
+    LINKEDIN_MEMBER_ANALYTICS: ${LINKEDIN_MEMBER_ANALYTICS:-false}
+  secrets: [linkedin_client_secret]
+
+services:
+  api-1: *linkedin
+  api-2: *linkedin
+  worker-publisher: *linkedin
+  worker-billing: *linkedin
+
+secrets:
+  linkedin_client_secret:
+    file: secrets/linkedin_client_secret
