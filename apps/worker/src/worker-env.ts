@@ -8,7 +8,7 @@ import {
   loadSecretFiles,
   observabilityEnvSchema,
 } from '@smp/observability';
-import { platformEnvSchema } from '@smp/platform-adapters';
+import { checkPlatformEnv, platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
 const unsetIfEmpty = (value: unknown): unknown => (value === '' ? undefined : value);
@@ -71,6 +71,8 @@ export const workerEnvSchema = z
   .extend(egressEnvSchema.shape)
   .superRefine(checkBillingEnv)
   .superRefine(checkEgressEnv)
+  // A live platform needs the credentials of its app (guide steps 4.12 to 4.14).
+  .superRefine(checkPlatformEnv)
   // The links of the emails lead to the app over https; renditions reach the platforms that way.
   .superRefine((env, context) => {
     checkProductionEnv(env, context, { APP_URL: env.APP_URL, S3_PUBLIC_ENDPOINT: env.S3_PUBLIC_ENDPOINT });

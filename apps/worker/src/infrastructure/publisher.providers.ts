@@ -46,6 +46,7 @@ import Redis from 'ioredis';
 import { publishRunObserver } from '../metrics';
 import type { WorkerEnv } from '../worker-env';
 import { PUBLISH_PIPELINE } from '../worker.tokens';
+import { livePlatforms } from './live-platforms';
 import { spendCappedResolver } from './spend-cap';
 import {
   xBrowserBreakerOf,
@@ -171,6 +172,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
   const registry = createAdapterRegistry({
     env,
     mock: { store: new RedisMockPlatformStore(redis), clock: systemClock },
+    live: livePlatforms(env, redis),
     ...(xBrowser.browser ? { browser: xBrowser.browser } : {}),
   });
   // The X API stays within the spending cap of the plan (guide step 7.4).
