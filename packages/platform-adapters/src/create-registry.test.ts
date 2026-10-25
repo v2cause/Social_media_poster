@@ -2,12 +2,14 @@ import { systemClock, type SocialPlatformAdapter } from '@smp/core';
 import { describe, expect, it } from 'vitest';
 
 import { createAdapterRegistry, PlatformConfigError } from './create-registry';
-import { platformEnvSchema, usesMockPlatform } from './env';
+import { checkPlatformEnv, platformEnvSchema, usesMockPlatform } from './env';
+import { liveAdapters } from './live/live-adapters';
 import { InMemoryMockPlatformStore } from './mock/mock-platform-store';
 import { MockPlatformAdapter } from './mock/mock-platform-adapter';
 
 // The registry follows PLATFORM_MODE_* (guide step 4.4): mock adapters outside production only,
-// and a live platform without its adapter stops the start.
+// the real adapters of a live platform (guide steps 4.12 to 4.14), and a live platform without
+// its adapter stops the start.
 
 const mock = {
   store: new InMemoryMockPlatformStore(),
@@ -26,6 +28,8 @@ describe('platformEnvSchema', () => {
       PLATFORM_MODE_META: 'mock',
       PLATFORM_MODE_X: 'mock',
       PUBLISH_DRY_RUN: false,
+      LINKEDIN_ORGANIZATIONS: false,
+      LINKEDIN_MEMBER_ANALYTICS: false,
     });
     expect(platformEnvSchema.parse({ PUBLISH_DRY_RUN: 'true' }).PUBLISH_DRY_RUN).toBe(true);
     expect(platformEnvSchema.safeParse({ PLATFORM_MODE_META: 'fake' }).success).toBe(false);
@@ -78,5 +82,69 @@ describe('createAdapterRegistry', () => {
     ).toThrow(
       new PlatformConfigError('PLATFORM_MODE_META is live, but there is no live adapter for INSTAGRAM.'),
     );
+  });
+});
+
+const LIVE_CREDENTIALS = {
+  PLATFORM_MODE_LINKEDIN: 'live',
+  PLATFORM_MODE_META: 'live',
+  PLATFORM_MODE_X: 'live',
+  LINKEDIN_CLIENT_ID: 'linkedin-id',
+  LINKEDIN_CLIENT_SECRET: 'linkedin-secret',
+  LINKEDIN_VERSION: '202510',
+  META_APP_ID: 'meta-id',
+  META_APP_SECRET: 'meta-secret',
+  META_GRAPH_VERSION: 'v24.0',
+  X_CLIENT_ID: 'x-id',
+};
+
+const issuesOf = (values: Record<string, string>): string[] =>
+  platformEnvSchema
+    .superRefine(checkPlatformEnv)
+    .safeParse(values)
+    .error?.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`) ?? [];
+
+describe('checkPlatformEnv', () => {
+  it('asks a live platform for the credentials of its app', () => {
+    expect(issuesOf({ PLATFORM_MODE_LINKEDIN: 'live', PLATFORM_MODE_X: 'live' })).toEqual([
+      'LINKEDIN_CLIENT_ID: required when PLATFORM_MODE_LINKEDIN is live',
+      'LINKEDIN_CLIENT_SECRET: required when PLATFORM_MODE_LINKEDIN is live',
+      'LINKEDIN_VERSION: required when PLATFORM_MODE_LINKEDIN is live',
+      'X_CLIENT_ID: required when PLATFORM_MODE_X is live',
+    ]);
+    expect(issuesOf(LIVE_CREDENTIALS)).toEqual([]);
+  });
+
+  it('checks the pinned versions and the Instagram app as a pair', () => {
+    expect(issuesOf({ ...LIVE_CREDENTIALS, LINKEDIN_VERSION: '2025-10', META_GRAPH_VERSION: '24' })).toEqual([
+      'LINKEDIN_VERSION: format YYYYMM',
+      'META_GRAPH_VERSION: format vNN.0',
+    ]);
+    expect(issuesOf({ INSTAGRAM_APP_ID: 'ig-id' })).toEqual([
+      'INSTAGRAM_APP_SECRET: INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET are set together or not at all',
+    ]);
+  });
+});
+
+describe('liveAdapters', () => {
+  it('builds the real adapters, and leaves Instagram out without its own app', () => {
+    const env = envOf(LIVE_CREDENTIALS, 'production');
+    const registry = createAdapterRegistry({ env, mock, live: liveAdapters(env, { clock: systemClock }) });
+
+    expect(registry.methods()).toEqual([
+      { platform: 'LINKEDIN', method: 'API' },
+      { platform: 'FACEBOOK', method: 'API' },
+      { platform: 'X', method: 'API' },
+    ]);
+  });
+
+  it('offers Instagram with its app', () => {
+    const env = envOf(
+      { ...LIVE_CREDENTIALS, INSTAGRAM_APP_ID: 'ig-id', INSTAGRAM_APP_SECRET: 'ig-secret' },
+      'production',
+    );
+    const registry = createAdapterRegistry({ env, mock, live: liveAdapters(env, { clock: systemClock }) });
+
+    expect(registry.methodFor('INSTAGRAM')).toBe('API');
   });
 });
