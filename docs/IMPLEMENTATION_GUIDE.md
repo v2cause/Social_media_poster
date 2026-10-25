@@ -954,7 +954,13 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Ohne Refresh Token gilt der 60-Tage-Ablauf.
   - Im Development-Tier sind die Aufrufe pro Tag begrenzt.
 - **Fertig, wenn**: Die Contract-Suite mit Fixtures grün ist und ein echter Test-Post auf Staging erscheint (zuerst im Dry-Run).
-- **Stand**: offen. Die Doku unter `learn.microsoft.com` ist aus der Entwicklungsumgebung gesperrt (Netzwerkrichtlinie, 403), und für den Abschluss fehlen eine LinkedIn-App, Test-Accounts und Staging. Bis dahin verbindet und veröffentlicht LinkedIn über den Mock-Adapter (`PLATFORM_MODE_LINKEDIN=mock`). Mit der Doku zu prüfen sind auch die Fehlerwerte `user_cancelled_login` und `user_cancelled_authorize` aus Schritt 4.5 und die Bildgrenzen aus [ADR 0020](adr/0020-renditions-und-zuschnitt.md).
+- **Umgesetzt** ([ADR 0046](adr/0046-echte-plattform-adapter.md)):
+  - `LinkedInConnector` und `LinkedInAdapter` in `packages/platform-adapters/src/linkedin/`, dazu das Little Text Format (`little-text.ts`) und das Mapping der Kennzahlen (`metrics-map.ts`). Mit `PLATFORM_MODE_LINKEDIN=live` und `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` und `LINKEDIN_VERSION` nutzen API und Worker den echten Adapter.
+  - Scopes: `openid profile w_member_social`, mit `LINKEDIN_MEMBER_ANALYTICS=true` auch `r_member_postAnalytics`, mit `LINKEDIN_ORGANIZATIONS=true` auch die drei Scopes der Organisationen. Seiten mit den Rollen `ADMINISTRATOR` und `CONTENT_ADMINISTRATOR` werden angeboten. Die zweite App (`LINKEDIN_CM_*`) ist noch nicht gebaut.
+  - Bilder über `initializeUpload`, `PUT` und Warten auf `AVAILABLE`; ein Bild als `media`, mehrere als `multiImage`. Der erste Kommentar geht über `socialActions`; scheitert er, wird es nur geloggt.
+  - Reconcile nur für Seiten (letzte 20 Beiträge); bei Personen findet er nichts, die Variante geht auf `NEEDS_ATTENTION`.
+  - Tests: `src/linkedin/linkedin-adapter.test.ts` (Contract-Suite für Seiten gegen `linkedin.fake.ts`, Bilder, Duplikat, Reconcile, erster Kommentar, Refresh, Kennzahlen, Connector) und `src/linkedin/little-text.test.ts`.
+- **Stand**: gebaut, aber nicht gegen die offizielle Doku geprüft (gesperrt, Liste in ADR 0046) und noch ohne echten Testbeitrag. Für "Fertig, wenn" fehlt der Testbeitrag auf Staging mit einer LinkedIn-App ([Plattformen einrichten](betrieb/plattformen-einrichten.md)). Mit der Doku zu prüfen sind auch die Fehlerwerte `user_cancelled_login` und `user_cancelled_authorize` aus Schritt 4.5 und die Bildgrenzen aus [ADR 0020](adr/0020-renditions-und-zuschnitt.md).
 
 #### 4.13 Meta-Adapter (4b)
 - **Erstellen**: `meta/facebook-adapter.ts`, `meta/instagram-adapter.ts`, die Connectors (Facebook Login for Business; Instagram Login), Webhooks `POST /api/webhooks/meta/deauthorize` und `POST /api/webhooks/meta/data-deletion`.
@@ -976,7 +982,13 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Die Metriknamen ändern sich laufend (z.B. `views` statt `impressions`).
   - Die Graph-API-Version wird gepinnt.
 - **Fertig, wenn**: Auf Staging Facebook- und Instagram-Test-Posts mit Bild erscheinen und das App-Review eingereicht ist.
-- **Stand**: offen. Die Doku unter `developers.facebook.com` ist aus der Entwicklungsumgebung gesperrt, und es fehlen eine Meta-App mit Test-Nutzern in einer App-Rolle, Staging und das App-Review. Bis dahin laufen Facebook und Instagram über den Mock-Adapter (`PLATFORM_MODE_META=mock`). Die Bildgrenzen für Facebook (4 MB, 2048 px) stammen aus Sekundärquellen ([ADR 0020](adr/0020-renditions-und-zuschnitt.md)).
+- **Umgesetzt** ([ADR 0046](adr/0046-echte-plattform-adapter.md)):
+  - `FacebookConnector`, `FacebookAdapter`, `InstagramConnector` und `InstagramAdapter` in `packages/platform-adapters/src/meta/`, die Fehlercodes der Graph API in `graph-api.ts`, die Mappings in `metrics-map.ts`. Mit `PLATFORM_MODE_META=live`, `META_APP_ID`, `META_APP_SECRET` und `META_GRAPH_VERSION` gilt der echte Adapter für Facebook; Instagram kommt mit `INSTAGRAM_APP_ID` und `INSTAGRAM_APP_SECRET` dazu.
+  - Facebook: Login mit Scopes oder mit der Konfiguration von Facebook Login for Business (`META_LOGIN_CONFIG_ID`), langlebiges Token, Seiten mit `CREATE_CONTENT` und ihren Tokens. Fotos gehen als Datei an `/{page}/photos` statt per URL; mehrere werden unveröffentlicht hochgeladen und über `attached_media` angehängt.
+  - Instagram: Instagram Login, langlebiges Token mit Erneuerung, Prüfung von `content_publishing_limit`, Container mit Warten auf `FINISHED` (5 s, 15 s, 30 s, dann minütlich, höchstens 5 Minuten), `media_publish`; die Container-IDs stehen in `PublishResult.meta`.
+  - `verifyMetaSignedRequest` prüft die `signed_request` der Callbacks; die Endpunkte `POST /api/webhooks/meta/deauthorize` und `POST /api/webhooks/meta/data-deletion` fehlen noch, weil sie Verbindungen über alle Mandanten finden müssen.
+  - Tests: `src/meta/meta-adapters.test.ts` (Contract-Suite für Facebook und Instagram gegen `meta.fake.ts`, Fotos, Karussell, Limit, Container, Refresh, Connectoren), `src/meta/graph-api.test.ts` und `src/meta/signed-request.test.ts`.
+- **Stand**: gebaut, aber nicht gegen die offizielle Doku geprüft (gesperrt, Liste in ADR 0046) und noch ohne echte Testbeiträge. Für "Fertig, wenn" fehlen die Testbeiträge auf Staging mit einer Meta-App und das eingereichte App-Review, dafür auch die beiden Callbacks. Die Bildgrenzen für Facebook (4 MB, 2048 px) stammen aus Sekundärquellen ([ADR 0020](adr/0020-renditions-und-zuschnitt.md)).
 
 #### 4.14 X-API-Adapter (4c)
 - **Erstellen**: `x/connector.ts` (OAuth 2.0 mit PKCE S256), `x/adapter.ts`, `x/media-upload.ts`, Kosten-Recorder, Ausgabenlimit, Endpunkt `GET /api/w/:ws/x/cost-estimate`.
@@ -989,7 +1001,13 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
   - Doppelter Inhalt führt zu `DUPLICATE`.
   - Reconcile liest nur die letzten 5 eigenen Posts, weil Lesen Geld kostet.
 - **Fertig, wenn**: Auf Staging ein X-Test-Post erscheint und die Kosten pro Workspace korrekt erfasst sind.
-- **Stand**: offen. Die Doku unter `docs.x.com` ist aus der Entwicklungsumgebung gesperrt, und es fehlen ein X-Developer-Zugang mit Guthaben und Staging. Bis dahin läuft X über den Mock-Adapter (`PLATFORM_MODE_X=mock`), der Kosten wie die echte API erfasst. Die Preise in `packages/platform-adapters/src/prices.ts` stammen aus Sekundärquellen und sind mit der Doku zu prüfen.
+- **Umgesetzt** ([ADR 0046](adr/0046-echte-plattform-adapter.md)):
+  - `XConnector` und `XApiAdapter` in `packages/platform-adapters/src/x/`. Mit `PLATFORM_MODE_X=live` und `X_CLIENT_ID` (und `X_CLIENT_SECRET` für einen vertraulichen Client) nutzen API und Worker den echten Adapter.
+  - Bilder in einem Aufruf über `POST /2/media/upload`, Alt-Text über `POST /2/media/metadata`, dann `POST /2/tweets`. Duplikate (403 mit "duplicate") werden `DUPLICATE`, fehlendes Guthaben (402) `PERMISSION_DENIED`.
+  - Kosten: `x.post_create` oder, mit einem Link im Text, `x.post_create_with_url`; jeder gelesene Beitrag `x.post_read`. Das Ausgabenlimit aus Schritt 7.4 erkennt Links im Text ebenso. Der Endpunkt `GET /api/w/:ws/x/cost-estimate` ist nicht gebaut; die Kosten zeigt die Accounts-Seite.
+  - Reconcile über die letzten 5 eigenen Beiträge, Texte ohne Links verglichen (t.co).
+  - Tests: `src/x/x-adapter.test.ts` (Contract-Suite gegen `x.fake.ts`, Upload mit Alt-Text, Kosten, Duplikat, Reconcile, rotierende Refresh Tokens, Kennzahlen, Connector mit PKCE).
+- **Stand**: gebaut, aber nicht gegen die offizielle Doku geprüft (gesperrt, Liste in ADR 0046) und noch ohne echten Testbeitrag. Für "Fertig, wenn" fehlt der Testbeitrag auf Staging mit einer X-App mit Guthaben. Die Preise in `packages/platform-adapters/src/prices.ts` stammen aus Sekundärquellen und sind mit dem Portal zu prüfen.
 
 ---
 
@@ -1023,7 +1041,7 @@ Die Schritte sind nummeriert (`Phase.Schritt`). Innerhalb einer Phase ist die Re
     - `apps/worker/src/scheduler/analytics-tick.test.ts`
     - `apps/worker/test/analytics.integration.test.ts` (im Zeitraffer mit `ANALYTICS_CADENCE_SCALE`)
     - `packages/platform-adapters/src/mock/metrics-map.test.ts`
-- **Stand**: für den Mock fertig. Für die echten Plattformen fehlen die Mappings und ihre Tests mit bereinigten echten Payloads. Gründe: Die Doku von LinkedIn, Meta und X ist aus der Entwicklungsumgebung gesperrt, und es gibt keine Test-Accounts (siehe 4.12 bis 4.14).
+- **Stand**: für den Mock fertig. Die Mappings der echten Plattformen sind gebaut (`src/linkedin/metrics-map.ts`, `src/meta/metrics-map.ts`, `src/x/metrics-map.ts`, [ADR 0046](adr/0046-echte-plattform-adapter.md)) und gegen die Fakes getestet. Es fehlen ihre Tests mit bereinigten echten Payloads, die erst mit Test-Accounts entstehen (siehe 4.12 bis 4.14).
 
 #### 5.3 Rollups
 - **Erstellen**: `metrics.rollup` (nach jedem Collector-Lauf für den betroffenen Tag) und einen nächtlichen Komplettlauf über die letzten 35 Tage.

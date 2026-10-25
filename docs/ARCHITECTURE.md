@@ -198,7 +198,7 @@ interface SocialPlatformAdapter {
 // OAuthConnector: authorizationUrl, exchangeCode, listConnectableAccounts, revoke
 ```
 
-- **Implementierungen**: `LinkedInApiAdapter` (Person + Organisation), `MetaFacebookAdapter`, `MetaInstagramAdapter`, `XApiAdapter` und `MockPlatformAdapter`, der die echten Capability-Tabellen nutzt. Dazu kommt `XBrowserRemoteAdapter`: ein Proxy, der Befehle an `xb-commands` schickt; die Playwright-Logik liegt in `packages/x-browser`.
+- **Implementierungen**: `LinkedInAdapter` (Person + Organisation), `FacebookAdapter`, `InstagramAdapter`, `XApiAdapter` und `MockPlatformAdapter`, der die echten Capability-Tabellen nutzt. Dazu kommt `XBrowserRemoteAdapter`: ein Proxy, der Befehle an `xb-commands` schickt; die Playwright-Logik liegt in `packages/x-browser`. Die echten Adapter baut `liveAdapters` aus den Zugangsdaten einer Plattform auf `live`. Gebaut sind sie ohne Zugriff auf die offizielle Doku, die offenen Prüfpunkte stehen in [ADR 0046](adr/0046-echte-plattform-adapter.md).
 - **HTTP-Clients**: schlank und selbstgebaut (undici fetch), mit zod-validierten Antworten und gepinnten API-Versionen (`LINKEDIN_VERSION=YYYYMM`, `META_GRAPH_VERSION=vNN.0`). Keine schweren Vendor-SDKs.
 - **AdapterRegistry**: wählt den Adapter nach der Verbindungsmethode des Accounts. Für BROWSER prüft sie zusätzlich den globalen Kill-Switch, das Workspace-Flag, den Tarif (oder die Freischaltung der Organisation durch die Plattform-Admins) und eine gültige Risikobestätigung. Es gibt keinen stillen Wechsel zwischen X-API und X-Browser.
 - **Fehler-Taxonomie** (`PlatformError` mit `code`, `retryable`, `retryAfterMs`): `AUTH_EXPIRED`, `PERMISSION_DENIED`, `RATE_LIMITED`, `VALIDATION_REJECTED`, `DUPLICATE`, `MEDIA_PROCESSING`, `TRANSIENT`, `OUTCOME_UNKNOWN`, `CHALLENGE_REQUIRED`, `SELECTOR_DRIFT`, `SPEND_CAP_REACHED`.
@@ -214,7 +214,12 @@ interface SocialPlatformAdapter {
 | X (API) | OAuth 2.0 mit PKCE (S256); `tweet.read tweet.write users.read media.write offline.access` | Media Upload v2, Alt-Text per Metadata-Endpunkt, `POST /2/tweets` | 2 h Access; rotierender Refresh Token, nur einmal gültig (Refresh unter Lock) |
 | X (Browser) | interaktiver Login, nur verschlüsselter `storageState` | Playwright im Composer; Ergebnis aus der JSON-Antwort der Web-App | Session-Cookies |
 
-LinkedIn verlangt für die Community Management API möglicherweise eine eigene App. Der Adapter akzeptiert deshalb zwei Credential-Sets.
+LinkedIn verlangt für die Community Management API möglicherweise eine eigene App. Gebaut ist bisher eine App: Mit `LINKEDIN_ORGANIZATIONS=true` fragt sie zusätzlich die Scopes der Organisationen an. Ein zweites Credential-Set (`LINKEDIN_CM_*`) folgt, falls LinkedIn es verlangt ([ADR 0046](adr/0046-echte-plattform-adapter.md)).
+
+Abweichungen der Umsetzung von der Tabelle ([ADR 0046](adr/0046-echte-plattform-adapter.md)):
+- Facebook-Fotos gehen als Datei an `/{page}/photos`, nicht per URL. Nur Instagram braucht den öffentlichen Speicher.
+- Facebook zählt das Ende des Datenzugriffs (90 Tage) als Ende der Verbindung, damit der Token-Monitor erinnert.
+- Instagram legt bei jedem Lauf neue Container an; ihre IDs stehen im Versuch, werden aber nicht wiederverwendet.
 
 **Token-Monitor** (`tick.tokens`, stündlich, [ADR 0025](adr/0025-benachrichtigungen-und-token-monitor.md)): Er sieht die Verbindungen, deren Zugang in 14 Tagen endet (mit dem Refresh Token, wenn es eines gibt, sonst mit dem Access Token).
 - Eine aktive Verbindung bekommt den Job `token.refresh`, der unter `lock:conn:{id}` erneuert. Wo die Plattform keinen Refresh bietet, wird sie `EXPIRING`.
@@ -484,7 +489,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 - **Planung**: `tick.analytics` reiht pro Account einen Job ein. Der Job beansprucht die fälligen Varianten mit `FOR UPDATE SKIP LOCKED` und 15 Minuten Sperrzeit, sodass zwei Läufe nie dieselben Posts abfragen. Verpasste Stufen werden übersprungen. Fehler verschieben die Abfragen: Rate-Limit `Retry-After` oder 15 Minuten, Zugang 6 Stunden, sonst 30 Minuten. Ein Post, den die Plattform nicht mehr kennt, bekommt `externalDeletedAt` und keine weiteren Abfragen ([ADR 0027](adr/0027-analytics-kaskade-rollup-und-api.md)).
 - **Account-Metriken**: täglich um ca. 03:00 Workspace-Zeit, gestaffelt (Follower, Reichweite, Profil- bzw. Seitenaufrufe). `tick.account-metrics` läuft stündlich und holt den Vortag für jeden Account, in dessen Workspace es 03:00 Uhr oder später ist und dem der Tag fehlt; die Jobs verteilen sich über 50 Minuten.
 
-**Normalisierung** (versionierte Mappings pro Adapter; die Rohdaten bleiben erhalten, damit bei geänderten Mappings neu berechnet werden kann; umgesetzt ist bisher das Mapping des Mock-Adapters, die echten folgen mit den Adaptern aus Schritt 4.12 bis 4.14):
+**Normalisierung** (versionierte Mappings pro Adapter; die Rohdaten bleiben erhalten, damit bei geänderten Mappings neu berechnet werden kann; umgesetzt sind die Mappings des Mock-Adapters und der echten Adapter aus Schritt 4.12 bis 4.14, letztere gegen nachgebaute Antworten getestet, [ADR 0046](adr/0046-echte-plattform-adapter.md)):
 
 | Normalisiert | LinkedIn Organisation | LinkedIn Person | Facebook | Instagram | X |
 |---|---|---|---|---|---|
@@ -533,7 +538,7 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
 
    - Die Werte liegen zentral in `packages/platform-rules` und werden pro Adapter-Phase gegen die Doku geprüft. Umgesetzt sind JPEG-Renditions (Qualität 85, Instagram 1080 x 1350 als Box, Facebook und LinkedIn 2048, X 4096) mit Qualitäts- und Größenstufen bis zum Byte-Limit; Stand der Prüfung je Wert in [ADR 0020](adr/0020-renditions-und-zuschnitt.md).
    - Liegt ein Seitenverhältnis außerhalb des Erlaubten, schneidet der Nutzer pro Plattform zu (`react-easy-crop`) oder wählt Letterbox (weiße Ränder). Der Zuschnitt wird in Pixeln des angezeigten Originals an `PostMedia` gespeichert; `PUT /api/w/:ws/variants/:variantId/media` setzt die Medien einer Variante mit ihrer `version` und reiht `media.render` ein.
-5. **Öffentliche URLs für Meta**: Presigned GET mit 1 h Laufzeit und `.jpg`-Key. Als Fallback ist ein HMAC-signierter Medien-Proxy der API vorgesehen, falls Meta die signierten URLs nicht lädt; gebaut ist er nicht (Schritt 4.13 ist offen). Lokal laufen Tests über einen `cloudflared`-Tunnel oder den Mock-Adapter.
+5. **Öffentliche URLs für Meta**: Presigned GET mit 1 h Laufzeit und `.jpg`-Key; Instagram lädt die Bilder darüber selbst. Facebook, LinkedIn und X bekommen die Bilder als Upload vom Worker ([ADR 0046](adr/0046-echte-plattform-adapter.md)). Als Fallback ist ein HMAC-signierter Medien-Proxy der API vorgesehen, falls Instagram die signierten URLs nicht lädt; gebaut ist er nicht. Lokal laufen Tests über einen `cloudflared`-Tunnel oder den Mock-Adapter.
 6. **Aufräumen** (stündlich in `gdpr.sweep` der Rolle `gdpr`, [ADR 0038](adr/0038-aufbewahrungsfristen.md)): Assets, die nach 24 h noch auf `PENDING_UPLOAD` stehen, und gelöschte Assets, die keine Variante verwendet, mit dem nächsten Lauf; erst die Objekte, dann die Zeilen. Gelöschte Assets zählen nicht mehr zur Speicher-Quote, deshalb warten ihre Dateien nicht (Schritt 8.4; vorher 30 Tage). Nach Objekten ohne Asset sucht kein Job, weil keine Löschung sie zurücklässt. Der Browser lädt in ein eigenes Upload-Objekt, aus dem die Pipeline das geprüfte Original schreibt. Ein PUT, den der Link danach noch annimmt (nach `READY`, einer Ablehnung oder dem Löschen), legt es neu an; deshalb reiht die API mit jedem Ticket `media.drop-upload` ein, das das Upload-Objekt eine Stunde nach Ablauf des Links löscht, außer das Asset wartet noch auf seine Datei oder wird gerade verarbeitet. Unbenutzte, aber fertige Assets bleiben in der Bibliothek, und Thumbnails veröffentlichter Posts bleiben für die Historie erhalten.
 
 ---
