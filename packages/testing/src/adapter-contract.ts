@@ -1,6 +1,7 @@
 import {
   isPlatformError,
   type AdapterContext,
+  type ExternalPostRef,
   type PlatformErrorCode,
   type PublishRequest,
   type SocialAccountType,
@@ -35,6 +36,11 @@ export interface AdapterContractFixtures {
   validRequest(): PublishRequest;
   /** A post the platform refuses, for example with a text over the limit. */
   invalidRequest(): PublishRequest;
+  /**
+   * Deletes a post on the platform itself, for a platform whose API deletes nothing (Instagram);
+   * without it the suite deletes through the adapter.
+   */
+  removeOnPlatform?(ref: ExternalPostRef): Promise<void>;
 }
 
 interface Failure {
@@ -163,7 +169,9 @@ export function describeAdapterContract(
       const ctx = await fixtures.context();
       const kept = await adapter.publish(fixtures.validRequest(), ctx);
       const removed = await adapter.publish({ ...fixtures.validRequest(), text: 'removed later' }, ctx);
-      await adapter.deletePost(removed, ctx);
+      await (fixtures.removeOnPlatform
+        ? fixtures.removeOnPlatform(removed)
+        : adapter.deletePost(removed, ctx));
 
       const results = await adapter.fetchPostMetrics([kept, removed], ctx);
       expect(results.map((result) => [result.externalPostId, result.kind])).toEqual([
