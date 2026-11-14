@@ -31,6 +31,7 @@ import Redis from 'ioredis';
 import type { WorkerEnv } from '../worker-env';
 import { GDPR_PIPELINE } from '../worker.tokens';
 import { EmailGdprNotifier } from './gdpr-notifier';
+import { livePlatforms } from './live-platforms';
 import { ZipExportArchives } from './zip-export-archives';
 
 // The adapters of the role "gdpr" (guide steps 8.1 to 8.3, ADR 0036 to 0038): the database as
@@ -125,6 +126,7 @@ export function gdprPipeline(env: WorkerEnv): Provider[] {
   const connectors = createAdapterRegistry({
     env,
     mock: { store: new RedisMockPlatformStore(redis), clock: systemClock },
+    live: livePlatforms(env, redis),
   });
   const sealer = sealerFromEnv('tokens', env);
   const revoke: GrantRevoker = (connection) => {

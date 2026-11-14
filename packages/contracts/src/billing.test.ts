@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   changePlanRequestSchema,
   checkoutRequestSchema,
+  isUnlimitedLimit,
   limitOverridesSchema,
   planLimitsSchema,
+  UNLIMITED_PLAN_LIMITS,
 } from './billing';
 
 const limits = {
@@ -41,5 +43,23 @@ describe('billing contracts', () => {
     expect(checkoutRequestSchema.safeParse({ plan: 'trial' }).success).toBe(false);
     expect(changePlanRequestSchema.safeParse({ plan: 'agency' }).success).toBe(true);
     expect(changePlanRequestSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('takes the unlimited limits as overrides, each at the largest value it may take', () => {
+    expect(limitOverridesSchema.parse(UNLIMITED_PLAN_LIMITS)).toEqual(UNLIMITED_PLAN_LIMITS);
+    expect(planLimitsSchema.safeParse({ ...UNLIMITED_PLAN_LIMITS, maxWorkspaces: 10_001 }).success).toBe(
+      false,
+    );
+    expect(
+      planLimitsSchema.safeParse({ ...UNLIMITED_PLAN_LIMITS, analyticsHistoryDays: 3_651 }).success,
+    ).toBe(false);
+    expect(UNLIMITED_PLAN_LIMITS.aiOverageCapMicros).toBe(0);
+  });
+
+  it('tells an unlimited limit from a large one', () => {
+    expect(isUnlimitedLimit('maxSocialAccounts', 100_000)).toBe(true);
+    expect(isUnlimitedLimit('maxSocialAccounts', 75)).toBe(false);
+    expect(isUnlimitedLimit('storageBytes', 100 * 1024 ** 3)).toBe(false);
+    expect(isUnlimitedLimit('aiCreditsMicros', Number.MAX_SAFE_INTEGER)).toBe(true);
   });
 });

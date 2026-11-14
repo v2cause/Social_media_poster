@@ -56,6 +56,7 @@
       "xApi": "X API costs this month"
     },
     "of": "{used} of {limit}",
+    "ofUnlimited": "{used} of unlimited",
     "near": "Almost reached.",
     "full": "Limit reached: anything new needs an upgrade.",
     "fullMonthly": "Limit of this month reached: anything new waits for next month or an upgrade.",

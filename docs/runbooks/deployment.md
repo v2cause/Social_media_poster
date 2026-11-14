@@ -7,7 +7,7 @@ Schritt 8.9 des Leitfadens, [ADR 0045](../adr/0045-produktions-vorlage.md). Die 
 - **Von außen erreichbar** ist nur Caddy auf 80 und 443 (auch UDP für HTTP/3). Caddy bedient zwei Namen: `SMP_DOMAIN` für Web-App und API, `SMP_MEDIA_DOMAIN` für den Objektspeicher.
 - **Dienste**: zwei Replikas der API, die Web-App, je ein Worker für `scheduler`, `publisher` mit `analytics`, `media`, `notify` und `gdpr` (mit Abrechnung `billing,gdpr`), Postgres, Redis, SeaweedFS und der Egress-Proxy. Die Rolle `ai` hat noch keine Jobs und läuft nicht.
 - **Jobs vor dem Start**: `db-roles` legt die Rollen der Datenbank an und setzt ihre Passwörter, `migrate` führt die Migrationen aus, `s3-init` legt den Bucket an.
-- **Profile** in `SMP_PROFILES`: `backup` (die Kopie außerhalb der VM, für Produktion Pflicht), `monitoring` (Prometheus, Alertmanager, Pushgateway, Blackbox-Exporter) und `xb` (der Browser von X mit `compose.xb.yaml`). `SMP_BILLING=true` nimmt Stripe dazu (`compose.billing.yaml`).
+- **Profile** in `SMP_PROFILES`: `backup` (die Kopie außerhalb der VM, für Produktion Pflicht), `monitoring` (Prometheus, Alertmanager, Pushgateway, Blackbox-Exporter) und `xb` (der Browser von X mit `compose.xb.yaml`). `SMP_BILLING=true` nimmt Stripe dazu (`compose.billing.yaml`). Eine Plattform auf `live` nimmt ihre Override-Datei dazu: `compose.linkedin.yaml`, `compose.meta.yaml` (mit `INSTAGRAM_APP_ID` auch `compose.instagram.yaml`) oder `compose.x.yaml` ([ADR 0046](../adr/0046-echte-plattform-adapter.md)).
 
 Alle Befehle unten laufen im Verzeichnis `deploy/` des Repositorys, als root. Für die Kommandos von Compose:
 
@@ -59,6 +59,10 @@ dc() { docker compose -f compose.yaml -f compose.billing.yaml --profile backup -
    | `alert_smtp_password` | Passwort des SMTP-Kontos von Alertmanager (Profil `monitoring`) |
    | `backup_s3_access_key_id`, `backup_s3_secret_access_key` | Zugang zum Bucket der Backups (Profil `backup`) |
    | `stripe_secret_key`, `stripe_webhook_secret` | nur mit `SMP_BILLING=true` |
+   | `linkedin_client_secret` | nur mit `PLATFORM_MODE_LINKEDIN=live` ([Plattformen einrichten](../betrieb/plattformen-einrichten.md)) |
+   | `meta_app_secret` | nur mit `PLATFORM_MODE_META=live` |
+   | `instagram_app_secret` | nur mit `PLATFORM_MODE_META=live` und `INSTAGRAM_APP_ID` |
+   | `x_client_secret` | nur mit `PLATFORM_MODE_X=live` |
 
 5. **Kopie der Schlüssel**: `secrets/` und `generated/` gehören zusätzlich an einen sicheren Ort außerhalb der VM, getrennt von den Backups (etwa ein Passwort-Manager oder ein verschlüsseltes Archiv). Ein Restore braucht die alten Schlüssel ([Backup und Wiederherstellung](backup-restore.md)).
 6. **Deploy**: `bash scripts/deploy.sh`. Das Skript

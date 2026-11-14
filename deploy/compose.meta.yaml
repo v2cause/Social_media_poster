@@ -1,0 +1,22 @@
+# Facebook pages and Instagram (guide step 4.13, ADR 0046) for the production template: with
+# PLATFORM_MODE_META=live, scripts/deploy.sh adds this file, and compose.instagram.yaml as well
+# when INSTAGRAM_APP_ID is set. The app secret lies in deploy/secrets/
+# (docs/runbooks/deployment.md).
+
+x-meta: &meta
+  environment:
+    META_APP_ID: ${META_APP_ID:?set META_APP_ID in deploy/.env}
+    META_APP_SECRET_FILE: /run/secrets/meta_app_secret
+    META_GRAPH_VERSION: ${META_GRAPH_VERSION:?set META_GRAPH_VERSION in deploy/.env}
+    META_LOGIN_CONFIG_ID: ${META_LOGIN_CONFIG_ID:-}
+  secrets: [meta_app_secret]
+
+services:
+  api-1: *meta
+  api-2: *meta
+  worker-publisher: *meta
+  worker-billing: *meta
+
+secrets:
+  meta_app_secret:
+    file: secrets/meta_app_secret

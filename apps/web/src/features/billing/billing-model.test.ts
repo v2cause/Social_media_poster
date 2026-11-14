@@ -1,4 +1,4 @@
-import type { BillingOverviewDto, PlanLimits } from '@smp/contracts';
+import { UNLIMITED_PLAN_LIMITS, type BillingOverviewDto, type PlanLimits } from '@smp/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -89,6 +89,34 @@ describe('usageRowsOf', () => {
       }),
     );
     expect(rows.find((row) => row.key === 'workspaces')).toMatchObject({ percent: 100, state: 'over' });
+  });
+
+  it('shows the limits of an organization run without limits as unlimited, without bar or warning', () => {
+    const unlimited = UNLIMITED_PLAN_LIMITS;
+    const rows = usageRowsOf(
+      overview({
+        plan: { key: 'agency', limits: unlimited, price: null },
+        usage: {
+          workspaces: { used: 2, limit: unlimited.maxWorkspaces },
+          socialAccounts: { used: 12, limit: unlimited.maxSocialAccounts },
+          members: { used: 1, limit: unlimited.maxMembers },
+          scheduledPosts: { used: 140, limit: unlimited.scheduledPostsPerMonth },
+          storageBytes: { used: 1024 ** 3, limit: unlimited.storageBytes },
+          xApiMicros: { used: 3_000_000, limit: unlimited.xApiSpendCapMicros },
+          ai: { usedMicros: 35_000_000, includedMicros: unlimited.aiCreditsMicros, overageCapMicros: 0 },
+        },
+      }),
+    );
+    expect(rows.map((row) => [row.key, row.unlimited, row.percent, row.state])).toEqual([
+      ['workspaces', true, 0, 'ok'],
+      ['members', true, 0, 'ok'],
+      ['socialAccounts', true, 0, 'ok'],
+      ['scheduledPosts', true, 0, 'ok'],
+      ['storageBytes', true, 0, 'ok'],
+      ['ai', true, 0, 'ok'],
+      ['xApi', true, 0, 'ok'],
+    ]);
+    expect(usageRowsOf(overview()).some((row) => row.unlimited)).toBe(false);
   });
 });
 

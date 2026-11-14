@@ -46,6 +46,20 @@ fi
 if [ "${SMP_STAGING:-false}" = true ]; then
   required="$required mailpit_tls_key s3_sse_kek"
 fi
+# The live platforms (ADR 0046).
+[ "${PLATFORM_MODE_LINKEDIN:-mock}" = live ] && required="$required linkedin_client_secret"
+[ "${PLATFORM_MODE_META:-mock}" = live ] && required="$required meta_app_secret"
+if [ "${PLATFORM_MODE_META:-mock}" = live ] && [ -n "${INSTAGRAM_APP_ID:-}" ]; then
+  required="$required instagram_app_secret"
+fi
+[ "${PLATFORM_MODE_X:-mock}" = live ] && required="$required x_client_secret"
+for platform in LINKEDIN META X; do
+  mode="PLATFORM_MODE_$platform"
+  if [ "${!mode:-mock}" = live ] && ! echo ",${SMP_EGRESS_HOSTS:-}," | grep -q ",${SMP_MEDIA_DOMAIN:-none},"; then
+    warn "$mode is live: SMP_EGRESS_HOSTS needs the hosts of the platform and SMP_MEDIA_DOMAIN (deploy/.env.example)"
+    break
+  fi
+done
 if [ ! -d secrets ] || [ ! -e generated/keyring.env ]; then
   error 'deploy/secrets is missing; run scripts/init-secrets.sh first'
 else

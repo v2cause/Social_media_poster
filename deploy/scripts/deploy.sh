@@ -19,6 +19,11 @@ bash scripts/preflight.sh
 # The parts of the template this VM runs (compose.yaml, header).
 files=(-f compose.yaml)
 [ "${SMP_BILLING:-false}" = true ] && files+=(-f compose.billing.yaml)
+# The credentials of the live platforms (ADR 0046).
+[ "${PLATFORM_MODE_LINKEDIN:-mock}" = live ] && files+=(-f compose.linkedin.yaml)
+[ "${PLATFORM_MODE_META:-mock}" = live ] && files+=(-f compose.meta.yaml)
+[ "${PLATFORM_MODE_META:-mock}" = live ] && [ -n "${INSTAGRAM_APP_ID:-}" ] && files+=(-f compose.instagram.yaml)
+[ "${PLATFORM_MODE_X:-mock}" = live ] && files+=(-f compose.x.yaml)
 case ",${SMP_PROFILES:-}," in *,xb,*) files+=(-f compose.xb.yaml) ;; esac
 [ "${SMP_STAGING:-false}" = true ] && files+=(-f compose.staging.yaml)
 profiles=()

@@ -1,5 +1,6 @@
 // Social platform adapters (architecture 4): the HTTP client and rate limiter they share, the
-// registry, and the adapters themselves (the mock adapter now; LinkedIn, Meta and X follow).
+// registry, and the adapters themselves: LinkedIn, Facebook, Instagram and the X API (guide steps
+// 4.12 to 4.14), the mock adapter and the browser adapter of X.
 
 export { DEFAULT_RATE_LIMIT_WAIT_MS, platformErrorOf } from './http/errors';
 export {
@@ -22,6 +23,7 @@ export {
 export { AdapterNotAvailableError, AdapterRegistry, type BrowserGate } from './registry';
 export { createAdapterRegistry, PlatformConfigError, type AdapterRegistryOptions } from './create-registry';
 export {
+  checkPlatformEnv,
   PLATFORM_MODE_VARIABLES,
   PLATFORM_MODES,
   platformEnvSchema,
@@ -30,6 +32,13 @@ export {
   type PlatformEnv,
   type PlatformMode,
 } from './env';
+export { liveAdapters, type LiveAdapterBuilders } from './live/live-adapters';
+export type { LiveAdapterDeps } from './live/live-support';
+export { LinkedInAdapter } from './linkedin/linkedin-adapter';
+export { FacebookAdapter } from './meta/facebook-adapter';
+export { InstagramAdapter } from './meta/instagram-adapter';
+export { verifyMetaSignedRequest, type MetaSignedRequest } from './meta/signed-request';
+export { XApiAdapter } from './x/x-adapter';
 export { operationPriceMicros, PLATFORM_OPERATION_PRICES_MICROS } from './prices';
 export { isSpendCapped, spendCappedAdapter } from './spend-capped-adapter';
 export { PLATFORM_SCOPES } from './scopes';

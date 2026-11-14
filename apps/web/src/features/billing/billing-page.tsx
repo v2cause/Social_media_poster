@@ -313,7 +313,9 @@ function UsageBar({ row }: { row: UsageRow }) {
         ? money.usd(value)
         : format.number(value);
   const label = t(`labels.${row.key}`);
-  const text = t('of', { used: amount(row.used), limit: amount(row.limit) });
+  const text = row.unlimited
+    ? t('ofUnlimited', { used: amount(row.used) })
+    : t('of', { used: amount(row.used), limit: amount(row.limit) });
 
   return (
     <li className="flex flex-col gap-1.5">
@@ -350,7 +352,9 @@ function UsageBar({ row }: { row: UsageRow }) {
 function UsageHint({ row, amount }: { row: UsageRow; amount: (value: number) => string }) {
   const t = useTranslations('billing.usage');
   let hint: string | null = null;
-  if (row.key === 'ai') {
+  if (row.unlimited) {
+    hint = null;
+  } else if (row.key === 'ai') {
     const included = row.included ?? 0;
     hint =
       row.state === 'full'

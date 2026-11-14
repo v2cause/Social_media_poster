@@ -9,7 +9,7 @@ import {
   loadSecretFiles,
   observabilityEnvSchema,
 } from '@smp/observability';
-import { platformEnvSchema } from '@smp/platform-adapters';
+import { checkPlatformEnv, platformEnvSchema } from '@smp/platform-adapters';
 import { z } from 'zod';
 
 // .env.example and Compose set empty strings for unset values.
@@ -90,6 +90,8 @@ export const apiEnvSchema = z
   .superRefine(checkAiEnv)
   .superRefine(checkBillingEnv)
   .superRefine(checkEgressEnv)
+  // A live platform needs the credentials of its app (guide steps 4.12 to 4.14).
+  .superRefine(checkPlatformEnv)
   .superRefine((env, context) => {
     if (Boolean(env.STRIPE_SECRET_KEY) !== Boolean(env.STRIPE_WEBHOOK_SECRET)) {
       context.addIssue({

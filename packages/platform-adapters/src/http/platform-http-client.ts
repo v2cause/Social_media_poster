@@ -18,7 +18,11 @@ import { platformErrorOf } from './errors';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export type HttpBody =
-  { json: unknown } | { form: Readonly<Record<string, string>> } | { bytes: Uint8Array; contentType: string };
+  | { json: unknown }
+  | { form: Readonly<Record<string, string>> }
+  | { bytes: Uint8Array; contentType: string }
+  /** fetch sets the content type with its boundary. */
+  | { multipart: FormData };
 
 export interface ErrorResponse {
   status: number;
@@ -100,6 +104,9 @@ function encode(body: HttpBody | undefined): { body?: BodyInit; contentType?: st
       body: new URLSearchParams(body.form).toString(),
       contentType: 'application/x-www-form-urlencoded',
     };
+  }
+  if ('multipart' in body) {
+    return { body: body.multipart };
   }
   return { body: new Uint8Array(body.bytes), contentType: body.contentType };
 }

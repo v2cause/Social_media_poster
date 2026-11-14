@@ -1,5 +1,6 @@
 import type { SocialPlatformAdapter, XSpendCap } from '@smp/core';
 
+import { hasLink } from './live/live-support';
 import { operationPriceMicros } from './prices';
 
 // The X API costs of an organization within the cap of its plan (guide step 7.4). Before a call
@@ -29,7 +30,9 @@ export function spendCappedAdapter(
     publish: async (request, ctx) => {
       await cap.assertRoom(
         organizationId,
-        priceOf(request.linkUrl === null ? 'x.post_create' : 'x.post_create_with_url'),
+        priceOf(
+          request.linkUrl !== null || hasLink(request.text) ? 'x.post_create_with_url' : 'x.post_create',
+        ),
       );
       return adapter.publish(request, ctx);
     },

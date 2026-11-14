@@ -1,0 +1,19 @@
+# Instagram (guide step 4.13, ADR 0046) for the production template: with PLATFORM_MODE_META=live
+# and INSTAGRAM_APP_ID set, scripts/deploy.sh adds this file next to compose.meta.yaml. Instagram
+# fetches the images from SMP_MEDIA_DOMAIN itself. The app secret lies in deploy/secrets/.
+
+x-instagram: &instagram
+  environment:
+    INSTAGRAM_APP_ID: ${INSTAGRAM_APP_ID:?set INSTAGRAM_APP_ID in deploy/.env}
+    INSTAGRAM_APP_SECRET_FILE: /run/secrets/instagram_app_secret
+  secrets: [instagram_app_secret]
+
+services:
+  api-1: *instagram
+  api-2: *instagram
+  worker-publisher: *instagram
+  worker-billing: *instagram
+
+secrets:
+  instagram_app_secret:
+    file: secrets/instagram_app_secret

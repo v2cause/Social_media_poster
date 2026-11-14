@@ -56,6 +56,7 @@
       "xApi": "Kosten der X-API in diesem Monat"
     },
     "of": "{used} von {limit}",
+    "ofUnlimited": "{used} von unbegrenzt",
     "near": "Fast erreicht.",
     "full": "Limit erreicht: Neues ist erst nach einem Upgrade möglich.",
     "fullMonthly": "Limit für diesen Monat erreicht: Neues ist erst im nächsten Monat oder nach einem Upgrade möglich.",

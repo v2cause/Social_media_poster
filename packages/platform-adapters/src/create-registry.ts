@@ -8,7 +8,8 @@ import { AdapterRegistry, type BrowserGate } from './registry';
 
 // Builds the registry from the platform settings (guide step 4.4). A platform in mock mode gets
 // the mock adapter outside production and no adapter in production. A live platform needs its
-// real adapter from the app, which holds the credentials; without one the start fails.
+// real adapter from the app, which holds the credentials (liveAdapters); without one the start
+// fails. null leaves a live platform out on purpose, like Instagram without its own app.
 
 export class PlatformConfigError extends Error {
   constructor(message: string) {
@@ -28,8 +29,8 @@ export interface AdapterRegistryOptions {
     authorizeUrl?: string;
     defaultLatencyMs?: number;
   };
-  /** The real adapters by platform, built with the credentials of the app. */
-  live?: Partial<Record<Platform, () => SocialPlatformAdapter>>;
+  /** The real adapters by platform, built with the credentials of the app; null leaves one out. */
+  live?: Partial<Record<Platform, (() => SocialPlatformAdapter) | null>>;
   /** The browser adapter of X with its gate, where the deployment offers it (phase 6). */
   browser?: { adapter: SocialPlatformAdapter; gate: BrowserGate };
 }
@@ -39,6 +40,9 @@ export function createAdapterRegistry(options: AdapterRegistryOptions): AdapterR
   for (const platform of PLATFORMS) {
     if (platformModeOf(options.env, platform) === 'live') {
       const build = options.live?.[platform];
+      if (build === null) {
+        continue;
+      }
       if (!build) {
         throw new PlatformConfigError(
           `${PLATFORM_MODE_VARIABLES[platform]} is live, but there is no live adapter for ${platform}.`,

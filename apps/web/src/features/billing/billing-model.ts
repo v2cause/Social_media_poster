@@ -1,4 +1,10 @@
-import type { BillingOverviewDto, BillingStateDto, PlanKey, PlanLimits } from '@smp/contracts';
+import {
+  isUnlimitedLimit,
+  type BillingOverviewDto,
+  type BillingStateDto,
+  type PlanKey,
+  type PlanLimits,
+} from '@smp/contracts';
 
 // What the billing page and the app shell show of the subscription (guide steps 7.4 and 7.5): a
 // bar per limit with its state, what a change of plan would leave beyond the limits of the new
@@ -27,7 +33,20 @@ export interface UsageRow {
   monthly: boolean;
   /** The AI usage the plan includes; beyond it up to the limit the meter bills the overage. */
   included?: number;
+  /** The limit of an organization run without limits (ADR 0047): no bar, no hint. */
+  unlimited: boolean;
 }
+
+/** The limit behind each bar, to tell an unlimited one. */
+const LIMIT_OF = {
+  workspaces: 'maxWorkspaces',
+  members: 'maxMembers',
+  socialAccounts: 'maxSocialAccounts',
+  scheduledPosts: 'scheduledPostsPerMonth',
+  storageBytes: 'storageBytes',
+  ai: 'aiCreditsMicros',
+  xApi: 'xApiSpendCapMicros',
+} as const satisfies Record<UsageKey, keyof PlanLimits>;
 
 const NEAR = 0.8;
 
@@ -49,15 +68,32 @@ const row = (
   unit: UsageUnit,
   usage: { used: number; limit: number },
   monthly = false,
-): UsageRow => ({
-  key,
-  unit,
-  used: usage.used,
-  limit: usage.limit,
-  percent: percentOf(usage.used, usage.limit),
-  state: stateOf(usage.used, usage.limit),
-  monthly,
-});
+): UsageRow => {
+  const unlimited = isUnlimitedLimit(LIMIT_OF[key], usage.limit);
+  return {
+    key,
+    unit,
+    used: usage.used,
+    limit: usage.limit,
+    percent: unlimited ? 0 : percentOf(usage.used, usage.limit),
+    state: unlimited ? 'ok' : stateOf(usage.used, usage.limit),
+    monthly,
+    unlimited,
+  };
+};
+
+/** The overage is billed, not beyond the limit; the plan stops at credits plus overage. */
+function aiRow(used: number, limit: number, included: number): UsageRow {
+  const base = row('ai', 'micros', { used, limit }, true);
+  if (base.unlimited) {
+    return { ...base, included };
+  }
+  return {
+    ...base,
+    state: used >= limit ? 'full' : used >= limit * NEAR ? 'near' : 'ok',
+    included,
+  };
+}
 
 /** One bar per limit, in the order of the page. */
 export function usageRowsOf(overview: BillingOverviewDto): UsageRow[] {
@@ -69,12 +105,7 @@ export function usageRowsOf(overview: BillingOverviewDto): UsageRow[] {
     row('socialAccounts', 'count', usage.socialAccounts),
     row('scheduledPosts', 'count', usage.scheduledPosts, true),
     row('storageBytes', 'bytes', usage.storageBytes),
-    {
-      ...row('ai', 'micros', { used: usage.ai.usedMicros, limit: aiLimit }, true),
-      // The overage is billed, not beyond the limit; the plan stops at credits plus overage.
-      state: usage.ai.usedMicros >= aiLimit ? 'full' : usage.ai.usedMicros >= aiLimit * NEAR ? 'near' : 'ok',
-      included: usage.ai.includedMicros,
-    },
+    aiRow(usage.ai.usedMicros, aiLimit, usage.ai.includedMicros),
     row('xApi', 'micros', usage.xApiMicros, true),
   ];
 }

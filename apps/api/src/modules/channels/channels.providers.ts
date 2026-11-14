@@ -22,6 +22,7 @@ import type { ApiEnv } from '../../config/api-env';
 import { API_ENV } from '../../config/config.module';
 import { DATABASE_CLIENT, REDIS_CLIENT } from '../../infrastructure/clients.module';
 import { PLAN_USAGE } from '../billing/plan.module';
+import { livePlatforms } from './live-platforms';
 import { mockAuthorizeUrl, oauthCallbackUrl } from './oauth-urls';
 import { RedisOAuthStateStore, RedisPendingConnectionStore } from './redis-oauth-stores';
 
@@ -40,8 +41,9 @@ const CHANNEL_USE_CASES = [
 /** The channel use cases of the core, wired to the adapters of the API (guide step 4.5). */
 export const channelProviders: Provider[] = [
   {
-    // The platforms of PLATFORM_MODE_*; the live adapters join with guide steps 4.12 to 4.14. The
-    // mock platforms keep their state in Redis, shared with the workers.
+    // The platforms of PLATFORM_MODE_*: the real adapters of guide steps 4.12 to 4.14 for live
+    // platforms, the mock adapter otherwise. The mock platforms keep their state in Redis, shared
+    // with the workers.
     provide: ADAPTER_REGISTRY,
     inject: [API_ENV, REDIS_CLIENT],
     useFactory: (env: ApiEnv, redis: Redis): AdapterRegistry =>
@@ -52,6 +54,7 @@ export const channelProviders: Provider[] = [
           clock: systemClock,
           authorizeUrl: mockAuthorizeUrl(env.APP_URL),
         },
+        live: livePlatforms(env, redis),
       }),
   },
   {
