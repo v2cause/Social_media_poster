@@ -21,6 +21,8 @@ Die Menüs der Entwicklerportale ändern sich oft. Die Namen unten sind der Stan
 - **Speicher für Instagram**: Instagram holt jedes Bild selbst ab. `S3_PUBLIC_ENDPOINT` muss deshalb aus dem Internet über https erreichbar sein. LinkedIn, Facebook und X bekommen die Bilder als Upload vom Worker; dort reicht der Speicher, den der Worker erreicht.
 - **Rechtliches** für die Prüfungen von Meta und LinkedIn: Datenschutzerklärung, Impressum und eine Seite mit Anleitung zur Datenlöschung (Architektur, "Externe Voraussetzungen").
 
+- **Eigener Zugang ohne Limits**: Für den privaten Betrieb nach der Registrierung einmal `pnpm billing:grant-unlimited --owner <Adresse>` ausführen. Die eigenen Organisationen laufen dann ohne Testphase, ohne Limits und ohne Nutzungskosten der App ([ADR 0047](../adr/0047-unbegrenzter-zugang-fuer-den-eigenbetrieb.md)). Die Kosten der Claude API und der X API laufen weiter über die eigenen Schlüssel.
+
 ## 2. LinkedIn
 
 1. Unter [linkedin.com/developers](https://www.linkedin.com/developers/apps) eine App anlegen. LinkedIn verlangt eine Company Page, mit der die App verknüpft ist, und deren Bestätigung durch einen Admin der Seite.

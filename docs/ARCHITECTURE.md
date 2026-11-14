@@ -376,6 +376,7 @@ Partial Indexes beschleunigen den Scheduler: auf `scheduled_at` für `status='SC
   - Der Ausgaben-Deckel der X-API sitzt um deren Adapter.
   - Nach einem Downgrade bleibt Bestehendes, nur Neues wird blockiert ([ADR 0035](adr/0035-nutzungsabrechnung-und-durchsetzung-der-limits.md)). Ausnahme sind Metriken über die Analytics-Historie des neuen Tarifs hinaus: Sie löscht die nächste Nacht ([ADR 0038](adr/0038-aufbewahrungsfristen.md)).
 - **Nutzungsabrechnung**: Täglich gehen der KI-Mehrverbrauch und die X-Kosten des Vortags als Meter-Events an Stripe, jeder Batch einmal dank fester Identifier und `reportedToStripeAt`.
+- **Eigenbetrieb**: `pnpm billing:grant-unlimited --owner <email>` setzt die Organisationen einer Person auf `agency`, aktiv und ohne Testphase, mit jedem Limit am Höchstwert des Schemas. Ohne Stripe-Abo wird dabei nichts abgerechnet, und die Abrechnungsseite zeigt die Limits als unbegrenzt ([ADR 0047](adr/0047-unbegrenzter-zugang-fuer-den-eigenbetrieb.md)).
 
 ---
 
