@@ -18,21 +18,30 @@ export type PaidPlanKey = z.infer<typeof paidPlanKeySchema>;
 
 const micros = z.int().min(0).max(Number.MAX_SAFE_INTEGER);
 
+/** The largest value each limit may take, so the limits of a plan stay sane. */
+const LIMIT_BOUNDS = {
+  maxWorkspaces: 10_000,
+  maxSocialAccounts: 100_000,
+  maxMembers: 100_000,
+  scheduledPostsPerMonth: 10_000_000,
+  analyticsHistoryDays: 3_650,
+} as const;
+
 export const planLimitsSchema = z.strictObject({
-  maxWorkspaces: z.int().min(1).max(10_000),
+  maxWorkspaces: z.int().min(1).max(LIMIT_BOUNDS.maxWorkspaces),
   /** Connected accounts in all workspaces of the organization. */
-  maxSocialAccounts: z.int().min(0).max(100_000),
+  maxSocialAccounts: z.int().min(0).max(LIMIT_BOUNDS.maxSocialAccounts),
   /** Members and open invitations. */
-  maxMembers: z.int().min(1).max(100_000),
+  maxMembers: z.int().min(1).max(LIMIT_BOUNDS.maxMembers),
   /** AI usage included per calendar month (UTC). */
   aiCreditsMicros: micros,
   /** AI usage beyond the credits, billed through the meter; 0 stops at the credits. */
   aiOverageCapMicros: micros,
   /** Posts that go out per calendar month (UTC), planned or published. */
-  scheduledPostsPerMonth: z.int().min(0).max(10_000_000),
+  scheduledPostsPerMonth: z.int().min(0).max(LIMIT_BOUNDS.scheduledPostsPerMonth),
   /** The originals of the media library in all workspaces. */
   storageBytes: z.int().min(0).max(Number.MAX_SAFE_INTEGER),
-  analyticsHistoryDays: z.int().min(7).max(3_650),
+  analyticsHistoryDays: z.int().min(7).max(LIMIT_BOUNDS.analyticsHistoryDays),
   xBrowserAllowed: z.boolean(),
   /** X API costs per calendar month (UTC), passed on with the invoice. */
   xApiSpendCapMicros: micros,
@@ -42,6 +51,26 @@ export type PlanLimits = z.infer<typeof planLimitsSchema>;
 /** Single limits the operators set for one organization on top of its plan. */
 export const limitOverridesSchema = planLimitsSchema.partial();
 export type LimitOverrides = z.infer<typeof limitOverridesSchema>;
+
+/**
+ * The limits of an organization the operators run for their own use, without limits (ADR 0047):
+ * every limit at the largest value the schema allows. Nothing beyond the AI credits exists, so
+ * the meter never bills an overage. The billing page shows a limit at this value as unlimited.
+ */
+export const UNLIMITED_PLAN_LIMITS: PlanLimits = {
+  ...LIMIT_BOUNDS,
+  aiCreditsMicros: Number.MAX_SAFE_INTEGER,
+  aiOverageCapMicros: 0,
+  storageBytes: Number.MAX_SAFE_INTEGER,
+  xBrowserAllowed: true,
+  xApiSpendCapMicros: Number.MAX_SAFE_INTEGER,
+};
+
+type NumericLimit = { [K in keyof PlanLimits]: PlanLimits[K] extends number ? K : never }[keyof PlanLimits];
+
+/** Whether a limit is as large as the unlimited one, so nobody reaches it. */
+export const isUnlimitedLimit = (limit: NumericLimit, value: number): boolean =>
+  value >= UNLIMITED_PLAN_LIMITS[limit];
 
 /** The limits a request can run into; PLAN_LIMIT_REACHED names one in its params. */
 export const COUNTED_LIMITS = [

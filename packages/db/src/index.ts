@@ -73,6 +73,12 @@ export {
 export { PrismaUsageReportStore } from './billing/prisma-usage-report-store';
 export { PrismaPlanUsage } from './billing/prisma-plan-usage';
 export { PrismaApiCostReader } from './billing/prisma-api-cost-reader';
+export {
+  PrismaUnlimitedAccess,
+  UNLIMITED_PLAN_KEY,
+  type OwnedOrganization,
+  type UnlimitedGrant,
+} from './billing/prisma-unlimited-access';
 export { PrismaSealedSecretStore } from './channels/prisma-sealed-secret-store';
 export { PrismaChannelUnitOfWork } from './channels/prisma-channel-unit-of-work';
 export { createPrismaChannelStore } from './channels/prisma-channel-store';

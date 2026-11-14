@@ -35,6 +35,7 @@
     "auth:reencrypt": "pnpm --filter @smp/api auth:reencrypt",
     "auth:reset-two-factor": "pnpm --filter @smp/api auth:reset-two-factor",
     "auth:revoke-sessions": "pnpm --filter @smp/api auth:revoke-sessions",
+    "billing:grant-unlimited": "pnpm --filter @smp/api billing:grant-unlimited",
     "stripe:sync": "tsx --env-file-if-exists=.env tools/stripe-sync.ts"
   },
   "prettier": "@smp/config/prettier",
