@@ -863,6 +863,10 @@ export {
   type EntitlementsDependencies,
 } from './billing/application/entitlements';
 export {
+  LOCAL_MODE_LIMITS,
+  LocalModeSubscriptionReader,
+} from './billing/application/local-mode-subscriptions';
+export {
   ChangePlan,
   ListInvoices,
   OpenBillingPortal,
