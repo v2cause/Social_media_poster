@@ -23,9 +23,9 @@ Das Projekt startet ohne bestehenden Code. Umgesetzt wird Phase für Phase nach 
 |---|---|
 | Plattformen (MVP) | LinkedIn (Profil + Company Page), Instagram (Business/Creator), Facebook Pages, X |
 | Tech-Stack | TypeScript-Monorepo: Next.js (Web), NestJS (API + Worker), PostgreSQL + Prisma, Redis + BullMQ |
-| KI | Extern über die Anthropic Claude API (`@anthropic-ai/sdk`), hinter einem austauschbaren `AiProvider`-Port |
-| Nutzer | Multi-Tenant SaaS: Organisationen, Workspaces, Rollen, Mandantentrennung, Stripe-Billing |
-| Bilder | Nur Upload, keine KI-Bildgenerierung (KI schlägt höchstens Alt-Texte vor) |
+| KI | Extern über die Anthropic Claude API (`@anthropic-ai/sdk`) oder, für den Einzelplatz-Modus, über das Claude-Abo mit der Claude-Code-CLI ([ADR 0047](adr/0047-claude-abo-ueber-claude-code.md)), hinter einem austauschbaren `AiProvider`-Port |
+| Nutzer | Multi-Tenant SaaS: Organisationen, Workspaces, Rollen, Mandantentrennung, Stripe-Billing. Dazu ein Einzelplatz-Modus für eine Person auf dem eigenen Rechner, ohne Anmeldung und ohne Abrechnung (`pnpm local`, [ADR 0046](adr/0046-einzelplatz-modus.md)) |
+| Bilder | Upload; die KI schlägt Alt-Texte vor und zeichnet auf Wunsch Diagramme, die als JPEG in der Bibliothek landen. Fotos und Illustrationen erzeugt sie nicht. Jedes Bild lässt sich als JPEG ohne Metadaten herunterladen ([ADR 0048](adr/0048-diagramme-als-jpeg.md)) |
 | Hosting | Docker überall, lokal Docker Compose; Staging und Produktion mit der Vorlage `deploy/`: Compose auf einer VM hinter Caddy in einer EU-Region (DSGVO, Schritt 8.9, [ADR 0045](adr/0045-produktions-vorlage.md)) |
 | UI-Sprache | Deutsch (Standard) + Englisch über next-intl |
 | X-Anbindung | Hybrid: Standard ist die offizielle Pay-per-Use-API, optional ein Browser-Automation-Adapter (Playwright) per Feature-Flag |
@@ -243,12 +243,13 @@ LinkedIn verlangt für die Community Management API möglicherweise eine eigene 
 
 ### 5.1 Port und Modell
 
-- **Port** `AiProvider` mit vier Methoden:
+- **Port** `AiProvider` mit fünf Methoden:
   - `generateVariants()` und `refineVariant()`: Streaming als `AsyncIterable` mit Partial- und Completed-Events,
   - `suggestTopics()`,
-  - `suggestAltText()`: Vision, beschreibt hochgeladene Bilder; keine Bildgenerierung.
+  - `suggestAltText()`: Vision, beschreibt hochgeladene Bilder,
+  - `generateDiagram()`: Titel, Alt-Text und SVG eines Diagramms, das die API geprüft als JPEG ablegt ([ADR 0048](adr/0048-diagramme-als-jpeg.md)).
 
-  Die Implementierungen sind `AnthropicAiProvider` und `MockAiProvider` (deterministisch, simuliertes Streaming), Auswahl per `AI_PROVIDER=anthropic|mock`. Der Mock streamt das JSON seiner Antwort in Häppchen wie die Claude API und erreicht die Fehlerpfade über Marker im Briefing (`[mock:refusal]`, `[mock:truncated]`, `[mock:retry]`, `[mock:invalid]`, `[mock:error]`, `[mock:fallback]`, `[mock:slow]`, `[mock:too-long]`). Seine Berichte nennen das konfigurierte Modell mit geschätzten Tokens, damit Quote und Kosten wie in Produktion laufen. In Produktion verweigern die Env-Prüfung und die Factory den Mock.
+  Die Implementierungen sind `AnthropicAiProvider`, `ClaudeCodeAiProvider` (Claude-Abo über `claude -p`, ohne Streaming der Teilausgabe, [ADR 0047](adr/0047-claude-abo-ueber-claude-code.md)) und `MockAiProvider` (deterministisch, simuliertes Streaming), Auswahl per `AI_PROVIDER=anthropic|claude-code|mock`. Der Mock streamt das JSON seiner Antwort in Häppchen wie die Claude API und erreicht die Fehlerpfade über Marker im Briefing (`[mock:refusal]`, `[mock:truncated]`, `[mock:retry]`, `[mock:invalid]`, `[mock:error]`, `[mock:fallback]`, `[mock:slow]`, `[mock:too-long]`). Seine Berichte nennen das konfigurierte Modell mit geschätzten Tokens, damit Quote und Kosten wie in Produktion laufen. In Produktion verweigern die Env-Prüfung und die Factory den Mock.
 - **Modell**: `claude-opus-5-5`, über `AI_MODEL` konfigurierbar.
   - Effort ist pro Anwendungsfall fest (Generieren `medium`, Refine `low`, Ideen `medium`, Alt-Text `low`) und per Env überschreibbar. Ein fester Wert pro Route schützt den Prompt-Cache.
   - Thinking ist adaptiv und bei diesem Modell nicht abschaltbar. `temperature` und Assistant-Prefill werden vom Modell abgelehnt; Abwechslung beim Neu-Generieren entsteht über den Prompt.
@@ -535,6 +536,8 @@ DRAFT --planen--> SCHEDULED --fällig--> QUEUED --Job übernimmt--> PUBLISHING -
    - Liegt ein Seitenverhältnis außerhalb des Erlaubten, schneidet der Nutzer pro Plattform zu (`react-easy-crop`) oder wählt Letterbox (weiße Ränder). Der Zuschnitt wird in Pixeln des angezeigten Originals an `PostMedia` gespeichert; `PUT /api/w/:ws/variants/:variantId/media` setzt die Medien einer Variante mit ihrer `version` und reiht `media.render` ein.
 5. **Öffentliche URLs für Meta**: Presigned GET mit 1 h Laufzeit und `.jpg`-Key. Als Fallback ist ein HMAC-signierter Medien-Proxy der API vorgesehen, falls Meta die signierten URLs nicht lädt; gebaut ist er nicht (Schritt 4.13 ist offen). Lokal laufen Tests über einen `cloudflared`-Tunnel oder den Mock-Adapter.
 6. **Aufräumen** (stündlich in `gdpr.sweep` der Rolle `gdpr`, [ADR 0038](adr/0038-aufbewahrungsfristen.md)): Assets, die nach 24 h noch auf `PENDING_UPLOAD` stehen, und gelöschte Assets, die keine Variante verwendet, mit dem nächsten Lauf; erst die Objekte, dann die Zeilen. Gelöschte Assets zählen nicht mehr zur Speicher-Quote, deshalb warten ihre Dateien nicht (Schritt 8.4; vorher 30 Tage). Nach Objekten ohne Asset sucht kein Job, weil keine Löschung sie zurücklässt. Der Browser lädt in ein eigenes Upload-Objekt, aus dem die Pipeline das geprüfte Original schreibt. Ein PUT, den der Link danach noch annimmt (nach `READY`, einer Ablehnung oder dem Löschen), legt es neu an; deshalb reiht die API mit jedem Ticket `media.drop-upload` ein, das das Upload-Objekt eine Stunde nach Ablauf des Links löscht, außer das Asset wartet noch auf seine Datei oder wird gerade verarbeitet. Unbenutzte, aber fertige Assets bleiben in der Bibliothek, und Thumbnails veröffentlichter Posts bleiben für die Historie erhalten.
+7. **Diagramme** ([ADR 0048](adr/0048-diagramme-als-jpeg.md)): `POST /api/w/:ws/media/diagrams` lässt die KI ein Diagramm als SVG zeichnen (quadratisch 1080 x 1080, Hochformat 1080 x 1350, Querformat 1200 x 675). `@smp/media` prüft das SVG gegen eine Allowlist (keine Skripte, Bilder, externen Verweise, Entities oder Event-Attribute) und rendert es mit sharp zu JPEG. Das JPEG kommt wie ein fertiger Upload ins Upload-Objekt und durchläuft `media.process`.
+8. **Download**: `GET /api/w/:ws/media/:assetId/download` liefert eine signierte URL auf die Rendition `x_image` (JPEG ohne Metadaten, bis 4096 px) mit dem Dateinamen der Bibliothek; das Original bleibt intern. Damit postet der Nutzer von Hand, solange die Adapter fehlen.
 
 ---
 

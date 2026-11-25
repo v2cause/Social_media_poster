@@ -2,6 +2,26 @@
 
 KI-gestützte Plattform zum Erstellen, Planen und Auswerten von Social-Media-Posts, gebaut als Multi-Tenant SaaS.
 
+## Für eine Person auf dem eigenen Rechner
+
+Wer die Plattform nur selbst nutzt, braucht weder Konto noch Abo der Plattform und keinen API-Schlüssel ([ADR 0046](docs/adr/0046-einzelplatz-modus.md), [ADR 0047](docs/adr/0047-claude-abo-ueber-claude-code.md)):
+
+1. Voraussetzungen: Node.js 24, pnpm über Corepack, Docker und [Claude Code](https://claude.com/claude-code).
+2. Einmal `claude` starten und mit dem eigenen Claude-Abo anmelden.
+3. Im Repository:
+
+   ```bash
+   corepack enable
+   pnpm install
+   pnpm local
+   ```
+
+4. http://localhost:3000 öffnen. Es gibt keine Anmeldung; beim ersten Start entsteht ein Workspace "Lokal".
+
+`pnpm local` legt `.env` an, erzeugt die Schlüssel, startet Postgres, Redis, Speicher und Mailpit mit Docker, spielt die Migrationen ein und startet API, Worker und Web. Posts, Ideen, Alt-Texte und Diagramme erzeugt Claude über das Abo. Die API hört nur auf 127.0.0.1 und muss auf dem Rechner laufen, auf dem Claude Code angemeldet ist.
+
+Posten geht vorerst von Hand, weil die Adapter für LinkedIn, Meta und X noch fehlen: den Text aus dem Composer kopieren und das Bild in der Medienbibliothek mit "Als JPEG herunterladen" speichern. Dort erstellt "Diagramm erstellen" aus einer Beschreibung ein Diagramm als JPEG, quadratisch, im Hochformat für Instagram oder im Querformat für LinkedIn und X ([ADR 0048](docs/adr/0048-diagramme-als-jpeg.md)).
+
 ## Funktionen (geplant)
 
 - Themenvorschläge und Post-Generierung per KI (Anthropic Claude API)
@@ -75,6 +95,7 @@ Konfiguration: `.env.example` listet alle Variablen nach Gruppen, mit Hinweis au
 | Befehl                       | Zweck                                                                                                            | Verfügbar ab |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------ |
 | `pnpm dev`                   | startet die Apps im Watch-Modus                                                                                  | Schritt 0.7  |
+| `pnpm local`                 | startet alles für eine Person ohne Anmeldung, mit dem Claude-Abo (ADR 0046)                                      | ADR 0046     |
 | `pnpm build`                 | baut alle Packages und Apps (Turbo, mit Cache)                                                                   | Schritt 0.1  |
 | `pnpm lint`                  | ESLint über alle Packages                                                                                        | Schritt 0.2  |
 | `pnpm typecheck`             | TypeScript-Prüfung ohne Ausgabe                                                                                  | Schritt 0.2  |
