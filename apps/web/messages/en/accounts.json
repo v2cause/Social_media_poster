@@ -6,6 +6,7 @@
     "connect": "Connect {platform}",
     "redirecting": "Redirecting ...",
     "unavailable": "Currently unavailable",
+    "notSetUp": "Not set up yet. Add the credentials of your app to the .env file and restart; the guide is in docs/plattformen-einrichten.md.",
     "managersOnly": "Owners and admins connect and disconnect accounts.",
     "hints": {
       "LINKEDIN": "Your profile and company pages",

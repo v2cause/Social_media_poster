@@ -6,6 +6,7 @@
     "connect": "{platform} verbinden",
     "redirecting": "Weiterleitung ...",
     "unavailable": "Derzeit nicht verfügbar",
+    "notSetUp": "Noch nicht eingerichtet. Tragen Sie die Zugangsdaten Ihrer App in die Datei .env ein und starten Sie neu; die Anleitung steht in docs/plattformen-einrichten.md.",
     "managersOnly": "Accounts verbinden und trennen Owner und Admins.",
     "hints": {
       "LINKEDIN": "Ihr Profil und Unternehmensseiten",

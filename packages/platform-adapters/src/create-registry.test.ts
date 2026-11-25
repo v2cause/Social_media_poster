@@ -50,6 +50,15 @@ describe('createAdapterRegistry', () => {
     ]);
   });
 
+  it('offers no adapter for a platform that is off', () => {
+    const registry = createAdapterRegistry({
+      env: envOf({ PLATFORM_MODE_LINKEDIN: 'off', PLATFORM_MODE_META: 'off' }),
+      mock,
+    });
+
+    expect(registry.methods().map((option) => option.platform)).toEqual(['X']);
+  });
+
   it('offers no platform in mock mode in production', () => {
     expect(createAdapterRegistry({ env: envOf({}, 'production'), mock }).methods()).toEqual([]);
   });

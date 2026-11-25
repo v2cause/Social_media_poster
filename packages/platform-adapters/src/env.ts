@@ -6,11 +6,13 @@ import { z } from 'zod';
 // - mock: the mock adapter with the fake OAuth page of the API. Outside production only; in
 //   production a platform in mock mode is not offered.
 // - live: the real adapter with the app credentials of the platform (guide steps 4.12 to 4.14).
+// - off: the platform is not offered. The single-user mode (ADR 0046) uses it for platforms whose
+//   app credentials are missing, so that nothing posts to a mock by mistake.
 
 // .env.example and Compose set empty strings for unset values.
 const unsetIfEmpty = (value: unknown): unknown => (value === '' ? undefined : value);
 
-export const PLATFORM_MODES = ['mock', 'live'] as const;
+export const PLATFORM_MODES = ['mock', 'live', 'off'] as const;
 export type PlatformMode = (typeof PLATFORM_MODES)[number];
 
 const mode = z.preprocess(unsetIfEmpty, z.enum(PLATFORM_MODES).default('mock'));

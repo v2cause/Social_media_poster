@@ -37,6 +37,7 @@ import { toast } from 'sonner';
 
 import { PlatformMark } from '@/features/publishing/platform-mark';
 import { viewOf } from '@/features/settings/x-browser-model';
+import { useLocalMode } from '@/lib/local-mode';
 import { useErrorMessage } from '@/lib/use-error-message';
 
 import { accessExpiryOf, initialsOf, STATUS_BADGE, usdOf } from './account-model';
@@ -129,6 +130,8 @@ export function AccountsPage(props: {
 
 function PlatformCards(props: { ws: string }) {
   const t = useTranslations('accounts.platforms');
+  // In the single-user mode a platform without the credentials of its app is not set up yet.
+  const localMode = useLocalMode();
   const platforms = useTranslations('platforms');
   const errorMessage = useErrorMessage();
   const options = useChannelsList(props.ws);
@@ -236,7 +239,11 @@ function PlatformCards(props: { ws: string }) {
                   ) : null}
                   <div className="mt-auto">
                     {options.isPending ? null : !connectable ? (
-                      <Badge variant="muted">{t('unavailable')}</Badge>
+                      localMode ? (
+                        <p className="text-sm text-muted-foreground">{t('notSetUp')}</p>
+                      ) : (
+                        <Badge variant="muted">{t('unavailable')}</Badge>
+                      )
                     ) : (
                       <Button
                         type="button"
