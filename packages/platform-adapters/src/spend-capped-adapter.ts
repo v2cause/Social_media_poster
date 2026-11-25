@@ -1,6 +1,8 @@
 import type { SocialPlatformAdapter, XSpendCap } from '@smp/core';
 
 import { operationPriceMicros } from './prices';
+import { xTextOf } from './x/adapter';
+import { postCreateOperation } from './x/x-costs';
 
 // The X API costs of an organization within the cap of its plan (guide step 7.4). Before a call
 // that costs, the price of the call (prices.ts) and the costs of the month so far must fit, or the
@@ -27,10 +29,8 @@ export function spendCappedAdapter(
     refreshCredentials: (ctx) => adapter.refreshCredentials(ctx),
     validatePost: (request, type) => adapter.validatePost(request, type),
     publish: async (request, ctx) => {
-      await cap.assertRoom(
-        organizationId,
-        priceOf(request.linkUrl === null ? 'x.post_create' : 'x.post_create_with_url'),
-      );
+      // X charges the higher price for a URL anywhere in the post, not only for the link field.
+      await cap.assertRoom(organizationId, priceOf(postCreateOperation(xTextOf(request))));
       return adapter.publish(request, ctx);
     },
     reconcile: (query, ctx) => adapter.reconcile(query, ctx),
