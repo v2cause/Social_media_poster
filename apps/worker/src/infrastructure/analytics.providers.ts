@@ -70,7 +70,7 @@ export function analyticsPipeline(env: WorkerEnv): Provider[] {
     ...(xBrowser.browser ? { browser: xBrowser.browser } : {}),
   });
   // The X API stays within the spending cap of the plan (guide step 7.4).
-  const adapters: AdapterResolver = spendCappedResolver(registry, database);
+  const adapters: AdapterResolver = spendCappedResolver(registry, database, env);
   // The producer fails fast instead of queueing commands while Redis is away; the nightly
   // rollup fills the days of a lost request.
   const producers = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null, enableOfflineQueue: false });

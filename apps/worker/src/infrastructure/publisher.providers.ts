@@ -174,7 +174,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
     ...(xBrowser.browser ? { browser: xBrowser.browser } : {}),
   });
   // The X API stays within the spending cap of the plan (guide step 7.4).
-  const adapters: AdapterResolver = spendCappedResolver(registry, database);
+  const adapters: AdapterResolver = spendCappedResolver(registry, database, env);
 
   const locks: ConnectionLock = {
     withConnectionLock: (connectionId, work) =>

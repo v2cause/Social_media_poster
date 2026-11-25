@@ -19,7 +19,6 @@ import {
   PrismaReadOnlyNotices,
   PrismaRetentionStore,
   PrismaSealedSecretStore,
-  PrismaSubscriptionReader,
   PrismaTokenMaintenanceUnitOfWork,
   PrismaUsageReportStore,
   PrismaXBrowserOperations,
@@ -59,6 +58,7 @@ import { Sweeper } from '../scheduler/sweeper';
 import { UsageReportTick } from '../scheduler/usage-report-tick';
 import { XBrowserCanaryTick } from '../scheduler/x-browser-canary';
 import type { WorkerEnv } from '../worker-env';
+import { subscriptionReaderOf } from './subscriptions';
 import { TICK_HANDLERS } from '../worker.tokens';
 import { EmailBillingNotifier } from './billing-notifier';
 
@@ -141,7 +141,7 @@ export function schedulerTicks(env: WorkerEnv): Provider[] {
   });
   const sweeper = new Sweeper({ plans, queue: publishQueue, producer: publishProducer });
   const entitlements = new EntitlementsService({
-    subscriptions: new PrismaSubscriptionReader(database),
+    subscriptions: subscriptionReaderOf(database, env),
     clock: systemClock,
   });
   const maintenance = new Maintenance({

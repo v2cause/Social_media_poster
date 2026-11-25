@@ -12,7 +12,6 @@ import { notifySealerFromEnv } from '@smp/crypto';
 import {
   createSystemPrismaClient,
   PrismaPlanUsage,
-  PrismaSubscriptionReader,
   PrismaXBrowserAdminStore,
   PrismaXBrowserOperations,
   PrismaXBrowserUnitOfWork,
@@ -31,6 +30,7 @@ import { Queue, QueueEvents } from 'bullmq';
 import type Redis from 'ioredis';
 
 import type { WorkerEnv } from '../worker-env';
+import { subscriptionReaderOf } from './subscriptions';
 import { EmailXBrowserAlerts } from './x-browser-alerts';
 
 // The X browser of the roles "publisher" and "analytics" (guide step 6.3): the browser adapter of
@@ -143,7 +143,7 @@ export function xBrowserBreakerOf(
   return {
     breaker,
     accounts: planAccountLimits(
-      new EntitlementsService({ subscriptions: new PrismaSubscriptionReader(database), clock: systemClock }),
+      new EntitlementsService({ subscriptions: subscriptionReaderOf(database, env), clock: systemClock }),
       new PrismaPlanUsage(system),
     ),
     close: async () => {
