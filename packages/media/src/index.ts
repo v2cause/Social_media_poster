@@ -8,3 +8,4 @@ export {
   type S3StorageConfig,
 } from './s3-storage';
 export { SharpImageProcessor, type SharpImageProcessorOptions } from './sharp-image-processor';
+export { checkDiagramSvg, MAX_SVG_BYTES, SvgDiagramRenderer } from './svg-diagram-renderer';
