@@ -4,23 +4,17 @@ KI-gestützte Plattform zum Erstellen, Planen und Auswerten von Social-Media-Pos
 
 ## Für eine Person auf dem eigenen Rechner
 
-Wer die Plattform nur selbst nutzt, braucht weder Konto noch Abo der Plattform und keinen API-Schlüssel ([ADR 0046](docs/adr/0046-einzelplatz-modus.md), [ADR 0047](docs/adr/0047-claude-abo-ueber-claude-code.md)):
+Wer die Plattform nur selbst nutzt, braucht weder Konto noch Abo der Plattform und keinen API-Schlüssel für die KI ([ADR 0046](docs/adr/0046-einzelplatz-modus.md), [ADR 0047](docs/adr/0047-claude-abo-ueber-claude-code.md)):
 
-1. Voraussetzungen: Node.js 24, pnpm über Corepack, Docker und [Claude Code](https://claude.com/claude-code).
-2. Einmal `claude` starten und mit dem eigenen Claude-Abo anmelden.
-3. Im Repository:
+1. Voraussetzungen: [Node.js 24](https://nodejs.org), [Docker Desktop](https://www.docker.com/products/docker-desktop/) und [Claude Code](https://claude.com/claude-code). Einmal `claude` starten und mit dem eigenen Claude-Abo anmelden.
+2. Das Repository herunterladen und im Ordner starten:
+   - macOS und Linux: `./start.sh`
+   - Windows: `start.cmd` doppelklicken
+3. http://localhost:3000 öffnen. Es gibt keine Anmeldung; beim ersten Start entsteht ein Workspace "Lokal".
 
-   ```bash
-   corepack enable
-   pnpm install
-   pnpm local
-   ```
+Das Skript installiert die Abhängigkeiten, legt `.env` mit frischen Schlüsseln an, startet Postgres, Redis, Speicher und Mailpit mit Docker, spielt die Migrationen ein und startet API, Worker und Web (`pnpm local`). Posts, Ideen, Alt-Texte und Diagramme erzeugt Claude über das Abo. Die API hört nur auf 127.0.0.1 und muss auf dem Rechner laufen, auf dem Claude Code angemeldet ist.
 
-4. http://localhost:3000 öffnen. Es gibt keine Anmeldung; beim ersten Start entsteht ein Workspace "Lokal".
-
-`pnpm local` legt `.env` an, erzeugt die Schlüssel, startet Postgres, Redis, Speicher und Mailpit mit Docker, spielt die Migrationen ein und startet API, Worker und Web. Posts, Ideen, Alt-Texte und Diagramme erzeugt Claude über das Abo. Die API hört nur auf 127.0.0.1 und muss auf dem Rechner laufen, auf dem Claude Code angemeldet ist.
-
-Posten geht vorerst von Hand, weil die Adapter für LinkedIn, Meta und X noch fehlen: den Text aus dem Composer kopieren und das Bild in der Medienbibliothek mit "Als JPEG herunterladen" speichern. Dort erstellt "Diagramm erstellen" aus einer Beschreibung ein Diagramm als JPEG, quadratisch, im Hochformat für Instagram oder im Querformat für LinkedIn und X ([ADR 0048](docs/adr/0048-diagramme-als-jpeg.md)).
+**Veröffentlichen**: Für LinkedIn, Facebook, Instagram und X braucht jede Plattform eine eigene Entwickler-App, deren Zugangsdaten in `.env` kommen. Die Schritte stehen in [docs/plattformen-einrichten.md](docs/plattformen-einrichten.md); LinkedIn und Meta sind kostenlos, X rechnet pro Post ab ([ADR 0049](docs/adr/0049-plattform-adapter.md)). Eine Plattform ohne Zugangsdaten bietet die App nicht an. Ohne Anbindung geht es von Hand: den Text aus dem Composer kopieren und das Bild in der Medienbibliothek mit "Als JPEG herunterladen" speichern. Dort erstellt "Diagramm erstellen" aus einer Beschreibung ein Diagramm als JPEG ([ADR 0048](docs/adr/0048-diagramme-als-jpeg.md)).
 
 ## Funktionen (geplant)
 
@@ -42,7 +36,7 @@ Phase 2 (Composer, KI und Stile) ist umgesetzt: Beiträge mit Varianten pro Plat
 
 Phase 3 (Medien) ist umgesetzt: Uploads direkt in den Objektspeicher mit Speicher-Quote, Prüfung und Neukodierung im Worker (Magic Bytes, sharp mit Pixel-Limit, ohne EXIF und GPS), Thumbnails, Renditions pro Plattform mit Zuschnitt oder weißen Rändern, Alt-Text-Vorschläge der KI, die Medienbibliothek und im Composer Medien pro Variante mit Reihenfolge, Zuschnitt und Vorschau ([ADR 0019](docs/adr/0019-medien-upload-und-verarbeitung.md) bis [ADR 0022](docs/adr/0022-medien-im-web.md)). Einige Plattform-Limits (Facebook, LinkedIn) sind noch nicht an der offiziellen Doku bestätigt; das geschieht in den Adapter-Phasen ([ADR 0020](docs/adr/0020-renditions-und-zuschnitt.md)).
 
-Phase 4 (Kanäle, Publishing, Scheduling) ist bis auf die echten Plattform-Adapter umgesetzt: Token-Tresor mit Envelope-Verschlüsselung, Verbinden über OAuth mit Auswahl der Accounts, Adapter-Registry mit Mock-Plattformen und Contract-Suite, Planen mit lokalen Zeiten und Zeitzonen, Scheduler-Tick mit verpassten Zeitfenstern, Publish-Job mit Lease, Schreibmarke und Reconcile, Wiederholversuche und Dead-Letter-Queue, Token-Monitor mit Erinnerungen, Benachrichtigungen in der App und per E-Mail, Live-Events über SSE und im Web Accounts, Post-Tabelle, Planen-Leiste, Kalender mit Drag & Drop und das Dashboard mit den nächsten Posts ([ADR 0023](docs/adr/0023-planen-zeitzonen-und-zustandsautomat.md) bis [ADR 0026](docs/adr/0026-planen-im-web.md)). Offen sind die Adapter für LinkedIn, Meta und X (Schritte 4.12 bis 4.14): Sie brauchen die offizielle Doku der Plattformen, die aus der Entwicklungsumgebung gesperrt ist, echte Test-Accounts und Staging. Bis dahin laufen alle Plattformen über den Mock-Adapter. Statt Bull Board zeigt `pnpm queues` die Queues und die Dead-Letter-Queue (Schritt 8.7, [ADR 0043](docs/adr/0043-slos-metriken-und-alarme.md)).
+Phase 4 (Kanäle, Publishing, Scheduling) ist umgesetzt: Token-Tresor mit Envelope-Verschlüsselung, Verbinden über OAuth mit Auswahl der Accounts, Adapter-Registry mit Mock-Plattformen und Contract-Suite, Planen mit lokalen Zeiten und Zeitzonen, Scheduler-Tick mit verpassten Zeitfenstern, Publish-Job mit Lease, Schreibmarke und Reconcile, Wiederholversuche und Dead-Letter-Queue, Token-Monitor mit Erinnerungen, Benachrichtigungen in der App und per E-Mail, Live-Events über SSE und im Web Accounts, Post-Tabelle, Planen-Leiste, Kalender mit Drag & Drop und das Dashboard mit den nächsten Posts ([ADR 0023](docs/adr/0023-planen-zeitzonen-und-zustandsautomat.md) bis [ADR 0026](docs/adr/0026-planen-im-web.md)). Die Adapter für LinkedIn, Facebook, Instagram und X (Schritte 4.12 bis 4.14) sind gegen die offizielle Doku gebaut und bestehen die Contract-Suite; ein echter Test-Post steht aus, weil keine Apps und Test-Accounts bereitstanden ([ADR 0049](docs/adr/0049-plattform-adapter.md)). Statt Bull Board zeigt `pnpm queues` die Queues und die Dead-Letter-Queue (Schritt 8.7, [ADR 0043](docs/adr/0043-slos-metriken-und-alarme.md)).
 
 Phase 5 (Analytics) ist für die Mock-Plattformen umgesetzt: Abfrage-Kaskade pro Post mit Batches und Sperren, tägliche Account-Zahlen, Rollup pro lokalem Tag der Workspace-Zone, sieben Analytics-Endpunkte mit Vorzeitraum, Redis-Cache und CSV-Export, im Web die Analytics-Seite mit barrierefreien SVG-Diagrammen, Detailseiten für Post und Account und die KPIs auf dem Dashboard, Demo-Daten über 90 Tage im Seed und Themenideen, die auf die besten Posts verweisen ([ADR 0027](docs/adr/0027-analytics-kaskade-rollup-und-api.md) und [ADR 0028](docs/adr/0028-analytics-im-web.md)). Offen sind die Mappings der echten Plattformen mit Tests auf echten Payloads, der Abgleich der Zahlen mit den Plattform-UIs auf Staging und der Eval-Lauf der neuen Prompt-Version mit der Claude API.
 
