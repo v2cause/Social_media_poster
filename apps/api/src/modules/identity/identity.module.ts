@@ -7,6 +7,7 @@ import { API_ENV } from '../../config/config.module';
 import { DATABASE_CLIENT, REDIS_CLIENT } from '../../infrastructure/clients.module';
 import { AUTH, createAuth } from './auth';
 import { AuthMailer } from './auth-mailer';
+import { LocalSession } from './local-session';
 import { MeController } from './me.controller';
 import { PasswordCheck } from './password-check';
 import { PlatformAdminGuard } from './platform-admin.guard';
@@ -15,6 +16,7 @@ import { PlatformAdminGuard } from './platform-admin.guard';
   controllers: [MeController],
   providers: [
     AuthMailer,
+    LocalSession,
     PasswordCheck,
     PlatformAdminGuard,
     {
@@ -24,6 +26,6 @@ import { PlatformAdminGuard } from './platform-admin.guard';
         createAuth({ env, prisma, mailer, redis, logger: new Logger('Auth') }),
     },
   ],
-  exports: [AUTH, PasswordCheck, PlatformAdminGuard],
+  exports: [AUTH, LocalSession, PasswordCheck, PlatformAdminGuard],
 })
 export class IdentityModule {}

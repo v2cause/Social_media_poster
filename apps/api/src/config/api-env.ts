@@ -42,6 +42,38 @@ const authSecretsSchema = z.string().transform((value, context) => {
   return entries;
 });
 
+const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1']);
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/**
+ * Without sign-in, anyone who reaches the API acts as the owner. So the single-user mode only
+ * starts when the API listens on the loopback address and the app runs under a loopback URL.
+ */
+function checkLocalModeEnv(
+  env: { LOCAL_MODE: boolean; API_HOST: string; APP_URL: string; BETTER_AUTH_URL: string },
+  context: z.RefinementCtx,
+): void {
+  if (!env.LOCAL_MODE) {
+    return;
+  }
+  if (!LOOPBACK_ADDRESSES.has(env.API_HOST)) {
+    context.addIssue({
+      code: 'custom',
+      path: ['API_HOST'],
+      message: 'LOCAL_MODE needs the API on the loopback address: set API_HOST=127.0.0.1',
+    });
+  }
+  for (const name of ['APP_URL', 'BETTER_AUTH_URL'] as const) {
+    if (!LOOPBACK_HOSTS.has(new URL(env[name]).hostname)) {
+      context.addIssue({
+        code: 'custom',
+        path: [name],
+        message: 'LOCAL_MODE needs a loopback URL such as http://localhost:3000',
+      });
+    }
+  }
+}
+
 // The API connects only as app_user and app_system. MIGRATION_DATABASE_URL belongs to the migrations.
 export const apiEnvSchema = z
   .object({
@@ -77,6 +109,11 @@ export const apiEnvSchema = z
     // The breach check of new passwords (guide step 8.4): the range API of Have I Been Pwned or a
     // mirror of it. Empty turns the check off; production needs it.
     PWNED_PASSWORDS_API_URL: z.preprocess(unsetIfEmpty, z.url({ protocol: /^https?$/ }).optional()),
+    // The single-user mode (ADR 0046): no sign-in, no billing. Every request without a session acts
+    // as one local owner, so the API must only be reachable from this machine (see below).
+    LOCAL_MODE: z.preprocess(unsetIfEmpty, z.stringbool().default(false)),
+    LOCAL_USER_EMAIL: z.preprocess(unsetIfEmpty, z.email().default('owner@local.invalid')),
+    LOCAL_USER_NAME: z.preprocess(unsetIfEmpty, z.string().min(1).max(100).default('Lokal')),
   })
   .extend(dbEnvSchema.pick({ DATABASE_URL: true, DATABASE_SYSTEM_URL: true }).shape)
   .extend(storageEnvSchema.shape)
@@ -126,7 +163,8 @@ export const apiEnvSchema = z
         message: 'SESSION_KEKS and SESSION_KEK_ACTIVE are required when FEATURE_X_BROWSER_GLOBAL is true',
       });
     }
-  });
+  })
+  .superRefine(checkLocalModeEnv);
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
 

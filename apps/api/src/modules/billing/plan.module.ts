@@ -1,5 +1,5 @@
 import { Global, Module } from '@nestjs/common';
-import { EntitlementsService, systemClock, type PlanUsage } from '@smp/core';
+import { EntitlementsService, LocalModeSubscriptionReader, systemClock, type PlanUsage } from '@smp/core';
 import {
   PrismaPlanUsage,
   PrismaSubscriptionReader,
@@ -7,6 +7,8 @@ import {
   type SystemPrismaClient,
 } from '@smp/db';
 
+import type { ApiEnv } from '../../config/api-env';
+import { API_ENV } from '../../config/config.module';
 import { DATABASE_CLIENT, SYSTEM_DATABASE_CLIENT } from '../../infrastructure/clients.module';
 
 /** What an organization uses of the limits its plan counts across its workspaces. */
@@ -22,9 +24,15 @@ export const PLAN_USAGE = Symbol('PLAN_USAGE');
   providers: [
     {
       provide: EntitlementsService,
-      inject: [DATABASE_CLIENT],
-      useFactory: (base: PrismaClient) =>
-        new EntitlementsService({ subscriptions: new PrismaSubscriptionReader(base), clock: systemClock }),
+      inject: [DATABASE_CLIENT, API_ENV],
+      useFactory: (base: PrismaClient, env: Pick<ApiEnv, 'LOCAL_MODE'>) => {
+        const subscriptions = new PrismaSubscriptionReader(base);
+        // The single-user mode has no billing: every organization is active without limits (ADR 0046).
+        return new EntitlementsService({
+          subscriptions: env.LOCAL_MODE ? new LocalModeSubscriptionReader(subscriptions) : subscriptions,
+          clock: systemClock,
+        });
+      },
     },
     {
       provide: PLAN_USAGE,

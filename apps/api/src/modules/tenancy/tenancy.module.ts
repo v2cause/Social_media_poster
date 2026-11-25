@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CreateOrganization } from '@smp/core';
 
 import { AccessModule } from '../../common/guards/access.module';
 import { InvitationsController } from './invitations.controller';
@@ -11,5 +12,7 @@ import { WorkspaceController } from './workspace.controller';
   imports: [AccessModule],
   controllers: [MembershipsController, OrganizationController, WorkspaceController, InvitationsController],
   providers: tenancyProviders,
+  // The single-user mode creates the organization of the local owner at the start (ADR 0046).
+  exports: [CreateOrganization],
 })
 export class TenancyModule {}

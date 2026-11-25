@@ -22,6 +22,7 @@ import { GdprModule } from './modules/gdpr/gdpr.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { LiveModule } from './modules/live/live.module';
+import { LocalModeModule } from './modules/local-mode/local-mode.module';
 import { MediaModule } from './modules/media/media.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PublishingModule } from './modules/publishing/publishing.module';
@@ -59,6 +60,8 @@ export class AppModule {
         XBrowserModule,
         BillingModule,
         GdprModule,
+        // Without sign-in and billing when LOCAL_MODE is true (ADR 0046); inert otherwise.
+        LocalModeModule,
         // The fake OAuth page of the mock platforms never exists in production (guide step 4.4).
         ...(env.NODE_ENV === 'production' ? [] : [DevModule]),
       ],

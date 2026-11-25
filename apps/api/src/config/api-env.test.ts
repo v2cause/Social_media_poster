@@ -23,6 +23,32 @@ const validEnv: NodeJS.ProcessEnv = {
 };
 
 describe('loadApiEnv', () => {
+  it('keeps the single-user mode off by default', () => {
+    expect(loadApiEnv(validEnv).LOCAL_MODE).toBe(false);
+  });
+
+  it('starts the single-user mode on the loopback address with loopback URLs', () => {
+    const env = loadApiEnv({ ...validEnv, LOCAL_MODE: 'true', API_HOST: '127.0.0.1' });
+
+    expect(env.LOCAL_MODE).toBe(true);
+    expect(env.LOCAL_USER_EMAIL).toBe('owner@local.invalid');
+  });
+
+  it('refuses the single-user mode when the API listens on every address', () => {
+    expect(() => loadApiEnv({ ...validEnv, LOCAL_MODE: 'true' })).toThrow(/API_HOST/);
+  });
+
+  it('refuses the single-user mode under a public URL', () => {
+    expect(() =>
+      loadApiEnv({
+        ...validEnv,
+        LOCAL_MODE: 'true',
+        API_HOST: '127.0.0.1',
+        APP_URL: 'https://app.example.com',
+      }),
+    ).toThrow(/APP_URL/);
+  });
+
   it('applies defaults for the port, path style and log settings', () => {
     const env = loadApiEnv(validEnv);
 

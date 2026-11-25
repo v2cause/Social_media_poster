@@ -13,6 +13,7 @@ import { LimitPerUser } from '../../common/throttling/throttling';
 import type { ApiEnv } from '../../config/api-env';
 import { API_ENV } from '../../config/config.module';
 import { AUTH, type Auth } from '../identity/auth';
+import { LocalSession } from '../identity/local-session';
 
 // The global OAuth callback (guide step 4.5): one fixed redirect URI per platform, as the platform
 // apps register it. The browser arrives here from the platform, so every outcome is a redirect
@@ -36,6 +37,7 @@ export class OAuthCallbackController {
     @Inject(AUTH) private readonly auth: Auth,
     @Inject(API_ENV) private readonly env: Pick<ApiEnv, 'APP_URL'>,
     private readonly completeAuthorization: CompleteAuthorization,
+    private readonly localSession: LocalSession,
   ) {}
 
   @LimitPerUser(60, hours(1))
@@ -46,7 +48,9 @@ export class OAuthCallbackController {
     @Param('platform') slug: string,
     @Query() query: Record<string, unknown>,
   ): Promise<void> {
-    const session = await this.auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    const session =
+      (await this.auth.api.getSession({ headers: fromNodeHeaders(request.headers) })) ??
+      this.localSession.get();
     if (!session) {
       response.redirect(this.appUrl('/login'));
       return;
