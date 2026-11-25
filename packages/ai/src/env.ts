@@ -8,7 +8,7 @@ import { z } from 'zod';
 // .env.example and Compose set empty strings for unset values.
 const unsetIfEmpty = (value: unknown): unknown => (value === '' ? undefined : value);
 
-export const AI_PROVIDERS = ['anthropic', 'mock'] as const;
+export const AI_PROVIDERS = ['anthropic', 'claude-code', 'mock'] as const;
 export type AiProviderName = (typeof AI_PROVIDERS)[number];
 
 const effort = (fallback: AiEffort) => z.preprocess(unsetIfEmpty, z.enum(AI_EFFORTS).default(fallback));
@@ -22,6 +22,12 @@ export const aiEnvSchema = z.object({
   AI_EFFORT_IDEAS: effort('medium'),
   AI_EFFORT_ALT_TEXT: effort('low'),
   AI_REFUSAL_FALLBACK: z.preprocess(unsetIfEmpty, z.stringbool().default(true)),
+  // AI_PROVIDER=claude-code: the Claude Code CLI, signed in with a Claude subscription (ADR 0047).
+  CLAUDE_CODE_PATH: z.preprocess(unsetIfEmpty, z.string().min(1).default('claude')),
+  CLAUDE_CODE_TIMEOUT_MS: z.preprocess(
+    unsetIfEmpty,
+    z.coerce.number().int().min(10_000).max(1_800_000).default(300_000),
+  ),
 });
 
 export type AiEnv = z.infer<typeof aiEnvSchema>;

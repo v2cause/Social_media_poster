@@ -30,6 +30,14 @@ export {
   type AnthropicAiProviderConfig,
 } from './anthropic/anthropic-ai-provider';
 export { MockAiProvider, type MockAiProviderConfig } from './mock/mock-ai-provider';
+export { ClaudeCodeAiProvider, type ClaudeCodeAiProviderConfig } from './claude-code/claude-code-ai-provider';
+export {
+  childEnvironment,
+  SpawnClaudeCliRunner,
+  type ClaudeCliRunner,
+  type CliOutcome,
+  type CliRequest,
+} from './claude-code/claude-cli';
 export { MOCK_TRIGGERS, type MockTrigger } from './mock/text';
 export { AI_PROVIDERS, aiEfforts, aiEnvSchema, checkAiEnv, type AiEnv, type AiProviderName } from './env';
 export { createAiProvider, type AiRuntime } from './create-ai-provider';

@@ -1,6 +1,8 @@
 import type { AiProvider } from '@smp/core';
 
 import { AnthropicAiProvider, type AiLogger } from './anthropic/anthropic-ai-provider';
+import { ClaudeCodeAiProvider } from './claude-code/claude-code-ai-provider';
+import { SpawnClaudeCliRunner } from './claude-code/claude-cli';
 import type { AiEnv } from './env';
 import { MockAiProvider } from './mock/mock-ai-provider';
 
@@ -19,6 +21,13 @@ export function createAiProvider(env: AiEnv, runtime: AiRuntime): AiProvider {
       throw new Error('AI_PROVIDER=mock is not allowed in production');
     }
     return new MockAiProvider({ model: env.AI_MODEL });
+  }
+  if (env.AI_PROVIDER === 'claude-code') {
+    return new ClaudeCodeAiProvider({
+      runner: new SpawnClaudeCliRunner(env.CLAUDE_CODE_PATH),
+      model: env.AI_MODEL,
+      timeoutMs: env.CLAUDE_CODE_TIMEOUT_MS,
+    });
   }
   if (env.ANTHROPIC_API_KEY === undefined) {
     throw new Error('ANTHROPIC_API_KEY is required when AI_PROVIDER is anthropic');

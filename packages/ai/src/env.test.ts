@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { AnthropicAiProvider } from './anthropic/anthropic-ai-provider';
 import { createAiProvider } from './create-ai-provider';
 import { aiEfforts, aiEnvSchema, checkAiEnv } from './env';
+import { ClaudeCodeAiProvider } from './claude-code/claude-code-ai-provider';
 import { MockAiProvider } from './mock/mock-ai-provider';
 
 // The AI settings as an app reads them: its env schema extends aiEnvSchema and refines it with
@@ -33,6 +34,8 @@ describe('aiEnvSchema', () => {
         AI_EFFORT_IDEAS: 'medium',
         AI_EFFORT_ALT_TEXT: 'low',
         AI_REFUSAL_FALLBACK: true,
+        CLAUDE_CODE_PATH: 'claude',
+        CLAUDE_CODE_TIMEOUT_MS: 300_000,
       });
       expect(aiEfforts(env)).toEqual({ generate: 'medium', refine: 'low', ideas: 'medium', altText: 'low' });
     }
@@ -89,5 +92,24 @@ describe('createAiProvider', () => {
     expect(() =>
       createAiProvider({ ...env, ANTHROPIC_API_KEY: undefined }, { nodeEnv: 'production' }),
     ).toThrow('ANTHROPIC_API_KEY is required when AI_PROVIDER is anthropic');
+  });
+
+  it('accepts the Claude Code CLI without an API key, also in production', () => {
+    const env = aiEnvSchema.parse({ AI_PROVIDER: 'claude-code', CLAUDE_CODE_PATH: '/usr/local/bin/claude' });
+    const issues: string[] = [];
+
+    checkAiEnv({ ...env, NODE_ENV: 'production' }, { addIssue: (issue) => issues.push(issue.message) });
+
+    expect(env.CLAUDE_CODE_PATH).toBe('/usr/local/bin/claude');
+    expect(issues).toEqual([]);
+  });
+
+  it('creates the Claude Code provider for AI_PROVIDER=claude-code', () => {
+    const provider = createAiProvider(aiEnvSchema.parse({ AI_PROVIDER: 'claude-code' }), {
+      nodeEnv: 'production',
+    });
+
+    expect(provider).toBeInstanceOf(ClaudeCodeAiProvider);
+    expect(provider.name).toBe('claude-code');
   });
 });
