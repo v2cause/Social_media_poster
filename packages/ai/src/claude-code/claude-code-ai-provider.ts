@@ -59,7 +59,10 @@ interface CallSpec {
   schema: z.ZodType;
 }
 
-const jsonSchemaOf = (schema: z.ZodType): string => JSON.stringify(z.toJSONSchema(schema));
+// Draft 7: the validator of the CLI does not know the draft 2020-12 that zod writes by default
+// and refuses such a schema.
+const jsonSchemaOf = (schema: z.ZodType): string =>
+  JSON.stringify(z.toJSONSchema(schema, { target: 'draft-7' }));
 
 export class ClaudeCodeAiProvider implements AiProvider {
   readonly name = 'claude-code';

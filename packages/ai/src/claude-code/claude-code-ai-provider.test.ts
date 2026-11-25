@@ -105,7 +105,11 @@ describe('ClaudeCodeAiProvider', () => {
     expect(args[args.indexOf('--tools') + 1]).toBe('');
     expect(args).toContain('--strict-mcp-config');
     expect(args).not.toContain('--bare');
-    expect(JSON.parse(args[args.indexOf('--json-schema') + 1] ?? '{}')).toMatchObject({ type: 'object' });
+    expect(JSON.parse(args[args.indexOf('--json-schema') + 1] ?? '{}')).toMatchObject({
+      type: 'object',
+      // Draft 7: the CLI refuses the draft 2020-12 that zod writes by default.
+      $schema: 'http://json-schema.org/draft-07/schema#',
+    });
     const systemFile = args[args.indexOf('--system-prompt-file') + 1] ?? '';
     expect([...runner.files.values()][0]).toContain('Brand Studio');
     expect(systemFile.startsWith('/private/system-')).toBe(true);
