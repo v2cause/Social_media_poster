@@ -54,6 +54,7 @@
     "MEDIA_TYPE_NOT_ALLOWED": "Hochladen lassen sich nur Bilder im Format JPEG, PNG, WebP oder als unbewegtes GIF.",
     "MEDIA_TOO_LARGE": "Die Datei ist zu groß: Erlaubt sind höchstens 20 MB.",
     "STORAGE_QUOTA_EXCEEDED": "Der Medienspeicher dieses Workspace ist voll. Bitte löschen Sie Dateien, die Sie nicht mehr brauchen.",
+    "DIAGRAM_REJECTED": "Die KI hat kein brauchbares Diagramm gezeichnet. Bitte versuchen Sie es noch einmal oder beschreiben Sie es anders.",
     "MEDIA_UPLOAD_MISSING": "Die Datei ist noch nicht vollständig hochgeladen. Bitte versuchen Sie es erneut.",
     "MEDIA_IN_USE": "Diese Datei ist an einen Beitrag angehängt. Bitte entfernen Sie sie dort zuerst.",
     "MEDIA_NOT_READY": "Diese Datei wird noch verarbeitet oder wurde abgelehnt und lässt sich noch nicht anhängen.",

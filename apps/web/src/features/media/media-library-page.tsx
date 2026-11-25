@@ -6,14 +6,15 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
+import { DiagramDialog } from './diagram-dialog';
 import { MediaCard } from './media-card';
 import { MediaDropzone } from './media-dropzone';
 import { UploadProgressList } from './upload-progress-list';
 import { useUploads } from './use-uploads';
 
-// The media library of a workspace (guide step 3.6): upload by drop or picker, a grid with
-// thumbnails, status and use, and filters for used and unused media. While files are being
-// checked, the list asks again every few seconds.
+// The media library of a workspace (guide step 3.6): upload by drop or picker, diagrams drawn by
+// the AI (ADR 0048), a grid with thumbnails, status and use, and filters for used and unused
+// media. While files are being checked, the list asks again every few seconds.
 
 const FILTERS = ['all', 'used', 'unused', 'rejected'] as const;
 type Filter = (typeof FILTERS)[number];
@@ -63,9 +64,12 @@ export function MediaLibraryPage(props: MediaLibraryPageProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold">{t('title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('description')}</p>
+        </div>
+        {props.canWrite && props.canUseAi ? <DiagramDialog ws={props.ws} onCreated={refresh} /> : null}
       </div>
 
       {props.canWrite ? (

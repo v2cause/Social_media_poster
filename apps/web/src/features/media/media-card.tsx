@@ -1,6 +1,6 @@
 'use client';
 
-import { aiAltText, mediaRemove, mediaUpdate } from '@smp/api-client';
+import { aiAltText, mediaDownload, mediaRemove, mediaUpdate } from '@smp/api-client';
 import type { MediaAssetDto } from '@smp/contracts';
 import {
   Badge,
@@ -15,7 +15,7 @@ import {
   DialogTitle,
   Spinner,
 } from '@smp/ui';
-import { ImageOff, Trash2 } from 'lucide-react';
+import { Download, ImageOff, Trash2 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -25,7 +25,8 @@ import { useErrorMessage } from '@/lib/use-error-message';
 import { AltTextField } from './alt-text-field';
 import { MediaThumbnail } from './media-thumbnail';
 
-// One asset of the library (guide step 3.6): thumbnail, status, size, use, alt text and delete.
+// One asset of the library (guide step 3.6): thumbnail, status, size, use, alt text, the download
+// as JPEG for posting by hand (ADR 0048) and delete.
 
 const STATUS_BADGE = {
   PENDING_UPLOAD: 'muted',
@@ -50,6 +51,7 @@ export function MediaCard(props: {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const changed = altText.trim() !== (asset.altText ?? '');
 
   const saveAltText = async () => {
@@ -62,6 +64,25 @@ export function MediaCard(props: {
       toast.error(errorMessage(error));
     } finally {
       setSaving(false);
+    }
+  };
+
+  // The signed URL makes the browser save the file instead of showing it.
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const { url, fileName } = await mediaDownload(props.ws, asset.id);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.rel = 'noopener';
+      document.body.append(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -142,6 +163,22 @@ export function MediaCard(props: {
                 : {})}
             />
           </>
+        ) : null}
+        {asset.status === 'READY' ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="self-start"
+            loading={downloading}
+            aria-label={`${t('download.button')}: ${asset.fileName}`}
+            onClick={() => {
+              void download();
+            }}
+          >
+            <Download aria-hidden="true" />
+            {t('download.button')}
+          </Button>
         ) : null}
         {props.canWrite ? (
           <div className="mt-auto flex flex-wrap justify-end gap-2">

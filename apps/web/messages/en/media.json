@@ -121,5 +121,25 @@
   },
   "preview": {
     "image": "Image {position}"
+  },
+  "download": {
+    "button": "Download as JPEG"
+  },
+  "diagram": {
+    "button": "Create diagram",
+    "title": "Create a diagram with AI",
+    "description": "Describe what the diagram should show. The AI draws it in your brand colors; it is added to the library as a JPEG you can download.",
+    "descriptionLabel": "What should the diagram show?",
+    "placeholder": "For example: Our onboarding in four steps: sign-up, kickoff, training, go-live",
+    "hint": "Name steps, figures or comparisons. The AI does not invent data.",
+    "formatLabel": "Format",
+    "formats": {
+      "square": "Square, 1080 x 1080 px",
+      "portrait": "Portrait 4:5, 1080 x 1350 px (Instagram)",
+      "landscape": "Landscape 16:9, 1200 x 675 px (LinkedIn, X)"
+    },
+    "submit": "Create",
+    "creating": "The diagram is being drawn. This can take a minute.",
+    "created": "Diagram \"{title}\" created. It appears in the library shortly."
   }
 }

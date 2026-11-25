@@ -121,5 +121,25 @@
   },
   "preview": {
     "image": "Bild {position}"
+  },
+  "download": {
+    "button": "Als JPEG herunterladen"
+  },
+  "diagram": {
+    "button": "Diagramm erstellen",
+    "title": "Diagramm mit KI erstellen",
+    "description": "Beschreiben Sie, was das Diagramm zeigen soll. Die KI zeichnet es in Ihren Markenfarben; es landet als JPEG in der Bibliothek und lässt sich herunterladen.",
+    "descriptionLabel": "Was soll das Diagramm zeigen?",
+    "placeholder": "Zum Beispiel: Unser Onboarding in vier Schritten: Anmeldung, Kickoff, Schulung, Go-live",
+    "hint": "Nennen Sie Schritte, Zahlen oder Vergleiche. Die KI erfindet keine Daten.",
+    "formatLabel": "Format",
+    "formats": {
+      "square": "Quadratisch, 1080 x 1080 px",
+      "portrait": "Hochformat 4:5, 1080 x 1350 px (Instagram)",
+      "landscape": "Querformat 16:9, 1200 x 675 px (LinkedIn, X)"
+    },
+    "submit": "Erstellen",
+    "creating": "Das Diagramm wird gezeichnet. Das kann eine Minute dauern.",
+    "created": "Diagramm „{title}“ erstellt. Es erscheint gleich in der Bibliothek."
   }
 }
