@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 
 import { generateKeys } from '../lib/keys';
+import { startMediaProxy, startQuickTunnel } from './media-tunnel';
 
 // `pnpm local`: starts the app for one person on this machine (ADR 0046). No sign-in, no billing,
 // and the AI runs on the Claude subscription through the Claude Code CLI (ADR 0047).
@@ -14,7 +15,8 @@ import { generateKeys } from '../lib/keys';
 // 4. Starts API, worker and web in development mode. The API listens on 127.0.0.1 only.
 //
 // A platform whose app credentials are in .env runs with its real adapter and posts for real
-// (PUBLISH_DRY_RUN=false); a platform without them is not offered, never the mock.
+// (PUBLISH_DRY_RUN=false); a platform without them is not offered, never the mock. With Meta live
+// and cloudflared installed, a quick tunnel lets Instagram fetch the images (media-tunnel.ts).
 //
 // Stop it with Ctrl+C. The data stays in the Docker volumes for the next start.
 
@@ -123,7 +125,34 @@ function platformModes(values: Record<string, string>): Record<string, string> {
   return modes;
 }
 
+/**
+ * Instagram needs the images under a public URL. Without META_PUBLIC_MEDIA_BASE_URL a quick tunnel
+ * to the read-only proxy provides one; without cloudflared, Instagram cannot publish images.
+ */
+async function openMediaTunnel(values: Record<string, string>): Promise<(() => void) | null> {
+  if ((process.env['META_PUBLIC_MEDIA_BASE_URL'] ?? values['META_PUBLIC_MEDIA_BASE_URL'] ?? '') !== '') {
+    return null;
+  }
+  const storageUrl = process.env['S3_ENDPOINT'] ?? values['S3_ENDPOINT'] ?? 'http://127.0.0.1:8333';
+  const { server, port } = await startMediaProxy(storageUrl);
+  const binary = process.env['CLOUDFLARED_PATH'] ?? values['CLOUDFLARED_PATH'] ?? 'cloudflared';
+  const tunnel = await startQuickTunnel(binary, port, needsShell(binary));
+  if (!tunnel) {
+    server.close();
+    say('Instagram: cloudflared was not found or opened no tunnel, so Instagram cannot fetch images.');
+    say('Install it (see docs/plattformen-einrichten.md) or set META_PUBLIC_MEDIA_BASE_URL in .env.');
+    return null;
+  }
+  env['META_PUBLIC_MEDIA_BASE_URL'] = tunnel.url;
+  say(`Instagram: images are served read-only through ${tunnel.url}`);
+  return () => {
+    tunnel.process.kill();
+    server.close();
+  };
+}
+
 prepareEnvFile();
+const envValues = readEnvFile();
 
 // Process variables win over .env in every app, so these settings apply whatever .env says.
 const env: NodeJS.ProcessEnv = {
@@ -131,7 +160,7 @@ const env: NodeJS.ProcessEnv = {
   LOCAL_MODE: 'true',
   API_HOST: '127.0.0.1',
   AI_PROVIDER: process.env['AI_PROVIDER'] ?? 'claude-code',
-  ...platformModes(readEnvFile()),
+  ...platformModes(envValues),
   PUBLISH_DRY_RUN: 'false',
   TURBO_TELEMETRY_DISABLED: '1',
   NEXT_TELEMETRY_DISABLED: '1',
@@ -141,41 +170,48 @@ if (env['AI_PROVIDER'] === 'claude-code') {
   checkClaudeCli(env['CLAUDE_CODE_PATH'] ?? 'claude');
 }
 
-run('docker', ['compose', 'up', '-d', '--wait'], 'starting Postgres, Redis, storage and Mailpit (Docker)');
-// The apps load the packages from their dist folders; a fresh clone has none yet. Turbo skips what
-// is already built.
-run(
-  ...pnpm([
+async function main(): Promise<void> {
+  run('docker', ['compose', 'up', '-d', '--wait'], 'starting Postgres, Redis, storage and Mailpit (Docker)');
+  // The apps load the packages from their dist folders; a fresh clone has none yet. Turbo skips what
+  // is already built.
+  run(
+    ...pnpm([
+      'exec',
+      'turbo',
+      'run',
+      'build',
+      '--filter=@smp/api^...',
+      '--filter=@smp/worker^...',
+      '--filter=@smp/web^...',
+    ]),
+    'building the packages',
+    env,
+  );
+  run(...pnpm(['--filter', '@smp/db', 'migrate:deploy']), 'applying the database migrations', env);
+
+  const closeTunnel = env['PLATFORM_MODE_META'] === 'live' ? await openMediaTunnel(envValues) : null;
+
+  say('starting API, worker and web. Open http://localhost:3000 once the web app is ready.');
+  const [command, args] = pnpm([
     'exec',
     'turbo',
     'run',
-    'build',
-    '--filter=@smp/api^...',
-    '--filter=@smp/worker^...',
-    '--filter=@smp/web^...',
-  ]),
-  'building the packages',
-  env,
-);
-run(...pnpm(['--filter', '@smp/db', 'migrate:deploy']), 'applying the database migrations', env);
+    'dev',
+    '--env-mode=loose',
+    '--filter=@smp/api',
+    '--filter=@smp/worker',
+    '--filter=@smp/web',
+  ]);
+  const apps = spawn(command, args, { cwd: root, stdio: 'inherit', env, shell: needsShell(command) });
+  const stop = (): void => {
+    apps.kill('SIGINT');
+  };
+  process.on('SIGINT', stop);
+  process.on('SIGTERM', stop);
+  apps.on('exit', (code) => {
+    closeTunnel?.();
+    process.exit(code ?? 0);
+  });
+}
 
-say('starting API, worker and web. Open http://localhost:3000 once the web app is ready.');
-const [command, args] = pnpm([
-  'exec',
-  'turbo',
-  'run',
-  'dev',
-  '--env-mode=loose',
-  '--filter=@smp/api',
-  '--filter=@smp/worker',
-  '--filter=@smp/web',
-]);
-const apps = spawn(command, args, { cwd: root, stdio: 'inherit', env, shell: needsShell(command) });
-const stop = (): void => {
-  apps.kill('SIGINT');
-};
-process.on('SIGINT', stop);
-process.on('SIGTERM', stop);
-apps.on('exit', (code) => {
-  process.exit(code ?? 0);
-});
+void main();
