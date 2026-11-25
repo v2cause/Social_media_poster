@@ -23,7 +23,7 @@ import {
 } from '@smp/db';
 import { S3Storage, storageConfigOf } from '@smp/media';
 import { proxyEnvOf } from '@smp/observability';
-import { createAdapterRegistry, RedisMockPlatformStore } from '@smp/platform-adapters';
+import { createAdapterRegistry, liveAdapters, RedisMockPlatformStore } from '@smp/platform-adapters';
 import { GDPR_QUEUE, GdprProducer, NOTIFICATIONS_QUEUE, NotificationProducer } from '@smp/queue';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
@@ -124,6 +124,7 @@ export function gdprPipeline(env: WorkerEnv): Provider[] {
   // Fails at the start when a platform is live without its adapter, like the role "publisher".
   const connectors = createAdapterRegistry({
     env,
+    live: liveAdapters(env, { clock: systemClock }),
     mock: { store: new RedisMockPlatformStore(redis), clock: systemClock },
   });
   const sealer = sealerFromEnv('tokens', env);

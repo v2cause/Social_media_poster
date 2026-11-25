@@ -1,7 +1,11 @@
 import type { Platform } from '@smp/platform-rules';
 
+import { FACEBOOK_SCOPES, INSTAGRAM_SCOPES } from './meta/meta-scopes';
+
 // The scopes each platform is asked for (architecture 4.2). The mock connector asks for the same,
-// so the comparison of granted and requested scopes is exercised without a real platform.
+// so the comparison of granted and requested scopes is exercised without a real platform. Facebook
+// and Instagram take the lists of their real connectors; the real LinkedIn connector asks only for
+// the scopes of the products its app has (linkedInScopes), the mock for all of them.
 
 export const PLATFORM_SCOPES: Readonly<Record<Platform, readonly string[]>> = {
   LINKEDIN: [
@@ -14,11 +18,7 @@ export const PLATFORM_SCOPES: Readonly<Record<Platform, readonly string[]>> = {
     'r_organization_social',
     'rw_organization_admin',
   ],
-  FACEBOOK: ['pages_show_list', 'pages_manage_posts', 'pages_read_engagement', 'read_insights'],
-  INSTAGRAM: [
-    'instagram_business_basic',
-    'instagram_business_content_publish',
-    'instagram_business_manage_insights',
-  ],
+  FACEBOOK: FACEBOOK_SCOPES,
+  INSTAGRAM: INSTAGRAM_SCOPES,
   X: ['tweet.read', 'tweet.write', 'users.read', 'media.write', 'offline.access'],
 };

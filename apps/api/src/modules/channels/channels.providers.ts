@@ -14,7 +14,12 @@ import {
 } from '@smp/core';
 import { oauthRandom, sealerFromEnv } from '@smp/crypto';
 import { ChannelReadModel, PrismaChannelUnitOfWork, type PrismaClient } from '@smp/db';
-import { createAdapterRegistry, RedisMockPlatformStore, type AdapterRegistry } from '@smp/platform-adapters';
+import {
+  createAdapterRegistry,
+  liveAdapters,
+  RedisMockPlatformStore,
+  type AdapterRegistry,
+} from '@smp/platform-adapters';
 import type Redis from 'ioredis';
 
 import { RequestOriginService } from '../../common/cls/tenant-context';
@@ -40,13 +45,14 @@ const CHANNEL_USE_CASES = [
 /** The channel use cases of the core, wired to the adapters of the API (guide step 4.5). */
 export const channelProviders: Provider[] = [
   {
-    // The platforms of PLATFORM_MODE_*; the live adapters join with guide steps 4.12 to 4.14. The
-    // mock platforms keep their state in Redis, shared with the workers.
+    // The platforms of PLATFORM_MODE_*: the real adapters of the live ones (guide steps 4.12 to
+    // 4.14) and the mock platforms, which keep their state in Redis, shared with the workers.
     provide: ADAPTER_REGISTRY,
     inject: [API_ENV, REDIS_CLIENT],
     useFactory: (env: ApiEnv, redis: Redis): AdapterRegistry =>
       createAdapterRegistry({
         env,
+        live: liveAdapters(env, { clock: systemClock }),
         mock: {
           store: new RedisMockPlatformStore(redis),
           clock: systemClock,

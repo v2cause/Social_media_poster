@@ -1,5 +1,5 @@
 // Social platform adapters (architecture 4): the HTTP client and rate limiter they share, the
-// registry, and the adapters themselves (the mock adapter now; LinkedIn, Meta and X follow).
+// registry, and the adapters themselves: the mock, LinkedIn, Facebook, Instagram and X.
 
 export { DEFAULT_RATE_LIMIT_WAIT_MS, platformErrorOf } from './http/errors';
 export {
@@ -74,3 +74,7 @@ export { BullBrowserLoginQueue } from './x-browser/login-queue';
 export { RedisBrowserLoginStore } from './x-browser/login-store';
 export { normalizeXBrowserPostMetrics, X_BROWSER_MAP_VERSION } from './x-browser/metrics-map';
 export { XB_START_WINDOW_MS, XBrowserRemoteAdapter, xbWaitMs } from './x-browser/remote-adapter';
+export { liveAdapters, type LiveAdapterOptions } from './live-adapters';
+export * from './linkedin';
+export * from './meta';
+export * from './x';

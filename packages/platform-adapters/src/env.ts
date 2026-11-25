@@ -16,6 +16,8 @@ export const PLATFORM_MODES = ['mock', 'live', 'off'] as const;
 export type PlatformMode = (typeof PLATFORM_MODES)[number];
 
 const mode = z.preprocess(unsetIfEmpty, z.enum(PLATFORM_MODES).default('mock'));
+const optionalText = z.preprocess(unsetIfEmpty, z.string().trim().min(1).optional());
+const flag = z.preprocess(unsetIfEmpty, z.stringbool().default(false));
 
 export const platformEnvSchema = z.object({
   PLATFORM_MODE_LINKEDIN: mode,
@@ -23,6 +25,23 @@ export const platformEnvSchema = z.object({
   PLATFORM_MODE_X: mode,
   // Real adapters refresh tokens and validate, but send nothing (architecture 16).
   PUBLISH_DRY_RUN: z.preprocess(unsetIfEmpty, z.stringbool().default(false)),
+  // The apps of the live platforms (docs/plattformen-einrichten.md). Checked when a live adapter is
+  // built (live-adapters.ts), so that a platform in mock or off mode needs none of them.
+  LINKEDIN_CLIENT_ID: optionalText,
+  LINKEDIN_CLIENT_SECRET: optionalText,
+  LINKEDIN_VERSION: optionalText,
+  LINKEDIN_MEMBER_POST_ANALYTICS: flag,
+  LINKEDIN_MEMBER_FOLLOWER_STATISTICS: flag,
+  LINKEDIN_ORGANIZATIONS: flag,
+  META_APP_ID: optionalText,
+  META_APP_SECRET: optionalText,
+  META_GRAPH_VERSION: optionalText,
+  META_FACEBOOK_LOGIN_CONFIG_ID: optionalText,
+  META_INSTAGRAM_LOGIN_CONFIG_ID: optionalText,
+  META_PUBLIC_MEDIA_BASE_URL: optionalText,
+  X_CLIENT_ID: optionalText,
+  X_CLIENT_SECRET: optionalText,
+  X_APP_OWNER_USER_ID: optionalText,
 });
 export type PlatformEnv = z.infer<typeof platformEnvSchema>;
 

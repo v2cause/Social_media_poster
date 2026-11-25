@@ -21,11 +21,14 @@ const envOf = (values: Record<string, string>, nodeEnv = 'development') => ({
 
 describe('platformEnvSchema', () => {
   it('defaults to mock without dry run and treats empty values as unset', () => {
-    expect(platformEnvSchema.parse({ PLATFORM_MODE_X: '', PUBLISH_DRY_RUN: '' })).toEqual({
+    expect(platformEnvSchema.parse({ PLATFORM_MODE_X: '', PUBLISH_DRY_RUN: '', X_CLIENT_ID: '' })).toEqual({
       PLATFORM_MODE_LINKEDIN: 'mock',
       PLATFORM_MODE_META: 'mock',
       PLATFORM_MODE_X: 'mock',
       PUBLISH_DRY_RUN: false,
+      LINKEDIN_MEMBER_POST_ANALYTICS: false,
+      LINKEDIN_MEMBER_FOLLOWER_STATISTICS: false,
+      LINKEDIN_ORGANIZATIONS: false,
     });
     expect(platformEnvSchema.parse({ PUBLISH_DRY_RUN: 'true' }).PUBLISH_DRY_RUN).toBe(true);
     expect(platformEnvSchema.safeParse({ PLATFORM_MODE_META: 'fake' }).success).toBe(false);

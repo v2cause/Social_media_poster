@@ -29,6 +29,7 @@ import { S3Storage, storageConfigOf } from '@smp/media';
 import { proxyEnvOf } from '@smp/observability';
 import {
   createAdapterRegistry,
+  liveAdapters,
   operationPriceMicros,
   RedisBrowserLoginStore,
   RedisMockPlatformStore,
@@ -170,6 +171,7 @@ export function publisherPipeline(env: WorkerEnv): Provider[] {
   // Fails at the start when a platform is live without its adapter.
   const registry = createAdapterRegistry({
     env,
+    live: liveAdapters(env, { clock: systemClock }),
     mock: { store: new RedisMockPlatformStore(redis), clock: systemClock },
     ...(xBrowser.browser ? { browser: xBrowser.browser } : {}),
   });

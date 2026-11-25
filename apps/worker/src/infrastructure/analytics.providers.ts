@@ -8,7 +8,12 @@ import {
 } from '@smp/core';
 import { sealerFromEnv } from '@smp/crypto';
 import { createPrismaClient, PrismaAnalyticsUnitOfWork, type PrismaClient } from '@smp/db';
-import { createAdapterRegistry, operationPriceMicros, RedisMockPlatformStore } from '@smp/platform-adapters';
+import {
+  createAdapterRegistry,
+  liveAdapters,
+  operationPriceMicros,
+  RedisMockPlatformStore,
+} from '@smp/platform-adapters';
 import { ANALYTICS_QUEUE, AnalyticsProducer, withLock } from '@smp/queue';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
@@ -66,6 +71,7 @@ export function analyticsPipeline(env: WorkerEnv): Provider[] {
   const xBrowser = xBrowserWiring(env, database);
   const registry = createAdapterRegistry({
     env,
+    live: liveAdapters(env, { clock: systemClock }),
     mock: { store: new RedisMockPlatformStore(redis), clock: systemClock },
     ...(xBrowser.browser ? { browser: xBrowser.browser } : {}),
   });
