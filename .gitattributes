@@ -8,3 +8,6 @@
 *.ico binary
 *.woff2 binary
 *.pdf binary
+
+# The start script for Windows runs in cmd.exe.
+*.cmd text eol=crlf
