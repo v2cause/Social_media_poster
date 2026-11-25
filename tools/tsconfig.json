@@ -4,6 +4,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["./*.ts", "./spikes/**/*.ts"],
+  "include": ["./*.ts", "./spikes/**/*.ts", "./lib/**/*.ts", "./local/**/*.ts"],
   "exclude": ["spikes/orval/generated"]
 }

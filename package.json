@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "turbo run dev --env-mode=loose",
+    "local": "tsx tools/local/start.ts",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck && tsc --noEmit -p tools/tsconfig.json && tsc --noEmit -p tools/load/tsconfig.json",
