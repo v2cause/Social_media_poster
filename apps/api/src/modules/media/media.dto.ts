@@ -1,5 +1,8 @@
 import {
+  createDiagramSchema,
+  diagramSchema,
   mediaAssetSchema,
+  mediaDownloadSchema,
   mediaListQuerySchema,
   mediaPageSchema,
   requestUploadSchema,
@@ -17,3 +20,6 @@ export class MediaListQueryDto extends createZodDto(mediaListQuerySchema) {}
 export class RequestUploadDto extends createZodDto(requestUploadSchema) {}
 export class UploadTicketDto extends createZodDto(uploadTicketSchema) {}
 export class UpdateMediaDto extends createZodDto(updateMediaSchema) {}
+export class MediaDownloadDto extends createZodDto(mediaDownloadSchema) {}
+export class CreateDiagramDto extends createZodDto(createDiagramSchema) {}
+export class DiagramDto extends createZodDto(diagramSchema) {}

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { localeSchema } from './locale';
+
 // Requests and responses of the media API (guide step 3.3, architecture 9). The library, the
 // upload list and the composer use the same schemas. The server checks type and size again and
 // never trusts what the browser announces.
@@ -107,6 +109,40 @@ export const updateMediaSchema = z.object({
   altText: z.string().max(ALT_TEXT_MAX_LENGTH).nullable(),
 });
 export type UpdateMediaRequest = z.input<typeof updateMediaSchema>;
+
+/** A download of an image as JPEG without metadata, for posting by hand (ADR 0048). */
+export const mediaDownloadSchema = z.object({
+  /** Signed for one hour; the browser saves the file under fileName. */
+  url: z.url(),
+  fileName: z.string(),
+  expiresAt: timestamp,
+});
+export type MediaDownloadDto = z.infer<typeof mediaDownloadSchema>;
+
+// --- Diagrams (ADR 0048) ------------------------------------------------------------------------
+
+/** 1080 x 1080, 1080 x 1350 (Instagram feed) and 1200 x 675 px. */
+export const DIAGRAM_FORMATS = ['square', 'portrait', 'landscape'] as const;
+export const DIAGRAM_DESCRIPTION_MAX_LENGTH = 2000;
+
+export const createDiagramSchema = z.object({
+  /** What the diagram shows: steps, figures, a comparison. */
+  description: z.string().trim().min(3).max(DIAGRAM_DESCRIPTION_MAX_LENGTH),
+  format: z.enum(DIAGRAM_FORMATS),
+  /** The language of the labels; the content language of the workspace when missing. */
+  language: localeSchema.optional(),
+  /** The brand voice whose tone and colors the diagram follows. */
+  brandVoiceId: id.optional(),
+});
+export type CreateDiagramRequest = z.input<typeof createDiagramSchema>;
+
+/** The new asset; it is PROCESSING until media.process has made its thumbnails. */
+export const diagramSchema = z.object({
+  asset: mediaAssetSchema,
+  title: z.string(),
+  altText: z.string(),
+});
+export type DiagramDto = z.infer<typeof diagramSchema>;
 
 // --- Media of a variant -------------------------------------------------------------------------
 

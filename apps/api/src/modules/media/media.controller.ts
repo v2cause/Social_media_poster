@@ -15,8 +15,10 @@ import { ApiTags } from '@nestjs/swagger';
 import { hours } from '@nestjs/throttler';
 import {
   CompleteUpload,
+  CreateDiagram,
   DeleteMedia,
   MediaNotFoundError,
+  PrepareMediaDownload,
   RequestUpload,
   UpdateMediaAltText,
   type ContentActor,
@@ -33,9 +35,13 @@ import {
 import { Access, type RequestAccess } from '../../common/guards/request-access';
 import { LimitPerUser } from '../../common/throttling/throttling';
 import { MEDIA_STORAGE } from '../../infrastructure/clients.module';
+import { AiRateLimiter } from '../content/ai-rate-limiter';
 import { actorOf, refOf } from '../content/content.mappers';
 import {
+  CreateDiagramDto,
+  DiagramDto,
   MediaAssetDto,
+  MediaDownloadDto,
   MediaListQueryDto,
   MediaPageDto,
   RequestUploadDto,
@@ -63,7 +69,39 @@ export class MediaController {
     private readonly completeUpload: CompleteUpload,
     private readonly updateAltText: UpdateMediaAltText,
     private readonly deleteMedia: DeleteMedia,
+    private readonly prepareDownload: PrepareMediaDownload,
+    private readonly createDiagram: CreateDiagram,
+    private readonly rateLimiter: AiRateLimiter,
   ) {}
+
+  /**
+   * A diagram drawn by the AI as a new image of the library (ADR 0048). Counts against the AI
+   * quota and the rate limits like every AI call; the asset is PROCESSING until media.process has
+   * made its thumbnails.
+   */
+  @Post('diagrams')
+  @RequirePermission('ai.use')
+  @ZodResponse({ status: 201, type: DiagramDto })
+  async diagram(@Access() access: RequestAccess, @Body() body: CreateDiagramDto): Promise<DiagramDto> {
+    const actor = actorOf(access);
+    const slot = await this.rateLimiter.acquire(actor);
+    try {
+      const created = await this.createDiagram.execute({
+        actor,
+        description: body.description,
+        format: body.format,
+        ...(body.language ? { language: body.language } : {}),
+        ...(body.brandVoiceId ? { brandVoiceId: body.brandVoiceId } : {}),
+      });
+      return {
+        asset: await this.load(actor, created.asset.id),
+        title: created.title,
+        altText: created.altText,
+      };
+    } finally {
+      await slot.release();
+    }
+  }
 
   @LimitPerUser(300, hours(1))
   @Post('uploads')
@@ -116,6 +154,22 @@ export class MediaController {
   @ZodResponse({ type: MediaAssetDto })
   get(@Access() access: RequestAccess, @Param('assetId', id) assetId: string): Promise<MediaAssetDto> {
     return this.load(actorOf(access), assetId);
+  }
+
+  /**
+   * The image as JPEG without metadata, for posting by hand (ADR 0048): a URL signed for one
+   * hour that makes the browser save the file. Made once per asset and kept.
+   */
+  @LimitPerUser(300, hours(1))
+  @Get(':assetId/download')
+  @RequirePermission('post.read')
+  @ZodResponse({ type: MediaDownloadDto })
+  async download(
+    @Access() access: RequestAccess,
+    @Param('assetId', id) assetId: string,
+  ): Promise<MediaDownloadDto> {
+    const download = await this.prepareDownload.execute({ actor: actorOf(access), assetId });
+    return { url: download.url, fileName: download.fileName, expiresAt: download.expiresAt.toISOString() };
   }
 
   @Patch(':assetId')

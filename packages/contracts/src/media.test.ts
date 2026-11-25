@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { ALT_TEXT_MAX_LENGTH, mediaListQuerySchema, requestUploadSchema, updateMediaSchema } from './media';
+import {
+  ALT_TEXT_MAX_LENGTH,
+  createDiagramSchema,
+  mediaListQuerySchema,
+  requestUploadSchema,
+  updateMediaSchema,
+} from './media';
 
 describe('media requests', () => {
   it('takes what the browser reports and leaves type and size limits to the API', () => {
@@ -31,5 +37,22 @@ describe('media requests', () => {
       updateMediaSchema.safeParse({ version: 2, altText: 'x'.repeat(ALT_TEXT_MAX_LENGTH + 1) }).success,
     ).toBe(false);
     expect(updateMediaSchema.safeParse({ altText: 'no version' }).success).toBe(false);
+  });
+});
+
+describe('diagram requests', () => {
+  it('takes a trimmed description, one of the formats and an optional language', () => {
+    expect(createDiagramSchema.parse({ description: '  Drei Schritte  ', format: 'portrait' })).toEqual({
+      description: 'Drei Schritte',
+      format: 'portrait',
+    });
+    expect(createDiagramSchema.safeParse({ description: 'ab', format: 'square' }).success).toBe(false);
+    expect(createDiagramSchema.safeParse({ description: 'Drei Schritte', format: 'story' }).success).toBe(
+      false,
+    );
+    expect(
+      createDiagramSchema.safeParse({ description: 'x'.repeat(2001), format: 'square', language: 'de' })
+        .success,
+    ).toBe(false);
   });
 });
