@@ -1,6 +1,6 @@
 import type { AiCallReport, AiEffort } from '../domain/types';
 
-export const AI_TASKS = ['GENERATE', 'REFINE', 'IDEAS', 'ALT_TEXT', 'VOICE_TEST'] as const;
+export const AI_TASKS = ['GENERATE', 'REFINE', 'IDEAS', 'ALT_TEXT', 'VOICE_TEST', 'DIAGRAM'] as const;
 export type AiTask = (typeof AI_TASKS)[number];
 
 export const AI_OUTCOMES = [

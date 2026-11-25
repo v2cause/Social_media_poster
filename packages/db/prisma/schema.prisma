@@ -623,6 +623,7 @@ enum AiTask {
   IDEAS
   ALT_TEXT
   VOICE_TEST
+  DIAGRAM
 }
 
 enum AiOutcome {

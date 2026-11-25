@@ -14,7 +14,12 @@ import { composePostText, countText } from '@smp/platform-rules';
 import { describe, expect, it } from 'vitest';
 
 import { STYLE_PRESETS } from '../prompts/style-presets';
-import { altTextOutputSchema, topicIdeasOutputSchema, variantsOutputSchema } from '../schemas';
+import {
+  altTextOutputSchema,
+  diagramOutputSchema,
+  topicIdeasOutputSchema,
+  variantsOutputSchema,
+} from '../schemas';
 import { MockAiProvider, type MockAiProviderConfig } from './mock-ai-provider';
 
 // Guide step 2.5: the mock answers deterministically per style and platform, streams like the
@@ -573,6 +578,28 @@ describe('MockAiProvider.suggestTopics', () => {
     });
 
     expect(result).toMatchObject({ ok: false, failure: { code: 'CANCELED' } });
+  });
+});
+
+describe('MockAiProvider.generateDiagram', () => {
+  it('draws the steps of the description in the size of the format', async () => {
+    const result = await mock().generateDiagram(
+      {
+        brand,
+        language: 'de',
+        format: 'landscape',
+        description: 'Anmeldung, Kickoff & Ziele, Schulung',
+      },
+      { effort: 'medium' },
+    );
+    if (!result.ok) {
+      throw new Error(result.failure.detail);
+    }
+
+    expect(diagramOutputSchema.parse(result.value)).toEqual(result.value);
+    expect(result.value.svg).toContain('width="1200" height="675"');
+    expect(result.value.svg).toContain('Kickoff &amp; Ziele');
+    expect(result.value.altText).toBe('Ein Ablauf in 3 Schritten: Anmeldung, Kickoff & Ziele, Schulung.');
   });
 });
 

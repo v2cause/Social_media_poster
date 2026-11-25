@@ -4,6 +4,7 @@ import { estimateTokens } from './pricing';
 import { renderBrandContext } from './prompts/render-brand-context';
 import {
   renderAltTextTask,
+  renderDiagramTask,
   renderGenerateTask,
   renderRefineTask,
   renderTopicsTask,
@@ -23,6 +24,8 @@ const OUTPUT_TOKENS = {
   refine: 2_500,
   ideas: 6_000,
   altText: 1_000,
+  // An SVG of a dense diagram, with title and alt text.
+  diagram: 12_000,
 } as const;
 
 export class PromptTokenEstimator implements AiUsageEstimator {
@@ -55,6 +58,13 @@ export class PromptTokenEstimator implements AiUsageEstimator {
         return {
           inputTokens: estimateTokens(system + renderAltTextTask(request.input)) + IMAGE_TOKENS,
           outputTokens: OUTPUT_TOKENS.altText,
+        };
+      case 'diagram':
+        return {
+          inputTokens: estimateTokens(
+            system + renderBrandContext(request.input.brand) + renderDiagramTask(request.input),
+          ),
+          outputTokens: OUTPUT_TOKENS.diagram,
         };
     }
   }

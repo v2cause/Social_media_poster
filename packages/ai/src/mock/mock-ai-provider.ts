@@ -8,6 +8,8 @@ import type {
   AiFailure,
   AiProvider,
   AiResult,
+  GeneratedDiagram,
+  GenerateDiagramInput,
   GeneratedVariant,
   GenerateVariantsInput,
   RefineVariantInput,
@@ -23,6 +25,7 @@ import { estimateTokens } from '../pricing';
 import { renderBrandContext } from '../prompts/render-brand-context';
 import {
   renderAltTextTask,
+  renderDiagramTask,
   renderGenerateTask,
   renderRefineTask,
   renderTopicsTask,
@@ -30,6 +33,7 @@ import {
 import { renderSystemPrompt } from '../prompts/system-prompt';
 import { PROMPT_VERSION } from '../prompts/version';
 import { composeAltText, composeIdeas, composeVariants, refineVariantText } from './compose';
+import { composeDiagram } from './diagram';
 import { triggersOf, type MockTrigger } from './text';
 
 // AiProvider without network for development and every automated test (guide step 2.5,
@@ -190,6 +194,15 @@ export class MockAiProvider implements AiProvider {
     });
     const altText = composeAltText(input);
     return this.answer(call, altText, JSON.stringify({ altText }), options.signal);
+  }
+
+  async generateDiagram(
+    input: GenerateDiagramInput,
+    options: AiCallOptions,
+  ): Promise<AiResult<GeneratedDiagram>> {
+    const call = this.call(options.effort, renderDiagramTask(input), renderBrandContext(input.brand));
+    const diagram = composeDiagram(input);
+    return this.answer(call, diagram, JSON.stringify(diagram), options.signal);
   }
 
   private call(effort: AiEffort, task: string, brandContext: string): MockCall {

@@ -24,6 +24,9 @@ export {
   AI_FAILURE_CODES,
   AI_ROUTES,
   CONTENT_LANGUAGES,
+  DIAGRAM_ELEMENTS,
+  DIAGRAM_FORMATS,
+  DIAGRAM_SIZES,
   EMOJI_POLICIES,
   HASHTAG_POLICIES,
   REFINE_ACTIONS,
@@ -39,6 +42,7 @@ export {
   type BrandVoiceContent,
   type ContentLanguage,
   type CustomStyle,
+  type DiagramFormat,
   type EmojiPolicy,
   type GeneratedVariant,
   type HashtagPolicy,
@@ -89,6 +93,13 @@ export {
   type SuggestAltTextCommand,
 } from './ai/application/suggest-alt-text';
 export {
+  CreateDiagram,
+  DIAGRAM_DESCRIPTION_MAX,
+  diagramFileName,
+  type CreateDiagramCommand,
+  type CreatedDiagram,
+} from './ai/application/create-diagram';
+export {
   SAMPLE_BRIEFS,
   TestBrandVoice,
   type TestBrandVoiceCommand,
@@ -100,6 +111,8 @@ export type {
   AiProvider,
   AiResult,
   AltTextImage,
+  GeneratedDiagram,
+  GenerateDiagramInput,
   GenerateVariantsInput,
   PartialVariant,
   RefineVariantInput,
@@ -560,6 +573,7 @@ export {
 } from './media/domain/rules';
 export {
   CropOutOfBoundsError,
+  DiagramRejectedError,
   ImageRejectedError,
   MediaInUseError,
   MediaNotFoundError,
@@ -588,6 +602,7 @@ export type {
   ImageProcessor,
   RenderOptions,
 } from './media/ports/image-processor';
+export type { DiagramRenderer } from './media/ports/diagram-renderer';
 export type { MediaJob, MediaJobs, RenderJob } from './media/ports/media-jobs';
 export type {
   MediaAssetRepository,
@@ -616,6 +631,12 @@ export { DropUpload, type DropUploadOutcome } from './media/application/drop-upl
 export { UpdateMediaAltText, type UpdateMediaAltTextInput } from './media/application/update-media';
 export { DeleteMedia, type DeleteMediaInput } from './media/application/delete-media';
 export { RenderRendition, type RenderRenditionInput } from './media/application/render-rendition';
+export {
+  downloadFileName,
+  PrepareMediaDownload,
+  type MediaDownload,
+  type PrepareMediaDownloadInput,
+} from './media/application/prepare-download';
 export { RenderAttachedMedia, type RenderJobOutcome } from './media/application/render-attached-media';
 export {
   SetVariantMedia,

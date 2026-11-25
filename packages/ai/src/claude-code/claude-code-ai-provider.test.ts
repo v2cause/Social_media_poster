@@ -196,6 +196,29 @@ describe('ClaudeCodeAiProvider', () => {
     expect(message.message.content.map((block) => block.type)).toEqual(['image', 'text']);
   });
 
+  it('draws a diagram with the brand context and the diagram schema', async () => {
+    const diagram = {
+      title: 'Ablauf',
+      altText: 'Drei Schritte.',
+      svg: '<svg xmlns="http://www.w3.org/2000/svg"/>',
+    };
+    const runner = new FakeRunner(exited(resultLine({ structured_output: diagram })));
+
+    const result = await provider(runner).generateDiagram(
+      { brand, language: 'de', format: 'square', description: 'Drei Schritte' },
+      { effort: 'medium' },
+    );
+
+    expect(result).toMatchObject({ ok: true, value: diagram, report: { attempts: [] } });
+    const args = runner.requests[0]?.args ?? [];
+    // Draft 7: the CLI refuses the draft 2020-12 that zod writes by default.
+    expect(JSON.parse(args[args.indexOf('--json-schema') + 1] ?? '{}')).toMatchObject({
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      required: ['title', 'altText', 'svg'],
+    });
+    expect(runner.requests[0]?.input).toContain('type: diagram');
+  });
+
   it('passes the abort signal to the runner and maps an abort to CANCELED', async () => {
     const controller = new AbortController();
     const runner = new FakeRunner({ kind: 'aborted' });

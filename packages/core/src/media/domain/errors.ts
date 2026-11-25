@@ -104,3 +104,12 @@ export class ImageRejectedError extends Error {
     this.name = 'ImageRejectedError';
   }
 }
+
+export class DiagramRejectedError extends DomainError {
+  readonly code = 'DIAGRAM_REJECTED';
+  readonly kind = 'unavailable';
+  readonly retryable = true;
+  constructor(readonly reason: string) {
+    super('The diagram could not be drawn. Try again or describe it differently.');
+  }
+}

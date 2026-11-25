@@ -553,5 +553,19 @@ describe('AnthropicAiProvider', () => {
         ],
       },
     ]);
+
+    const drawn = {
+      title: 'Ablauf',
+      altText: 'Drei Schritte.',
+      svg: '<svg xmlns="http://www.w3.org/2000/svg"/>',
+    };
+    server.use(http.post(API, () => streamResponse(answer(JSON.stringify(drawn)))));
+    const diagram = await provider().generateDiagram(
+      { brand, language: 'de', format: 'landscape', description: 'Drei Schritte' },
+      { effort: 'medium' },
+    );
+    expect(diagram).toMatchObject({ ok: true, value: drawn });
+    await expect.poll(() => requests.length).toBe(3);
+    expect(requests[2]?.body['system']).toHaveLength(2);
   });
 });

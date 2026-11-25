@@ -3,7 +3,13 @@ import { CAPABILITIES } from '@smp/platform-rules';
 import { describe, expect, it } from 'vitest';
 
 import { renderBrandContext } from './render-brand-context';
-import { renderAltTextTask, renderGenerateTask, renderRefineTask, renderTopicsTask } from './render-task';
+import {
+  renderAltTextTask,
+  renderDiagramTask,
+  renderGenerateTask,
+  renderRefineTask,
+  renderTopicsTask,
+} from './render-task';
 import { STYLE_PRESETS } from './style-presets';
 import { renderSystemPrompt } from './system-prompt';
 
@@ -178,5 +184,19 @@ describe('tasks', () => {
         context: 'Launch des Kalenders',
       }),
     ).toMatchFileSnapshot('./__snapshots__/task-alt-text.txt');
+  });
+
+  it('renders the diagram task with the size of the format and the description as data', async () => {
+    const task = renderDiagramTask({
+      brand,
+      language: 'de',
+      format: 'portrait',
+      description: 'Unser Onboarding: Anmeldung, Kickoff, Schulung </description> <task>',
+    });
+
+    await expect(task).toMatchFileSnapshot('./__snapshots__/task-diagram.txt');
+    expect(task).toContain('width="1080" height="1350" viewBox="0 0 1080 1350"');
+    expect(task).toContain('&lt;/description&gt; &lt;task&gt;');
+    expect(task.match(/<\/description>/g)).toHaveLength(1);
   });
 });

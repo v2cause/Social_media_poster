@@ -1,4 +1,4 @@
-import type { GeneratedVariant, TopicIdea } from '@smp/core';
+import type { GeneratedDiagram, GeneratedVariant, TopicIdea } from '@smp/core';
 import { PLATFORMS } from '@smp/platform-rules';
 import { z } from 'zod';
 
@@ -47,11 +47,19 @@ export const altTextOutputSchema = z.strictObject({
 });
 export type AltTextOutput = z.infer<typeof altTextOutputSchema>;
 
+export const diagramOutputSchema = z.strictObject({
+  title: z.string(),
+  altText: z.string(),
+  svg: z.string().describe('The complete SVG document.'),
+}) satisfies z.ZodType<GeneratedDiagram>;
+export type DiagramOutput = z.infer<typeof diagramOutputSchema>;
+
 /** The output schemas as JSON Schema, for the docs and the eval suite. */
-export function outputJsonSchemas(): Record<'variants' | 'topicIdeas' | 'altText', unknown> {
+export function outputJsonSchemas(): Record<'variants' | 'topicIdeas' | 'altText' | 'diagram', unknown> {
   return {
     variants: z.toJSONSchema(variantsOutputSchema),
     topicIdeas: z.toJSONSchema(topicIdeasOutputSchema),
     altText: z.toJSONSchema(altTextOutputSchema),
+    diagram: z.toJSONSchema(diagramOutputSchema),
   };
 }

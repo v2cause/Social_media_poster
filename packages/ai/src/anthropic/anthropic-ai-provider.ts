@@ -17,6 +17,8 @@ import type {
   AiTarget,
   AltTextImage,
   BrandContext,
+  GeneratedDiagram,
+  GenerateDiagramInput,
   GenerateVariantsInput,
   RefineVariantInput,
   SuggestAltTextInput,
@@ -31,13 +33,19 @@ import { attemptsFromUsage, estimateTokens } from '../pricing';
 import { renderBrandContext } from '../prompts/render-brand-context';
 import {
   renderAltTextTask,
+  renderDiagramTask,
   renderGenerateTask,
   renderRefineTask,
   renderTopicsTask,
 } from '../prompts/render-task';
 import { renderSystemPrompt } from '../prompts/system-prompt';
 import { PROMPT_VERSION } from '../prompts/version';
-import { altTextOutputSchema, topicIdeasOutputSchema, variantsOutputSchema } from '../schemas';
+import {
+  altTextOutputSchema,
+  diagramOutputSchema,
+  topicIdeasOutputSchema,
+  variantsOutputSchema,
+} from '../schemas';
 import {
   collectText,
   failureForStop,
@@ -92,6 +100,7 @@ const FORMATS = {
   variants: formatOf(variantsOutputSchema),
   ideas: formatOf(topicIdeasOutputSchema),
   altText: formatOf(altTextOutputSchema),
+  diagram: formatOf(diagramOutputSchema),
 };
 
 type RoundResult = { message: BetaMessage } | { failure: AiFailure };
@@ -180,6 +189,14 @@ export class AnthropicAiProvider implements AiProvider {
       options,
     );
     return result.ok ? { ...result, value: result.value.altText } : result;
+  }
+
+  generateDiagram(input: GenerateDiagramInput, options: AiCallOptions): Promise<AiResult<GeneratedDiagram>> {
+    return this.call(
+      { brand: input.brand, content: renderDiagramTask(input), format: FORMATS.diagram },
+      diagramOutputSchema,
+      options,
+    );
   }
 
   private request(spec: CallSpec, effort: AiEffort, maxTokens: number): MessageCreateParamsBase {

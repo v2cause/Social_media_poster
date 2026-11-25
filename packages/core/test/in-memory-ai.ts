@@ -9,6 +9,8 @@ import {
   type AiProvider,
   type AiRequest,
   type AiResult,
+  type GeneratedDiagram,
+  type GenerateDiagramInput,
   type GeneratedVariant,
   type GenerateVariantsInput,
   type ModelPrice,
@@ -200,6 +202,25 @@ export class ScriptedProvider implements AiProvider {
   suggestAltText(input: SuggestAltTextInput, options: { effort: string }): Promise<AiResult<string>> {
     this.calls.push({ method: 'suggestAltText', input, effort: options.effort });
     return this.altText(input);
+  }
+
+  diagram: (input: GenerateDiagramInput) => Promise<AiResult<GeneratedDiagram>> = () =>
+    Promise.resolve({
+      ok: true,
+      value: {
+        title: 'Drei Schritte zum Ziel',
+        altText: 'Ein Ablauf in drei Schritten.',
+        svg: '<svg xmlns="http://www.w3.org/2000/svg"/>',
+      },
+      report: reportOf(),
+    });
+
+  generateDiagram(
+    input: GenerateDiagramInput,
+    options: { effort: string },
+  ): Promise<AiResult<GeneratedDiagram>> {
+    this.calls.push({ method: 'generateDiagram', input, effort: options.effort });
+    return this.diagram(input);
   }
 }
 

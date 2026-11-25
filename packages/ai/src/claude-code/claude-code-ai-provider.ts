@@ -7,6 +7,8 @@ import type {
   AiResult,
   AltTextImage,
   BrandContext,
+  GeneratedDiagram,
+  GenerateDiagramInput,
   GenerateVariantsInput,
   RefineVariantInput,
   SuggestAltTextInput,
@@ -22,13 +24,19 @@ import { matchTargets } from '../anthropic/map-result';
 import { renderBrandContext } from '../prompts/render-brand-context';
 import {
   renderAltTextTask,
+  renderDiagramTask,
   renderGenerateTask,
   renderRefineTask,
   renderTopicsTask,
 } from '../prompts/render-task';
 import { renderSystemPrompt } from '../prompts/system-prompt';
 import { PROMPT_VERSION } from '../prompts/version';
-import { altTextOutputSchema, topicIdeasOutputSchema, variantsOutputSchema } from '../schemas';
+import {
+  altTextOutputSchema,
+  diagramOutputSchema,
+  topicIdeasOutputSchema,
+  variantsOutputSchema,
+} from '../schemas';
 import type { ClaudeCliRunner } from './claude-cli';
 import { failureOfResult, readCliOutcome, servedModelOf, structuredOf } from './cli-result';
 
@@ -102,6 +110,14 @@ export class ClaudeCodeAiProvider implements AiProvider {
       options,
     );
     return result.ok ? { ...result, value: result.value.altText } : result;
+  }
+
+  generateDiagram(input: GenerateDiagramInput, options: AiCallOptions): Promise<AiResult<GeneratedDiagram>> {
+    return this.call(
+      { brand: input.brand, text: renderDiagramTask(input), schema: diagramOutputSchema },
+      diagramOutputSchema,
+      options,
+    );
   }
 
   private async *variants(

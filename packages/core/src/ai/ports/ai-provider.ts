@@ -7,13 +7,14 @@ import type {
   AiTarget,
   BrandContext,
   ContentLanguage,
+  DiagramFormat,
   GeneratedVariant,
   RefineAction,
   TopicIdea,
 } from '../domain/types';
 
-// The AI port (architecture 5.1, ADR 0007). Implementations: AnthropicAiProvider and
-// MockAiProvider in @smp/ai, chosen by AI_PROVIDER.
+// The AI port (architecture 5.1, ADR 0007). Implementations: AnthropicAiProvider,
+// ClaudeCodeAiProvider (ADR 0047) and MockAiProvider in @smp/ai, chosen by AI_PROVIDER.
 
 export interface GenerateVariantsInput {
   brand: BrandContext;
@@ -70,6 +71,21 @@ export interface SuggestAltTextInput {
   context: string | null;
 }
 
+export interface GenerateDiagramInput {
+  brand: BrandContext;
+  language: ContentLanguage;
+  format: DiagramFormat;
+  /** What the diagram shows, in the user's words. */
+  description: string;
+}
+
+/** A diagram as Claude draws it (ADR 0048); the server checks the SVG before it renders it. */
+export interface GeneratedDiagram {
+  title: string;
+  altText: string;
+  svg: string;
+}
+
 export interface AiCallOptions {
   effort: AiEffort;
   /** Aborts the call, for example when the client disconnects. */
@@ -98,4 +114,5 @@ export interface AiProvider {
   refineVariant(input: RefineVariantInput, options: AiCallOptions): AsyncIterable<VariantStreamEvent>;
   suggestTopics(input: SuggestTopicsInput, options: AiCallOptions): Promise<AiResult<TopicIdea[]>>;
   suggestAltText(input: SuggestAltTextInput, options: AiCallOptions): Promise<AiResult<string>>;
+  generateDiagram(input: GenerateDiagramInput, options: AiCallOptions): Promise<AiResult<GeneratedDiagram>>;
 }

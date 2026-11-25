@@ -1,3 +1,4 @@
+import { DIAGRAM_ELEMENTS, DIAGRAM_SIZES, type GenerateDiagramInput } from '@smp/core';
 import type {
   GenerateVariantsInput,
   RefineAction,
@@ -131,5 +132,32 @@ export function renderAltTextTask(input: SuggestAltTextInput): string {
     '- altText: one or two sentences, at most 250 characters, that describe what matters in the image for people who cannot see it. No "image of" or "picture of".',
     '</task>',
     ...(input.context ? block('post_context', input.context) : []),
+  ]);
+}
+
+export function renderDiagramTask(input: GenerateDiagramInput): string {
+  const { width, height } = DIAGRAM_SIZES[input.format];
+  const size = `width="${String(width)}" height="${String(height)}" viewBox="0 0 ${String(width)} ${String(height)}"`;
+  return join([
+    '<task>',
+    'type: diagram',
+    `language: ${input.language}`,
+    `format: ${input.format}, ${String(width)} x ${String(height)} px`,
+    'fields:',
+    '- title: a short title of the diagram, at most 80 characters.',
+    '- altText: one or two sentences, at most 250 characters, that say what the diagram shows for people who cannot see it. No "image of" or "diagram of".',
+    '- svg: the complete diagram as one SVG document.',
+    'svg_rules:',
+    `- The root element is <svg xmlns="http://www.w3.org/2000/svg" ${size}>. Its first child is a rect that fills the canvas with the background color.`,
+    `- Use only these elements: ${DIAGRAM_ELEMENTS.join(', ')}.`,
+    '- No script, style, image, foreignObject, use, a, filter or animation elements, no href attributes, no event attributes, no class attributes and no external references. References inside the document are allowed as url(#id), for gradients, markers and clip paths.',
+    '- Set colors and fonts with presentation attributes such as fill, stroke, stroke-width, font-size and font-weight. Fonts: font-family="Arial, Helvetica, sans-serif".',
+    '- Every text is at least 28 px high, the title of the diagram larger. Wrap long labels yourself with tspan elements. No text leaves the canvas or overlaps other text or shapes.',
+    '- Keep a margin of at least 60 px on every side and a clear contrast between text and background.',
+    '- Use the colors the brand context names; without them, a calm palette of two or three colors on a light background.',
+    '- Choose the kind of diagram that fits the description: process steps, flow, comparison, timeline, cycle, hierarchy, bar or pie chart. Use only numbers and facts from the description; never invent data.',
+    '- All labels in the language of the task, short and readable on a phone.',
+    '</task>',
+    ...block('description', input.description),
   ]);
 }

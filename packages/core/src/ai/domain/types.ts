@@ -11,6 +11,43 @@ export type AiEffort = (typeof AI_EFFORTS)[number];
 export const AI_ROUTES = ['generate', 'refine', 'ideas', 'altText'] as const;
 export type AiRoute = (typeof AI_ROUTES)[number];
 
+/** The image formats of a diagram (ADR 0048): 1:1, 4:5 for the Instagram feed, 16:9. */
+export const DIAGRAM_FORMATS = ['square', 'portrait', 'landscape'] as const;
+export type DiagramFormat = (typeof DIAGRAM_FORMATS)[number];
+
+/** The pixel size of each format: what the prompt asks for and what the JPEG gets. */
+export const DIAGRAM_SIZES: Readonly<Record<DiagramFormat, { width: number; height: number }>> = {
+  square: { width: 1080, height: 1080 },
+  portrait: { width: 1080, height: 1350 },
+  landscape: { width: 1200, height: 675 },
+};
+
+/**
+ * The SVG elements a diagram may use: the prompt names them, and the renderer of @smp/media
+ * refuses every other one.
+ */
+export const DIAGRAM_ELEMENTS = [
+  'svg',
+  'g',
+  'defs',
+  'rect',
+  'circle',
+  'ellipse',
+  'line',
+  'polyline',
+  'polygon',
+  'path',
+  'text',
+  'tspan',
+  'linearGradient',
+  'radialGradient',
+  'stop',
+  'marker',
+  'clipPath',
+  'title',
+  'desc',
+] as const;
+
 export const EMOJI_POLICIES = ['none', 'sparse', 'normal'] as const;
 export type EmojiPolicy = (typeof EMOJI_POLICIES)[number];
 

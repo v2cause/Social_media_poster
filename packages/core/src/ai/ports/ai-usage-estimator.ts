@@ -1,4 +1,5 @@
 import type {
+  GenerateDiagramInput,
   GenerateVariantsInput,
   RefineVariantInput,
   SuggestAltTextInput,
@@ -9,7 +10,8 @@ export type AiRequest =
   | { task: 'generate'; input: GenerateVariantsInput }
   | { task: 'refine'; input: RefineVariantInput }
   | { task: 'ideas'; input: SuggestTopicsInput }
-  | { task: 'altText'; input: SuggestAltTextInput };
+  | { task: 'altText'; input: SuggestAltTextInput }
+  | { task: 'diagram'; input: GenerateDiagramInput };
 
 export interface TokenEstimate {
   inputTokens: number;

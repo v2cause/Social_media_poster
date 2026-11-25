@@ -130,6 +130,7 @@ describe('runEval', () => {
       },
       suggestTopics: () => Promise.reject(new Error('unused')),
       suggestAltText: () => Promise.reject(new Error('unused')),
+      generateDiagram: () => Promise.reject(new Error('unused')),
     };
 
     const report = await runEval(options({ provider, dryRun: true }));
