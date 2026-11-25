@@ -14,6 +14,15 @@ import { buildContentSecurityPolicy, createNonce, storageOrigins } from './secur
 // session against the API, and the API authorizes every call again.
 
 const PROTECTED = ['/w/', '/org/', '/account', '/onboarding'];
+// Pages of the sign-in. In the single-user mode (ADR 0046) there is no sign-in; they lead home.
+const SIGN_IN_PAGES = [
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+  '/invite',
+];
 // Better Auth's session cookie, with the prefix "__Host-" when cookies are secure (guide step 8.4).
 const SESSION_COOKIES = ['smp.session_token', '__Host-smp.session_token'];
 
@@ -27,9 +36,19 @@ function needsSignIn(request: NextRequest): boolean {
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
+const isSignInPage = (pathname: string): boolean =>
+  SIGN_IN_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
+
 export function proxy(request: NextRequest): NextResponse {
   const requestId = crypto.randomUUID();
-  if (needsSignIn(request)) {
+  const localMode = process.env['LOCAL_MODE'] === 'true';
+  if (localMode && isSignInPage(request.nextUrl.pathname)) {
+    const redirect = NextResponse.redirect(new URL('/', request.url));
+    redirect.headers.set(REQUEST_ID_HEADER, requestId);
+    return redirect;
+  }
+  // The API acts as the local owner for requests without a session in the single-user mode.
+  if (!localMode && needsSignIn(request)) {
     const login = new URL('/login', request.url);
     login.searchParams.set('next', `${request.nextUrl.pathname}${request.nextUrl.search}`);
     const redirect = NextResponse.redirect(login);

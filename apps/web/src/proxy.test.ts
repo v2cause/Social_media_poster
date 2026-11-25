@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { proxy } from './proxy';
 
@@ -34,5 +34,37 @@ describe('proxy', () => {
       'http://localhost:3000/login?next=%2Fw%2Fdemo%2Fposts%3Fstatus%3DFAILED',
     );
     expect(response.headers.get('x-request-id')).toMatch(UUID);
+  });
+
+  describe('in the single-user mode', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('opens app pages without a session cookie', () => {
+      vi.stubEnv('LOCAL_MODE', 'true');
+
+      const response = proxy(request('/w/demo/compose'));
+
+      expect(response.headers.get('location')).toBeNull();
+      expect(response.headers.get('content-security-policy')).toContain("default-src 'self'");
+    });
+
+    it('leads the sign-in pages home', () => {
+      vi.stubEnv('LOCAL_MODE', 'true');
+
+      for (const page of ['/login', '/signup', '/forgot-password', '/invite/abc']) {
+        const response = proxy(request(page));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe('http://localhost:3000/');
+      }
+    });
+
+    it('keeps the sign-in when the mode is off', () => {
+      vi.stubEnv('LOCAL_MODE', 'false');
+
+      expect(proxy(request('/login')).headers.get('location')).toBeNull();
+      expect(proxy(request('/w/demo')).headers.get('location')).toContain('/login');
+    });
   });
 });

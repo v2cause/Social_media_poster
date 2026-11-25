@@ -3,6 +3,8 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
+import { isLocalMode } from '@/lib/server/local-mode';
+
 import { Providers } from './providers';
 import './globals.css';
 
@@ -20,7 +22,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang={locale} className="scroll-pt-16">
       <body className="min-h-screen bg-background text-foreground antialiased">
         <NextIntlClientProvider>
-          <Providers>{children}</Providers>
+          <Providers localMode={isLocalMode()}>{children}</Providers>
         </NextIntlClientProvider>
       </body>
     </html>

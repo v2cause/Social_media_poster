@@ -49,6 +49,7 @@ import { BillingNoticeBar } from '@/features/billing/billing-notice';
 import { DeletionNoticeBar, OrganizationDeletedNotice } from '@/features/data/deletion-notice';
 import { LiveEventsProvider } from '@/features/live/live-events-provider';
 import { NotificationBell } from '@/features/notifications/notification-bell';
+import { useLocalMode } from '@/lib/local-mode';
 import { useSignOut } from '@/lib/use-sign-out';
 import { useStoredFlag } from '@/lib/use-stored-flag';
 
@@ -173,9 +174,13 @@ export function AppShell(props: {
   const [collapsed, setCollapsed] = useStoredFlag(COLLAPSED_KEY);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const localMode = useLocalMode();
   const role = props.area.kind === 'account' ? undefined : props.area.role;
   const items = navItems(props.area).filter(
-    (item) => !item.permission || (role !== undefined && can(role, item.permission)),
+    (item) =>
+      // Without billing in the single-user mode, the billing page has nothing to show.
+      !(localMode && item.key === 'billing') &&
+      (!item.permission || (role !== undefined && can(role, item.permission))),
   );
   const back = backTarget(props.area, props.memberships);
   const navigation = (compact: boolean) => (
@@ -378,6 +383,7 @@ function UserMenu({
 }) {
   const t = useTranslations('shell');
   const signOut = useSignOut();
+  const localMode = useLocalMode();
   const organizationId = area.kind === 'account' ? memberships[0]?.organizationId : area.organizationId;
   const initials = user.name
     .split(/\s+/)
@@ -415,7 +421,7 @@ function UserMenu({
             </Link>
           </DropdownMenuItem>
         ) : null}
-        {area.kind !== 'account' && can(area.role, 'billing.manage') ? (
+        {!localMode && area.kind !== 'account' && can(area.role, 'billing.manage') ? (
           <DropdownMenuItem asChild>
             <Link href={`/org/${area.organizationId}/billing`}>
               <CreditCard aria-hidden="true" />
@@ -423,8 +429,12 @@ function UserMenu({
             </Link>
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => void signOut()}>{t('signOut')}</DropdownMenuItem>
+        {localMode ? null : (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => void signOut()}>{t('signOut')}</DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
